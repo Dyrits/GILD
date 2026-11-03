@@ -1,0 +1,3 @@
+# Subagents become threads
+
+So the user can follow and write to every subagent, a harness's built-in subagent tool is switched off where the harness allows it, and agents open subagents through `open_thread`, making each one a full thread that can receive messages, be handed over, draw on a budget, and read the mission journal. Where a built-in subagent still runs, its events are mirrored into a child thread. A message the user writes to a mirrored subagent is queued and delivered by continuing it as a full thread once it finishes, because interrupting by default would discard the answer its parent is waiting for; interrupting at once stays a choice. Mirroring alone was rejected because a mirrored subagent belongs to the harness and cannot take the user's messages.

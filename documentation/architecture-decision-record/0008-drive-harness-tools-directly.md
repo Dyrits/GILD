@@ -1,0 +1,3 @@
+# Drive harness tools directly
+
+The local service drives each harness's own command-line tool (Claude Code over its JSON stream, Codex through its app server, OpenCode and others through ACP) rather than the vendors' SDKs. The Claude Agent SDK is under Anthropic's own terms rather than an open-source license, so depending on it would put a component that is not open source in every release; driving the tools directly keeps the product fully open source and lets us port MausBot's tested protocol handling (Apache 2.0). The cost is following protocol changes ourselves, which the update checks and a conformance test per harness catch. OpenBot uses the SDK for Claude Code; we took its install and update approach but not that choice.
