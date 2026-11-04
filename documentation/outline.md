@@ -4,6 +4,8 @@ People who work with several AI agents lose goals, context, and spending across 
 
 ## Actors
 
+The first build serves one user. Multiplayer is a future product goal; its collaboration model must be settled far enough to check architectural blockers before designing the first build.
+
 - **User**: the one person who owns the installation; starts missions, steers threads, grants approvals, and sets budgets.
 - **Harness**: an external agent runtime (Claude Code, Codex, and others) that carries out turns.
 - **Provider**: the user's own model account or API key that a harness bills.
@@ -22,7 +24,7 @@ People who work with several AI agents lose goals, context, and spending across 
 - **[workspace-attachment](capabilities/workspace-attachment/specifications.md)**: attaching each thread, before it starts, to one workspace browsed under the allowed roots or cloned from a repository, or to none; with an optional own copy of a git workspace.
 - **routine-running**: running a routine on its trigger, in its own thread or by opening new threads.
 - **workflow-running**: running a workflow, each step as a thread.
-- **tool-and-skill-loading**: giving every thread, whatever its harness, the global and workspace MCP servers, the thread tools, and the skills in scope for it.
+- **[tool-and-skill-loading](capabilities/tool-and-skill-loading/specifications.md)**: giving every thread its selected global and workspace MCP servers, required thread tools, and skill names and descriptions, with full instructions loaded when used and harness-specific skill preference.
 - **[scoped-intel](capabilities/scoped-intel/specifications.md)**: gathering and recalling intel at thread, workspace, or global scope.
 - **[action-approval](capabilities/action-approval/specifications.md)**: asking the user in plain language before a risky action, one approval per action and thread, with standing permissions for what the user always allows.
 - **[budget-control](capabilities/budget-control/specifications.md)**: budgets on each mission, on Control, and on all spending over a period, stopping new spending at the limit and shown as rings that fill as they are used.

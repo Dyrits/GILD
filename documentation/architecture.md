@@ -2,6 +2,20 @@
 
 OpenMission is a desktop application whose local service owns all data in one SQLite file and runs every thread through harness adapters. One Expo app is the interface everywhere: its web build runs in the Electron desktop window and as the installable phone web app, and the same code builds native phone apps later. A relay Worker, deployed by each user to their own Cloudflare account, carries the phone's end-to-end encrypted traffic and receives webhook triggers. Nothing is built yet; this is the agreed shape.
 
+## Future multiplayer: open architecture questions
+
+Multiplayer must eventually support both invited people joining one host's missions and collaboration across people's own installations. The single-user design below describes the first build. Before designing its modules and data model, settle shared-state ownership, execution ownership, and authority between participants for both forms.
+
+The current architecture has assumptions that need review:
+
+- A paired device represents the owner. Another person needs their own identity, access grants, and revocation; possession of a device pairing must not imply permission to all missions.
+- Approvals, standing permissions, and budgets refer to one user. Collaboration must identify who can authorize actions and whose provider account pays for execution.
+- Global intel, skills, and MCP connections currently belong to one installation. Collaboration must distinguish personal configuration and private data from shared mission context.
+- Workspace paths and harness processes belong to one computer. A shared mission needs a defined execution host; a path alone cannot identify a workspace across computers.
+- One local service owns mission state. Keeping one host authoritative may preserve this choice; collaboration across independently writable installations requires a synchronization and conflict model that is not designed yet.
+
+These are review questions, not an agreed multiplayer design. SQLite and the service boundary do not by themselves require replacement. The local-data requirement must be reconciled with whatever sharing model the user chooses.
+
 ## Stack
 
 - **Language**: TypeScript everywhere, in one Bun workspace.
@@ -46,8 +60,8 @@ OpenMission is a desktop application whose local service owns all data in one SQ
 - **Harness installs and updates**: for each harness, the local service runs the user's installed command-line tool when one is found, or a copy it downloads from the harness's official package and checks against the published hash. It checks for new versions and offers each update to the user, never running a tool's own updater. Approach learned from OpenBot's documentation; written independently.
 - **Harnesses (Claude Code, Codex, OpenCode, ACP harnesses)**: the local service starts them as local processes, and exchanges turns, tool calls, and permission requests. A harness that is not installed or not signed in shows as unavailable when choosing one; a thread whose harness fails stops with an error, and the user can hand it over to another.
 - **Providers**: reached only through each harness, with the user's own subscription or API key. OpenMission holds no provider credentials of its own.
-- **MCP servers (global and workspace)**: read from the user's and the workspace's configuration and passed to every harness. One that fails to start is reported in the thread, and the rest still load.
-- **Skills**: read from `~/.agents/skills`, `~/.claude/skills`, the workspace's `.agents/skills` and `.claude/skills`, and the skills installed in a thread and the threads above it. When two share a name, the narrower scope wins.
+- **MCP servers (global and workspace)**: configured in OpenMission and passed to every harness, subject to the thread's selection. Importing existing harness configuration is deferred. Conflicting names ask the user. A failed external server produces a warning; failed OpenMission thread tools put the thread in Attention with Retry. See [tool-and-skill-loading](capabilities/tool-and-skill-loading/specifications.md).
+- **Skills**: read from existing global and workspace skill folders and thread installations. The narrower scope wins; within a scope the chosen harness's folder wins, then `.agents/skills`, then other harness folders. Enabled skills' names, descriptions, and locations are available at turn start; full instructions load when used, with supporting files read as needed. Changes apply on the next turn; installation through the app is deferred. See [tool-and-skill-loading](capabilities/tool-and-skill-loading/specifications.md).
 - **Git**: the computer's installed `git`, with its existing sign-in, clones repositories, creates own copies as worktrees, and merges them. OpenMission stores no git credentials.
 - **Cloudflare**: the desktop app deploys the relay Worker to the user's account after one sign-in. When the relay is unreachable, phones on another network wait and reconnect, and webhook triggers are lost unless the sender retries.
 - **Connected services**: reached by threads through MCP servers, never directly by the local service.
@@ -71,6 +85,7 @@ OpenMission is a desktop application whose local service owns all data in one SQ
 | End-to-end encrypted phone traffic | Keys travel only in the pairing code, after `#`; the relay Worker forwards ciphertext only. |
 | Approval per action | Every approval question stops at the local service, which asks the user for each action and never reuses a single answer across actions or threads; standing permissions are stored only when the user chooses Always allow, and listed on the Permissions page. |
 | Single user | One local service and one SQLite file per installation. |
+| Future multiplayer | Both hosted participation and collaboration across installations are required later. Open: review identity, sharing, approval authority, billing, execution ownership, and synchronization before the first implementation design. |
 | End-to-end encrypted phone traffic (notifications) | Notifications carry no content; details travel only over the encrypted connection. |
 | Comply with provider terms | Harnesses sign in through their own tools (`claude auth login` and equivalents); the local service never reads or stores their credentials. |
 | Pair by QR code from anywhere | The pairing code opens the phone web app, which reaches the local service through the relay Worker from any network. |

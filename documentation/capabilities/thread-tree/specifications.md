@@ -43,7 +43,7 @@ Work with AI agents spreads across disconnected chats, and subagents run out of 
 | --- | --- |
 | Running | A turn is in progress. |
 | Waiting | It waits for a reply or for a thread beneath it. |
-| Attention | It waits for an approval, an answer, a raised budget, or a missing workspace folder from the user. Shown prominently and sent as a phone notification. |
+| Attention | It waits for an approval, an answer, a raised budget, a missing workspace folder, or a tool or skill loading problem that prevents a turn. Shown prominently and sent as a phone notification. |
 | Idle | No turn in progress and nothing awaited. |
 | Done | It reported its result. |
 | Failed | Its harness failed; the user can hand it over to another. |

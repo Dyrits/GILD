@@ -227,3 +227,15 @@ Reason: Every thread must work in the right folder with that folder's context, a
 References: documentation/capabilities/workspace-attachment/specifications.md, documentation/glossary.md, documentation/outline.md, documentation/architecture.md, documentation/backlog.md, documentation/capabilities/thread-tree/specifications.md, documentation/capabilities/mission-coordination/specifications.md, documentation/capabilities/scoped-intel/specifications.md, documentation/capabilities/action-approval/specifications.md
 Validation: Authorized by the user in the workspace-attachment interview, rounds 1 to 4, on 2026-11-04.
 Evidence: The user's answers to Q1 to Q22; Q20 read as keeping Own copy in version 1 with a simple merge, and Q21 as keeping workspace intel in OpenMission's data rather than a `.openmission` folder.
+
+## CHG-0013 · 2026-11-04 · Future multiplayer required
+
+Type: Documentation
+Event: Agreement
+Scope: Product scope and architecture
+
+Summary: Multiplayer is a future OpenMission goal, covering both people joining one host's missions and collaboration across their own installations. Single-user scope applies to the first build, and architectural assumptions that could block either form must be reviewed beforehand. Data sharing and authority remain open.
+Reason: Avoid building permanent single-owner assumptions into the first implementation.
+References: documentation/requirements.md, documentation/outline.md, documentation/architecture.md, documentation/backlog.md
+Validation: The user explicitly stated the future multiplayer goal and requested consideration of blockers before building.
+Evidence: The user stated the multiplayer goal and selected "Eventually both" when asked about hosted participation and collaboration across installations.

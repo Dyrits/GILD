@@ -13,4 +13,4 @@
 
 ## Handoffs
 
-To resume specifying the next capability, read the [current handoff](.agents/handoffs/2026-11-04-1645-specify-next-capability.md). Handoffs are shared and committed.
+To resume multiplayer architecture and tool loading, read the [current handoff](.agents/handoffs/2026-11-04-1903-multiplayer-and-tool-loading.md). Handoffs are shared and committed.

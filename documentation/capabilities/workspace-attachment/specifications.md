@@ -33,7 +33,7 @@ Agents work on files: a repository to fix, a folder of documents to sort. Each t
 
 ### What a workspace gives its threads
 
-- Its instructions, from the folder's own `AGENTS.md` and `CLAUDE.md`, and its skills and MCP servers, from its `.agents` and `.claude` folders. A harness that does not read these files itself gets them in its starting context.
+- Its instructions, from the folder's own `AGENTS.md` and `CLAUDE.md`, and its skills from `.agents`, `.claude`, and equivalent supported harness folders. Workspace MCP servers are configured in OpenMission. A harness that does not read the selected instructions itself gets them in its starting context. See [tool-and-skill-loading](../tool-and-skill-loading/specifications.md).
 - Its intel (see [scoped-intel](../scoped-intel/specifications.md)) and its standing permissions (see [action-approval](../action-approval/specifications.md)), kept in OpenMission's own data, never written into the folder, so they survive a relocation or a new clone.
 - Editing inside it without asking; editing outside it asks.
 - Each thread's starting context names its workspace and path, or says it has none.

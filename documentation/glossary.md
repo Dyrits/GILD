@@ -94,7 +94,7 @@ The user's permission for one kind of risky action, in a workspace, a mission, o
 _Avoid_: Rule, always-allow, grant
 
 **Attention**:
-The state of a thread that waits for the user: an approval, an answer, a decision after the chatter guard paused it, a budget reached, or a missing workspace folder.
+The state of a thread that waits for the user: an approval, an answer, a decision after the chatter guard paused it, a budget reached, a missing workspace folder, or a tool or skill loading problem that prevents a turn.
 _Avoid_: Needs you, blocked, pending
 
 **Budget**:
