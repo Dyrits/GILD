@@ -45,8 +45,20 @@ The one permanent thread outside every mission that the user can talk to about a
 _Avoid_: Coordinator, dispatcher, orchestrator, main thread, Mission control
 
 **Workspace**:
-A folder or repository on the user's computer that a thread can be attached to.
+A folder or repository on the user's computer, under a browsable root or cloned by OpenMission, that a thread is attached to before it starts.
 _Avoid_: Project, repo, directory
+
+**Browsable root**:
+A folder set in Settings under which the user and threads can browse and choose workspaces.
+_Avoid_: Allowed folder, sandbox
+
+**Scratch folder**:
+The folder OpenMission keeps for each mission, where its threads with no workspace work.
+_Avoid_: Temp folder, default workspace
+
+**Own copy**:
+A thread's own git worktree of a git workspace, on its own branch, shared by the threads beneath it and merged back with one button.
+_Avoid_: Worktree, fork, sandbox
 
 ## Execution
 
@@ -82,7 +94,7 @@ The user's permission for one kind of risky action, in a workspace, a mission, o
 _Avoid_: Rule, always-allow, grant
 
 **Attention**:
-The state of a thread that waits for the user: an approval, an answer, a decision after the chatter guard paused it, or a budget reached.
+The state of a thread that waits for the user: an approval, an answer, a decision after the chatter guard paused it, a budget reached, or a missing workspace folder.
 _Avoid_: Needs you, blocked, pending
 
 **Budget**:

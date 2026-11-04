@@ -43,7 +43,7 @@ Work with AI agents spreads across disconnected chats, and subagents run out of 
 | --- | --- |
 | Running | A turn is in progress. |
 | Waiting | It waits for a reply or for a thread beneath it. |
-| Attention | It waits for an approval, an answer, or a raised budget from the user. Shown prominently and sent as a phone notification. |
+| Attention | It waits for an approval, an answer, a raised budget, or a missing workspace folder from the user. Shown prominently and sent as a phone notification. |
 | Idle | No turn in progress and nothing awaited. |
 | Done | It reported its result. |
 | Failed | Its harness failed; the user can hand it over to another. |
@@ -97,7 +97,7 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
 
 | Tool | Purpose | Arguments | Answer |
 | --- | --- | --- | --- |
-| `open_thread` | Open a thread beneath the caller | A request; optionally a harness, agent, model, effort, and workspace | The new thread's identifier, or a refusal and its reason |
+| `open_thread` | Open a thread beneath the caller | A request; optionally a harness, agent, model, effort, workspace, and Own copy (see [workspace-attachment](../workspace-attachment/specifications.md)) | The new thread's identifier, or a refusal and its reason |
 | `find_missions` | Find missions that fit a request | The request | Up to 3 matching missions, each with its title, briefing, and state |
 | `suggest_mission` | Show the off-topic suggestion for a user's message | The off-topic part of the message, a proposed mission title, and the matching missions | The user's choice, and the identifier of the mission or aside the message went to |
 

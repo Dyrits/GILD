@@ -83,7 +83,7 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
 ## Dependencies
 
 - [thread-tree](../thread-tree/specifications.md): gives each new thread the intel in scope, and warns when its starting context is too large.
-- **workspace-attachment**: decides which workspace's intel a thread sees.
+- [workspace-attachment](../workspace-attachment/specifications.md): decides which workspace's intel a thread sees.
 - [action-approval](../action-approval/specifications.md): carries the approvals for global intel and widening.
 
 ## Exclusions

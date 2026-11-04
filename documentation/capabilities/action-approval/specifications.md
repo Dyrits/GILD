@@ -91,7 +91,7 @@ A withdrawn question gets no answer, since its turn has ended.
 - [scoped-intel](../scoped-intel/specifications.md): approvals for global intel.
 - [mission-coordination](../mission-coordination/specifications.md): Control's global intel saves.
 - **routine-running**: routine instructions that name actions.
-- **workspace-attachment**: the workspace a standing permission applies to.
+- [workspace-attachment](../workspace-attachment/specifications.md): the workspace a standing permission applies to.
 - **device-pairing**: answering from the phone.
 
 ## Exclusions

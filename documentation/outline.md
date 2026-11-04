@@ -19,7 +19,7 @@ People who work with several AI agents lose goals, context, and spending across 
 - **[thread-tree](capabilities/thread-tree/specifications.md)**: opening threads beneath a thread, by the user or by a thread, each with its own harness, agent, model, and effort; every subagent a harness starts shows up as a thread beneath the one that started it, so the user can follow it.
 - **[thread-messaging](capabilities/thread-messaging/specifications.md)**: thread messages in both directions along the tree, with replies and interruptions; the user can write in any open thread, including a subagent's.
 - **thread-handover**: changing a thread's harness, agent, model, or effort mid-thread, with the full history given to the new one.
-- **workspace-attachment**: attaching a thread to a workspace, or to none.
+- **[workspace-attachment](capabilities/workspace-attachment/specifications.md)**: attaching each thread, before it starts, to one workspace browsed under the allowed roots or cloned from a repository, or to none; with an optional own copy of a git workspace.
 - **routine-running**: running a routine on its trigger, in its own thread or by opening new threads.
 - **workflow-running**: running a workflow, each step as a thread.
 - **tool-and-skill-loading**: giving every thread, whatever its harness, the global and workspace MCP servers, the thread tools, and the skills in scope for it.
