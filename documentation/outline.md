@@ -13,7 +13,8 @@ People who work with several AI agents lose goals, context, and spending across 
 
 ## Capabilities
 
-- **[mission-tracking](capabilities/mission-tracking/specifications.md)**: starting missions and following their state, threads, and spending on the mission dashboard.
+- **[mission-tracking](capabilities/mission-tracking/specifications.md)**: starting missions and following their state, threads, and spending on the dashboard.
+- **[mission-coordination](capabilities/mission-coordination/specifications.md)**: talking to Control, the one permanent thread that opens or continues the right mission for any request, relays what missions report, and forwards messages that name no thread; threads reference threads in other missions with `@`.
 - **[mission-journal](capabilities/mission-journal/specifications.md)**: keeping each mission's summary and change log, read by every thread in the mission and updated as it works.
 - **[thread-tree](capabilities/thread-tree/specifications.md)**: opening threads beneath a thread, by the user or by a thread, each with its own harness, agent, model, and effort; every subagent a harness starts shows up as a thread beneath the one that started it, so the user can follow it.
 - **[thread-messaging](capabilities/thread-messaging/specifications.md)**: thread messages in both directions along the tree, with replies and interruptions; the user can write in any open thread, including a subagent's.

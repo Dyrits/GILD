@@ -9,6 +9,8 @@ Subagents in today's harnesses report once at the end and cannot be asked or red
 ### Who can message whom
 
 - A thread can message its parent and the threads directly beneath it. Siblings reach each other through their parent.
+- A thread, or the user writing in it, can also message any thread or mission it references explicitly with `@`, for example `@Read my emails › Triage`, in its own mission or another. A reference to a mission reaches its top thread. The reply comes straight back (see [mission-coordination](../mission-coordination/specifications.md#references-between-missions)).
+- Without a reference, a thread reaches another mission only through `@Control`.
 - The user can write to any open thread, including a subagent's (for mirrored subagents, see [thread-tree](../thread-tree/specifications.md#subagents)).
 - Every message shows its sender: the user, or the sending thread.
 - A message can ask for a reply.
@@ -37,14 +39,15 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
 
 | Tool | Purpose | Arguments | Answer |
 | --- | --- | --- | --- |
-| `send_thread_message` | Send a message | Receiving thread, text, whether a reply is wanted | The message's identifier, or a refusal and its reason (a thread outside its reach, a stopped thread) |
+| `send_thread_message` | Send a message | Receiving thread (a parent, a thread directly beneath, a referenced thread or mission, or Control), text, whether a reply is wanted | The message's identifier, or a refusal and its reason (a thread outside its reach, a stopped thread) |
 | `report_result` | Report the thread's result to its parent | — | — |
 | `interrupt_thread` | Interrupt a thread directly beneath the caller | — | — |
 
 ## Acceptance and validation
 
 - **Automated, with a fake harness**:
-  - messages to the parent and to threads beneath, and the refusal for siblings and threads farther away;
+  - messages to the parent and to threads beneath, and the refusal for siblings and threads farther away unless referenced with `@`;
+  - a referenced thread in another mission receiving a message and replying directly;
   - delivery into a running turn and at the next turn, for harnesses with and without mid-turn input;
   - steering and queuing user messages, and the default setting;
   - waking Waiting, Idle, and Done threads, and two threads waiting on each other;
@@ -64,6 +67,6 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
 
 ## Exclusions
 
-- Messages between threads in different missions.
+- Messages between threads in different missions without an explicit reference or Control.
 - Attachments other than text.
 - Editing or deleting a sent message.

@@ -140,3 +140,27 @@ Reason: The user sees where every mission stands, what needs them, and what it c
 References: documentation/capabilities/mission-tracking/specifications.md, documentation/architecture.md, documentation/backlog.md, documentation/outline.md
 Validation: Authorized by the user in the mission-tracking interview, rounds 1 to 3, on 2026-11-04.
 Evidence: The user's answers to Q1 to Q12.
+
+## CHG-0009 · 2026-11-04 · Mission coordination specified
+
+Type: Documentation
+Event: Agreement
+Scope: Mission coordination, thread messaging, glossary
+
+Summary: Agreed the observable behavior and acceptance of mission-coordination:
+- Control is pinned at the top of the dashboard on every device, cannot be deleted or ended, and can be hidden by a setting;
+- it answers only questions about missions and OpenMission, and opens a mission for anything else, after offering up to 3 matching missions as Continue in;
+- it picks a new mission's tier (Light, Balanced, Heavy, from settings) by the request's complexity, or the default model, and shows the choice;
+- missions it opened tell it their result, Needs you, and Failed; it reads other missions only when asked;
+- it acts on missions only at the user's request, with the dashboard's confirmations;
+- it has no journal, starts each turn with the dashboard as text, global intel, and its 20 latest messages, and reads older ones only when asked;
+- it uses global intel only, each save approved;
+- the thread tools `open_mission`, `act_on_mission`, and `read_control_history`.
+Also agreed for thread-messaging: a thread or the user can message any thread or mission referenced with `@`, across missions, with the reply coming straight back; without a reference, `@Control` forwards the message. Cross-mission messages are labelled in both threads, shown as event lines in Control, and covered by the chatter guard.
+Also agreed for the glossary: "Mission journal" becomes Journal and "Mission dashboard" becomes Dashboard, renamed throughout; the list Control reads is the dashboard as text, with no term of its own.
+Also made consistent with Control: a mission is a top thread other than Control (glossary, thread-tree); the architecture's thread message flow now matches thread-messaging and gains a Control flow; decision record 0005 notes the new cross-mission reach.
+Recorded in the backlog: comparing Electron with Tauri and a Bun-compiled service, through a prototype. The Control backlog item is now specified and removed.
+Reason: A less experienced user works through one chat, and missions reach each other explicitly without breaking the tree.
+References: documentation/capabilities/mission-coordination/specifications.md, documentation/capabilities/thread-messaging/specifications.md, documentation/capabilities/thread-tree/specifications.md, documentation/architecture.md, documentation/architecture-decision-record/0005-thread-tools-over-mcp.md, documentation/glossary.md, documentation/outline.md, documentation/backlog.md
+Validation: Authorized by the user in the mission-coordination interview, rounds 1 to 3, on 2026-11-04.
+Evidence: The user's answers to Q1 to Q22.

@@ -53,7 +53,7 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
 
 | Tool | Purpose | Arguments | Answer |
 | --- | --- | --- | --- |
-| `read_journal` | Read the mission journal | Optionally a starting point and a number of entries | The summary, its version, and those entries |
+| `read_journal` | Read the mission's journal | Optionally a starting point and a number of entries | The summary, its version, and those entries |
 | `update_journal` | Record a change | An entry; optionally a new summary and the version it was based on | The new version, or a refusal with the current summary and version |
 
 ## Acceptance and validation

@@ -26,7 +26,7 @@ Facts, preferences, and decisions learned in one thread are lost to the next, or
 - A thread chooses the narrowest scope that fits.
 - It saves thread and workspace intel on its own, and shows each save in the thread.
 - It saves global intel only after the user's approval.
-- An intel holds at most 200 tokens, estimated as for the [mission journal](../mission-journal/specifications.md#size), so one intel holds one fact.
+- An intel holds at most 200 tokens, estimated as for the [journal](../mission-journal/specifications.md#size), so one intel holds one fact.
 - A rule the user gives in a chat, such as "always run the tests before a commit", is saved as an intel without the user asking. Instructions are only what the user writes in settings.
 
 ### Correcting and deleting
@@ -88,6 +88,6 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
 
 ## Exclusions
 
-- Where the mission stands belongs to the [mission journal](../mission-journal/specifications.md).
+- Where the mission stands belongs to the [journal](../mission-journal/specifications.md).
 - Instructions, which only the user writes, in settings.
 - Semantic search; full-text search comes first (see [0002](../../architecture-decision-record/0002-one-local-service-owns-all-data.md)).

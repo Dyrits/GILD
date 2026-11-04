@@ -8,7 +8,7 @@ Work with AI agents spreads across disconnected chats, and subagents run out of 
 
 ### Threads and missions
 
-- Every thread has its own identifier and at most one parent thread. A thread with no parent is a mission's top thread; the mission is that thread and every thread beneath it.
+- Every thread has its own identifier and at most one parent thread. A thread with no parent is a mission's top thread, except Control (see [mission-coordination](../mission-coordination/specifications.md)); the mission is that thread and every thread beneath it.
 - The user can open a thread beneath any thread, or a new mission. A thread can open threads only beneath itself.
 - Each thread shows its harness, agent (when one is chosen), model, effort, workspace (or none), state, and spending.
 
@@ -18,9 +18,9 @@ Work with AI agents spreads across disconnected chats, and subagents run out of 
 - When the user opens a thread, these settings are shown and can be changed until the user sends its first message.
 - A new thread starts with:
   - the opener's request;
-  - the mission journal's summary and its 20 latest entries (see [mission-journal](../mission-journal/specifications.md#reading));
+  - the journal's summary and its 20 latest entries (see [mission-journal](../mission-journal/specifications.md#reading));
   - the intel and skills in scope for it;
-  - the opener's messages since the mission journal's last change log entry.
+  - the opener's messages since the journal's last change log entry.
   None of the opener's earlier history is included. When this exceeds the new model's context window, the oldest part is summarized.
 - When this starting context would take more than 25% of the chosen model's context window, the user is warned before the thread starts, with the choice of a model with a larger window or trimming intel.
 
@@ -51,7 +51,7 @@ Work with AI agents spreads across disconnected chats, and subagents run out of 
 
 ### Off-topic requests
 
-- When a message from the user clearly shares nothing with the mission, judged by the thread's agent against the mission journal's summary, the thread does not answer it. Merely unexpected messages do not count.
+- When a message from the user clearly shares nothing with the mission, judged by the thread's agent against the journal's summary, the thread does not answer it. Merely unexpected messages do not count.
 - The thread first looks for other missions that fit the request, by their titles and journal summaries only. Every mission that is not deleted counts, whatever its state.
 - It then shows a suggestion with these choices:
   - **Continue in "mission title"**: one for each matching mission, best match first, at most 3, each showing that mission's state;
@@ -62,10 +62,10 @@ Work with AI agents spreads across disconnected chats, and subagents run out of 
 - **Open as new mission** opens a new mission whose top thread starts fresh with only the off-topic part of the message. Nothing from the current mission is preloaded: no journal, no messages, no workspace. Global skills and intel stay available to it, as to any thread. Its harness, agent, model, and effort copy the current thread's, and the user can change them before it starts.
 - **Keep as aside** opens an aside beneath the current thread. It starts with:
   - the off-topic part of the message;
-  - the mission journal's summary;
+  - the journal's summary;
   - a note that the message went off the mission's topic and was put aside;
   - the rule that whenever the conversation comes back to the mission, the aside informs its parent with a thread message saying what is relevant.
-  An aside does not update the mission journal itself; its parent decides what to record.
+  An aside does not update the journal itself; its parent decides what to record.
 - Either way, the original thread keeps the message with a link to where it went (for example "Moved to mission: Read my emails") and carries on as if the message had not been sent to it.
 
 ### Results

@@ -5,7 +5,7 @@ OpenMission organizes a person's work with AI agents as missions carried out in 
 ## Work
 
 **Mission**:
-A top-level thread together with every thread opened beneath it. A quick chat is a mission too.
+A top-level thread other than Control, together with every thread opened beneath it. A quick chat is a mission too.
 _Avoid_: Goal, objective, task, ticket, project
 
 **Thread**:
@@ -21,20 +21,20 @@ A thread opened beneath the current one for an off-topic request the user chose 
 _Avoid_: Side thread, tangent
 
 **Thread message**:
-A message one thread sends another, in either direction along the tree, that can ask for a reply.
+A message one thread sends another, in either direction along the tree, or to any thread it references with `@`, that can ask for a reply.
 _Avoid_: Ping, notification
 
 **Steer**:
 To deliver a message into a thread's current turn, changing its course without waiting for the turn to end. Its counterpart is to queue the message for the next turn.
 _Avoid_: Inject, nudge
 
-**Mission journal**:
+**Journal**:
 The record a mission keeps as it evolves: a summary of where it stands, rewritten as it changes, and a dated change log only ever added to. Every thread in the mission starts from it and may update it.
-_Avoid_: Mission memory, mission history, brief
+_Avoid_: Mission journal, mission memory, mission history, brief
 
-**Mission dashboard**:
-The overview of all missions with their state, threads, and spending.
-_Avoid_: Board, kanban
+**Dashboard**:
+The one overview of all missions with their state, threads, spending, and the start of each journal summary. Control reads it as text.
+_Avoid_: Mission dashboard, index, mission list, board, kanban
 
 **Control**:
 The one permanent thread outside every mission that the user can talk to about anything. It opens a mission for each task and never does the work itself.
