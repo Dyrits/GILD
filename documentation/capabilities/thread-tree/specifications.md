@@ -43,10 +43,21 @@ Work with AI agents spreads across disconnected chats, and subagents run out of 
 
 ### Off-topic requests
 
-- When a message from the user clearly shares nothing with the mission, judged by the thread's agent against the mission journal's summary, the thread does not answer it. It shows a suggestion: "This looks like a new mission", with **Open as new mission** and **Keep as aside**. Merely unexpected messages do not count.
-- A setting lets the thread open the new mission without asking.
+- When a message from the user clearly shares nothing with the mission, judged by the thread's agent against the mission journal's summary, the thread does not answer it. Merely unexpected messages do not count.
+- The thread first looks for other missions that fit the request, by their titles and journal summaries only. Every mission that is not deleted counts, whatever its state.
+- It then shows a suggestion with these choices:
+  - **Continue in "mission title"**: one for each matching mission, best match first, at most 3, each showing that mission's state;
+  - **Open as new mission**;
+  - **Keep as aside**.
+- **Continue in** sends the off-topic part to that mission's top thread as the user's message, steering or queued as the user's default sets. As with any message, it wakes the thread if it is Done or Idle.
+- A setting lets the thread open a new mission without asking when no other mission matches.
 - **Open as new mission** opens a new mission whose top thread starts fresh with only the off-topic part of the message. Nothing from the current mission is preloaded: no journal, no messages, no workspace. Global skills and intel stay available to it, as to any thread. Its harness, agent, model, and effort copy the current thread's, and the user can change them before it starts.
-- **Keep as aside** opens an aside beneath the current thread, starting fresh the same way. An aside, and every thread beneath it, neither reads nor updates the mission journal.
+- **Keep as aside** opens an aside beneath the current thread. It starts with:
+  - the off-topic part of the message;
+  - the mission journal's summary;
+  - a note that the message went off the mission's topic and was put aside;
+  - the rule that whenever the conversation comes back to the mission, the aside informs its parent with a thread message saying what is relevant.
+  An aside does not update the mission journal itself; its parent decides what to record.
 - Either way, the original thread keeps the message with a link to where it went (for example "Moved to mission: Read my emails") and carries on as if the message had not been sent to it.
 
 ### Results
@@ -79,7 +90,8 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
 | Tool | Purpose | Arguments | Answer |
 | --- | --- | --- | --- |
 | `open_thread` | Open a thread beneath the caller | A request; optionally a harness, agent, model, effort, and workspace | The new thread's identifier, or a refusal and its reason |
-| `suggest_mission` | Show the off-topic suggestion for a user's message | The off-topic part of the message, and a proposed mission title | The user's choice, and the identifier of the new mission or aside |
+| `find_missions` | Find missions that fit a request | The request | Up to 3 matching missions, each with its title, journal summary, and state |
+| `suggest_mission` | Show the off-topic suggestion for a user's message | The off-topic part of the message, a proposed mission title, and the matching missions | The user's choice, and the identifier of the mission or aside the message went to |
 
 ## Acceptance and validation
 
@@ -94,7 +106,9 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
   - deleting with its count;
   - each limit's refusal;
   - mirrored subagents with queued messages;
-  - the off-topic suggestion and both choices: the fresh start, the link left behind, and the setting that skips the suggestion.
+  - the off-topic suggestion and both choices: the new mission's fresh start, the aside's starting context, the link left behind, and the setting that skips the suggestion;
+  - an aside informing its parent when the conversation comes back to the mission;
+  - matching missions offered first, including Done and Idle ones, deleted ones never offered, and Continue in waking the chosen mission.
 - **Human acceptance**: on the desktop and on the phone web app, the user follows a mission with at least 3 levels of threads on 2 different harnesses, writes to one of the subagents, and stops one branch.
 
 ## Requirements

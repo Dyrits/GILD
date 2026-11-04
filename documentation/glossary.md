@@ -17,7 +17,7 @@ One exchange in a thread, recording the harness, agent, model, and effort that p
 _Avoid_: Step, round
 
 **Aside**:
-A thread opened beneath the current one for an off-topic request the user chose to keep in the mission, starting fresh with only that request and kept out of the mission journal.
+A thread opened beneath the current one for an off-topic request the user chose to keep in the mission. It knows the mission's summary and informs its parent when the conversation comes back to the mission, but does not update the journal itself.
 _Avoid_: Side thread, tangent
 
 **Thread message**:
