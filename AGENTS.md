@@ -7,3 +7,6 @@
 - `documentation/glossary.md`: the domain language. Read before naming anything; use its terms.
 - `documentation/architecture.md`: the system's parts, flows, and how each requirement is met. Read before any technical or structural change.
 - `documentation/architecture-decision-record/`: why hard-to-reverse choices were made. Read before reversing one; add a record for each new one.
+- `documentation/capabilities/<capability>/specifications.md`: each capability's agreed behavior and acceptance. Read before changing that capability.
+- `documentation/backlog.md`: candidate work and deferrals. Read when choosing what to do next.
+- `documentation/changelog.md`: authorized agreements and verified deliveries. Append a record for each.

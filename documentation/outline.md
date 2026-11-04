@@ -15,8 +15,8 @@ People who work with several AI agents lose goals, context, and spending across 
 
 - **mission-tracking**: starting missions and following their state, threads, and spending on the mission dashboard.
 - **mission-journal**: keeping each mission's summary and change log, read by every thread in the mission and updated as it works.
-- **thread-tree**: opening threads beneath a thread, by the user or by a thread, each with its own harness, agent, model, and effort; every subagent a harness starts shows up as a thread beneath the one that started it, so the user can follow it.
-- **thread-messaging**: thread messages in both directions along the tree, with replies and interruptions; the user can write in any open thread, including a subagent's.
+- **[thread-tree](capabilities/thread-tree/specifications.md)**: opening threads beneath a thread, by the user or by a thread, each with its own harness, agent, model, and effort; every subagent a harness starts shows up as a thread beneath the one that started it, so the user can follow it.
+- **[thread-messaging](capabilities/thread-messaging/specifications.md)**: thread messages in both directions along the tree, with replies and interruptions; the user can write in any open thread, including a subagent's.
 - **thread-handover**: changing a thread's harness, agent, model, or effort mid-thread, with the full history given to the new one.
 - **workspace-attachment**: attaching a thread to a workspace, or to none.
 - **routine-running**: running a routine on its trigger, in its own thread or by opening new threads.

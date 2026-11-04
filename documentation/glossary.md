@@ -16,9 +16,17 @@ _Avoid_: Sub-thread, child thread, chat, conversation, session
 One exchange in a thread, recording the harness, agent, model, and effort that produced it.
 _Avoid_: Step, round
 
+**Aside**:
+A thread opened beneath the current one for an off-topic request the user chose to keep in the mission, starting fresh with only that request and kept out of the mission journal.
+_Avoid_: Side thread, tangent
+
 **Thread message**:
 A message one thread sends another, in either direction along the tree, that can ask for a reply.
 _Avoid_: Ping, notification
+
+**Steer**:
+To deliver a message into a thread's current turn, changing its course without waiting for the turn to end. Its counterpart is to queue the message for the next turn.
+_Avoid_: Inject, nudge
 
 **Mission journal**:
 The record a mission keeps as it evolves: a summary of where it stands, rewritten as it changes, and a dated change log only ever added to. Every thread in the mission starts from it and may update it.
