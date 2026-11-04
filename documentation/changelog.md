@@ -239,3 +239,27 @@ Reason: Avoid building permanent single-owner assumptions into the first impleme
 References: documentation/requirements.md, documentation/outline.md, documentation/architecture.md, documentation/backlog.md
 Validation: The user explicitly stated the future multiplayer goal and requested consideration of blockers before building.
 Evidence: The user stated the multiplayer goal and selected "Eventually both" when asked about hosted participation and collaboration across installations.
+
+## CHG-0014 · 2026-11-04 · Provisional shared mission ownership
+
+Type: Documentation
+Event: Agreement
+Scope: Multiplayer architecture
+
+Summary: For now, each shared mission has one host installation owning its authoritative state. Collaborators join from a browser or their own installation; collaboration pauses while the host is offline. This choice is subject to evolution. Execution ownership, participant authority, and private versus shared context remain open.
+Reason: Preserve the local service and SQLite design without requiring replicated state and offline conflict rules before the first build.
+References: documentation/architecture.md
+Validation: The user accepted the recommendation in multiplayer Q1 on 2026-11-04.
+Evidence: "Yes for now, but subject to evolve."
+
+## CHG-0015 · 2026-11-04 · Vite+ removed from the stack
+
+Type: Documentation
+Event: Agreement
+Scope: Toolchain
+
+Summary: Removed Vite+ from the chosen stack. The app uses Expo CLI with Metro. Tooling for other packages, tests, linting, and formatting remains open; the alternatives suggested in the discussion were not adopted.
+Reason: Expo already supplies the app's bundler, and the other packages do not yet justify a unified Vite+ toolchain.
+References: documentation/architecture.md
+Validation: The user explicitly requested removal of Vite+ and a committed, pushed handoff.
+Evidence: "Remove Vite+ from our choice."

@@ -4,24 +4,28 @@ OpenMission is a desktop application whose local service owns all data in one SQ
 
 ## Future multiplayer: open architecture questions
 
-Multiplayer must eventually support both invited people joining one host's missions and collaboration across people's own installations. The single-user design below describes the first build. Before designing its modules and data model, settle shared-state ownership, execution ownership, and authority between participants for both forms.
+Multiplayer must eventually support both invited people joining one host's missions and collaboration across people's own installations. The single-user design below describes the first build. Before designing its modules and data model, settle execution ownership and authority between participants for both forms.
+
+For now, each shared mission has one host installation that owns its authoritative state. Collaborators join from a browser or their own installation. Collaboration pauses while that host is offline. The user accepted this working choice on 2026-11-04, subject to evolution; replicated state and offline edits remain possible future changes. This does not decide where threads execute or what participants may access or authorize.
 
 The current architecture has assumptions that need review:
+
+The discussion is considering host-only execution with two guest permissions: guests who may trigger agents and guests who may only discuss. The user proposed replies within a discussion that the host can choose to send to an agent, or convey in their own words. These proposals still need a completed behavior agreement, including which messages enter agent context. Automatic discussion summarization is deferred in the [backlog](backlog.md).
 
 - A paired device represents the owner. Another person needs their own identity, access grants, and revocation; possession of a device pairing must not imply permission to all missions.
 - Approvals, standing permissions, and budgets refer to one user. Collaboration must identify who can authorize actions and whose provider account pays for execution.
 - Global intel, skills, and MCP connections currently belong to one installation. Collaboration must distinguish personal configuration and private data from shared mission context.
 - Workspace paths and harness processes belong to one computer. A shared mission needs a defined execution host; a path alone cannot identify a workspace across computers.
-- One local service owns mission state. Keeping one host authoritative may preserve this choice; collaboration across independently writable installations requires a synchronization and conflict model that is not designed yet.
+- One local service owns mission state under the current working choice. If independently writable replicas are introduced later, they will require synchronization and conflict rules.
 
-These are review questions, not an agreed multiplayer design. SQLite and the service boundary do not by themselves require replacement. The local-data requirement must be reconciled with whatever sharing model the user chooses.
+Only mission-state ownership is settled provisionally; the remaining questions are open. SQLite and the service boundary do not by themselves require replacement. The local-data requirement must be reconciled with whatever sharing model the user chooses.
 
 ## Stack
 
 - **Language**: TypeScript everywhere, in one Bun workspace.
 - **Runtime**: Node for the local service; Bun for package management and scripts.
 - **Effect**: Effect 4 in the local service and the relay Worker; not in the UI. See [0010](architecture-decision-record/0010-effect-in-the-service-and-relay.md).
-- **Toolchain**: Vite+ (builds, Vitest, Oxlint, formatting) for every package except the app, which builds with Expo's own bundler.
+- **Toolchain**: Expo CLI with Metro builds the app. Vite+ is excluded; tooling for the other packages, tests, linting, and formatting remains to be chosen.
 - **Desktop shell**: Electron. See [0004](architecture-decision-record/0004-electron-desktop-shell.md).
 - **Storage**: one SQLite file, with full-text search for intel; `sqlite-vec` later if semantic search is needed. See [0002](architecture-decision-record/0002-one-local-service-owns-all-data.md).
 - **Harness integration**: each harness's command-line tool driven directly: Claude Code over its JSON stream, Codex through its app server, OpenCode and others through the Agent Client Protocol (ACP). See [0008](architecture-decision-record/0008-drive-harness-tools-directly.md).

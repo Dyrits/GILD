@@ -1,6 +1,7 @@
 # Backlog
 
 - **Multiplayer architecture**: both joining one host's missions and collaboration across installations are required later. Before designing the first build, review identities, access, approvals, billing, private MCP connections and intel, execution hosts, shared-state ownership, and synchronization. See [architecture](architecture.md#future-multiplayer-open-architecture-questions).
+- **Discussion summarization** (multiplayer): automatic summaries of guest discussions are deferred. The user set this aside after discussing the extra model use; it is not required for the first multiplayer version.
 
 - **Skill installation** (tool-and-skill-loading): install skills through the app; version 1 reads existing skill folders.
 - **MCP configuration import** (tool-and-skill-loading): import existing harness MCP configuration; version 1 manages global and workspace servers in OpenMission.
