@@ -18,16 +18,24 @@ Work with AI agents spreads across disconnected chats, and subagents run out of 
 - When the user opens a thread, these settings are shown and can be changed until the user sends its first message.
 - A new thread starts with:
   - the opener's request;
-  - the mission journal;
+  - the mission journal's summary and its 20 latest entries (see [mission-journal](../mission-journal/specifications.md#reading));
   - the intel and skills in scope for it;
   - the opener's messages since the mission journal's last change log entry.
   None of the opener's earlier history is included. When this exceeds the new model's context window, the oldest part is summarized.
+- When this starting context would take more than 25% of the chosen model's context window, the user is warned before the thread starts, with the choice of a model with a larger window or trimming intel.
 
 ### Subagents
 
 - Every subagent a harness starts appears as a thread beneath the thread that started it.
 - Where the harness allows it, subagents are opened as full threads (see [0007](../../architecture-decision-record/0007-subagents-become-threads.md)).
 - Otherwise the subagent is mirrored: its thread shows everything it does. A message the user writes there is queued; when the subagent finishes, the thread continues as a full thread from its history with that message. The user can instead choose to interrupt it and continue it at once.
+
+### Threads opened by agents
+
+- The setting **Show threads opened by agents** is on by default.
+- When it is off, the threads an agent opened fold into the thread that opened them, which shows their count, for example "+3 threads". The user can unfold them.
+- A folded thread still appears when it becomes Needs you or Failed.
+- Folding changes only the view. Folded threads still exist, run, and receive messages.
 
 ### Thread states
 
@@ -106,6 +114,7 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
   - deleting with its count;
   - each limit's refusal;
   - mirrored subagents with queued messages;
+  - folding threads opened by agents, with their count, and a folded thread appearing when it becomes Needs you or Failed;
   - the off-topic suggestion and both choices: the new mission's fresh start, the aside's starting context, the link left behind, and the setting that skips the suggestion;
   - an aside informing its parent when the conversation comes back to the mission;
   - matching missions offered first, including Done and Idle ones, deleted ones never offered, and Continue in waking the chosen mission.
@@ -119,7 +128,7 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
 ## Dependencies
 
 - [thread-messaging](../thread-messaging/specifications.md): carries results and messages.
-- **mission-journal**, **scoped-intel**, **tool-and-skill-loading**: provide a new thread's starting context.
+- [mission-journal](../mission-journal/specifications.md), **scoped-intel**, **tool-and-skill-loading**: provide a new thread's starting context.
 - **budget-control**: provides budgets.
 - **thread-handover**: continues mirrored subagents and failed threads.
 

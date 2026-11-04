@@ -13,4 +13,4 @@
 
 ## Handoffs
 
-To resume specifying mission-journal and scoped-intel, read the [current handoff](.agents/handoffs/2026-11-04-0118-specify-journal-and-intel.md). Handoffs are shared and committed.
+To resume specifying the next capability, read the [current handoff](.agents/handoffs/2026-11-04-1019-specify-next-capability.md). Handoffs are shared and committed.

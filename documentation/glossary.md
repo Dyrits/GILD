@@ -36,6 +36,10 @@ _Avoid_: Mission memory, mission history, brief
 The overview of all missions with their state, threads, and spending.
 _Avoid_: Board, kanban
 
+**Control**:
+The one permanent thread outside every mission that the user can talk to about anything. It opens a mission for each task and never does the work itself.
+_Avoid_: Coordinator, dispatcher, orchestrator, main thread, Mission control
+
 **Workspace**:
 A folder or repository on the user's computer that a thread can be attached to.
 _Avoid_: Project, repo, directory
@@ -100,11 +104,11 @@ _Avoid_: Prompt, system prompt
 ## Intel
 
 **Intel**:
-A saved fact, preference, or decision, held at one intel scope. One item is an intel entry.
+A saved fact, preference, or decision, held at one intel scope. One item is an intel; several are intels.
 _Avoid_: Memory, note, knowledge, lore
 
 **Intel scope**:
-Where an intel entry lives and who sees it: a thread (and the threads beneath it), a workspace, or global.
+Where an intel lives and who sees it: a thread (and the threads beneath it), a workspace, or global.
 
 ## Devices
 
