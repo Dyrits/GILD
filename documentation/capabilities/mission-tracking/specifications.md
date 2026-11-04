@@ -41,7 +41,7 @@ When work runs in many threads across harnesses, the user loses track of which m
 
 ### Dashboard
 
-- Each mission row shows its title, state, workspace, thread count with how many are running, spending, and last activity.
+- Each mission row shows its title, state, workspace, thread count with how many are running, spending with its budget rings when it has a budget, and last activity.
 - Missions that need the user come first; the rest follow by latest activity.
 - The user can filter by state and workspace, and search titles and briefings.
 - Archived missions have their own view.
@@ -85,7 +85,7 @@ Threads use this thread tool (see [0005](../../architecture-decision-record/0005
 
 - [thread-tree](../thread-tree/specifications.md): threads, their states, and deleting a mission.
 - [mission-journal](../mission-journal/specifications.md): the entry added when a mission ends, and the briefings searched.
-- **budget-control**: budgets behind the spending shown.
+- [budget-control](../budget-control/specifications.md): budgets and their rings beside the spending shown.
 
 ## Exclusions
 

@@ -25,7 +25,7 @@ People who work with several AI agents lose goals, context, and spending across 
 - **tool-and-skill-loading**: giving every thread, whatever its harness, the global and workspace MCP servers, the thread tools, and the skills in scope for it.
 - **[scoped-intel](capabilities/scoped-intel/specifications.md)**: gathering and recalling intel at thread, workspace, or global scope.
 - **[action-approval](capabilities/action-approval/specifications.md)**: asking the user in plain language before a risky action, one approval per action and thread, with standing permissions for what the user always allows.
-- **budget-control**: budgets on missions and threads, drawn down by the threads beneath them.
+- **[budget-control](capabilities/budget-control/specifications.md)**: budgets on each mission, on Control, and on all spending over a period, stopping new spending at the limit and shown as rings that fill as they are used.
 - **device-pairing**: pairing a phone with one pairing code and using OpenMission from it on any network.
 
 See also the [requirements](requirements.md) and the [glossary](glossary.md).

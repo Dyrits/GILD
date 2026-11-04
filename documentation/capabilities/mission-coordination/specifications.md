@@ -9,7 +9,7 @@ A user who is new to agents does not know which harness, model, or mission fits 
 ### Place
 
 - Control is one permanent thread outside every mission. It is pinned at the top of the dashboard, on the desktop and on the phone, and cannot be deleted, archived, or ended.
-- A setting hides Control. Control is shown by default. Its spending appears on the dashboard like a mission's.
+- A setting hides Control. Control is shown by default. Its spending appears on the dashboard like a mission's, and it can have its own [budget](../budget-control/specifications.md).
 
 ### What Control does itself
 

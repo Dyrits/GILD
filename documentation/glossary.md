@@ -82,12 +82,16 @@ The user's permission for one kind of risky action, in a workspace, a mission, o
 _Avoid_: Rule, always-allow, grant
 
 **Attention**:
-The state of a thread that waits for the user: an approval, an answer, or a decision after the chatter guard paused it.
+The state of a thread that waits for the user: an approval, an answer, a decision after the chatter guard paused it, or a budget reached.
 _Avoid_: Needs you, blocked, pending
 
 **Budget**:
-A spending limit on a mission or thread that the threads beneath it draw from.
+A spending limit, in cost, tokens, or both, on a mission or on Control, that every thread in it draws on. Single threads have no budget.
 _Avoid_: Quota, cap
+
+**Global budget**:
+The budget on all spending, across every mission and Control, over a day, week, or month.
+_Avoid_: Total budget, monthly cap
 
 ## Automation
 

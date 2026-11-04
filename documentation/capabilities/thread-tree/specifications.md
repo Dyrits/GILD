@@ -43,7 +43,7 @@ Work with AI agents spreads across disconnected chats, and subagents run out of 
 | --- | --- |
 | Running | A turn is in progress. |
 | Waiting | It waits for a reply or for a thread beneath it. |
-| Attention | It waits for an approval or an answer from the user. Shown prominently and sent as a phone notification. |
+| Attention | It waits for an approval, an answer, or a raised budget from the user. Shown prominently and sent as a phone notification. |
 | Idle | No turn in progress and nothing awaited. |
 | Done | It reported its result. |
 | Failed | Its harness failed; the user can hand it over to another. |
@@ -129,7 +129,7 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
 
 - [thread-messaging](../thread-messaging/specifications.md): carries results and messages.
 - [mission-journal](../mission-journal/specifications.md), **scoped-intel**, **tool-and-skill-loading**: provide a new thread's starting context.
-- **budget-control**: provides budgets.
+- [budget-control](../budget-control/specifications.md): the mission budget threads draw on.
 - **thread-handover**: continues mirrored subagents and failed threads.
 
 ## Exclusions
