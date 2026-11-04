@@ -117,3 +117,26 @@ Reason: Threads recall what they learned without carrying unrelated facts, and t
 References: documentation/capabilities/scoped-intel/specifications.md, documentation/capabilities/thread-tree/specifications.md#opening-a-thread, documentation/glossary.md, documentation/backlog.md
 Validation: Authorized by the user in the scoped-intel interview, rounds 3 to 7, on 2026-11-04.
 Evidence: The user's answers to Q12 to Q27, and the Hermes Agent memory documentation (https://hermes-agent.nousresearch.com/docs/user-guide/features/memory) consulted for Q18.
+
+## CHG-0008 · 2026-11-04 · Mission tracking specified
+
+Type: Documentation
+Event: Agreement
+Scope: Mission tracking
+
+Summary: Agreed the observable behavior and acceptance of mission-tracking:
+- a mission's state is the most urgent among its threads (Needs you, Failed, Running, Waiting, Idle), and Done and Archived are set only when it ends;
+- the top thread's result asks "Mark as done?" and never ends the mission on its own;
+- after 14 days without activity by the user or an agent, the dashboard asks "Archive it or mark it as done?", and asks again after another 14 days if dismissed;
+- auto-archive, off by default, archives Done missions after 30 days; both durations are adjustable;
+- ending a mission with running threads confirms once, naming them, then stops them;
+- writing in a Done or archived mission brings it back, and archived missions can be reopened from their own view;
+- the top thread proposes the title with `set_mission_title`, and the user's rename wins;
+- the dashboard lists title, state, workspace, threads, spending, and last activity, missions needing the user first, with filters and search, the same on the phone;
+- spending totals the threads' spending in each provider's own unit, never pricing subscription tokens;
+- starting a mission takes one message, with the other choices prefilled.
+Also agreed: the workspace uses Bun, not pnpm, for package management (`documentation/architecture.md`). The backlog item on ending missions is now specified and removed.
+Reason: The user sees where every mission stands, what needs them, and what it costs, and ends finished work without losing it.
+References: documentation/capabilities/mission-tracking/specifications.md, documentation/architecture.md, documentation/backlog.md, documentation/outline.md
+Validation: Authorized by the user in the mission-tracking interview, rounds 1 to 3, on 2026-11-04.
+Evidence: The user's answers to Q1 to Q12.

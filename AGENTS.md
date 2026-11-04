@@ -13,4 +13,4 @@
 
 ## Handoffs
 
-To resume specifying the next capability, read the [current handoff](.agents/handoffs/2026-11-04-1019-specify-next-capability.md). Handoffs are shared and committed.
+To resume specifying the next capability, read the [current handoff](.agents/handoffs/2026-11-04-1251-specify-next-capability.md). Handoffs are shared and committed.

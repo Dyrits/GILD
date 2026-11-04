@@ -4,8 +4,8 @@ OpenMission is a desktop application whose local service owns all data in one SQ
 
 ## Stack
 
-- **Language**: TypeScript everywhere, in one pnpm workspace.
-- **Runtime**: Node for the local service; Bun only for scripts.
+- **Language**: TypeScript everywhere, in one Bun workspace.
+- **Runtime**: Node for the local service; Bun for package management and scripts.
 - **Effect**: Effect 4 in the local service and the relay Worker; not in the UI. See [0010](architecture-decision-record/0010-effect-in-the-service-and-relay.md).
 - **Toolchain**: Vite+ (builds, Vitest, Oxlint, formatting) for every package except the app, which builds with Expo's own bundler.
 - **Desktop shell**: Electron. See [0004](architecture-decision-record/0004-electron-desktop-shell.md).
