@@ -10,3 +10,7 @@
 - `documentation/capabilities/<capability>/specifications.md`: each capability's agreed behavior and acceptance. Read before changing that capability.
 - `documentation/backlog.md`: candidate work and deferrals. Read when choosing what to do next.
 - `documentation/changelog.md`: authorized agreements and verified deliveries. Append a record for each.
+
+## Handoffs
+
+To resume specifying mission-journal and scoped-intel, read the [current handoff](.agents/handoffs/2026-11-04-0118-specify-journal-and-intel.md). Handoffs are shared and committed.
