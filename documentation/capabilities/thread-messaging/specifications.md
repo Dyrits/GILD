@@ -30,7 +30,7 @@ Subagents in today's harnesses report once at the end and cannot be asked or red
 
 ### Chatter guard
 
-- When two threads exchange 20 messages with no message from the user and no result, both pause in the Needs you state, and the user decides how they continue.
+- When two threads exchange 20 messages with no message from the user and no result, both pause in the Attention state, and the user decides how they continue.
 - The number is adjustable in settings.
 
 ## External contract
@@ -63,7 +63,7 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
 ## Dependencies
 
 - [thread-tree](../thread-tree/specifications.md): defines threads, their states, and who is beneath whom.
-- **action-approval**: the Needs you state for approvals.
+- [action-approval](../action-approval/specifications.md): the Attention state for approvals.
 
 ## Exclusions
 

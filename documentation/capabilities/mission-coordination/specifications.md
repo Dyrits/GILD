@@ -27,7 +27,7 @@ A user who is new to agents does not know which harness, model, or mission fits 
 
 ### Hearing back
 
-- A mission that Control opened tells Control when it reports its result, becomes Needs you, or becomes Failed, and Control relays that to the user.
+- A mission that Control opened tells Control when it reports its result, enters Attention, or fails, and Control relays that to the user.
 - Control reads the state of other missions only when the user asks.
 
 ### References between missions
@@ -41,7 +41,7 @@ A user who is new to agents does not know which harness, model, or mission fits 
 
 - Control has no journal.
 - Each turn, Control starts with its instructions, global intel, the dashboard as text, and its 20 latest messages. The local service summarizes older messages.
-- The dashboard as text lists each mission that is not archived on one line: title, state, workspace, the first sentence of its journal summary, and last activity. The local service builds it from stored data; Control never maintains it.
+- The dashboard as text lists each mission that is not archived on one line: title, state, workspace, the first sentence of its briefing, and last activity. The local service builds it from stored data; Control never maintains it.
 - Control reads a mission's full journal with `read_journal`, and its own older messages only when the user asks, for example "Remember what we did about X?".
 
 ### Intel
@@ -71,7 +71,7 @@ Only Control can call these three tools. Any thread can address Control with `se
   - a question about missions answered in Control, and any other request opening a mission;
   - matching missions offered as Continue in before a new mission opens;
   - the tier picked from the request's complexity, the default when no tiers are set, and the choice shown in the reply;
-  - the result, Needs you, and Failed of a mission Control opened reaching Control, and nothing from missions it did not open;
+  - the result, Attention, and Failed of a mission Control opened reaching Control, and nothing from missions it did not open;
   - Control acting on a mission only at the user's request, with the dashboard's confirmations;
   - a referenced thread in another mission receiving a message and replying directly, a mission reference reaching its top thread, and a message to another mission without a reference refused unless sent to Control;
   - `@Control` forwarding a message to the matching mission, or answering that none fits;
@@ -92,7 +92,7 @@ Only Control can call these three tools. Any thread can address Control with `se
 - [mission-tracking](../mission-tracking/specifications.md): the dashboard, mission states, and ending missions.
 - [thread-tree](../thread-tree/specifications.md): `find_missions`, Continue in, and how a new mission starts.
 - [thread-messaging](../thread-messaging/specifications.md): messages, references, and the chatter guard.
-- [mission-journal](../mission-journal/specifications.md): the summaries Control reads.
+- [mission-journal](../mission-journal/specifications.md): the briefings Control reads.
 - [scoped-intel](../scoped-intel/specifications.md): global intel and its approvals.
 - **thread-handover**: changing a mission's or Control's harness and model.
 

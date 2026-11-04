@@ -18,7 +18,7 @@ Work with AI agents spreads across disconnected chats, and subagents run out of 
 - When the user opens a thread, these settings are shown and can be changed until the user sends its first message.
 - A new thread starts with:
   - the opener's request;
-  - the journal's summary and its 20 latest entries (see [mission-journal](../mission-journal/specifications.md#reading));
+  - the briefing and its 20 latest entries (see [mission-journal](../mission-journal/specifications.md#reading));
   - the intel and skills in scope for it;
   - the opener's messages since the journal's last change log entry.
   None of the opener's earlier history is included. When this exceeds the new model's context window, the oldest part is summarized.
@@ -34,7 +34,7 @@ Work with AI agents spreads across disconnected chats, and subagents run out of 
 
 - The setting **Show threads opened by agents** is on by default.
 - When it is off, the threads an agent opened fold into the thread that opened them, which shows their count, for example "+3 threads". The user can unfold them.
-- A folded thread still appears when it becomes Needs you or Failed.
+- A folded thread still appears when it enters Attention or Failed.
 - Folding changes only the view. Folded threads still exist, run, and receive messages.
 
 ### Thread states
@@ -43,7 +43,7 @@ Work with AI agents spreads across disconnected chats, and subagents run out of 
 | --- | --- |
 | Running | A turn is in progress. |
 | Waiting | It waits for a reply or for a thread beneath it. |
-| Needs you | It waits for an approval or an answer from the user. Shown prominently and sent as a phone notification. |
+| Attention | It waits for an approval or an answer from the user. Shown prominently and sent as a phone notification. |
 | Idle | No turn in progress and nothing awaited. |
 | Done | It reported its result. |
 | Failed | Its harness failed; the user can hand it over to another. |
@@ -51,8 +51,8 @@ Work with AI agents spreads across disconnected chats, and subagents run out of 
 
 ### Off-topic requests
 
-- When a message from the user clearly shares nothing with the mission, judged by the thread's agent against the journal's summary, the thread does not answer it. Merely unexpected messages do not count.
-- The thread first looks for other missions that fit the request, by their titles and journal summaries only. Every mission that is not deleted counts, whatever its state.
+- When a message from the user clearly shares nothing with the mission, judged by the thread's agent against the briefing, the thread does not answer it. Merely unexpected messages do not count.
+- The thread first looks for other missions that fit the request, by their titles and briefings only. Every mission that is not deleted counts, whatever its state.
 - It then shows a suggestion with these choices:
   - **Continue in "mission title"**: one for each matching mission, best match first, at most 3, each showing that mission's state;
   - **Open as new mission**;
@@ -62,7 +62,7 @@ Work with AI agents spreads across disconnected chats, and subagents run out of 
 - **Open as new mission** opens a new mission whose top thread starts fresh with only the off-topic part of the message. Nothing from the current mission is preloaded: no journal, no messages, no workspace. Global skills and intel stay available to it, as to any thread. Its harness, agent, model, and effort copy the current thread's, and the user can change them before it starts.
 - **Keep as aside** opens an aside beneath the current thread. It starts with:
   - the off-topic part of the message;
-  - the journal's summary;
+  - the briefing;
   - a note that the message went off the mission's topic and was put aside;
   - the rule that whenever the conversation comes back to the mission, the aside informs its parent with a thread message saying what is relevant.
   An aside does not update the journal itself; its parent decides what to record.
@@ -98,7 +98,7 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
 | Tool | Purpose | Arguments | Answer |
 | --- | --- | --- | --- |
 | `open_thread` | Open a thread beneath the caller | A request; optionally a harness, agent, model, effort, and workspace | The new thread's identifier, or a refusal and its reason |
-| `find_missions` | Find missions that fit a request | The request | Up to 3 matching missions, each with its title, journal summary, and state |
+| `find_missions` | Find missions that fit a request | The request | Up to 3 matching missions, each with its title, briefing, and state |
 | `suggest_mission` | Show the off-topic suggestion for a user's message | The off-topic part of the message, a proposed mission title, and the matching missions | The user's choice, and the identifier of the mission or aside the message went to |
 
 ## Acceptance and validation
@@ -114,7 +114,7 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
   - deleting with its count;
   - each limit's refusal;
   - mirrored subagents with queued messages;
-  - folding threads opened by agents, with their count, and a folded thread appearing when it becomes Needs you or Failed;
+  - folding threads opened by agents, with their count, and a folded thread appearing when it enters Attention or Failed;
   - the off-topic suggestion and both choices: the new mission's fresh start, the aside's starting context, the link left behind, and the setting that skips the suggestion;
   - an aside informing its parent when the conversation comes back to the mission;
   - matching missions offered first, including Done and Idle ones, deleted ones never offered, and Continue in waking the chosen mission.
@@ -122,7 +122,7 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
 
 ## Requirements
 
-- [Approval per action](../../requirements.md): an approval in a thread never covers the threads beneath it.
+- [Approval per action](../../requirements.md): an approval in a thread never covers the threads beneath it; only a standing permission, granted for a workspace, a mission, or everywhere, applies to every thread there.
 - [Nearly free to run](../../requirements.md) and [Bring your own provider](../../requirements.md): spending is the user's own provider use, bounded by budgets.
 
 ## Dependencies

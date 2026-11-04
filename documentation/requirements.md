@@ -26,8 +26,9 @@
 
 ## Safety
 
-- **Approval per action**: a risky action runs only after the user's approval, and an approval never carries over to another action or another thread, including the threads beneath it.
-  Source: the user. Reason: product decision.
+- **Approval per action**: a risky action runs only after the user's approval or under a standing permission the user granted. A single approval never carries over to another action or another thread, including the threads beneath it.
+  Source: the user. Reason: product decision; standing permissions let threads run autonomously on what the user already trusts them with.
+  Relaxed by the user on 2026-11-04 (CHG-0010): it read "a risky action runs only after the user's approval, and an approval never carries over to another action or another thread, including the threads beneath it". Reason: an assistant must be able to run without asking each time.
 
 ## Access
 

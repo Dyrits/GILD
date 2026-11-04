@@ -23,7 +23,7 @@ When work runs in many threads across harnesses, the user loses track of which m
 
 ### Mission state
 
-- While a mission is not ended, its state is the most urgent state among its threads, in this order: Needs you, Failed, Running, Waiting, Idle.
+- While a mission is not ended, its state is the most urgent state among its threads, in this order: Attention, Failed, Running, Waiting, Idle.
 - Done and Archived are set only when the mission ends, never worked out from its threads.
 - When the top thread reports its result, the dashboard asks "Mark as done?". The mission does not become Done on its own.
 
@@ -43,7 +43,7 @@ When work runs in many threads across harnesses, the user loses track of which m
 
 - Each mission row shows its title, state, workspace, thread count with how many are running, spending, and last activity.
 - Missions that need the user come first; the rest follow by latest activity.
-- The user can filter by state and workspace, and search titles and journal summaries.
+- The user can filter by state and workspace, and search titles and briefings.
 - Archived missions have their own view.
 - The dashboard is a list, not a board.
 - The phone web app shows the same dashboard, with the same filters and actions.
@@ -84,7 +84,7 @@ Threads use this thread tool (see [0005](../../architecture-decision-record/0005
 ## Dependencies
 
 - [thread-tree](../thread-tree/specifications.md): threads, their states, and deleting a mission.
-- [mission-journal](../mission-journal/specifications.md): the entry added when a mission ends, and the summaries searched.
+- [mission-journal](../mission-journal/specifications.md): the entry added when a mission ends, and the briefings searched.
 - **budget-control**: budgets behind the spending shown.
 
 ## Exclusions

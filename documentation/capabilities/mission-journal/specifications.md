@@ -8,38 +8,38 @@ Threads in a mission run on different harnesses and start without each other's h
 
 ### Content
 
-- A journal has a summary of where the mission stands, rewritten as the mission changes, and a dated change log only ever added to.
+- A journal has a briefing of where the mission stands, rewritten as the mission changes, and a dated change log only ever added to.
 - Each change log entry records its author (a thread, or the user) and its time.
 - No one can edit or delete an entry, the user included. A correction is a new entry.
 
 ### Size
 
-- The summary holds at most 2,000 tokens, adjustable in settings. Tokens are estimated the same way on every harness, at about 4 characters per token.
+- The briefing holds at most 2,000 tokens, adjustable in settings. Tokens are estimated the same way on every harness, at about 4 characters per token.
 - A rewrite over the limit is refused with its reason, and the thread that wrote it shortens it.
 - The change log has no limit.
 
 ### Reading
 
-- Every thread in the mission starts with the summary and the 20 latest entries (see [thread-tree](../thread-tree/specifications.md#opening-a-thread)), and reads older entries with `read_journal`.
-- An aside starts with the journal summary only.
-- `find_missions` matches other missions by their titles and journal summaries only.
+- Every thread in the mission starts with the briefing and the 20 latest entries (see [thread-tree](../thread-tree/specifications.md#opening-a-thread)), and reads older entries with `read_journal`.
+- An aside starts with the briefing only.
+- `find_missions` matches other missions by their titles and briefings only.
 
 ### Updating
 
 - Any thread in the mission may update the journal, except an aside, which informs its parent instead; the parent decides what to record.
 - A thread adds an entry when it settles a decision, changes direction, or finishes a piece of work.
 - `report_result` asks the thread for an entry, or for an explicit "nothing to record".
-- A thread rewrites the summary only when where the mission stands has changed.
-- Every summary rewrite comes with an entry.
+- A thread rewrites the briefing only when where the mission stands has changed.
+- Every briefing rewrite comes with an entry.
 
 ### Parallel updates
 
 - Entries are only ever added, so they never conflict.
-- A summary rewrite names the summary version it was based on. When another thread rewrote the summary in the meantime, the rewrite is refused with the current summary and its version, and the thread merges its change and tries again.
+- A briefing rewrite names the briefing version it was based on. When another thread rewrote the briefing in the meantime, the rewrite is refused with the current briefing and its version, and the thread merges its change and tries again.
 
 ### The user
 
-- The user can rewrite the summary and add entries in the app. Each change is recorded as an entry by the user.
+- The user can rewrite the briefing and add entries in the app. Each change is recorded as an entry by the user.
 
 ### When a mission ends
 
@@ -53,23 +53,23 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
 
 | Tool | Purpose | Arguments | Answer |
 | --- | --- | --- | --- |
-| `read_journal` | Read the mission's journal | Optionally a starting point and a number of entries | The summary, its version, and those entries |
-| `update_journal` | Record a change | An entry; optionally a new summary and the version it was based on | The new version, or a refusal with the current summary and version |
+| `read_journal` | Read the mission's journal | Optionally a starting point and a number of entries | The briefing, its version, and those entries |
+| `update_journal` | Record a change | An entry; optionally a new briefing and the version it was based on | The new version, or a refusal with the current briefing and version |
 
 ## Acceptance and validation
 
 - **Automated, with a fake harness**:
-  - a new thread starting with the summary and the 20 latest entries, and an aside with the summary only;
-  - a summary over the limit refused;
+  - a new thread starting with the briefing and the 20 latest entries, and an aside with the briefing only;
+  - a briefing over the limit refused;
   - the entry added when a mission ends, and an ended mission still matched by `find_missions`;
   - adding an entry, with its author and time;
-  - a summary rewrite with its entry;
-  - a stale rewrite refused with the current summary, then merged and accepted;
+  - a briefing rewrite with its entry;
+  - a stale rewrite refused with the current briefing, then merged and accepted;
   - `report_result` asking for an entry or "nothing to record";
   - an aside unable to update the journal;
   - entries that cannot be edited or deleted;
   - the user's edits recorded as entries by the user.
-- **Human acceptance**: the user follows a mission's journal while 2 threads on different harnesses update it, and edits its summary.
+- **Human acceptance**: the user follows a mission's journal while 2 threads on different harnesses update it, and edits its briefing.
 
 ## Requirements
 

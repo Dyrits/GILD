@@ -78,13 +78,13 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
 ## Requirements
 
 - [Local data](../../requirements.md): intel stays on the user's computer.
-- [Approval per action](../../requirements.md): each global save, change, or widening is approved on its own.
+- [Approval per action](../../requirements.md): each global save, change, or widening is approved on its own, unless the user granted a standing permission for it.
 
 ## Dependencies
 
 - [thread-tree](../thread-tree/specifications.md): gives each new thread the intel in scope, and warns when its starting context is too large.
 - **workspace-attachment**: decides which workspace's intel a thread sees.
-- **action-approval**: carries the approvals for global intel and widening.
+- [action-approval](../action-approval/specifications.md): carries the approvals for global intel and widening.
 
 ## Exclusions
 

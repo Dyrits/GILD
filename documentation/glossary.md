@@ -17,7 +17,7 @@ One exchange in a thread, recording the harness, agent, model, and effort that p
 _Avoid_: Step, round
 
 **Aside**:
-A thread opened beneath the current one for an off-topic request the user chose to keep in the mission. It knows the mission's summary and informs its parent when the conversation comes back to the mission, but does not update the journal itself.
+A thread opened beneath the current one for an off-topic request the user chose to keep in the mission. It knows the mission's briefing and informs its parent when the conversation comes back to the mission, but does not update the journal itself.
 _Avoid_: Side thread, tangent
 
 **Thread message**:
@@ -29,11 +29,15 @@ To deliver a message into a thread's current turn, changing its course without w
 _Avoid_: Inject, nudge
 
 **Journal**:
-The record a mission keeps as it evolves: a summary of where it stands, rewritten as it changes, and a dated change log only ever added to. Every thread in the mission starts from it and may update it.
-_Avoid_: Mission journal, mission memory, mission history, brief
+The record a mission keeps as it evolves: its briefing and a dated change log only ever added to. Every thread in the mission starts from it and may update it.
+_Avoid_: Mission journal, mission memory, mission history
+
+**Briefing**:
+The part of a journal that says where the mission stands, rewritten as it changes. Every thread in the mission reads it before it starts.
+_Avoid_: Summary, journal summary, description, brief
 
 **Dashboard**:
-The one overview of all missions with their state, threads, spending, and the start of each journal summary. Control reads it as text.
+The one overview of all missions with their state, threads, spending, and the start of each briefing. Control reads it as text.
 _Avoid_: Mission dashboard, index, mission list, board, kanban
 
 **Control**:
@@ -72,6 +76,14 @@ _Avoid_: Switch, transfer
 **Approval**:
 The user's permission for one risky action in one thread.
 _Avoid_: Consent, confirmation
+
+**Standing permission**:
+The user's permission for one kind of risky action, in a workspace, a mission, or everywhere, granted with Always allow and removable from the Permissions page.
+_Avoid_: Rule, always-allow, grant
+
+**Attention**:
+The state of a thread that waits for the user: an approval, an answer, or a decision after the chatter guard paused it.
+_Avoid_: Needs you, blocked, pending
 
 **Budget**:
 A spending limit on a mission or thread that the threads beneath it draw from.
