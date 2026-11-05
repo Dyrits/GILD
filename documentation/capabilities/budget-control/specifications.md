@@ -6,6 +6,8 @@ Threads open threads on their own, many at once, on the user's own provider acco
 
 ## Agreed behavior
 
+Version 1 serves the installation's owner. In future hosted missions, guest-triggered work uses the host's provider account and counts toward the mission and global budgets. Only the host changes budgets (CHG-0017). See the [hosted agreements](../../architecture.md#future-multiplayer-open-architecture-questions).
+
 ### Budgets
 
 - A budget holds two optional limits: a **cost** limit for all API-key spending and a **token** limit for all subscription spending, matching the units in [mission-tracking](../mission-tracking/specifications.md#spending). An empty limit means no limit. Tokens are never converted into a price.

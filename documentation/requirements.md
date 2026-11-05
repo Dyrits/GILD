@@ -35,7 +35,7 @@
 
 - **Single user**: one installation serves one user; sharing missions between people is out of scope for now.
   Source: the user. Reason: product scope.
-- **Future multiplayer**: OpenMission must eventually support both invited people joining one host's missions and people collaborating from their own installations. The first build may be single-user, but architecture and technical design must identify assumptions that would block either form before committing to them. Data sharing and authority between participants remain to be settled.
+- **Future multiplayer**: OpenMission must eventually support both invited people joining one host's missions and people collaborating from their own installations. The first build may be single-user, but architecture and technical design must identify assumptions that would block either form before committing to them. The [hosted agreements](architecture.md#future-multiplayer-open-architecture-questions) define guest access, host execution and authority, spending, resource sharing, and data location (CHG-0014 and CHG-0016 through CHG-0021). Execution across installations and synchronization remain undesigned.
   Source: the user, 2026-11-04. Reason: multiplayer is a product goal, not a permanent exclusion.
 - **Pair by QR code from anywhere**: a phone pairs by scanning one pairing code, and then reaches OpenMission from any network.
   Source: the user. Reason: product decision.

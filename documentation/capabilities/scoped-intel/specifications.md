@@ -6,6 +6,8 @@ Facts, preferences, and decisions learned in one thread are lost to the next, or
 
 ## Agreed behavior
 
+Version 1 serves the installation's owner. In future hosted missions, the sharing toggle governs agents' access to host intel regardless of who triggers a turn. Guests cannot inspect unshared intel, but replies may reveal information from enabled resources (CHG-0018). See the [hosted agreements](../../architecture.md#future-multiplayer-open-architecture-questions).
+
 ### Scopes
 
 - An intel belongs to one intel scope: a thread (and the threads beneath it), a workspace, or global.

@@ -6,6 +6,8 @@ Threads run on their own, many at once, and some of their actions cannot be undo
 
 ## Agreed behavior
 
+Version 1 serves the installation's owner. In future hosted missions, only the host approves risky actions and grants standing permissions (CHG-0017). A guest's request to trigger work carries no approval. See the [hosted agreements](../../architecture.md#future-multiplayer-open-architecture-questions).
+
 ### Asking
 
 - A thread asks for an approval as a question in its own conversation, with buttons, through `request_approval`. OpenMission turns off the harnesses' own permission prompts; each harness's sandbox still keeps writes inside the workspace.

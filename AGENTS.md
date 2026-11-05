@@ -13,4 +13,4 @@
 
 ## Handoffs
 
-To resume multiplayer architecture and tool loading, read the [current handoff](.agents/handoffs/2026-11-05-0119-guest-access-and-data.md). Handoffs are shared and committed.
+To resume first slice design, read the [current handoff](.agents/handoffs/2026-11-05-0838-first-slice-design.md). Handoffs are shared and committed.

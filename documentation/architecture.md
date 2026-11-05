@@ -4,11 +4,11 @@ OpenMission is a desktop application whose local service owns all data in one SQ
 
 ## Future multiplayer: open architecture questions
 
-Multiplayer must eventually support both invited people joining one host's missions and collaboration across people's own installations. The single-user design below describes the first build. Before designing its modules and data model, settle execution ownership and authority between participants for both forms.
+Multiplayer must eventually support both invited people joining one host's missions and collaboration across people's own installations. The single-user design below describes the first build. Its modules and data model must preserve the hosted agreements below and identify assumptions that would block future execution or synchronization across installations.
 
 For now, each shared mission has one host installation that owns its authoritative state. Collaborators join from a browser or their own installation. Collaboration pauses while that host is offline. The user accepted this working choice on 2026-11-04, subject to evolution; replicated state and offline edits remain possible future changes.
 
-The current architecture has assumptions that need review:
+The following agreements define the first hosted version:
 
 For the first hosted multiplayer version, all agents run on the mission host. Each guest has one of two permissions: triggering agents or discussing only. Discussion-only guests write in discussions beneath messages. Their discussion messages enter agent context only when the host explicitly submits selected messages. The host may instead write their own conclusion. The user confirmed these choices on 2026-11-05 (CHG-0016). Automatic discussion summarization is deferred in the [backlog](backlog.md).
 
@@ -92,12 +92,12 @@ Mission-state ownership is settled provisionally. Execution, guest discussion be
 | Fully open source | All parts are in one Apache 2.0 repository. |
 | Respect upstream licenses | New codebase with no OpenBot code; MausBot modules (only from outside `enterprise/`) and Paseo's relay code keep their Apache 2.0 license and NOTICE attributions, and MausBot's brand is not reused ([0001](architecture-decision-record/0001-new-codebase-not-a-fork.md)). |
 | Nearly free to run | Each user runs their own relay Worker on a free Cloudflare account; the same network needs no relay; the project runs no servers ([0003](architecture-decision-record/0003-per-user-relay-carrying-all-traffic.md)). |
-| Local data | All product data lives in the local service's SQLite file; the relay Worker holds only connection state and encrypted queued messages. Webhook bodies pass through the user's own relay Worker. |
+| Local data | The local service owns product data; the relay Worker holds only connection state and encrypted queued messages. Webhook bodies pass through the user's own relay Worker. Future hosted guests receive shared conversations and results under the local-data exception; mission documents and data remain on the host. |
 | Bring your own provider | Providers are reached only through harnesses with the user's own accounts. |
 | End-to-end encrypted phone traffic | Keys travel only in the pairing code, after `#`; the relay Worker forwards ciphertext only. |
 | Approval per action | Every approval question stops at the local service, which asks the user for each action and never reuses a single answer across actions or threads; standing permissions are stored only when the user chooses Always allow, and listed on the Permissions page. |
-| Single user | One local service and one SQLite file per installation. |
-| Future multiplayer | Both hosted participation and collaboration across installations are required later. Open: review identity, sharing, approval authority, billing, execution ownership, and synchronization before the first implementation design. |
+| Single user | The first build serves the installation's owner through one local service and one SQLite file. |
+| Future multiplayer | The hosted agreements above define identity, invitations, mission history access, host execution and authority, spending, resource sharing, and permission changes. Guest local copies, execution across installations, and synchronization remain undesigned. |
 | End-to-end encrypted phone traffic (notifications) | Notifications carry no content; details travel only over the encrypted connection. |
 | Comply with provider terms | Harnesses sign in through their own tools (`claude auth login` and equivalents); the local service never reads or stores their credentials. |
 | Pair by QR code from anywhere | The pairing code opens the phone web app, which reaches the local service through the relay Worker from any network. |

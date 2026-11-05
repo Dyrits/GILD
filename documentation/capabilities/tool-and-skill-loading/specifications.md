@@ -6,6 +6,13 @@ A thread needs the tools and instructions in scope for its work, even when its h
 
 ## Agreed behavior
 
+### Build scope and future hosted access
+
+- Version 1 serves the installation's owner. The sources, management views, and selections below describe that single-user build.
+- Future hosted missions follow the [shared resource access agreement](../../architecture.md#future-multiplayer-open-architecture-questions) (CHG-0018). The sharing toggle applies to agents regardless of who triggers a turn. It retains the host's selected MCP connections, skills, and intel by default; with it off, all turns use only resources explicitly selected by the host.
+- Guests see mission conversations and results, while resource settings, credentials, and unshared intel stay hidden. Enabled resources may contribute information to agent replies. Guest permission to trigger agents grants no approval or budget authority.
+- Collaboration across installations remains future design work; this capability defines no resource import or synchronization between installations.
+
 ### Sources and management
 
 - Settings lists global skills and MCP servers. Each workspace lists its own. Each thread shows its effective list, sources, disabled entries, and which copy won a name conflict.
@@ -64,7 +71,9 @@ A thread needs the tools and instructions in scope for its work, even when its h
   - a failed external server produces a warning and allows the turn to continue; failed OpenMission thread tools produce Attention with Retry;
   - thread-tool access stays enforced by the local service;
   - OpenMission uses its own MCP configuration without changing or importing existing harness configuration.
-- **Proposed human acceptance, awaiting confirmation**: inspect a thread's effective list from desktop and phone; disable a skill and an external MCP server; start a turn and check the selection; invoke a skill and check that its instructions load then; edit a skill and check its use on the following turn; change harness and check the preferred skill copy; fail an external server and then OpenMission's thread tools and check the different outcomes.
+- **Human acceptance**: inspect a thread's effective list from desktop and phone; disable a skill and an external MCP server; start a turn and check the selection; invoke a skill and check that its instructions load then; edit a skill and check its use on the following turn; change harness and check the preferred skill copy; fail an external server and then OpenMission's thread tools and check the different outcomes.
+
+The user accepted the scope, validation plan, and agent additions on 2026-11-05 (CHG-0022). These checks are agreed acceptance criteria; they have not been run against an implementation.
 
 ## Requirements
 

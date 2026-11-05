@@ -4,7 +4,7 @@ People who work with several AI agents lose goals, context, and spending across 
 
 ## Actors
 
-The first build serves one user. Multiplayer is a future product goal; its collaboration model must be settled far enough to check architectural blockers before designing the first build.
+The first build serves one user. The [architecture](architecture.md#future-multiplayer-open-architecture-questions) records the agreements for future hosted multiplayer and the remaining questions about collaboration across installations. Check these boundaries before designing the first build.
 
 - **User**: the one person who owns the installation; starts missions, steers threads, grants approvals, and sets budgets.
 - **Harness**: an external agent runtime (Claude Code, Codex, and others) that carries out turns.
