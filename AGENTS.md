@@ -13,6 +13,12 @@
 - `documentation/work-in-progress.md`: the current batch, its checks, and open questions. Read first when resuming; work proceeds in batches with the iterate skill.
 - `documentation/changelog.md`: authorized agreements and verified deliveries. Append a record for each.
 
+## Tooling
+
+- `.agents/ai-tooling.md`: installed AI tools (CodeGraph, Context7, ast-grep, Playwright CLI), their checks, gaps, and session recovery. Read before reinstalling or measuring tooling, or when a session must be recovered.
+- Commits run `.githooks/pre-commit` (Biome on staged files, then `bun run typecheck`); fix with `bun run format` and stage again.
+- A Git guard (`.agents/hooks/guard-git.py`, level 2) asks before, or blocks, pushes to `main` and commands that lose local work; `.githooks/pre-push` refuses pushes to `main`. A person approves a push to `main` with `git push --no-verify`; an agent asks the user instead.
+
 ## Handoffs
 
 To resume the first slice's batch work, read the [current handoff](.agents/handoffs/2026-11-05-2136-claude-code-chat-batch.md). Handoffs are shared and committed.

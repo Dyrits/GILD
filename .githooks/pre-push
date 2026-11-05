@@ -1,0 +1,34 @@
+#!/bin/sh
+# Portable git guard: refuse a push that deletes a remote ref or updates a protected branch.
+# Level 3 also refuses any push that is not a fast-forward. Works whichever agent (or person) pushes;
+# `git push --no-verify` skips it, which is how a person approves a push on purpose.
+# The skill sets PROTECTED_BRANCHES and LEVEL when it installs this file.
+
+PROTECTED_BRANCHES="main master"
+LEVEL=2
+
+refuse() {
+  echo "pre-push guard: $1" >&2
+  exit 1
+}
+
+default_branch=$(git symbolic-ref --short refs/remotes/origin/HEAD 2>/dev/null | sed 's|^origin/||')
+
+while read -r local_ref local_sha remote_ref remote_sha; do
+  case $local_sha in
+    *[!0]*) ;;
+    *) refuse "$remote_ref would be deleted on the remote." ;;
+  esac
+  branch=${remote_ref#refs/heads/}
+  for protected in $PROTECTED_BRANCHES $default_branch; do
+    [ "$branch" = "$protected" ] && refuse "$branch is a protected branch."
+  done
+  if [ "$LEVEL" -ge 3 ]; then
+    case $remote_sha in
+      *[!0]*) git merge-base --is-ancestor "$remote_sha" "$local_sha" 2>/dev/null ||
+        refuse "$remote_ref would be overwritten (not a fast-forward)." ;;
+    esac
+  fi
+done
+
+exit 0

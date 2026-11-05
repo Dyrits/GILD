@@ -1,0 +1,17 @@
+{
+  "hooks": {
+    "BeforeTool": [
+      {
+        "matcher": "run_shell_command",
+        "hooks": [
+          {
+            "name": "guard-git",
+            "type": "command",
+            "command": "python3 -I \"$GEMINI_PROJECT_DIR/.agents/hooks/guard-git.py\" --level 2 --protected main,master",
+            "timeout": 5000
+          }
+        ]
+      }
+    ]
+  }
+}

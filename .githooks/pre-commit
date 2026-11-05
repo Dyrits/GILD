@@ -1,0 +1,11 @@
+#!/bin/sh
+# Checks staged files, then typechecks. Written by setup; edit freely.
+set -eu
+has_staged() { ! git diff --cached --quiet --diff-filter=ACMR -- "$@"; }
+staged() { git diff --cached --name-only -z --diff-filter=ACMR -- "$@"; }
+
+# JavaScript and TypeScript: Biome formats and lints staged files; the workspace typecheck runs when code or config is staged.
+bunx biome check --staged --no-errors-on-unmatched --files-ignore-unknown=true
+if has_staged '*.ts' '*.tsx' '*.js' '*.mjs' '*.cjs' '*.json' '*.jsonc'; then
+  bun run --silent typecheck
+fi
