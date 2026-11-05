@@ -7,7 +7,9 @@ How code is written in this project. Project-agnostic: every rule could be trans
 - **A module is named for the noun it owns** (`orders.ts`, `sessions.ts`); a React hook lives in `useThing.ts`: it follows the common TypeScript and React practice, so a newcomer or an agent finds code where they expect it.
 - **Functions start with a verb** (`readSettings`, `listOrders`, `insertOrder`); a pure derivation is named `thingOf` (`titleOf`, `summaryOf`), and a layer `thingLayer`: the name says whether a call acts or only computes. Same reason as above: it matches widespread practice.
 - **Words are written out**, except abbreviations everyone reads at once (`sql`, `cwd`, `id`, `url`): a spelled-out name needs no glossary.
+- **A local name is one word when the context makes it clear** (`turn`, `draft`, `sql`): the surrounding function already says what kind of turn or draft it is. Fields are nested only where they form a group that travels together (`usage: { input, output }`), never to shorten a name: flat records cross contracts, storage, and schemas without conversion, and nesting cannot express a prefixed boolean.
 - **A boolean carries a prefix** (`is`, `has`, `should`, `can`): the name shows at once that the value is a boolean. A name fixed by an external format, such as a third-party protocol field, keeps its given name.
+- **A test double says what it is**, by the word `fake` or `stand-in` in its name or by living under `test/fixtures/`; no symbol prefix such as `$`: `$` already means streams, stores, or jQuery elsewhere, and a double that is easy to miss can slip into production code.
 
 ## Size
 
@@ -18,6 +20,12 @@ How code is written in this project. Project-agnostic: every rule could be trans
 - **Own values are never set to `undefined`; deliberate absence is `null`**: `undefined` only arrives from outside, from a side effect or an API (a missing row or array element, `Map.get`, an omitted optional field), so it never means "decided to be empty". Where an API requires `undefined`, write `void 0`.
 - **No `any` and no non-null `!`**: both switch off the checks the strict compiler options exist for.
 - **`satisfies` checks a shape; `as` is reserved** for applying a brand to identifiers read from storage and for `as Error` on a caught value: an `as` elsewhere hides a mismatch the compiler would report.
+
+## Branching
+
+- **No `switch`; a value selects from an object keyed by it**, typed with `satisfies Record<Key, …>` (`stateColors`, `modelLabels`): the compiler reports a missing key, which is what `switch` exhaustiveness would give, and the mapping reads as data.
+- **Branching on a tagged union uses `Match.valueTags`** in Effect code: one handler per `_tag`, each narrowed to its case, and a missing tag fails to compile.
+- **A key from outside is checked with `Object.hasOwn(map, key)`**, never `key in map`: `in` also finds inherited names such as `toString`.
 
 ## Errors
 

@@ -1,5 +1,5 @@
 import type { Request } from "@openmission/contracts";
-import { Context, Effect, Layer } from "effect";
+import { Context, Effect, Layer, Match } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
 import { Changes, changesLayer } from "./changes.ts";
 import { invalid, ServiceFailure } from "./errors.ts";
@@ -50,30 +50,26 @@ const make = Effect.gen(function* () {
     );
 
   const handle = (request: Request): Effect.Effect<unknown, ServiceFailure> => {
-    const run: Effect.Effect<unknown, ServiceFailure | SqlError.SqlError, SqlClient.SqlClient> = (() => {
-      switch (request._tag) {
-        case "StartMission":
-          return nonBlank(request.text).pipe(
-            Effect.andThen((text) =>
-              once(request.requestId, request._tag, insertMission(text, request.model, request.effort)),
-            ),
+    // One handler per request tag; Match.valueTags fails to compile when a tag has none.
+    const run: Effect.Effect<unknown, ServiceFailure | SqlError.SqlError, SqlClient.SqlClient> = Match.valueTags(
+      request,
+      {
+        ListMissions: () => listMissions,
+        ReadMission: (read) => readMission(read.missionId),
+        ReadSettings: () => readSettings,
+        SendMessage: (send) =>
+          nonBlank(send.text).pipe(
+            Effect.andThen((text) => once(send.requestId, send._tag, insertUserMessage(send.threadId, text))),
+            Effect.tap(() => threads.wake(send.threadId)),
+          ),
+        StartMission: (start) =>
+          nonBlank(start.text).pipe(
+            Effect.andThen((text) => once(start.requestId, start._tag, insertMission(text, start.model, start.effort))),
             Effect.tap((started) => threads.wake(started.threadId)),
-          );
-        case "SendMessage":
-          return nonBlank(request.text).pipe(
-            Effect.andThen((text) => once(request.requestId, request._tag, insertUserMessage(request.threadId, text))),
-            Effect.tap(() => threads.wake(request.threadId)),
-          );
-        case "ListMissions":
-          return listMissions;
-        case "ReadMission":
-          return readMission(request.missionId);
-        case "ReadSettings":
-          return readSettings;
-        case "UpdateSettings":
-          return writeSettings(request.settings).pipe(Effect.tap(() => changes.publish));
-      }
-    })();
+          ),
+        UpdateSettings: (update) => writeSettings(update.settings).pipe(Effect.tap(() => changes.publish)),
+      },
+    );
     return run.pipe(
       Effect.provideService(SqlClient.SqlClient, sql),
       Effect.catchTag("SqlError", (error) => storageFailure(error)),
