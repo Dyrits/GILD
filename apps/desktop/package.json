@@ -1,0 +1,16 @@
+{
+  "name": "desktop",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "build": "bun build src/main.ts --target=node --format=esm --external electron --outfile dist/main.js && bun build src/preload.ts --target=node --format=cjs --external electron --outfile dist/preload.cjs && bun build ../../packages/service/src/main.ts --target=node --format=esm --outfile dist/service.js",
+    "dev": "bun run build && bun scripts/dev.ts",
+    "typecheck": "tsc -p ."
+  },
+  "devDependencies": {
+    "@types/bun": "^1.4.4",
+    "@types/node": "^24",
+    "electron": "45.2.3"
+  },
+  "main": "dist/main.js"
+}

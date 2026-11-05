@@ -1,0 +1,21 @@
+{
+  "name": "@openmission/service",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "scripts": {
+    "typecheck": "tsc -p ."
+  },
+  "dependencies": {
+    "@effect/sql-sqlite-node": "4.1.2",
+    "@openmission/contracts": "workspace:*",
+    "effect": "4.1.2",
+    "ws": "8.22.1"
+  },
+  "devDependencies": {
+    "@types/node": "^24",
+    "@types/ws": "8.18.2"
+  }
+}

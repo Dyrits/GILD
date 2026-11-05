@@ -32,8 +32,9 @@ Mission-state ownership is settled provisionally. Execution, guest discussion be
 
 - **Language**: TypeScript everywhere, in one Bun workspace.
 - **Runtime**: Node for the local service; Bun for package management and scripts.
-- **Effect**: Effect 4 in the local service and the relay Worker; not in the UI. See [0010](architecture-decision-record/0010-effect-in-the-service-and-relay.md).
-- **Toolchain**: Expo CLI with Metro builds the app. Vite+ is excluded; tooling for the other packages, tests, linting, and formatting remains to be chosen.
+- **Effect**: Effect 4 in the local service and the relay Worker; in the UI only Effect Schema's decode and encode functions for shared contracts. See [0010](architecture-decision-record/0010-effect-in-the-service-and-relay.md).
+- **Toolchain**: Expo CLI with Metro builds the app. Vite+ is excluded. Vitest with `@effect/vitest` tests on Node; Biome lints and formats (CHG-0025).
+- **Service host and transport**: Electron runs the service in a utilityProcess on its bundled Node. SQLite is reached through Effect's Node driver over `node:sqlite`. The app talks to the service over one authenticated loopback WebSocket; shared records are Effect Schema definitions in `packages/contracts` (CHG-0025).
 - **Desktop shell**: Electron. See [0004](architecture-decision-record/0004-electron-desktop-shell.md).
 - **Storage**: one SQLite file, with full-text search for intel; `sqlite-vec` later if semantic search is needed. See [0002](architecture-decision-record/0002-one-local-service-owns-all-data.md).
 - **Harness integration**: each harness's command-line tool driven directly: Claude Code over its JSON stream, Codex through its app server, OpenCode and others through the Agent Client Protocol (ACP). See [0008](architecture-decision-record/0008-drive-harness-tools-directly.md).

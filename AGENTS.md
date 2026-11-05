@@ -10,8 +10,9 @@
 - `documentation/capabilities/<capability>/specifications.md`: each capability's agreed behavior and acceptance. Read before changing that capability.
 - `documentation/first-slice-design.md` and `documentation/capabilities/<capability>/blueprint.md`: proposed modules, interfaces, and staged acceptance. Read before implementing or reviewing the first slice; settle the listed review decisions before production code.
 - `documentation/backlog.md`: candidate work and deferrals. Read when choosing what to do next.
+- `documentation/work-in-progress.md`: the current batch, its checks, and open questions. Read first when resuming; work proceeds in batches with the iterate skill.
 - `documentation/changelog.md`: authorized agreements and verified deliveries. Append a record for each.
 
 ## Handoffs
 
-To resume first slice design review, read the [current handoff](.agents/handoffs/2026-11-05-1009-first-slice-boundaries.md). Handoffs are shared and committed.
+To resume the first slice's batch work, read the [current handoff](.agents/handoffs/2026-11-05-1034-first-batch-draft.md). Handoffs are shared and committed.
