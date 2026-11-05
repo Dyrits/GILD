@@ -299,3 +299,39 @@ Reason: Preserve agent capabilities when a guest triggers work while keeping hos
 References: documentation/architecture.md
 Validation: The user accepted the recommendations in multiplayer Q6 and Q7 on 2026-11-05.
 Evidence: Q6, "Yes, on by default"; Q7, "Yes, show conversations and results".
+
+## CHG-0019 · 2026-11-05 · Guest identities and mission invitations agreed
+
+Type: Documentation
+Event: Agreement
+Scope: Multiplayer architecture
+
+Summary: Guests use a separate identity approved by the host, without a required central OpenMission account. A single-use invitation grants access to one mission, with discussion-only permission by default. The host may grant permission to trigger agents when inviting or later. Identity verification, invitation expiry, history access, and revocation remain open.
+Reason: Keep guest access separate from owner device pairing and make mission and spending permissions explicit.
+References: documentation/architecture.md
+Validation: The user accepted both recommendations in the resumed interview on 2026-11-05.
+Evidence: Q1, "Host-approved guest identity (recommended)"; Q2, "Single-use, one mission (recommended)".
+
+## CHG-0020 · 2026-11-05 · Guest history access and permission changes agreed
+
+Type: Documentation
+Event: Agreement
+Scope: Multiplayer architecture
+
+Summary: Guests see the whole mission, including past conversations, all threads, and results; the host sees this scope before sharing. Removing a guest immediately blocks access, cancels their queued requests, and stops their running turns. Completed results remain, and actions already performed cannot be undone by removal. Downgrading a guest to discussion-only cancels their queued requests but lets running turns finish; discussion access remains.
+Reason: Give guests the context to participate and define how permission changes affect access and spending already initiated.
+References: documentation/architecture.md
+Validation: The user accepted all three recommendations in the resumed interview on 2026-11-05.
+Evidence: Q1, "Whole mission history (recommended)"; Q2, "Revoke access and stop work (recommended)"; Q3, "Cancel queued; finish running (recommended)".
+
+## CHG-0021 · 2026-11-05 · Guest verification, invitation expiry, and data location agreed
+
+Type: Documentation
+Event: Agreement
+Scope: Multiplayer architecture
+
+Summary: Opening an invitation creates a pending request with the guest's chosen name. The host verifies the person through a trusted channel before approving access. Unused invitations expire after 24 hours; the host can cancel or replace them. The first hosted version keeps mission documents and data on the host while guests receive shared conversations and results. Guest local copies are a future direction, with scope, synchronization, and retention still open.
+Reason: Require host verification before guest access and preserve host-held data for the first hosted version without excluding future local copies.
+References: documentation/architecture.md, documentation/requirements.md, documentation/backlog.md
+Validation: The user accepted the identity and expiry recommendations and clarified the intended progression of data storage.
+Evidence: Q1, "Host verifies and approves (recommended)"; Q2, "After 24 hours (recommended)"; Q3, "I think, first, everything is on the host, but in future version, they would probably get a local copy of the mission documents and data."

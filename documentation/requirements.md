@@ -17,6 +17,7 @@
 
 - **Local data**: missions, threads, intel, and workspace contents stay on the user's computer; nothing leaves it except what a harness, provider, or connected service needs for the work, and the encrypted traffic to a paired device.
   Source: the user. Reason: product decision.
+  Hosted multiplayer exception (CHG-0021): invited guests may receive shared mission conversations and results. The first hosted version keeps mission documents and data on the host. Future guest local copies require a separate design for their scope, synchronization, and retention. Removing access cannot erase information a guest has already saved or copied.
 - **Bring your own provider**: users connect their own provider subscriptions or API keys; OpenMission resells no model use.
   Source: the user. Reason: product decision.
 - **Comply with provider terms**: OpenMission never offers a provider's sign-in as its own, nor collects, stores, or relays provider credentials or session tokens; each harness signs in through its own unmodified tool and the provider's own flow, and the documentation states each provider's terms plainly.

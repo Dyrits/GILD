@@ -16,11 +16,17 @@ Only the host approves risky actions, grants standing permissions, and changes b
 
 When sharing a mission, a toggle controls whether its agents retain access to the host's selected MCP connections, skills, and intel. It is on by default, and applies regardless of who triggers a turn. With it off, all turns in that shared mission use only resources the host explicitly selects. Guests see shared conversations and agent results; resource settings, credentials, and unshared intel remain hidden. Agent replies may reveal information obtained through enabled resources. The user confirmed this access and visibility boundary on 2026-11-05 (CHG-0018).
 
-- A paired device represents the owner. Another person needs their own identity, access grants, and revocation; possession of a device pairing must not imply permission to all missions.
+Guests use a separate identity approved by the host; no central OpenMission account is required. Each invitation is single-use and grants access to one mission, with discussion-only permission by default. The host may grant permission to trigger agents when inviting or later (CHG-0019). Opening an invitation creates a pending request with the guest's chosen name. The host verifies the person through a channel they already trust, then approves access; a name or possession of the link alone does not establish identity. An unused invitation expires after 24 hours, and the host may cancel it earlier or create a replacement (CHG-0021).
+
+An invited guest sees the whole mission, including past conversations, all its threads, and results. Before sharing, the host sees that this is the scope of access. Removing a guest immediately blocks their access, cancels their queued requests, and stops turns they triggered that are still running. Completed results remain in the mission; removal cannot undo actions already performed. Changing a guest from triggering agents to discussion-only cancels their queued requests but lets turns already running finish. They retain discussion access and cannot start further turns. The user confirmed these choices on 2026-11-05 (CHG-0020).
+
+- A paired device represents the owner. Guest access uses its own identity and mission grant; possession of a device pairing must not imply permission to all missions.
 - Workspace paths and harness processes belong to the mission host in the first hosted version. Future execution across installations will need workspace identities beyond local paths.
 - One local service owns mission state under the current working choice. If independently writable replicas are introduced later, they will require synchronization and conflict rules.
 
-Mission-state ownership is settled provisionally. Execution, guest discussion behavior, host authority, spending, resource access, and guest visibility are settled for the first hosted version. Identity, revocation, and the local-data requirement's sharing exception remain open. SQLite and the service boundary do not by themselves require replacement.
+The first hosted version keeps mission documents and data on the host and transmits shared conversations and results to invited guests. Guest local copies are a future direction; their scope, synchronization, and retention rules remain to be designed (CHG-0021). Removing access cannot erase information a guest has already saved or copied.
+
+Mission-state ownership is settled provisionally. Execution, guest discussion behavior, host authority, spending, resource access, guest identities, mission invitations, history access, revocation, permission downgrades, and host-held mission data are settled for the first hosted version. Future guest local copies and collaboration across installations remain design work. SQLite and the service boundary do not by themselves require replacement.
 
 ## Stack
 
