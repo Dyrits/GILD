@@ -441,3 +441,39 @@ Summary: Missions now run on the installed Claude Code in chat-only mode, as agr
 References: commits ddb888d, baaf1eb, d62a904; documentation/work-in-progress.md; packages/service/src/claude.ts
 Validation: `bun run test` passes 19 checks with 1 skipped (the opt-in live check, which passed against Claude Code 2.1.302 earlier in the batch); typecheck and Biome pass; the flow was driven in the Electron window with real Claude Code before the conventions refactor. The user ran the app and accepted it.
 Evidence: User, after the run-through: "Seems good to me."
+
+## CHG-0031 · 2026-11-05 · Batch 3 agreed: tools behind action approval
+
+Type: Documentation
+Event: Agreement
+Scope: First slice, batch 3; Action approval
+
+Summary: Batch 3 turns on Claude Code's built-in tools behind both approval levels, standing permissions, and the Permissions page. At **Risky actions only** (the default) Claude Code runs in its sandbox with in-workspace edits and sandboxed commands unasked; threads ask through `request_approval` on a local OpenMission MCP server, which also answers Claude Code's own prompts through `--permission-prompt-tool`. A Claude Code prompt matching the action just allowed in that thread runs once without a second question; any other prompt becomes a question. Without a sandbox (native Windows, Linux without bubblewrap and socat) the default level asks for every prompt and Settings says why. Answers are Allow, Always allow, Deny, Deny with a message, and Discard. An action named in the owner's latest message is allowed without a question when the thread's quoted words appear verbatim in it. Always allow saves a sentence and a command pattern, scoped to the mission and widenable to everywhere; workspace scope follows workspace attachment. Questions are answered in the thread or the dashboard's open-questions list, with a content-free desktop notification on macOS, Linux, and Windows; phone answering waits for device pairing. A Stop button stops one thread and withdraws its question; on startup, open questions are withdrawn and their thread becomes Idle. Routines, thread messages, and Interrupt are out of this batch. Details and checks are in documentation/work-in-progress.md.
+Reason: Let threads act, with every risky action decided by the owner, while keeping the service able to verify what an approval covers.
+References: documentation/work-in-progress.md, documentation/capabilities/action-approval/specifications.md, documentation/architecture-decision-record/0005-thread-tools-over-mcp.md, documentation/first-slice-design.md
+Also made consistent: action-approval's Asking rule now says which harness prompts remain at the default level and how they are answered.
+Validation: The user chose one question at a time on 2026-11-05. Evidence from Claude Code documentation (code.claude.com, via Context7): `--permission-prompt-tool` takes an MCP tool of a loaded server; `sandbox.autoAllowBashIfSandboxed` and `sandbox.network.allowedDomains` settings; sandbox on macOS (Seatbelt), Linux and WSL2 (bubblewrap, socat), not native Windows. The prompt tool's message format is not yet verified against the installed 2.1.302.
+Evidence: path, "Both in one batch"; after Allow, "Match, else ask (Recommended)"; answers, "Everything"; where, "Desktop + macOS notice. Note that OpenMission should work on Linux and Windows as well if possible."; no sandbox, "Fall back to ask (Recommended)"; named action, "Quote check (Recommended)"; standing match, "Sentence + pattern (Recommended)"; scope, "Mission scope for now, but will be extended to workspace folder."; withdrawal, "Add Stop + restart rule (Recommended)"; confirmation, "Yes, build it (Recommended)".
+
+## CHG-0032 · 2026-11-05 · Local git runs without a question at the default level
+
+Type: Feature
+Event: Agreement
+Scope: First slice, batch 3; Action approval
+
+Summary: At **Risky actions only**, when Claude Code's sandbox runs, OpenMission answers Claude Code's prompts for local git on the workspace's own repository itself: `init` inside the workspace, `add`, `commit`, `branch` and `tag` without deleting or forcing, `switch` without discarding or forcing, and the reading commands `status`, `log`, `diff`, `show`, `rev-parse`. Only git commands joined by `&&` qualify; other commands, redirections, substitutions, inline settings other than the author's name and address, and options that point git elsewhere (`-C`, `--git-dir`, paths outside the workspace) still ask. Pushes, pulls, fetches, remotes, resets, cleans, and checkouts still ask. These prompts leave no record line, like other edits inside the workspace. The thread's instructions tell it to run local git alone and outside the sandbox. At **Also commands and edits**, and without a sandbox, every prompt still asks.
+Reason: The sandbox refuses writes under `.git`, and its write settings cannot lift a protected path, so every local commit became a question. Local git only changes the workspace, which the default level never asks about; casual owners should not be asked for it.
+References: documentation/capabilities/action-approval/specifications.md (Asking), documentation/work-in-progress.md (Drive findings), packages/service/src/patterns.ts (`isLocalGit`), packages/service/src/approvals.ts, packages/service/src/instructions.ts
+Validation: Claude Code's settings reference (code.claude.com, via Context7): sandbox `allowWrite` "entries cannot lift a protected path"; auto mode reviews actions with a classifier model. Checks: `bun run test` passes 45 with 2 skipped, live checks pass; typecheck and Biome pass. In the Electron window, a Haiku thread created a repository, committed, and branched with no question.
+Evidence: The owner asked how OpenBot and other assistants handle permissions and leaned toward fewer questions for casual users; offered built-in safe git, an auto mode level, loosening the risky list, or no change, they chose "Built-in safe git (Recommended)".
+
+## CHG-0033 · 2026-11-05 · Batch 3 delivered: tools behind action approval
+
+Type: Feature
+Event: Delivery
+Scope: First slice, batch 3; Action approval
+
+Summary: Threads run Claude Code's built-in tools behind action approval as agreed in CHG-0031 and CHG-0032: both approval levels, the sandboxed default, `request_approval` and the permission prompt tool on a per-thread local MCP endpoint, the one-time match, the quote check, standing permissions with the Permissions page, questions in the thread and on the dashboard, a content-free desktop notification, Stop, and withdrawal on restart. Fixed while driving the window: Claude Code's 300-second abort of silent MCP calls (the server entry now sets `timeout`), a question opened while a stopped thread's harness was exiting, questions left open by an abandoned call, harness questions without a reason, chained commands defeating the one-time match, and long history lines and filter chips.
+References: documentation/work-in-progress.md (Batch 3, Drive findings); packages/service/src/approvals.ts, mcp.ts, patterns.ts, instructions.ts; apps/app/src/questions.tsx, permissions.tsx, notifications.ts
+Validation: `OPENMISSION_LIVE_CLAUDE=1 bun run test` passes 47 of 47; typecheck and Biome pass. Driven in the Electron window with Claude Code and Haiku: a question answered after 5 min 51 s was accepted; quote check, one-time match, Always allow, a later push allowed by the standing permission, Remove, and Stop behaved as specified; local git ran without a question. Not verified: the desktop notification, and the owner's own run-through, which the owner skipped.
+Evidence: "Anyway, when finished, let's hand-off ... Commit and push."

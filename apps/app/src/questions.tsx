@@ -1,0 +1,124 @@
+import type { Answer, Question, QuestionOutcome } from "@openmission/contracts";
+import { useState } from "react";
+import { Pressable, Text, TextInput, View } from "react-native";
+import type { ServiceClient } from "./client";
+import { styles } from "./styles";
+
+const outcomeLabels = {
+  Allowed: "Allowed",
+  AllowedByMessage: "Allowed by your message",
+  AllowedByPermission: "Allowed by a standing permission",
+  AlwaysAllowed: "Always allowed",
+  Denied: "Denied",
+  Discarded: "Discarded",
+  Withdrawn: "Withdrawn",
+} as const satisfies Record<QuestionOutcome, string>;
+
+const shortTimeOf = (millis: number) => new Date(millis).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+const lineLength = 80;
+
+/** The first line of a command or target, cut to fit a short line; Show details keeps the whole. */
+const shortDetailOf = (details: string) => {
+  const [first = ""] = details.trim().split("\n");
+  return first.length > lineLength || first !== details.trim() ? `${first.slice(0, lineLength).trimEnd()}…` : first;
+};
+
+/** The short line an answered, discarded, or withdrawn question leaves in its thread. */
+export function QuestionLine({ question }: { question: Question }) {
+  const parts = [
+    question.outcome === null ? "Open" : outcomeLabels[question.outcome],
+    shortDetailOf(question.details),
+    question.resolvedAt === null ? null : shortTimeOf(question.resolvedAt),
+    question.device,
+  ].filter((part) => part !== null);
+  return (
+    <View style={styles.questionLine}>
+      <Text style={styles.muted}>{parts.join(" · ")}</Text>
+      {question.message !== null && <Text style={styles.muted}>{question.message}</Text>}
+    </View>
+  );
+}
+
+function AnswerButton({
+  label,
+  onPress,
+  isPrimary = false,
+}: {
+  label: string;
+  onPress: () => void;
+  isPrimary?: boolean;
+}) {
+  return (
+    <Pressable onPress={onPress} style={[styles.answer, isPrimary && styles.answerPrimary]}>
+      <Text style={[styles.answerText, isPrimary && styles.answerTextPrimary]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/** An open question with its buttons; outside its thread it also names its mission. */
+export function QuestionCard({
+  client,
+  question,
+  onOpenMission,
+}: {
+  client: ServiceClient;
+  question: Question;
+  onOpenMission?: () => void;
+}) {
+  const [isShowingDetails, setIsShowingDetails] = useState(false);
+  const [isWritingDenial, setIsWritingDenial] = useState(false);
+  const [denial, setDenial] = useState("");
+  const [error, setError] = useState<string | null>(null);
+  const send = (answer: Answer, message: string | null = null) =>
+    client.request({ _tag: "AnswerQuestion", answer, message, questionId: question.id }).then(
+      () => setError(null),
+      (reason: Error) => setError(reason.message),
+    );
+  return (
+    <View style={styles.question}>
+      {onOpenMission !== void 0 && (
+        <Pressable onPress={onOpenMission}>
+          <Text numberOfLines={1} style={styles.link}>
+            {question.missionTitle}
+          </Text>
+        </Pressable>
+      )}
+      <Text style={styles.questionText}>{question.summary}</Text>
+      <Pressable onPress={() => setIsShowingDetails(!isShowingDetails)}>
+        <Text style={styles.link}>{isShowingDetails ? "Hide details" : "Show details"}</Text>
+      </Pressable>
+      {isShowingDetails && (
+        <View style={styles.details}>
+          <Text style={styles.code}>{question.details}</Text>
+          {question.permission !== null && (
+            <Text style={styles.muted}>
+              Always allow saves: {question.permission}
+              {question.pattern === null ? "" : ` (${question.pattern})`}
+            </Text>
+          )}
+        </View>
+      )}
+      <View style={styles.chips}>
+        <AnswerButton isPrimary label="Allow" onPress={() => send("Allow")} />
+        <AnswerButton label="Always allow" onPress={() => send("AlwaysAllow")} />
+        <AnswerButton label="Deny" onPress={() => send("Deny")} />
+        <AnswerButton label="Deny with a message" onPress={() => setIsWritingDenial(true)} />
+        <AnswerButton label="Discard" onPress={() => send("Discard")} />
+      </View>
+      {isWritingDenial && (
+        <View style={styles.composer}>
+          <TextInput
+            multiline
+            onChangeText={setDenial}
+            placeholder="Why, or what to do instead…"
+            style={styles.input}
+            value={denial}
+          />
+          <AnswerButton isPrimary label="Deny" onPress={() => send("Deny", denial)} />
+        </View>
+      )}
+      {error !== null && <Text style={styles.error}>{error}</Text>}
+    </View>
+  );
+}

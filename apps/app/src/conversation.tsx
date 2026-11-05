@@ -1,9 +1,10 @@
-import type { MissionId } from "@openmission/contracts";
+import type { Message, MissionDetail, MissionId, Question } from "@openmission/contracts";
 import { useEffect, useState } from "react";
 import { FlatList, Pressable, Text, View } from "react-native";
 import { newRequestId, type ServiceClient } from "./client";
 import { Composer, StateBadge } from "./controls";
 import { effortLabel, modelLabels, usageDetail } from "./formatting";
+import { QuestionCard, QuestionLine } from "./questions";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
 
@@ -22,6 +23,17 @@ function useDraft(client: ServiceClient, threadId: string | null) {
   return draft;
 }
 
+type Entry = { _tag: "Message"; at: number; message: Message } | { _tag: "Question"; at: number; question: Question };
+
+/** Messages and questions in the order they happened. */
+const entriesOf = (detail: MissionDetail): Array<Entry> =>
+  [
+    ...detail.messages.map((message): Entry => ({ _tag: "Message", at: message.sentAt, message })),
+    ...detail.questions.map((question): Entry => ({ _tag: "Question", at: question.askedAt, question })),
+  ].sort((a, b) => a.at - b.at);
+
+const keyOf = (entry: Entry) => (entry._tag === "Message" ? entry.message.id : entry.question.id);
+
 export function Conversation({
   client,
   missionId,
@@ -33,6 +45,7 @@ export function Conversation({
 }) {
   const { data, error } = useServiceQuery(client, { _tag: "ReadMission", missionId }, missionId);
   const draft = useDraft(client, data?.thread.id ?? null);
+  const [stopError, setStopError] = useState<string | null>(null);
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
@@ -43,7 +56,19 @@ export function Conversation({
           {data?.mission.title ?? ""}
         </Text>
         {data && <StateBadge state={data.thread.state} />}
+        {data && (data.thread.state === "Running" || data.thread.state === "Attention") && (
+          <Pressable
+            onPress={() =>
+              client
+                .request({ _tag: "StopThread", threadId: data.thread.id })
+                .catch((reason: Error) => setStopError(reason.message))
+            }
+          >
+            <Text style={styles.link}>Stop</Text>
+          </Pressable>
+        )}
       </View>
+      {stopError !== null && <Text style={styles.error}>{stopError}</Text>}
       {data && (
         <Text style={styles.muted}>
           {modelLabels[data.thread.model]} · {effortLabel(data.thread.effort)} · {usageDetail(data.mission.usage)}
@@ -56,9 +81,9 @@ export function Conversation({
         </View>
       )}
       {error !== null && <Text style={styles.error}>{error}</Text>}
-      <FlatList
-        data={data?.messages ?? []}
-        keyExtractor={(message) => message.id}
+      <FlatList<Entry>
+        data={data === null ? [] : entriesOf(data)}
+        keyExtractor={keyOf}
         ListFooterComponent={
           draft === "" ? (
             void 0
@@ -69,12 +94,20 @@ export function Conversation({
             </View>
           )
         }
-        renderItem={({ item }) => (
-          <View style={[styles.message, item.sender === "user" ? styles.fromUser : styles.fromAgent]}>
-            <Text style={styles.sender}>{item.sender === "user" ? "You" : "Agent"}</Text>
-            <Text style={styles.body}>{item.text}</Text>
-          </View>
-        )}
+        renderItem={({ item }) =>
+          item._tag === "Question" ? (
+            item.question.outcome === null ? (
+              <QuestionCard client={client} question={item.question} />
+            ) : (
+              <QuestionLine question={item.question} />
+            )
+          ) : (
+            <View style={[styles.message, item.message.sender === "user" ? styles.fromUser : styles.fromAgent]}>
+              <Text style={styles.sender}>{item.message.sender === "user" ? "You" : "Agent"}</Text>
+              <Text style={styles.body}>{item.message.text}</Text>
+            </View>
+          )
+        }
         style={styles.flex}
       />
       {data && (

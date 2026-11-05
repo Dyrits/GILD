@@ -10,8 +10,8 @@ Version 1 serves the installation's owner. In future hosted missions, only the h
 
 ### Asking
 
-- A thread asks for an approval as a question in its own conversation, with buttons, through `request_approval`. OpenMission turns off the harnesses' own permission prompts; each harness's sandbox still keeps writes inside the workspace.
-- At the default level, a thread asks before deleting anything it did not create, editing outside its workspace, pushing code, publishing or posting, sending a message to a person, submitting a form, paying, and anything else that cannot be undone or reaches outside the user's computer. Reading, and editing inside its workspace, never ask. The thread's instructions carry this list.
+- A thread asks for an approval as a question in its own conversation, with buttons, through `request_approval`. Each harness runs in its sandbox, which keeps writes inside the workspace, so ordinary commands and edits there raise no harness prompt. A harness prompt that matches the action just allowed in that thread, or a standing permission's pattern, is answered without a second question; any other harness prompt becomes a question with the same buttons. Without a sandbox, every harness prompt becomes a question (CHG-0031).
+- At the default level, a thread asks before deleting anything it did not create, editing outside its workspace, pushing code, publishing or posting, sending a message to a person, submitting a form, paying, and anything else that cannot be undone or reaches outside the user's computer. Reading, and editing inside its workspace, never ask; local git on the workspace's own repository (creating it, staging, committing, branching, switching, tagging, reading history) counts as such an edit, while anything that reaches a remote, deletes, or forces still asks (CHG-0032). The thread's instructions carry this list.
 - Each question covers exactly one action. A thread that needs three actions asks three questions.
 - A thread does not ask when the action is already approved:
   - the user's message names it, for example "push it" or "send this to Alice", which approves that one action in that thread;

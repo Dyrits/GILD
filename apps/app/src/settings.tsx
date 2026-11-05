@@ -4,10 +4,19 @@ import { Pressable, Switch, Text, View } from "react-native";
 import type { ServiceClient } from "./client";
 import { Choice } from "./controls";
 import { effortLabel, modelLabels } from "./formatting";
+import { levelLabels } from "./permissions";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
 
-export function SettingsScreen({ client, onBack }: { client: ServiceClient; onBack: () => void }) {
+export function SettingsScreen({
+  client,
+  onBack,
+  onPermissions,
+}: {
+  client: ServiceClient;
+  onBack: () => void;
+  onPermissions: () => void;
+}) {
   const { data: settings, error } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
   const [saveError, setSaveError] = useState<string | null>(null);
   const save = (change: Partial<Settings>) => {
@@ -29,6 +38,10 @@ export function SettingsScreen({ client, onBack }: { client: ServiceClient; onBa
       {saveError !== null && <Text style={styles.error}>{saveError}</Text>}
       {settings && (
         <View style={styles.settings}>
+          <Pressable onPress={onPermissions} style={styles.row}>
+            <Text style={[styles.body, styles.flex]}>Permissions · {levelLabels[settings.approvalLevel]}</Text>
+            <Text style={styles.link}>›</Text>
+          </Pressable>
           <Text style={styles.label}>Default model for new missions</Text>
           <Choice
             label={(m) => modelLabels[m]}

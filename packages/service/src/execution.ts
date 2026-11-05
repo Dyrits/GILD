@@ -1,4 +1,4 @@
-import type { EffortChoice, ModelChoice, TokenUsage } from "@openmission/contracts";
+import type { ApprovalLevel, EffortChoice, ModelChoice, TokenUsage } from "@openmission/contracts";
 import { Context, type Duration, Effect, Layer, Schema } from "effect";
 
 export type HarnessEvent =
@@ -7,7 +7,17 @@ export type HarnessEvent =
   /** The assistant message written so far, never saved. */
   | { readonly _tag: "Draft"; readonly text: string };
 
+/** What a thread may use in a turn, and how its actions are approved (CHG-0031). */
+export interface ThreadAccess {
+  readonly approvalLevel: ApprovalLevel;
+  /** The thread's own MCP endpoint serving `request_approval` and the permission prompt tool. */
+  readonly mcpUrl: string;
+  /** The sentences of the standing permissions that apply to the thread. */
+  readonly permissions: ReadonlyArray<string>;
+}
+
 export interface TurnRequest {
+  readonly access: ThreadAccess;
   readonly cwd: string;
   readonly effort: EffortChoice;
   readonly model: ModelChoice;
@@ -32,12 +42,51 @@ export class Harness extends Context.Service<
   { readonly runTurn: (request: TurnRequest) => Effect.Effect<TurnOutcome, HarnessFailure> }
 >()("openmission/Harness") {}
 
-/** A deterministic harness for checks: it echoes after a delay. */
+/** Calls one tool on a thread's MCP endpoint and returns its text, as Claude Code would. */
+export const callThreadTool = (mcpUrl: string, name: string, args: unknown) =>
+  Effect.promise(async () => {
+    const response = await fetch(mcpUrl, {
+      body: JSON.stringify({ id: 1, jsonrpc: "2.0", method: "tools/call", params: { arguments: args, name } }),
+      headers: { accept: "application/json, text/event-stream", "content-type": "application/json" },
+      method: "POST",
+    });
+    const body = await response.text();
+    const data = body
+      .split("\n")
+      .filter((line) => line.startsWith("data: "))
+      .map((line) => line.slice("data: ".length))
+      .join("");
+    const parsed = JSON.parse(data) as { result: { content: Array<{ text: string }> } };
+    return parsed.result.content.map((block) => block.text).join("");
+  });
+
+// The fake's script: a line `ask <json>` calls request_approval and `prompt <tool> <json input>`
+// raises a harness permission prompt, each answered before the echo.
+const scriptedCall = (access: ThreadAccess, line: string) => {
+  if (line.startsWith("ask ")) return callThreadTool(access.mcpUrl, "request_approval", JSON.parse(line.slice(4)));
+  const prompt = /^prompt (\S+) (.*)$/.exec(line);
+  if (prompt !== null) {
+    return callThreadTool(access.mcpUrl, "answer_prompt", {
+      input: JSON.parse(prompt[2] ?? "{}"),
+      tool_name: prompt[1] ?? "",
+    });
+  }
+  return null;
+};
+
+/** A deterministic harness for checks: it runs scripted tool calls, then echoes after a delay. */
 export const fakeHarnessLayer = (replyDelay: Duration.Input) =>
   Layer.succeed(Harness, {
     runTurn: (request) =>
-      Effect.sleep(replyDelay).pipe(
-        Effect.andThen(request.onEvent({ _tag: "Reply", text: `Echo: ${request.text}` })),
-        Effect.as({ sessionId: request.sessionId ?? `fake-${request.threadId}`, usage: null }),
-      ),
+      Effect.gen(function* () {
+        yield* Effect.sleep(replyDelay);
+        const results: Array<string> = [];
+        for (const line of request.text.split("\n")) {
+          const call = scriptedCall(request.access, line.trim());
+          if (call !== null) results.push(yield* call);
+        }
+        const text = results.length === 0 ? `Echo: ${request.text}` : `Echo: ${results.join(" | ")}`;
+        yield* request.onEvent({ _tag: "Reply", text });
+        return { sessionId: request.sessionId ?? `fake-${request.threadId}`, usage: null };
+      }),
   });

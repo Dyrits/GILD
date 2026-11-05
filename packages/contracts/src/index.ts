@@ -36,7 +36,12 @@ export const TokenUsage = Schema.Struct({
 });
 export type TokenUsage = typeof TokenUsage.Type;
 
+/** How much asks for approval (action-approval, Approval level; CHG-0031). */
+export const ApprovalLevel = Schema.Literals(["RiskyOnly", "CommandsAndEdits"]);
+export type ApprovalLevel = typeof ApprovalLevel.Type;
+
 export const Settings = Schema.Struct({
+  approvalLevel: ApprovalLevel,
   defaultEffort: EffortChoice,
   defaultModel: ModelChoice,
   shouldStreamReplies: Schema.Boolean,
@@ -65,6 +70,75 @@ export const Message = Schema.Struct({
 });
 export type Message = typeof Message.Type;
 
+export const QuestionId = Schema.String.pipe(Schema.brand("QuestionId"));
+export type QuestionId = typeof QuestionId.Type;
+
+export const PermissionId = Schema.String.pipe(Schema.brand("PermissionId"));
+export type PermissionId = typeof PermissionId.Type;
+
+/** Who raised a question: the thread through `request_approval`, or the harness's own permission prompt. */
+export const QuestionSource = Schema.Literals(["Thread", "Harness"]);
+export type QuestionSource = typeof QuestionSource.Type;
+
+/** How a question ended; null while it is open. */
+export const QuestionOutcome = Schema.Literals([
+  "Allowed",
+  "AlwaysAllowed",
+  "Denied",
+  "Discarded",
+  "Withdrawn",
+  "AllowedByMessage",
+  "AllowedByPermission",
+]);
+export type QuestionOutcome = typeof QuestionOutcome.Type;
+
+/** One approval question about one action, open or recorded. */
+export const Question = Schema.Struct({
+  askedAt: Schema.Number,
+  /** The exact command, file, or target. */
+  details: Schema.String,
+  /** Where it was answered, such as "desktop"; null while open or when no person answered. */
+  device: Schema.NullOr(Schema.String),
+  id: QuestionId,
+  /** The owner's message on a denial, if any. */
+  message: Schema.NullOr(Schema.String),
+  missionId: MissionId,
+  missionTitle: Schema.String,
+  outcome: Schema.NullOr(QuestionOutcome),
+  /** The command pattern Always allow would save, such as `git push *`. */
+  pattern: Schema.NullOr(Schema.String),
+  /** The short sentence Always allow would save, such as "Push code to GitHub". */
+  permission: Schema.NullOr(Schema.String),
+  resolvedAt: Schema.NullOr(Schema.Number),
+  source: QuestionSource,
+  /** One natural-language sentence: what the thread wants to do and why. */
+  summary: Schema.String,
+  threadId: ThreadId,
+});
+export type Question = typeof Question.Type;
+
+/** A standing permission the owner granted with Always allow. */
+export const StandingPermission = Schema.Struct({
+  createdAt: Schema.Number,
+  id: PermissionId,
+  /** The mission it applies to; null when widened to everywhere. */
+  missionId: Schema.NullOr(MissionId),
+  missionTitle: Schema.NullOr(Schema.String),
+  pattern: Schema.String,
+  sentence: Schema.String,
+});
+export type StandingPermission = typeof StandingPermission.Type;
+
+export const PermissionsView = Schema.Struct({
+  /** Answered, discarded, and withdrawn questions, newest first. */
+  history: Schema.Array(Question),
+  level: ApprovalLevel,
+  permissions: Schema.Array(StandingPermission),
+  /** Why the sandbox is unavailable, so the default level asks for every prompt; null when available. */
+  sandboxProblem: Schema.NullOr(Schema.String),
+});
+export type PermissionsView = typeof PermissionsView.Type;
+
 export const ThreadView = Schema.Struct({
   effort: EffortChoice,
   /** Why the last turn failed, while the thread is Failed. */
@@ -77,6 +151,8 @@ export const ThreadView = Schema.Struct({
 export const MissionDetail = Schema.Struct({
   messages: Schema.Array(Message),
   mission: MissionSummary,
+  /** The thread's questions, open and recorded, in the order asked. */
+  questions: Schema.Array(Question),
   thread: ThreadView,
 });
 export type MissionDetail = typeof MissionDetail.Type;
@@ -98,6 +174,21 @@ export const ListMissions = Schema.TaggedStruct("ListMissions", {});
 export const ReadMission = Schema.TaggedStruct("ReadMission", { missionId: MissionId });
 
 export const ReadSettings = Schema.TaggedStruct("ReadSettings", {});
+
+/** The owner's answer to one open question. */
+export const Answer = Schema.Literals(["Allow", "AlwaysAllow", "Deny", "Discard"]);
+export type Answer = typeof Answer.Type;
+export const AnswerQuestion = Schema.TaggedStruct("AnswerQuestion", {
+  answer: Answer,
+  /** Deny with a message: why, or what to do instead. */
+  message: Schema.NullOr(Schema.String),
+  questionId: QuestionId,
+});
+export const ListOpenQuestions = Schema.TaggedStruct("ListOpenQuestions", {});
+export const StopThread = Schema.TaggedStruct("StopThread", { threadId: ThreadId });
+export const ReadPermissions = Schema.TaggedStruct("ReadPermissions", { missionId: Schema.NullOr(MissionId) });
+export const WidenPermission = Schema.TaggedStruct("WidenPermission", { permissionId: PermissionId });
+export const RemovePermission = Schema.TaggedStruct("RemovePermission", { permissionId: PermissionId });
 export const UpdateSettings = Schema.TaggedStruct("UpdateSettings", { settings: Settings });
 
 export const Request = Schema.Union([
@@ -107,6 +198,12 @@ export const Request = Schema.Union([
   ReadMission,
   ReadSettings,
   UpdateSettings,
+  AnswerQuestion,
+  ListOpenQuestions,
+  StopThread,
+  ReadPermissions,
+  WidenPermission,
+  RemovePermission,
 ]);
 export type Request = typeof Request.Type;
 export type RequestTag = Request["_tag"];
@@ -118,12 +215,18 @@ export type SendMessageResult = typeof SendMessageResult.Type;
 
 /** The result schema of each request, used by both sides to encode and decode. */
 export const Results = {
+  AnswerQuestion: Question,
   ListMissions: Schema.Array(MissionSummary),
+  ListOpenQuestions: Schema.Array(Question),
   ReadMission: MissionDetail,
+  ReadPermissions: PermissionsView,
   ReadSettings: Settings,
+  RemovePermission: Schema.Null,
   SendMessage: SendMessageResult,
   StartMission: StartMissionResult,
+  StopThread: Schema.Null,
   UpdateSettings: Settings,
+  WidenPermission: Schema.Null,
 } as const;
 export type ResultOf<T extends RequestTag> = (typeof Results)[T]["Type"];
 

@@ -4,6 +4,8 @@ import { StyleSheet, Text, View } from "react-native";
 import { ServiceClient } from "./src/client";
 import { Conversation } from "./src/conversation";
 import { Dashboard } from "./src/dashboard";
+import { useAttentionNotice } from "./src/notifications";
+import { PermissionsScreen } from "./src/permissions";
 import { SettingsScreen } from "./src/settings";
 
 export default function App() {
@@ -11,6 +13,8 @@ export default function App() {
   const [failure, setFailure] = useState<string | null>(null);
   const [openMission, setOpenMission] = useState<MissionId | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
+  useAttentionNotice(client);
 
   useEffect(() => {
     ServiceClient.connect().then(setClient, (error: Error) => setFailure(error.message));
@@ -23,7 +27,16 @@ export default function App() {
       </View>
     );
   }
-  if (isSettingsOpen) return <SettingsScreen client={client} onBack={() => setIsSettingsOpen(false)} />;
+  if (isPermissionsOpen) return <PermissionsScreen client={client} onBack={() => setIsPermissionsOpen(false)} />;
+  if (isSettingsOpen) {
+    return (
+      <SettingsScreen
+        client={client}
+        onBack={() => setIsSettingsOpen(false)}
+        onPermissions={() => setIsPermissionsOpen(true)}
+      />
+    );
+  }
   return openMission === null ? (
     <Dashboard client={client} onOpen={setOpenMission} onSettings={() => setIsSettingsOpen(true)} />
   ) : (

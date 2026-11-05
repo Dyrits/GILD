@@ -9,6 +9,7 @@ import type {
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { notFound } from "./errors.ts";
+import { listThreadQuestions } from "./questions.ts";
 
 // Ordered from most to least urgent (mission-tracking specification). Done and
 // Stopped add no urgency; Idle is the provisional fallback until it is settled.
@@ -85,9 +86,11 @@ export const readMission = (missionId: string) =>
     const messages = yield* sql<MissionDetail["messages"][number]>`
       SELECT id, thread_id AS threadId, sender_kind AS sender, text, sequence, sent_at AS sentAt
       FROM messages WHERE thread_id = ${row.topThreadId} ORDER BY sequence`;
+    const questions = yield* listThreadQuestions(row.topThreadId);
     return {
       messages,
       mission: summaryOf(row),
+      questions,
       thread,
     } as MissionDetail;
   });

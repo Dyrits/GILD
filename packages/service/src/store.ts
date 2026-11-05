@@ -66,6 +66,35 @@ const migrations = {
         json(CASE WHEN json_extract(value, '$.streamReplies') THEN 'true' ELSE 'false' END))
       WHERE key = 'settings' AND json_type(value, '$.streamReplies') IS NOT NULL`;
   }),
+  // Batch 3 (CHG-0031): approval questions, standing permissions, and the approval level.
+  "0004_action_approval": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE questions (
+      id TEXT PRIMARY KEY,
+      mission_id TEXT NOT NULL REFERENCES missions(id),
+      thread_id TEXT NOT NULL REFERENCES threads(id),
+      source TEXT NOT NULL,
+      summary TEXT NOT NULL,
+      details TEXT NOT NULL,
+      pattern TEXT,
+      permission TEXT,
+      asked_at INTEGER NOT NULL,
+      outcome TEXT,
+      message TEXT,
+      device TEXT,
+      resolved_at INTEGER
+    )`;
+    yield* sql`CREATE INDEX questions_by_thread ON questions (thread_id, asked_at)`;
+    yield* sql`CREATE TABLE standing_permissions (
+      id TEXT PRIMARY KEY,
+      mission_id TEXT REFERENCES missions(id),
+      sentence TEXT NOT NULL,
+      pattern TEXT NOT NULL,
+      created_at INTEGER NOT NULL
+    )`;
+    yield* sql`UPDATE settings SET value = json_set(value, '$.approvalLevel', 'RiskyOnly')
+      WHERE key = 'settings' AND json_type(value, '$.approvalLevel') IS NULL`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

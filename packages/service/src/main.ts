@@ -3,6 +3,7 @@ import { join } from "node:path";
 import { Config, Effect, Layer } from "effect";
 import { claudeHarnessLayer } from "./claude.ts";
 import { fakeHarnessLayer } from "./execution.ts";
+import { sandboxProblem } from "./sandbox.ts";
 import { serveLoopback } from "./server.ts";
 import { serviceLayer } from "./service.ts";
 
@@ -19,10 +20,11 @@ const liveLayer = Layer.unwrap(
     // OPENMISSION_HARNESS=fake selects the echo harness for checks.
     const harnessName = yield* Config.String("OPENMISSION_HARNESS").pipe(Config.withDefault("claude"));
     const claudePath = yield* Config.String("OPENMISSION_CLAUDE_PATH").pipe(Config.withDefault("claude"));
+    const problem = yield* sandboxProblem;
     const harness =
       harnessName === "fake"
         ? fakeHarnessLayer("1500 millis")
-        : claudeHarnessLayer({ command: claudePath, idleTimeout: "10 minutes" });
+        : claudeHarnessLayer({ command: claudePath, idleTimeout: "10 minutes", sandboxProblem: problem });
     return Layer.fresh(
       serviceLayer({
         filename: join(dataDirectory, "openmission.sqlite"),

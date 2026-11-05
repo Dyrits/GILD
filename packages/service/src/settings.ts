@@ -3,6 +3,7 @@ import { Effect, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 
 export const defaultSettings: Settings = {
+  approvalLevel: "RiskyOnly",
   defaultEffort: "default",
   defaultModel: "default",
   shouldStreamReplies: true,

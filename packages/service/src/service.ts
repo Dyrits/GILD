@@ -1,11 +1,16 @@
 import type { Request } from "@openmission/contracts";
 import { Context, Effect, Layer, Match } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
+import { Approvals, approvalsLayer } from "./approvals.ts";
 import { Changes, changesLayer } from "./changes.ts";
 import { invalid, ServiceFailure } from "./errors.ts";
 import type { Harness } from "./execution.ts";
+import { toolServerLayer } from "./mcp.ts";
 import { insertUserMessage } from "./messaging.ts";
 import { insertMission, listMissions, readMission } from "./missions.ts";
+import { listPermissions, removePermission, widenPermission } from "./permissions.ts";
+import { listOpenQuestions, listQuestionHistory } from "./questions.ts";
+import { sandboxProblem } from "./sandbox.ts";
 import { readSettings, writeSettings } from "./settings.ts";
 import { storeLayer } from "./store.ts";
 import { ScratchRoot, Threads, threadsLayer } from "./threads.ts";
@@ -26,6 +31,8 @@ const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const threads = yield* Threads;
   const changes = yield* Changes;
+  const approvals = yield* Approvals;
+  const problem = yield* sandboxProblem;
 
   /** Runs a command once per request identifier; a repeat returns the stored outcome. */
   const once = <A>(
@@ -54,9 +61,22 @@ const make = Effect.gen(function* () {
     const run: Effect.Effect<unknown, ServiceFailure | SqlError.SqlError, SqlClient.SqlClient> = Match.valueTags(
       request,
       {
+        AnswerQuestion: (given) => approvals.answer(given.questionId, given.answer, given.message, "desktop"),
         ListMissions: () => listMissions,
+        ListOpenQuestions: () => listOpenQuestions,
         ReadMission: (read) => readMission(read.missionId),
+        ReadPermissions: (read) =>
+          Effect.gen(function* () {
+            const settings = yield* readSettings;
+            return {
+              history: yield* listQuestionHistory(read.missionId),
+              level: settings.approvalLevel,
+              permissions: yield* listPermissions,
+              sandboxProblem: problem,
+            };
+          }),
         ReadSettings: () => readSettings,
+        RemovePermission: (remove) => removePermission(remove.permissionId).pipe(Effect.tap(() => changes.publish)),
         SendMessage: (send) =>
           nonBlank(send.text).pipe(
             Effect.andThen((text) => once(send.requestId, send._tag, insertUserMessage(send.threadId, text))),
@@ -67,7 +87,9 @@ const make = Effect.gen(function* () {
             Effect.andThen((text) => once(start.requestId, start._tag, insertMission(text, start.model, start.effort))),
             Effect.tap((started) => threads.wake(started.threadId)),
           ),
+        StopThread: (stop) => threads.stop(stop.threadId).pipe(Effect.as(null)),
         UpdateSettings: (update) => writeSettings(update.settings).pipe(Effect.tap(() => changes.publish)),
+        WidenPermission: (widen) => widenPermission(widen.permissionId).pipe(Effect.tap(() => changes.publish)),
       },
     );
     return run.pipe(
@@ -93,5 +115,6 @@ export const serviceLayer = (options: ServiceOptions) => {
     options.harness,
     Layer.succeed(ScratchRoot, options.scratchRoot),
   ).pipe(Layer.provideMerge(storeLayer(options.filename)));
-  return Layer.effect(Service, make).pipe(Layer.provideMerge(threadsLayer), Layer.provideMerge(foundation));
+  const tools = toolServerLayer.pipe(Layer.provideMerge(approvalsLayer), Layer.provideMerge(foundation));
+  return Layer.effect(Service, make).pipe(Layer.provideMerge(threadsLayer), Layer.provideMerge(tools));
 };

@@ -13,7 +13,7 @@ export function StateBadge({ state }: { state: ThreadState }) {
 }
 
 export /** One choice among a few options, shown as chips. */
-function Choice<T extends string>({
+function Choice<T extends string | null>({
   options,
   value,
   label,
@@ -28,11 +28,13 @@ function Choice<T extends string>({
     <View style={styles.chips}>
       {options.map((option) => (
         <Pressable
-          key={option}
+          key={String(option)}
           onPress={() => onChange(option)}
           style={[styles.chip, option === value && styles.chipSelected]}
         >
-          <Text style={[styles.chipText, option === value && styles.chipTextSelected]}>{label(option)}</Text>
+          <Text numberOfLines={1} style={[styles.chipText, option === value && styles.chipTextSelected]}>
+            {label(option)}
+          </Text>
         </Pressable>
       ))}
     </View>

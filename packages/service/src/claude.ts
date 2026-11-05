@@ -1,8 +1,13 @@
 import { type ChildProcess, spawn } from "node:child_process";
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join } from "node:path";
 import { createInterface } from "node:readline";
 import type { TokenUsage } from "@openmission/contracts";
-import { Duration, Effect, Layer, Queue } from "effect";
-import { Harness, HarnessFailure, type TurnRequest } from "./execution.ts";
+import { Duration, Effect, Exit, Layer, Queue, Schema } from "effect";
+import { Harness, HarnessFailure, type ThreadAccess, type TurnRequest } from "./execution.ts";
+import { approvalInstructionsOf } from "./instructions.ts";
+import { approvalToolName, promptToolName, toolServerName } from "./mcp.ts";
 
 export interface ClaudeOptions {
   /** The executable; `claude` on the PATH by default. */
@@ -11,6 +16,10 @@ export interface ClaudeOptions {
   readonly idleTimeout: Duration.Input;
   /** Arguments placed before Claude Code's own, used to run a stand-in script in checks. */
   readonly prefixArgs?: ReadonlyArray<string>;
+  /** Why the sandbox cannot run here, or null; without it every harness prompt asks (CHG-0031). */
+  readonly sandboxProblem: string | null;
+  /** The owner's Claude Code settings file, whose allow and deny rules apply at "Also commands and edits". */
+  readonly userSettingsPath?: string;
 }
 
 /** The fields OpenMission reads from Claude Code's stream-json events. */
@@ -34,11 +43,13 @@ interface Session {
   idleTimer: ReturnType<typeof setTimeout> | null;
   readonly lines: Queue.Queue<Line>;
   readonly sessionId: string;
+  /** The access arguments the process started with; a change restarts it on the next turn. */
+  readonly signature: string;
 }
 
-// Chat only (CHG-0027): no tools, every permission prompt denied, and none of
-// the user's MCP servers, skills, or settings, so no action needs approval.
-const chatOnlyArgs = [
+// Tools behind approval (CHG-0031): built-in tools only, none of the owner's MCP
+// servers, skills, or settings; every permission prompt goes to OpenMission.
+const baseArgs = [
   "-p",
   "--input-format",
   "stream-json",
@@ -47,18 +58,85 @@ const chatOnlyArgs = [
   "--verbose",
   "--include-partial-messages",
   "--tools",
-  "",
-  "--permission-prompts",
-  "none",
+  "default",
+  // One thread is one Claude Code conversation; native subagents stay off until thread-tree decides them.
+  "--disallowedTools",
+  "Agent",
+  "Task",
   "--strict-mcp-config",
   "--setting-sources",
   "",
   "--disable-slash-commands",
+  "--permission-prompts",
+  "host",
+  "--permission-prompt-tool",
+  promptToolName,
+  "--allowedTools",
+  approvalToolName,
 ];
 
+const PermissionRules = Schema.Struct({
+  permissions: Schema.optional(
+    Schema.Struct({
+      allow: Schema.optional(Schema.Array(Schema.String)),
+      deny: Schema.optional(Schema.Array(Schema.String)),
+    }),
+  ),
+});
+const decodeRules = Schema.decodeUnknownExit(Schema.fromJsonString(PermissionRules));
+
+/** The owner's own allow and deny rules from their Claude Code settings, or none when unreadable. */
+const ownerRulesOf = (path: string) => {
+  let text: string;
+  try {
+    text = readFileSync(path, "utf8");
+  } catch {
+    return {};
+  }
+  const decoded = decodeRules(text);
+  if (Exit.isFailure(decoded)) return {};
+  const { allow, deny } = decoded.value.permissions ?? {};
+  return { ...(allow === undefined ? {} : { allow }), ...(deny === undefined ? {} : { deny }) };
+};
+
+/** The longest timer Node allows, in milliseconds: about 24.8 days. */
+const noTimeLimit = 2147483647;
+
+/** The arguments that depend on the thread's access: its endpoint, instructions, and approval level. */
+const accessArgsOf = (access: ThreadAccess, options: ClaudeOptions) => {
+  // A question waits with no time limit (action-approval, Waiting); without its own
+  // timeout, Claude Code aborts a call silent for 300 seconds (verified 2026-11-05).
+  const mcpConfig = { mcpServers: { [toolServerName]: { timeout: noTimeLimit, type: "http", url: access.mcpUrl } } };
+  const isSandboxed = access.approvalLevel === "RiskyOnly" && options.sandboxProblem === null;
+  const levelArgs = isSandboxed
+    ? [
+        "--permission-mode",
+        "acceptEdits",
+        "--settings",
+        JSON.stringify({ sandbox: { autoAllowBashIfSandboxed: true, enabled: true } }),
+      ]
+    : [
+        "--permission-mode",
+        "default",
+        "--settings",
+        JSON.stringify({
+          permissions: ownerRulesOf(options.userSettingsPath ?? join(homedir(), ".claude", "settings.json")),
+        }),
+      ];
+  return [
+    "--mcp-config",
+    JSON.stringify(mcpConfig),
+    "--append-system-prompt",
+    approvalInstructionsOf(access, isSandboxed),
+    ...levelArgs,
+  ];
+};
+
 /** The child's environment without OpenMission's own variables, such as the owner token. */
-const childEnvironment = () =>
-  Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("OPENMISSION_")));
+const childEnvironment = () => ({
+  ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("OPENMISSION_"))),
+  MCP_TOOL_TIMEOUT: String(noTimeLimit),
+});
 
 const usageOf = (usage: Record<string, unknown> | undefined): TokenUsage | null => {
   if (usage === undefined) return null;
@@ -96,13 +174,14 @@ export const claudeHarnessLayer = (options: ClaudeOptions) =>
       };
       yield* Effect.addFinalizer(() => Effect.sync(() => [...sessions.keys()].forEach(close)));
 
-      const start = (request: TurnRequest) =>
+      const start = (request: TurnRequest, signature: string, accessArgs: ReadonlyArray<string>) =>
         Effect.gen(function* () {
           const isResuming = request.sessionId !== null;
           const sessionId = request.sessionId ?? crypto.randomUUID();
           const args = [
             ...(options.prefixArgs ?? []),
-            ...chatOnlyArgs,
+            ...baseArgs,
+            ...accessArgs,
             ...(isResuming ? ["--resume", sessionId] : ["--session-id", sessionId]),
             ...(request.model === "default" ? [] : ["--model", request.model]),
             ...(request.effort === "default" ? [] : ["--effort", request.effort]),
@@ -113,7 +192,7 @@ export const claudeHarnessLayer = (options: ClaudeOptions) =>
             env: childEnvironment(),
             stdio: ["pipe", "pipe", "pipe"],
           });
-          const session: Session = { child, hasExited: false, idleTimer: null, lines, sessionId };
+          const session: Session = { child, hasExited: false, idleTimer: null, lines, sessionId, signature };
           let stderr = "";
           child.stderr?.on("data", (chunk: Buffer) => {
             stderr = (stderr + chunk.toString()).slice(-2000);
@@ -145,8 +224,14 @@ export const claudeHarnessLayer = (options: ClaudeOptions) =>
 
       const runTurn = (request: TurnRequest) =>
         Effect.gen(function* () {
+          const accessArgs = accessArgsOf(request.access, options);
+          const signature = JSON.stringify(accessArgs);
           const existing = sessions.get(request.threadId);
-          const session = existing !== undefined && !existing.hasExited ? existing : yield* start(request);
+          // A changed level or set of permissions restarts the process, resuming its conversation.
+          if (existing !== undefined && existing.signature !== signature) close(request.threadId);
+          const current = sessions.get(request.threadId);
+          const session =
+            current !== undefined && !current.hasExited ? current : yield* start(request, signature, accessArgs);
           if (session.idleTimer !== null) clearTimeout(session.idleTimer);
           session.child.stdin?.write(
             `${JSON.stringify({ message: { content: request.text, role: "user" }, type: "user" })}\n`,
@@ -193,7 +278,7 @@ export const claudeHarnessLayer = (options: ClaudeOptions) =>
               return { sessionId: session.sessionId, usage: usageOf(event.usage) };
             }
           }
-        });
+        }).pipe(Effect.onInterrupt(() => Effect.sync(() => close(request.threadId))));
 
       return { runTurn };
     }),

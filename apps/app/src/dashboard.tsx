@@ -11,6 +11,7 @@ import { FlatList, Pressable, Text, View } from "react-native";
 import { newRequestId, type ServiceClient } from "./client";
 import { Choice, Composer, StateBadge } from "./controls";
 import { effortLabel, modelLabels, timeOf, usageText } from "./formatting";
+import { QuestionCard } from "./questions";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
 
@@ -25,6 +26,7 @@ export function Dashboard({
 }) {
   const { data: missions, error } = useServiceQuery(client, { _tag: "ListMissions" }, "missions");
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
+  const { data: questions } = useServiceQuery(client, { _tag: "ListOpenQuestions" }, "open-questions");
   const [model, setModel] = useState<ModelChoice | null>(null);
   const [effort, setEffort] = useState<EffortChoice | null>(null);
   const chosenModel = model ?? settings?.defaultModel ?? "default";
@@ -37,6 +39,19 @@ export function Dashboard({
           <Text style={styles.link}>Settings</Text>
         </Pressable>
       </View>
+      {questions !== null && questions.length > 0 && (
+        <View style={styles.section}>
+          <Text style={styles.label}>Waiting for your answer</Text>
+          {questions.map((question) => (
+            <QuestionCard
+              client={client}
+              key={question.id}
+              onOpenMission={() => onOpen(question.missionId)}
+              question={question}
+            />
+          ))}
+        </View>
+      )}
       <Composer
         onSend={async (text) =>
           onOpen(
