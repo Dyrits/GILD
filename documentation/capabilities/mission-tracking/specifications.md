@@ -1,5 +1,7 @@
 # Mission tracking
 
+Technical design: [proposed blueprint](blueprint.md), including the first slice's staged acceptance.
+
 ## Problem and outcome
 
 When work runs in many threads across harnesses, the user loses track of which missions exist, which need them, and what they cost. The dashboard shows every mission with one state, its threads, and its spending, starts new missions in one message, and ends finished ones, so the user always knows where their work stands.

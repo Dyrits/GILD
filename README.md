@@ -10,5 +10,6 @@ An open-source, local-first workspace where every piece of work is a mission car
 - [Architecture](documentation/architecture.md)
 - [Architecture decision records](documentation/architecture-decision-record/)
 - [Capability specifications](documentation/capabilities/)
+- [First slice design and capability blueprints](documentation/first-slice-design.md)
 - [Backlog](documentation/backlog.md)
 - [Changelog](documentation/changelog.md)

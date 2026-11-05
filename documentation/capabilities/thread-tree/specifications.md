@@ -1,5 +1,7 @@
 # Thread tree
 
+Technical design: [proposed blueprint](blueprint.md), including the first slice's staged acceptance.
+
 ## Problem and outcome
 
 Work with AI agents spreads across disconnected chats, and subagents run out of sight. A mission's work forms one tree of threads that the user and agents grow, so the user can see, follow, and steer every piece of work, whichever harness, agent, model, and effort carries it.

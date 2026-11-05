@@ -1,5 +1,7 @@
 # Thread messaging
 
+Technical design: [proposed blueprint](blueprint.md), including the first slice's staged acceptance.
+
 ## Problem and outcome
 
 Subagents in today's harnesses report once at the end and cannot be asked or redirected along the way. Threads in a mission talk in both directions while they work, and the user can write to any of them, so work can be asked about, corrected, and coordinated as it happens.
@@ -39,7 +41,7 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
 
 | Tool | Purpose | Arguments | Answer |
 | --- | --- | --- | --- |
-| `send_thread_message` | Send a message | Receiving thread (a parent, a thread directly beneath, a referenced thread or mission, or Control), text, whether a reply is wanted | The message's identifier, or a refusal and its reason (a thread outside its reach, a stopped thread) |
+| `send_thread_message` | Send a message | Receiving thread (a parent, a thread directly beneath, a referenced thread or mission, or Control), text, whether a reply is wanted | The message's identifier, queued until explicit resume when the receiver is Stopped; or a refusal and its reason when the target is outside its reach |
 | `report_result` | Report the thread's result to its parent | — | — |
 | `interrupt_thread` | Interrupt a thread directly beneath the caller | — | — |
 
