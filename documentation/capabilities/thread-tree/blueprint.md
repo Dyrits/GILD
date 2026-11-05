@@ -4,7 +4,7 @@ Status: proposed. Uses the [first slice design](../../first-slice-design.md). Cl
 
 ## Modules and data
 
-Threads owns tree structure, immutable execution configuration after first start, state, generation, and turn admission. Its interface is `open`, `readTree`, `stop`, and `resume`. Execution supplies normalized turn events; Messaging supplies delivery and result events. App and MCP calls use the same authorization and admission logic.
+Threads owns tree structure, configuration, state, generation, and turn admission. Workspace attachment is immutable after first start. Changes to harness, agent, model, or effort belong to the later handover capability (CHG-0024). Its proposed interface is `open`, `readTree`, `stop`, and `resume`. Execution supplies normalized turn events; Messaging supplies delivery and result events. App and MCP calls use the same authorization and admission logic.
 
 Opening by a thread creates a direct descendant only. Opening by the owner may choose a parent. Validate parent and mission together, inherit settings with explicit overrides, and reserve a running slot atomically before starting execution. Proposed limits retain the specifications' defaults of four user-opened levels and eight running threads per mission. A refused opening records its reason without creating an executable thread. Budget refusal is staged with budget enforcement.
 

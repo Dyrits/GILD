@@ -14,4 +14,4 @@
 
 ## Handoffs
 
-To resume first slice design review, read the [current handoff](.agents/handoffs/2026-11-05-0922-first-slice-design-review.md). Handoffs are shared and committed.
+To resume first slice design review, read the [current handoff](.agents/handoffs/2026-11-05-1009-first-slice-boundaries.md). Handoffs are shared and committed.

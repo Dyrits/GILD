@@ -1,18 +1,20 @@
 # First slice design
 
-Status: proposed technical design. The user accepted Claude Code as the first harness, the staged behavior below, and retaining messages in Stopped threads until explicit resume. Module interfaces, storage, and tooling below await review. No implementation or harness conformance check has run.
+Status: technical design under review. The user accepted Claude Code, the staged slice, and the package and module boundaries (CHG-0024). Detailed interfaces, storage behavior, dependency gates, and tooling remain proposals. No implementation or harness conformance check has run.
 
 ## Boundary
 
 The slice lets the owner start a mission, open threads beneath it, exchange text messages, report results, stop individual threads, and continue them. It runs locally through one Claude Code adapter and a fake adapter for automated checks. It does not complete the three capabilities' full specifications. Their blueprints identify every acceptance check as included or staged.
 
+Continuing includes waking Done threads with a message and explicitly resuming Stopped threads. Reopening Done or Archived missions is staged with mission-ending behavior. Workspace attachment is immutable after first start; later changes to harness, agent, model, or effort belong to handover, which is staged.
+
 Use the agreed Node local service, SQLite, Effect, Electron, Expo CLI/Metro, TypeScript, and Bun workspace. Keep the runtime comparison in the backlog. No relay, phone pairing, second harness, Control, hosted guest, or native phone build belongs to this slice.
 
 ## Modules and dependencies
 
-Proposed code homes are `apps/app`, `apps/desktop`, `packages/service`, and `packages/contracts`. Harness adapters and persistence stay inside the service; neither needs its own package yet. The contracts package contains transport records and validation shared with the app, with no database access or harness dependencies.
+Agreed code homes are `apps/app` for the Expo UI, `apps/desktop` for Electron, `packages/service` for the local service, and `packages/contracts` for shared transport records and validation. Harness adapters and persistence stay inside the service. The contracts package has no database access or harness dependencies.
 
-The local service contains these modules:
+The agreed service modules and their proposed detailed interfaces are:
 
 | Module | Interface and responsibility |
 | --- | --- |
@@ -108,7 +110,7 @@ Recommend TypeScript checking, ESLint, and Prettier as separate workspace comman
 
 ## Review decisions
 
-1. Accept or revise the module interfaces and package homes above. Recommendation: keep orchestration, adapters, and persistence in one service package until a real consumer needs extraction.
+1. Package and module boundaries are accepted (CHG-0024). Review detailed command contracts, ordering, and recovery before implementation.
 2. Accept the dependency gates and honest staged acceptance. Recommendation: prove persistence and scheduling with the fake adapter before enabling live turns.
 3. Choose the concrete libraries after Claude Code protocol verification. Recommendation: Node-runtime service tests, TypeScript, ESLint, and Prettier; keep the Expo build choices already agreed.
 

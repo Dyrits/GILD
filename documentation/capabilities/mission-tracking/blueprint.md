@@ -1,6 +1,6 @@
 # Mission tracking blueprint
 
-Status: proposed. Uses the local-service modules and records in the [first slice design](../../first-slice-design.md). The user accepted the staged slice, not these technical interfaces. No acceptance check has run.
+Status: technical design under review. Uses the local-service modules and records in the [first slice design](../../first-slice-design.md). The user accepted the staged slice and package and module boundaries (CHG-0024); detailed interfaces and storage behavior remain proposed. No acceptance check has run.
 
 ## Modules and data
 
