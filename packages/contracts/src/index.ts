@@ -29,17 +29,17 @@ export type EffortChoice = typeof EffortChoice.Type;
 
 /** Token counts in the provider's own unit; never converted to a price. */
 export const TokenUsage = Schema.Struct({
+  cacheCreation: Schema.Number,
+  cacheRead: Schema.Number,
   input: Schema.Number,
   output: Schema.Number,
-  cacheRead: Schema.Number,
-  cacheCreation: Schema.Number,
 });
 export type TokenUsage = typeof TokenUsage.Type;
 
 export const Settings = Schema.Struct({
-  defaultModel: ModelChoice,
   defaultEffort: EffortChoice,
-  streamReplies: Schema.Boolean,
+  defaultModel: ModelChoice,
+  shouldStreamReplies: Schema.Boolean,
 });
 export type Settings = typeof Settings.Type;
 
@@ -47,52 +47,52 @@ const MessageText = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLengt
 
 export const MissionSummary = Schema.Struct({
   id: MissionId,
-  title: Schema.String,
-  state: ThreadState,
-  topThreadId: ThreadId,
   lastActivityAt: Schema.Number,
+  state: ThreadState,
+  title: Schema.String,
+  topThreadId: ThreadId,
   usage: TokenUsage,
 });
 export type MissionSummary = typeof MissionSummary.Type;
 
 export const Message = Schema.Struct({
   id: MessageId,
-  threadId: ThreadId,
   sender: SenderKind,
-  text: Schema.String,
-  sequence: Schema.Number,
   sentAt: Schema.Number,
+  sequence: Schema.Number,
+  text: Schema.String,
+  threadId: ThreadId,
 });
 export type Message = typeof Message.Type;
 
 export const ThreadView = Schema.Struct({
-  id: ThreadId,
-  state: ThreadState,
-  model: ModelChoice,
   effort: EffortChoice,
   /** Why the last turn failed, while the thread is Failed. */
   failure: Schema.NullOr(Schema.String),
+  id: ThreadId,
+  model: ModelChoice,
+  state: ThreadState,
 });
 
 export const MissionDetail = Schema.Struct({
+  messages: Schema.Array(Message),
   mission: MissionSummary,
   thread: ThreadView,
-  messages: Schema.Array(Message),
 });
 export type MissionDetail = typeof MissionDetail.Type;
 
 // Requests
 
 export const StartMission = Schema.TaggedStruct("StartMission", {
+  effort: EffortChoice,
+  model: ModelChoice,
   requestId: RequestId,
   text: MessageText,
-  model: ModelChoice,
-  effort: EffortChoice,
 });
 export const SendMessage = Schema.TaggedStruct("SendMessage", {
   requestId: RequestId,
-  threadId: ThreadId,
   text: MessageText,
+  threadId: ThreadId,
 });
 export const ListMissions = Schema.TaggedStruct("ListMissions", {});
 export const ReadMission = Schema.TaggedStruct("ReadMission", { missionId: MissionId });
@@ -111,18 +111,18 @@ export const Request = Schema.Union([
 export type Request = typeof Request.Type;
 export type RequestTag = Request["_tag"];
 
-export const StartMissionResult = Schema.Struct({ missionId: MissionId, threadId: ThreadId, messageId: MessageId });
+export const StartMissionResult = Schema.Struct({ messageId: MessageId, missionId: MissionId, threadId: ThreadId });
 export type StartMissionResult = typeof StartMissionResult.Type;
 export const SendMessageResult = Schema.Struct({ messageId: MessageId });
 export type SendMessageResult = typeof SendMessageResult.Type;
 
 /** The result schema of each request, used by both sides to encode and decode. */
 export const Results = {
-  StartMission: StartMissionResult,
-  SendMessage: SendMessageResult,
   ListMissions: Schema.Array(MissionSummary),
   ReadMission: MissionDetail,
   ReadSettings: Settings,
+  SendMessage: SendMessageResult,
+  StartMission: StartMissionResult,
   UpdateSettings: Settings,
 } as const;
 export type ResultOf<T extends RequestTag> = (typeof Results)[T]["Type"];
@@ -147,12 +147,12 @@ export const ClientFrame = Schema.Struct({ id: Schema.String, request: Request }
 export type ClientFrame = typeof ClientFrame.Type;
 
 export const Success = Schema.TaggedStruct("Success", { id: Schema.String, value: Schema.Unknown });
-export const Failure = Schema.TaggedStruct("Failure", { id: Schema.String, error: ServiceError });
+export const Failure = Schema.TaggedStruct("Failure", { error: ServiceError, id: Schema.String });
 /** Sent after each committed change; clients refetch what they show. */
 export const Changed = Schema.TaggedStruct("Changed", { sequence: Schema.Number });
 
 /** The reply a thread is writing, sent only while "Show replies as they're written" is on; never saved. */
-export const Draft = Schema.TaggedStruct("Draft", { threadId: ThreadId, text: Schema.String });
+export const Draft = Schema.TaggedStruct("Draft", { text: Schema.String, threadId: ThreadId });
 
 export const ServerFrame = Schema.Union([Success, Failure, Changed, Draft]);
 export type ServerFrame = typeof ServerFrame.Type;

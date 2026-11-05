@@ -12,7 +12,7 @@ const decodeFrame = Schema.decodeUnknownSync(ServerFrameJson);
 
 const directories: string[] = [];
 afterEach(() => {
-  for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true });
+  for (const directory of directories.splice(0)) rmSync(directory, { force: true, recursive: true });
 });
 
 const running = serveLoopback({ port: 0, token: TOKEN }).pipe(Effect.map(({ port }) => port));
@@ -23,8 +23,8 @@ const fresh = () => {
   directories.push(directory);
   return serviceLayer({
     filename: join(directory, "openmission.sqlite"),
-    scratchRoot: join(directory, "missions"),
     harness: fakeHarnessLayer("10 millis"),
+    scratchRoot: join(directory, "missions"),
   });
 };
 
@@ -33,7 +33,7 @@ const connect = (url: string) =>
     const socket = new WebSocket(url);
     const frames: unknown[] = [];
     socket.addEventListener("message", (event) => frames.push(decodeFrame(event.data)));
-    socket.addEventListener("open", () => resume(Effect.succeed({ socket, frames })));
+    socket.addEventListener("open", () => resume(Effect.succeed({ frames, socket })));
     socket.addEventListener("error", () => resume(Effect.fail(new Error("connection refused"))));
   });
 
@@ -44,7 +44,7 @@ const until = <A>(check: () => A | undefined) =>
       if (value !== undefined) return value;
       yield* Effect.sleep("10 millis");
     }
-    throw new Error("timed out waiting");
+    return yield* Effect.fail(new Error("timed out waiting"));
   });
 
 describe("loopback WebSocket", () => {
@@ -67,10 +67,10 @@ describe("loopback WebSocket", () => {
           id: "1",
           request: {
             _tag: "StartMission",
+            effort: "default",
+            model: "default",
             requestId: "r1",
             text: "Over the wire",
-            model: "default",
-            effort: "default",
           },
         }),
       );

@@ -14,7 +14,7 @@ const sessionId = option("--session-id") ?? option("--resume");
 const mode = process.env.STAND_IN_MODE ?? "ok";
 if (process.env.STAND_IN_LOG) {
   const env = Object.keys(process.env).filter((key) => key.startsWith("OPENMISSION_"));
-  appendFileSync(process.env.STAND_IN_LOG, `${JSON.stringify({ pid: process.pid, args, env })}\n`);
+  appendFileSync(process.env.STAND_IN_LOG, `${JSON.stringify({ args, env, pid: process.pid })}\n`);
 }
 if (mode === "fail-start") {
   process.stderr.write("stand-in: cannot start\n");
@@ -22,7 +22,7 @@ if (mode === "fail-start") {
 }
 
 const emit = (event) => process.stdout.write(`${JSON.stringify({ ...event, session_id: sessionId })}\n`);
-emit({ type: "system", subtype: "init", model: option("--model") ?? "default", tools: [] });
+emit({ model: option("--model") ?? "default", subtype: "init", tools: [], type: "system" });
 
 let turn = 0;
 for await (const line of createInterface({ input: process.stdin })) {
@@ -30,27 +30,27 @@ for await (const line of createInterface({ input: process.stdin })) {
   turn += 1;
   if (mode === "error-result") {
     emit({
-      type: "assistant",
       error: "model_not_found",
-      message: { role: "assistant", content: [{ type: "text", text: "There's an issue with the selected model." }] },
+      message: { content: [{ text: "There's an issue with the selected model.", type: "text" }], role: "assistant" },
+      type: "assistant",
     });
-    emit({ type: "result", subtype: "success", is_error: true, result: "There's an issue with the selected model." });
+    emit({ is_error: true, result: "There's an issue with the selected model.", subtype: "success", type: "result" });
     continue;
   }
   const reply = `Reply ${turn} (pid ${process.pid}) to: ${text}`;
-  emit({ type: "stream_event", event: { type: "message_start" } });
+  emit({ event: { type: "message_start" }, type: "stream_event" });
   for (const word of reply.split(" ")) {
     emit({
+      event: { delta: { text: `${word} `, type: "text_delta" }, type: "content_block_delta" },
       type: "stream_event",
-      event: { type: "content_block_delta", delta: { type: "text_delta", text: `${word} ` } },
     });
   }
-  emit({ type: "assistant", message: { role: "assistant", content: [{ type: "text", text: reply }] } });
+  emit({ message: { content: [{ text: reply, type: "text" }], role: "assistant" }, type: "assistant" });
   emit({
-    type: "result",
-    subtype: "success",
     is_error: false,
     result: reply,
-    usage: { input_tokens: 2, output_tokens: 10, cache_read_input_tokens: 100, cache_creation_input_tokens: 50 },
+    subtype: "success",
+    type: "result",
+    usage: { cache_creation_input_tokens: 50, cache_read_input_tokens: 100, input_tokens: 2, output_tokens: 10 },
   });
 }

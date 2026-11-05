@@ -32,7 +32,7 @@ export const insertMission = (text: string, model: ModelChoice, effort: EffortCh
       VALUES (${threadId}, ${missionId}, 'Idle', ${model}, ${effort})`;
     yield* sql`INSERT INTO messages (id, mission_id, thread_id, sender_kind, text, sequence, sent_at)
       VALUES (${messageId}, ${missionId}, ${threadId}, 'user', ${text}, 1, ${now})`;
-    return { missionId, threadId, messageId } as StartMissionResult;
+    return { messageId, missionId, threadId } as StartMissionResult;
   });
 
 type MissionRow = {
@@ -50,11 +50,11 @@ type MissionRow = {
 const summaryOf = (row: MissionRow): MissionSummary =>
   ({
     id: row.id,
-    title: row.title,
-    topThreadId: row.topThreadId,
     lastActivityAt: row.lastActivityAt,
     state: missionState(row.states.split(",")),
-    usage: { input: row.input, output: row.output, cacheRead: row.cacheRead, cacheCreation: row.cacheCreation },
+    title: row.title,
+    topThreadId: row.topThreadId,
+    usage: { cacheCreation: row.cacheCreation, cacheRead: row.cacheRead, input: row.input, output: row.output },
   }) as MissionSummary;
 
 const missionRows = (sql: SqlClient.SqlClient, missionId?: string) =>
@@ -78,16 +78,16 @@ export const readMission = (missionId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const [row] = yield* missionRows(sql, missionId);
-    if (row === undefined) return yield* Effect.fail(notFound("No such mission."));
+    if (row === undefined) return yield* notFound("No such mission.");
     const [thread] = yield* sql<MissionDetail["thread"]>`
       SELECT id, state, model, effort, failure FROM threads WHERE id = ${row.topThreadId}`;
-    if (thread === undefined) return yield* Effect.fail(notFound("The mission has no top thread."));
+    if (thread === undefined) return yield* notFound("The mission has no top thread.");
     const messages = yield* sql<MissionDetail["messages"][number]>`
       SELECT id, thread_id AS threadId, sender_kind AS sender, text, sequence, sent_at AS sentAt
       FROM messages WHERE thread_id = ${row.topThreadId} ORDER BY sequence`;
     return {
+      messages,
       mission: summaryOf(row),
       thread,
-      messages,
     } as MissionDetail;
   });

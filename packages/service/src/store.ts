@@ -59,6 +59,13 @@ const migrations = {
     )`;
     yield* sql`CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)`;
   }),
+  // Boolean names carry a prefix (documentation/conventions.md); keeps the saved choice.
+  "0003_boolean_setting_names": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`UPDATE settings SET value = json_set(json_remove(value, '$.streamReplies'), '$.shouldStreamReplies',
+        json(CASE WHEN json_extract(value, '$.streamReplies') THEN 'true' ELSE 'false' END))
+      WHERE key = 'settings' AND json_type(value, '$.streamReplies') IS NOT NULL`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

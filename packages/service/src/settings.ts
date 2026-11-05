@@ -2,7 +2,11 @@ import { Settings } from "@openmission/contracts";
 import { Effect, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 
-export const defaultSettings: Settings = { defaultModel: "default", defaultEffort: "default", streamReplies: true };
+export const defaultSettings: Settings = {
+  defaultEffort: "default",
+  defaultModel: "default",
+  shouldStreamReplies: true,
+};
 
 const decode = Schema.decodeUnknownSync(Schema.fromJsonString(Settings));
 

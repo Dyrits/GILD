@@ -12,6 +12,8 @@
 - `documentation/backlog.md`: candidate work and deferrals. Read when choosing what to do next.
 - `documentation/work-in-progress.md`: the current batch, its checks, and open questions. Read first when resuming; work proceeds in batches with the iterate skill.
 - `documentation/changelog.md`: authorized agreements and verified deliveries. Append a record for each.
+- `documentation/conventions.md`: how code is written here (naming, absence, errors, comments, tests). Read before writing or reviewing code.
+- `packages/service/node_modules/effect/AGENTS.md`: Effect's own guide for this installed version. Read completely before writing Effect code; search its `src/` for APIs it does not cover.
 
 ## Tooling
 

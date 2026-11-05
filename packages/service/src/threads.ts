@@ -16,12 +16,12 @@ export class Threads extends Context.Service<Threads, { readonly wake: (threadId
 export class ScratchRoot extends Context.Service<ScratchRoot, string>()("openmission/ScratchRoot") {}
 
 interface Admitted {
-  readonly turnId: string;
-  readonly missionId: string;
-  readonly sessionId: string | null;
-  readonly model: ModelChoice;
   readonly effort: EffortChoice;
   readonly messages: ReadonlyArray<string>;
+  readonly missionId: string;
+  readonly model: ModelChoice;
+  readonly sessionId: string | null;
+  readonly turnId: string;
 }
 
 export const threadsLayer = Layer.effect(
@@ -54,12 +54,12 @@ export const threadsLayer = Layer.effect(
             effort: EffortChoice;
           }>`SELECT state, mission_id AS missionId, session_id AS sessionId, model, effort
             FROM threads WHERE id = ${threadId}`;
-          if (thread === undefined || thread.state === "Running") return undefined;
+          if (thread === undefined || thread.state === "Running") return null;
           const pending = yield* sql<{ id: string; text: string }>`
             SELECT id, text FROM messages
             WHERE thread_id = ${threadId} AND sender_kind = 'user' AND delivered_turn_id IS NULL
             ORDER BY sequence`;
-          if (pending.length === 0) return undefined;
+          if (pending.length === 0) return null;
           const now = yield* Clock.currentTimeMillis;
           const turnId = crypto.randomUUID();
           yield* sql`INSERT INTO turns (id, thread_id, status, started_at) VALUES (${turnId}, ${threadId}, 'running', ${now})`;
@@ -68,12 +68,12 @@ export const threadsLayer = Layer.effect(
           yield* touch(thread.missionId, now);
           yield* sql.afterCommit(changes.publish);
           return {
-            turnId,
-            missionId: thread.missionId,
-            sessionId: thread.sessionId,
-            model: thread.model,
             effort: thread.effort,
             messages: pending.map((m) => m.text),
+            missionId: thread.missionId,
+            model: thread.model,
+            sessionId: thread.sessionId,
+            turnId,
           } satisfies Admitted;
         }),
       );
@@ -119,28 +119,28 @@ export const threadsLayer = Layer.effect(
         }),
       );
 
-    const draft = (threadId: string, text: string) => PubSub.publish(changes.drafts, { threadId, text });
+    const draft = (threadId: string, text: string) => PubSub.publish(changes.drafts, { text, threadId });
 
     const run = (threadId: string, turn: Admitted) =>
       Effect.gen(function* () {
-        const { streamReplies } = yield* readSettings.pipe(Effect.provideService(SqlClient.SqlClient, sql));
+        const { shouldStreamReplies } = yield* readSettings.pipe(Effect.provideService(SqlClient.SqlClient, sql));
         const cwd = join(scratchRoot, turn.missionId);
         yield* Effect.sync(() => mkdirSync(cwd, { recursive: true }));
         const onEvent = (event: HarnessEvent) =>
           event._tag === "Reply"
             ? saveReply(threadId, turn, event.text).pipe(Effect.andThen(draft(threadId, "")), Effect.orDie)
-            : streamReplies
+            : shouldStreamReplies
               ? draft(threadId, event.text).pipe(Effect.asVoid)
               : Effect.void;
         const outcome = yield* harness
           .runTurn({
-            threadId,
-            sessionId: turn.sessionId,
-            model: turn.model,
-            effort: turn.effort,
             cwd,
-            text: turn.messages.join("\n\n"),
+            effort: turn.effort,
+            model: turn.model,
             onEvent,
+            sessionId: turn.sessionId,
+            text: turn.messages.join("\n\n"),
+            threadId,
           })
           .pipe(Effect.result);
         yield* draft(threadId, "");
@@ -153,9 +153,7 @@ export const threadsLayer = Layer.effect(
     const wake = (threadId: string): Effect.Effect<void> =>
       admit(threadId).pipe(
         Effect.flatMap((turn) =>
-          turn === undefined
-            ? Effect.void
-            : FiberSet.run(turns, run(threadId, turn).pipe(Effect.orDie)).pipe(Effect.asVoid),
+          turn === null ? Effect.void : FiberSet.run(turns, run(threadId, turn).pipe(Effect.orDie)).pipe(Effect.asVoid),
         ),
         Effect.orDie,
       );

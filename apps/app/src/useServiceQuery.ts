@@ -4,27 +4,27 @@ import type { ServiceClient } from "./client";
 
 /** Runs a query now and again after every committed change. */
 export function useServiceQuery<R extends Request>(client: ServiceClient, request: R, key: string) {
-  const [data, setData] = useState<ResultOf<R["_tag"]>>();
-  const [error, setError] = useState<string>();
+  const [data, setData] = useState<ResultOf<R["_tag"]> | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
   // biome-ignore lint/correctness/useExhaustiveDependencies: the key identifies the request.
   useEffect(() => {
-    let current = true;
+    let isCurrent = true;
     const load = () =>
       client.request(request).then(
         (value) => {
-          if (!current) return;
+          if (!isCurrent) return;
           setData(value);
-          setError(undefined);
+          setError(null);
         },
         (reason: Error) => {
-          if (current) setError(reason.message);
+          if (isCurrent) setError(reason.message);
         },
       );
     load();
     const unsubscribe = client.subscribe(load);
     return () => {
-      current = false;
+      isCurrent = false;
       unsubscribe();
     };
   }, [client, key]);

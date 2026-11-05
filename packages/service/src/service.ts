@@ -20,7 +20,7 @@ const storageFailure = (error: SqlError.SqlError) =>
   new ServiceFailure({ kind: "ExecutionFailure", message: `Storage failed: ${error.message}` });
 
 const nonBlank = (text: string): Effect.Effect<string, ServiceFailure> =>
-  text.trim().length === 0 ? Effect.fail(invalid("The message is empty.")) : Effect.succeed(text);
+  text.trim().length === 0 ? invalid("The message is empty.") : Effect.succeed(text);
 
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
@@ -38,8 +38,7 @@ const make = Effect.gen(function* () {
         const [stored] = yield* sql<{ requestTag: string; outcome: string }>`
           SELECT request_tag AS requestTag, outcome FROM command_outcomes WHERE request_id = ${requestId}`;
         if (stored !== undefined) {
-          if (stored.requestTag !== tag)
-            return yield* Effect.fail(invalid("This request identifier was used for another command."));
+          if (stored.requestTag !== tag) return yield* invalid("This request identifier was used for another command.");
           return JSON.parse(stored.outcome) as A;
         }
         const outcome = yield* work;
@@ -77,7 +76,7 @@ const make = Effect.gen(function* () {
     })();
     return run.pipe(
       Effect.provideService(SqlClient.SqlClient, sql),
-      Effect.catchTag("SqlError", (error) => Effect.fail(storageFailure(error))),
+      Effect.catchTag("SqlError", (error) => storageFailure(error)),
     );
   };
 
@@ -86,9 +85,9 @@ const make = Effect.gen(function* () {
 
 export interface ServiceOptions {
   readonly filename: string;
+  readonly harness: Layer.Layer<Harness>;
   /** The folder holding each mission's scratch folder. */
   readonly scratchRoot: string;
-  readonly harness: Layer.Layer<Harness>;
 }
 
 /** The whole local service over one SQLite file. */

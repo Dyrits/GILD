@@ -10,7 +10,7 @@ export const insertUserMessage = (threadId: string, text: string) =>
     const [thread] = yield* sql<{
       missionId: string;
     }>`SELECT mission_id AS missionId FROM threads WHERE id = ${threadId}`;
-    if (thread === undefined) return yield* Effect.fail(notFound("No such thread."));
+    if (thread === undefined) return yield* notFound("No such thread.");
     const now = yield* Clock.currentTimeMillis;
     const messageId = crypto.randomUUID();
     const [next] = yield* sql<{ sequence: number }>`

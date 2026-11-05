@@ -1,7 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
-import { app, BrowserWindow, ipcMain, utilityProcess } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, utilityProcess } from "electron";
 
 const here = dirname(fileURLToPath(import.meta.url));
 const appUrl = process.env.OPENMISSION_APP_URL ?? "http://localhost:8081";
@@ -13,13 +13,13 @@ app.setName("OpenMission");
 /** Starts the local service on Electron's Node and resolves its loopback endpoint. */
 const startService = (token: string) => {
   const service = utilityProcess.fork(join(here, "service.js"), [], {
-    serviceName: "OpenMission service",
-    stdio: "inherit",
     env: {
       ...process.env,
       OPENMISSION_DATA_DIR: dataDirectory(),
       OPENMISSION_TOKEN: token,
     },
+    serviceName: "OpenMission service",
+    stdio: "inherit",
   });
   app.on("will-quit", () => service.kill());
   return new Promise<string>((resolve, reject) => {
@@ -30,31 +30,43 @@ const startService = (token: string) => {
   });
 };
 
-/** The dev server may still be starting; wait for it before loading the app. */
+/** The dev server may still be starting; waits for it, then loads the app. Resolves false when it never answers. */
 const load = async (window: BrowserWindow) => {
   for (let attempt = 0; attempt < 120; attempt++) {
-    const reachable = await fetch(appUrl).then(
+    const isReachable = await fetch(appUrl).then(
       (response) => response.ok,
       () => false,
     );
-    if (reachable) return window.loadURL(appUrl);
+    if (isReachable) {
+      await window.loadURL(appUrl);
+      return true;
+    }
     await new Promise((resolve) => setTimeout(resolve, 1000));
   }
-  throw new Error(`Could not load ${appUrl}`);
+  return false;
 };
 
-app.whenReady().then(async () => {
-  const token = randomBytes(32).toString("base64url");
-  const endpoint = await startService(token);
-  ipcMain.handle("openmission:endpoint", () => endpoint);
+/** Startup failures end here: the owner sees why, and the app quits instead of leaving an empty window. */
+const quitWith = (reason: string) => {
+  dialog.showErrorBox("OpenMission could not start", reason);
+  app.quit();
+};
 
-  const window = new BrowserWindow({
-    width: 1200,
-    height: 800,
-    title: "OpenMission",
-    webPreferences: { preload: join(here, "preload.cjs"), contextIsolation: true, sandbox: true },
-  });
-  await load(window);
-});
+app
+  .whenReady()
+  .then(async () => {
+    const token = randomBytes(32).toString("base64url");
+    const endpoint = await startService(token);
+    ipcMain.handle("openmission:endpoint", () => endpoint);
+
+    const window = new BrowserWindow({
+      height: 800,
+      title: "OpenMission",
+      webPreferences: { contextIsolation: true, preload: join(here, "preload.cjs"), sandbox: true },
+      width: 1200,
+    });
+    if (!(await load(window))) quitWith(`Could not load ${appUrl}`);
+  })
+  .catch((error: Error) => quitWith(error.message));
 
 app.on("window-all-closed", () => app.quit());

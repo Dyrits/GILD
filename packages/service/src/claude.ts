@@ -7,33 +7,33 @@ import { Harness, HarnessFailure, type TurnRequest } from "./execution.ts";
 export interface ClaudeOptions {
   /** The executable; `claude` on the PATH by default. */
   readonly command: string;
-  /** Arguments placed before Claude Code's own, used to run a stand-in script in checks. */
-  readonly prefixArgs?: ReadonlyArray<string>;
   /** How long an idle thread keeps its process. */
   readonly idleTimeout: Duration.Input;
+  /** Arguments placed before Claude Code's own, used to run a stand-in script in checks. */
+  readonly prefixArgs?: ReadonlyArray<string>;
 }
 
 /** The fields OpenMission reads from Claude Code's stream-json events. */
 interface StreamEvent {
-  readonly type?: string;
-  readonly subtype?: string;
-  readonly event?: { readonly type?: string; readonly delta?: { readonly type?: string; readonly text?: string } };
-  readonly message?: { readonly content?: unknown };
   readonly error?: unknown;
-  readonly is_error?: boolean;
-  readonly result?: unknown;
   readonly errors?: unknown;
+  readonly event?: { readonly type?: string; readonly delta?: { readonly type?: string; readonly text?: string } };
+  readonly is_error?: boolean;
+  readonly message?: { readonly content?: unknown };
+  readonly result?: unknown;
+  readonly subtype?: string;
+  readonly type?: string;
   readonly usage?: Record<string, unknown>;
 }
 
 type Line = { readonly _tag: "Line"; readonly line: string } | { readonly _tag: "Exit"; readonly reason: string };
 
 interface Session {
-  readonly sessionId: string;
   readonly child: ChildProcess;
+  hasExited: boolean;
+  idleTimer: ReturnType<typeof setTimeout> | null;
   readonly lines: Queue.Queue<Line>;
-  exited: boolean;
-  idleTimer: ReturnType<typeof setTimeout> | undefined;
+  readonly sessionId: string;
 }
 
 // Chat only (CHG-0027): no tools, every permission prompt denied, and none of
@@ -64,10 +64,10 @@ const usageOf = (usage: Record<string, unknown> | undefined): TokenUsage | null 
   if (usage === undefined) return null;
   const count = (key: string) => (typeof usage[key] === "number" ? (usage[key] as number) : 0);
   return {
+    cacheCreation: count("cache_creation_input_tokens"),
+    cacheRead: count("cache_read_input_tokens"),
     input: count("input_tokens"),
     output: count("output_tokens"),
-    cacheRead: count("cache_read_input_tokens"),
-    cacheCreation: count("cache_creation_input_tokens"),
   };
 };
 
@@ -91,19 +91,19 @@ export const claudeHarnessLayer = (options: ClaudeOptions) =>
         const session = sessions.get(threadId);
         if (session === undefined) return;
         sessions.delete(threadId);
-        if (session.idleTimer !== undefined) clearTimeout(session.idleTimer);
-        if (!session.exited) session.child.kill();
+        if (session.idleTimer !== null) clearTimeout(session.idleTimer);
+        if (!session.hasExited) session.child.kill();
       };
       yield* Effect.addFinalizer(() => Effect.sync(() => [...sessions.keys()].forEach(close)));
 
       const start = (request: TurnRequest) =>
         Effect.gen(function* () {
-          const resume = request.sessionId !== null;
+          const isResuming = request.sessionId !== null;
           const sessionId = request.sessionId ?? crypto.randomUUID();
           const args = [
             ...(options.prefixArgs ?? []),
             ...chatOnlyArgs,
-            ...(resume ? ["--resume", sessionId] : ["--session-id", sessionId]),
+            ...(isResuming ? ["--resume", sessionId] : ["--session-id", sessionId]),
             ...(request.model === "default" ? [] : ["--model", request.model]),
             ...(request.effort === "default" ? [] : ["--effort", request.effort]),
           ];
@@ -113,7 +113,7 @@ export const claudeHarnessLayer = (options: ClaudeOptions) =>
             env: childEnvironment(),
             stdio: ["pipe", "pipe", "pipe"],
           });
-          const session: Session = { sessionId, child, lines, exited: false, idleTimer: undefined };
+          const session: Session = { child, hasExited: false, idleTimer: null, lines, sessionId };
           let stderr = "";
           child.stderr?.on("data", (chunk: Buffer) => {
             stderr = (stderr + chunk.toString()).slice(-2000);
@@ -124,20 +124,21 @@ export const claudeHarnessLayer = (options: ClaudeOptions) =>
             );
           }
           child.on("error", (error: NodeJS.ErrnoException) => {
-            session.exited = true;
+            session.hasExited = true;
             const reason =
               error.code === "ENOENT" ? `Claude Code was not found at "${options.command}".` : error.message;
             Queue.offerUnsafe(lines, { _tag: "Exit", reason });
           });
           child.on("exit", (code, signal) => {
-            session.exited = true;
+            session.hasExited = true;
             const detail = stderr.trim();
             Queue.offerUnsafe(lines, {
               _tag: "Exit",
               reason: detail || `Claude Code stopped unexpectedly (${signal ?? `exit code ${code}`}).`,
             });
           });
-          child.stdin?.on("error", () => undefined);
+          // A write to a closed stdin is reported by the exit handler instead.
+          child.stdin?.on("error", () => void 0);
           sessions.set(request.threadId, session);
           return session;
         });
@@ -145,19 +146,19 @@ export const claudeHarnessLayer = (options: ClaudeOptions) =>
       const runTurn = (request: TurnRequest) =>
         Effect.gen(function* () {
           const existing = sessions.get(request.threadId);
-          const session = existing !== undefined && !existing.exited ? existing : yield* start(request);
-          if (session.idleTimer !== undefined) clearTimeout(session.idleTimer);
+          const session = existing !== undefined && !existing.hasExited ? existing : yield* start(request);
+          if (session.idleTimer !== null) clearTimeout(session.idleTimer);
           session.child.stdin?.write(
-            `${JSON.stringify({ type: "user", message: { role: "user", content: request.text } })}\n`,
+            `${JSON.stringify({ message: { content: request.text, role: "user" }, type: "user" })}\n`,
           );
 
           let draft = "";
-          let reportedError: string | undefined;
+          let reportedError: string | null = null;
           for (;;) {
             const item = yield* Queue.take(session.lines);
             if (item._tag === "Exit") {
               close(request.threadId);
-              return yield* Effect.fail(new HarnessFailure({ reason: item.reason }));
+              return yield* new HarnessFailure({ reason: item.reason });
             }
             let event: StreamEvent;
             try {
@@ -179,14 +180,14 @@ export const claudeHarnessLayer = (options: ClaudeOptions) =>
               if (event.error !== undefined && event.error !== null) reportedError = text || String(event.error);
               else if (text.trim() !== "") yield* request.onEvent({ _tag: "Reply", text });
             } else if (event.type === "result") {
-              if (event.is_error === true || reportedError !== undefined) {
+              if (event.is_error === true || reportedError !== null) {
                 const reason =
                   reportedError ??
-                  (typeof event.result === "string" && event.result !== "" ? event.result : undefined) ??
-                  (Array.isArray(event.errors) ? event.errors.join("; ") : undefined) ??
+                  (typeof event.result === "string" && event.result !== "" ? event.result : null) ??
+                  (Array.isArray(event.errors) ? event.errors.join("; ") : null) ??
                   `Claude Code reported ${event.subtype ?? "an error"}.`;
                 close(request.threadId);
-                return yield* Effect.fail(new HarnessFailure({ reason }));
+                return yield* new HarnessFailure({ reason });
               }
               session.idleTimer = setTimeout(() => close(request.threadId), idleMillis);
               return { sessionId: session.sessionId, usage: usageOf(event.usage) };

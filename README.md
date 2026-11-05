@@ -22,4 +22,5 @@ Requires Bun. From the repository root:
 - [First slice design and capability blueprints](documentation/first-slice-design.md)
 - [Backlog](documentation/backlog.md)
 - [Work in progress](documentation/work-in-progress.md)
+- [Conventions](documentation/conventions.md)
 - [Changelog](documentation/changelog.md)

@@ -1,23 +1,23 @@
 {
   "expo": {
-    "name": "OpenMission",
-    "slug": "openmission",
-    "version": "1.0.0",
-    "orientation": "portrait",
-    "icon": "./assets/icon.png",
-    "userInterfaceStyle": "light",
-    "ios": {
-      "supportsTablet": true
-    },
     "android": {
       "adaptiveIcon": {
         "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
+        "foregroundImage": "./assets/android-icon-foreground.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
       },
       "predictiveBackGestureEnabled": false
     },
+    "icon": "./assets/icon.png",
+    "ios": {
+      "supportsTablet": true
+    },
+    "name": "OpenMission",
+    "orientation": "portrait",
+    "slug": "openmission",
+    "userInterfaceStyle": "light",
+    "version": "1.0.0",
     "web": {
       "favicon": "./assets/favicon.png"
     }

@@ -1,5 +1,5 @@
 import type { EffortChoice, ModelChoice, TokenUsage } from "@openmission/contracts";
-import { Context, Data, type Duration, Effect, Layer } from "effect";
+import { Context, type Duration, Effect, Layer, Schema } from "effect";
 
 export type HarnessEvent =
   /** A complete assistant message, to be saved. */
@@ -8,14 +8,14 @@ export type HarnessEvent =
   | { readonly _tag: "Draft"; readonly text: string };
 
 export interface TurnRequest {
-  readonly threadId: string;
+  readonly cwd: string;
+  readonly effort: EffortChoice;
+  readonly model: ModelChoice;
+  readonly onEvent: (event: HarnessEvent) => Effect.Effect<void>;
   /** The harness session to continue, or null for the thread's first turn. */
   readonly sessionId: string | null;
-  readonly model: ModelChoice;
-  readonly effort: EffortChoice;
-  readonly cwd: string;
   readonly text: string;
-  readonly onEvent: (event: HarnessEvent) => Effect.Effect<void>;
+  readonly threadId: string;
 }
 
 export interface TurnOutcome {
@@ -24,7 +24,7 @@ export interface TurnOutcome {
   readonly usage: TokenUsage | null;
 }
 
-export class HarnessFailure extends Data.TaggedError("HarnessFailure")<{ readonly reason: string }> {}
+export class HarnessFailure extends Schema.TaggedError<HarnessFailure>()("HarnessFailure", { reason: Schema.String }) {}
 
 /** The harness seam: runs one turn of a thread and reports its events. */
 export class Harness extends Context.Service<

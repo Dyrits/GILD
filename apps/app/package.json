@@ -1,7 +1,13 @@
 {
   "name": "app",
   "version": "1.0.0",
+  "private": true,
   "main": "index.ts",
+  "scripts": {
+    "start": "expo start",
+    "typecheck": "tsc --noEmit",
+    "web": "expo start --web"
+  },
   "dependencies": {
     "@expo/metro-runtime": "~58.0.17",
     "@openmission/contracts": "workspace:*",
@@ -16,11 +22,5 @@
   "devDependencies": {
     "@types/react": "~19.3.0",
     "typescript": "~6.0.3"
-  },
-  "scripts": {
-    "start": "expo start",
-    "web": "expo start --web",
-    "typecheck": "tsc --noEmit"
-  },
-  "private": true
+  }
 }

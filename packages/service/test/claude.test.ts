@@ -17,7 +17,7 @@ const temporary = () => {
 };
 afterEach(() => {
   delete process.env.STAND_IN_MODE;
-  for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true });
+  for (const directory of directories.splice(0)) rmSync(directory, { force: true, recursive: true });
 });
 
 /** A service whose Claude Code adapter runs the stand-in on the current runtime. */
@@ -27,12 +27,12 @@ const withClaude = (options: { idleTimeout?: Duration.Input } = {}) => {
   process.env.STAND_IN_LOG = log;
   const layer = serviceLayer({
     filename: join(directory, "openmission.sqlite"),
-    scratchRoot: join(directory, "missions"),
     harness: claudeHarnessLayer({
       command: process.execPath,
-      prefixArgs: [standIn],
       idleTimeout: options.idleTimeout ?? "10 minutes",
+      prefixArgs: [standIn],
     }),
+    scratchRoot: join(directory, "missions"),
   });
   const starts = (): Array<{ pid: number; args: string[]; env: string[] }> => {
     try {
@@ -74,16 +74,16 @@ describe("Claude Code adapter", () => {
     return Effect.gen(function* () {
       const started = yield* call({
         _tag: "StartMission",
+        effort: "high",
+        model: "opus",
         requestId: "r1",
         text: "Hello",
-        model: "opus",
-        effort: "high",
       });
       const detail = yield* settle(started.missionId, idleWith(1));
 
       expect(detail.messages.map((m) => m.sender)).toEqual(["user", "agent"]);
       expect(detail.messages[1]?.text).toMatch(/^Reply 1 .* to: Hello$/);
-      expect(detail.thread).toMatchObject({ model: "opus", effort: "high", failure: null });
+      expect(detail.thread).toMatchObject({ effort: "high", failure: null, model: "opus" });
 
       const [start] = starts();
       const args = start?.args.join(" ") ?? "";
@@ -103,10 +103,10 @@ describe("Claude Code adapter", () => {
     return Effect.gen(function* () {
       const started = yield* call({
         _tag: "StartMission",
+        effort: "default",
+        model: "default",
         requestId: "r1",
         text: "Hi",
-        model: "default",
-        effort: "default",
       });
       yield* settle(started.missionId, idleWith(1));
       const args = starts()[0]?.args ?? [];
@@ -120,18 +120,18 @@ describe("Claude Code adapter", () => {
     return Effect.gen(function* () {
       const started = yield* call({
         _tag: "StartMission",
+        effort: "low",
+        model: "haiku",
         requestId: "r1",
         text: "One",
-        model: "haiku",
-        effort: "low",
       });
       yield* settle(started.missionId, idleWith(1));
-      yield* call({ _tag: "SendMessage", requestId: "r2", threadId: started.threadId, text: "Two" });
+      yield* call({ _tag: "SendMessage", requestId: "r2", text: "Two", threadId: started.threadId });
       const detail = yield* settle(started.missionId, idleWith(2));
 
       expect(starts()).toHaveLength(1);
       expect(detail.messages.at(-1)?.text).toMatch(/^Reply 2 .* to: Two$/);
-      expect(detail.mission.usage).toEqual({ input: 4, output: 20, cacheRead: 200, cacheCreation: 100 });
+      expect(detail.mission.usage).toEqual({ cacheCreation: 100, cacheRead: 200, input: 4, output: 20 });
       const [summary] = yield* call({ _tag: "ListMissions" });
       expect(summary?.usage.output).toBe(20);
     }).pipe(Effect.provide(layer));
@@ -142,14 +142,14 @@ describe("Claude Code adapter", () => {
     return Effect.gen(function* () {
       const started = yield* call({
         _tag: "StartMission",
+        effort: "low",
+        model: "haiku",
         requestId: "r1",
         text: "One",
-        model: "haiku",
-        effort: "low",
       });
       yield* settle(started.missionId, idleWith(1));
       yield* Effect.sleep("400 millis");
-      yield* call({ _tag: "SendMessage", requestId: "r2", threadId: started.threadId, text: "Two" });
+      yield* call({ _tag: "SendMessage", requestId: "r2", text: "Two", threadId: started.threadId });
       const detail = yield* settle(started.missionId, idleWith(2));
 
       const [first, second] = starts();
@@ -165,17 +165,17 @@ describe("Claude Code adapter", () => {
       process.env.STAND_IN_MODE = "fail-start";
       const started = yield* call({
         _tag: "StartMission",
+        effort: "low",
+        model: "haiku",
         requestId: "r1",
         text: "First",
-        model: "haiku",
-        effort: "low",
       });
       const failed = yield* settle(started.missionId, (d) => d.thread.state === "Failed");
       expect(failed.thread.failure).toContain("stand-in: cannot start");
       expect(failed.mission.state).toBe("Failed");
 
       process.env.STAND_IN_MODE = "ok";
-      yield* call({ _tag: "SendMessage", requestId: "r2", threadId: started.threadId, text: "Second" });
+      yield* call({ _tag: "SendMessage", requestId: "r2", text: "Second", threadId: started.threadId });
       const detail = yield* settle(started.missionId, idleWith(1));
       expect(detail.messages.at(-1)?.text).toMatch(/to: First\n\nSecond$/);
       expect(detail.thread.failure).toBeNull();
@@ -186,7 +186,7 @@ describe("Claude Code adapter", () => {
     const { layer } = withClaude();
     return Effect.gen(function* () {
       process.env.STAND_IN_MODE = "error-result";
-      const started = yield* call({ _tag: "StartMission", requestId: "r1", text: "Hi", model: "haiku", effort: "low" });
+      const started = yield* call({ _tag: "StartMission", effort: "low", model: "haiku", requestId: "r1", text: "Hi" });
       const failed = yield* settle(started.missionId, (d) => d.thread.state === "Failed");
       expect(failed.thread.failure).toBe("There's an issue with the selected model.");
       expect(failed.messages.map((m) => m.sender)).toEqual(["user"]);
@@ -199,7 +199,7 @@ describe("Claude Code adapter", () => {
       const changes = yield* Changes;
       const drafts = yield* PubSub.subscribe(changes.drafts);
 
-      const on = yield* call({ _tag: "StartMission", requestId: "r1", text: "Hi", model: "haiku", effort: "low" });
+      const on = yield* call({ _tag: "StartMission", effort: "low", model: "haiku", requestId: "r1", text: "Hi" });
       yield* settle(on.missionId, idleWith(1));
       const seen = (yield* PubSub.takeAll(drafts)).map((d) => d.text);
       expect(seen.some((text) => text.startsWith("Reply 1 "))).toBe(true);
@@ -207,9 +207,9 @@ describe("Claude Code adapter", () => {
 
       yield* call({
         _tag: "UpdateSettings",
-        settings: { defaultModel: "default", defaultEffort: "default", streamReplies: false },
+        settings: { defaultEffort: "default", defaultModel: "default", shouldStreamReplies: false },
       });
-      const off = yield* call({ _tag: "StartMission", requestId: "r2", text: "Hi", model: "haiku", effort: "low" });
+      const off = yield* call({ _tag: "StartMission", effort: "low", model: "haiku", requestId: "r2", text: "Hi" });
       yield* settle(off.missionId, idleWith(1));
       expect((yield* PubSub.takeAll(drafts)).filter((d) => d.text !== "")).toEqual([]);
     }).pipe(Effect.provide(layer));
@@ -221,14 +221,14 @@ describe("settings", () => {
     const directory = temporary();
     const options = {
       filename: join(directory, "openmission.sqlite"),
+      harness: claudeHarnessLayer({ command: process.execPath, idleTimeout: "1 minute", prefixArgs: [standIn] }),
       scratchRoot: join(directory, "missions"),
-      harness: claudeHarnessLayer({ command: process.execPath, prefixArgs: [standIn], idleTimeout: "1 minute" }),
     };
     return Effect.gen(function* () {
       const defaults = yield* call({ _tag: "ReadSettings" }).pipe(Effect.provide(serviceLayer(options)));
-      expect(defaults).toEqual({ defaultModel: "default", defaultEffort: "default", streamReplies: true });
+      expect(defaults).toEqual({ defaultEffort: "default", defaultModel: "default", shouldStreamReplies: true });
 
-      const updated = { defaultModel: "sonnet", defaultEffort: "high", streamReplies: false } as const;
+      const updated = { defaultEffort: "high", defaultModel: "sonnet", shouldStreamReplies: false } as const;
       yield* call({ _tag: "UpdateSettings", settings: updated }).pipe(Effect.provide(serviceLayer(options)));
       expect(yield* call({ _tag: "ReadSettings" }).pipe(Effect.provide(serviceLayer(options)))).toEqual(updated);
     });
@@ -243,10 +243,10 @@ describe.runIf(process.env.OPENMISSION_LIVE_CLAUDE === "1")("live Claude Code (u
       return Effect.gen(function* () {
         const started = yield* call({
           _tag: "StartMission",
+          effort: "low",
+          model: "haiku",
           requestId: "r1",
           text: "Reply with exactly: ok",
-          model: "haiku",
-          effort: "low",
         });
         const detail = yield* settle(started.missionId, (d) => d.thread.state !== "Running");
         expect(detail.thread.failure).toBeNull();
@@ -256,11 +256,11 @@ describe.runIf(process.env.OPENMISSION_LIVE_CLAUDE === "1")("live Claude Code (u
         Effect.provide(
           serviceLayer({
             filename: join(directory, "openmission.sqlite"),
-            scratchRoot: join(directory, "missions"),
             harness: claudeHarnessLayer({
               command: process.env.OPENMISSION_CLAUDE_PATH ?? "claude",
               idleTimeout: "1 minute",
             }),
+            scratchRoot: join(directory, "missions"),
           }),
         ),
       );

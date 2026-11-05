@@ -1,9 +1,9 @@
 import { Context, Effect, Layer, PubSub, Ref } from "effect";
 
 export interface DraftUpdate {
-  readonly threadId: string;
   /** The reply written so far; empty when the draft ends. */
   readonly text: string;
+  readonly threadId: string;
 }
 
 /** Announces committed changes with an increasing sequence, and unsaved reply drafts. */
@@ -26,6 +26,6 @@ export const changesLayer = Layer.effect(
       Effect.flatMap((n) => PubSub.publish(pubsub, n)),
       Effect.asVoid,
     );
-    return { publish, pubsub, drafts };
+    return { drafts, publish, pubsub };
   }),
 );

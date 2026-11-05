@@ -6,8 +6,8 @@ const root = join(import.meta.dir, "..", "..", "..");
 const children = [
   spawn("bunx", ["expo", "start", "--port", "8081"], {
     cwd: join(root, "apps", "app"),
+    env: { ...process.env, BROWSER: "none", CI: "1" },
     stdio: "inherit",
-    env: { ...process.env, CI: "1", BROWSER: "none" },
   }),
   spawn("bunx", ["electron", "dist/main.js"], { cwd: join(root, "apps", "desktop"), stdio: "inherit" }),
 ];

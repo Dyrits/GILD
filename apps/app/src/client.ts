@@ -26,7 +26,7 @@ type Pending = { tag: RequestTag; resolve: (value: unknown) => void; reject: (er
 
 /** One connection to the local service: requests with replies, and change announcements. */
 export class ServiceClient {
-  private socket: WebSocket | undefined;
+  private socket: WebSocket | null = null;
   private nextId = 0;
   private readonly pending = new Map<string, Pending>();
   private readonly listeners = new Set<() => void>();
@@ -35,7 +35,7 @@ export class ServiceClient {
   private constructor(private readonly endpoint: string) {}
 
   static async connect(): Promise<ServiceClient> {
-    if (window.openMission === undefined) throw new Error("Open OpenMission through the desktop app.");
+    if (window.openMission === undefined) return Promise.reject(new Error("Open OpenMission through the desktop app."));
     const client = new ServiceClient(await window.openMission.endpoint());
     await client.open();
     return client;
@@ -54,7 +54,7 @@ export class ServiceClient {
       socket.onclose = () => {
         for (const request of this.pending.values()) request.reject(new Error("The connection to the service closed."));
         this.pending.clear();
-        if (this.socket === socket) setTimeout(() => this.open().catch(() => undefined), 1000);
+        if (this.socket === socket) setTimeout(() => this.open().catch(() => void 0), 1000);
       };
     });
   }
@@ -95,12 +95,12 @@ export class ServiceClient {
 
   request<R extends Request>(request: R): Promise<ResultOf<R["_tag"]>> {
     const socket = this.socket;
-    if (socket === undefined || socket.readyState !== WebSocket.OPEN) {
+    if (socket === null || socket.readyState !== WebSocket.OPEN) {
       return Promise.reject(new Error("Not connected to the local service."));
     }
     const id = String(++this.nextId);
     return new Promise((resolve, reject) => {
-      this.pending.set(id, { tag: request._tag, resolve: resolve as (value: unknown) => void, reject });
+      this.pending.set(id, { reject, resolve: resolve as (value: unknown) => void, tag: request._tag });
       socket.send(JSON.stringify({ id, request }));
     });
   }

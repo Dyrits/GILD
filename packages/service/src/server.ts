@@ -29,9 +29,9 @@ const tokenOf = (request: IncomingMessage) => new URL(request.url ?? "/", "http:
 const frameIdOf = (raw: string) => {
   try {
     const id = (JSON.parse(raw) as { id?: unknown }).id;
-    return typeof id === "string" ? id : undefined;
+    return typeof id === "string" ? id : null;
   } catch {
-    return undefined;
+    return null;
   }
 };
 
@@ -78,11 +78,11 @@ export const serveLoopback = (options: { readonly port: number; readonly token: 
             ? send(socket, { _tag: "Success", id: frame.id, value: exit.value })
             : send(socket, {
                 _tag: "Failure",
-                id: frame.id,
                 error:
                   exit.cause.reasons[0]?._tag === "Fail"
                     ? { kind: exit.cause.reasons[0].error.kind, message: exit.cause.reasons[0].error.message }
                     : { kind: "ExecutionFailure", message: "The service failed unexpectedly." },
+                id: frame.id,
               }),
         ),
       );
@@ -96,8 +96,8 @@ export const serveLoopback = (options: { readonly port: number; readonly token: 
           return;
         }
         const id = frameIdOf(raw);
-        if (id !== undefined)
-          send(socket, { _tag: "Failure", id, error: { kind: "InvalidInput", message: "Invalid request." } });
+        if (id !== null)
+          send(socket, { _tag: "Failure", error: { kind: "InvalidInput", message: "Invalid request." }, id });
       });
     });
 
@@ -116,7 +116,7 @@ export const serveLoopback = (options: { readonly port: number; readonly token: 
     yield* PubSub.take(drafts).pipe(
       Effect.tap(({ threadId, text }) =>
         Effect.sync(() => {
-          for (const client of wss.clients) send(client, { _tag: "Draft", threadId: threadId as ThreadId, text });
+          for (const client of wss.clients) send(client, { _tag: "Draft", text, threadId: threadId as ThreadId });
         }),
       ),
       Effect.forever,

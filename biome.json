@@ -1,7 +1,52 @@
 {
   "$schema": "./node_modules/@biomejs/biome/configuration_schema.json",
-  "vcs": { "enabled": true, "clientKind": "git", "useIgnoreFile": true },
-  "files": { "includes": ["**", "!**/node_modules", "!**/dist", "!**/.expo", "!**/*.md"] },
-  "formatter": { "indentStyle": "space", "indentWidth": 2, "lineWidth": 120 },
-  "linter": { "enabled": true, "rules": { "preset": "recommended" } }
+  "assist": {
+    "actions": {
+      "source": {
+        "organizeImports": "on",
+        "useGraphqlSortedArguments": "on",
+        "useGraphqlSortedDefinitions": "on",
+        "useGraphqlSortedVariables": "on",
+        "useSortedAttributes": "on",
+        "useSortedEnumMembers": "on",
+        "useSortedInterfaceMembers": "on",
+        "useSortedKeys": "on",
+        "useSortedPackageJson": "on",
+        "useSortedProperties": "on",
+        "useSortedSelectionSet": "on",
+        "useSortedTypeFields": "on"
+      }
+    }
+  },
+  "files": {
+    "includes": ["**", "!**/node_modules", "!**/dist", "!**/.expo", "!**/*.md"]
+  },
+  "formatter": {
+    "indentStyle": "space",
+    "indentWidth": 2,
+    "lineWidth": 120
+  },
+  "linter": {
+    "enabled": true,
+    "rules": {
+      "preset": "recommended"
+    }
+  },
+  "overrides": [
+    {
+      "assist": {
+        "actions": {
+          "source": {
+            "useSortedKeys": "off"
+          }
+        }
+      },
+      "includes": ["opencode.json", "**/package.json", "skills-lock.json"]
+    }
+  ],
+  "vcs": {
+    "clientKind": "git",
+    "enabled": true,
+    "useIgnoreFile": true
+  }
 }
