@@ -18,6 +18,8 @@ export interface ThreadAccess {
 
 export interface TurnRequest {
   readonly access: ThreadAccess;
+  /** The starting context: the thread's workspace, or its scratch folder, with the folder's own instructions. */
+  readonly context: string;
   readonly cwd: string;
   readonly effort: EffortChoice;
   readonly model: ModelChoice;
@@ -61,8 +63,12 @@ export const callThreadTool = (mcpUrl: string, name: string, args: unknown) =>
   });
 
 // The fake's script: a line `ask <json>` calls request_approval and `prompt <tool> <json input>`
-// raises a harness permission prompt, each answered before the echo.
-const scriptedCall = (access: ThreadAccess, line: string) => {
+// raises a harness permission prompt, each answered before the echo; `cwd` and `context`
+// report the working folder and the starting context.
+const scriptedCall = (request: TurnRequest, line: string) => {
+  const access = request.access;
+  if (line === "cwd") return Effect.succeed(request.cwd);
+  if (line === "context") return Effect.succeed(request.context);
   if (line.startsWith("ask ")) return callThreadTool(access.mcpUrl, "request_approval", JSON.parse(line.slice(4)));
   const prompt = /^prompt (\S+) (.*)$/.exec(line);
   if (prompt !== null) {
@@ -82,7 +88,7 @@ export const fakeHarnessLayer = (replyDelay: Duration.Input) =>
         yield* Effect.sleep(replyDelay);
         const results: Array<string> = [];
         for (const line of request.text.split("\n")) {
-          const call = scriptedCall(request.access, line.trim());
+          const call = scriptedCall(request, line.trim());
           if (call !== null) results.push(yield* call);
         }
         const text = results.length === 0 ? `Echo: ${request.text}` : `Echo: ${results.join(" | ")}`;

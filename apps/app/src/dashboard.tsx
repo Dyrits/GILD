@@ -14,6 +14,7 @@ import { effortLabel, modelLabels, timeOf, usageText } from "./formatting";
 import { QuestionCard } from "./questions";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
+import { WorkspacePicker } from "./workspaces";
 
 export function Dashboard({
   client,
@@ -29,6 +30,7 @@ export function Dashboard({
   const { data: questions } = useServiceQuery(client, { _tag: "ListOpenQuestions" }, "open-questions");
   const [model, setModel] = useState<ModelChoice | null>(null);
   const [effort, setEffort] = useState<EffortChoice | null>(null);
+  const [workspacePath, setWorkspacePath] = useState<string | null>(null);
   const chosenModel = model ?? settings?.defaultModel ?? "default";
   const chosenEffort = effort ?? settings?.defaultEffort ?? "default";
   return (
@@ -62,6 +64,7 @@ export function Dashboard({
                 model: chosenModel,
                 requestId: newRequestId(),
                 text,
+                workspacePath,
               })
             ).missionId,
           )
@@ -70,6 +73,7 @@ export function Dashboard({
       />
       <Choice label={(m) => modelLabels[m]} onChange={setModel} options={ModelChoices.literals} value={chosenModel} />
       <Choice label={effortLabel} onChange={setEffort} options={EffortChoices.literals} value={chosenEffort} />
+      <WorkspacePicker client={client} onChange={setWorkspacePath} value={workspacePath} />
       {error !== null && <Text style={styles.error}>{error}</Text>}
       <FlatList<MissionSummary>
         data={missions ?? []}
@@ -80,6 +84,7 @@ export function Dashboard({
             <Text numberOfLines={1} style={styles.title}>
               {item.title}
             </Text>
+            {item.workspaceName !== null && <Text style={styles.muted}>{item.workspaceName}</Text>}
             <StateBadge state={item.state} />
             <Text style={styles.muted}>{usageText(item.usage)}</Text>
             <Text style={styles.muted}>{timeOf(item.lastActivityAt)}</Text>

@@ -24,6 +24,7 @@ const fresh = () => {
   return serviceLayer({
     filename: join(directory, "openmission.sqlite"),
     harness: fakeHarnessLayer("10 millis"),
+    homeFolder: directory,
     scratchRoot: join(directory, "missions"),
   });
 };
@@ -71,6 +72,7 @@ describe("loopback WebSocket", () => {
             model: "default",
             requestId: "r1",
             text: "Over the wire",
+            workspacePath: null,
           },
         }),
       );

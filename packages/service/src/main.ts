@@ -1,4 +1,5 @@
 // Entry point when Electron starts the service as a utilityProcess.
+import { homedir } from "node:os";
 import { join } from "node:path";
 import { Config, Effect, Layer } from "effect";
 import { claudeHarnessLayer } from "./claude.ts";
@@ -29,6 +30,7 @@ const liveLayer = Layer.unwrap(
       serviceLayer({
         filename: join(dataDirectory, "openmission.sqlite"),
         harness,
+        homeFolder: homedir(),
         scratchRoot: join(dataDirectory, "missions"),
       }),
     );

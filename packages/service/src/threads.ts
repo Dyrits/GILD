@@ -1,4 +1,3 @@
-import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import type { EffortChoice, ModelChoice, TokenUsage } from "@openmission/contracts";
 import { Clock, Context, Effect, FiberMap, Layer, PubSub } from "effect";
@@ -7,8 +6,9 @@ import { Approvals } from "./approvals.ts";
 import { Changes } from "./changes.ts";
 import { Harness, type HarnessEvent } from "./execution.ts";
 import { ToolServer } from "./mcp.ts";
-import { listMissionPermissions } from "./permissions.ts";
+import { listThreadPermissions } from "./permissions.ts";
 import { readSettings } from "./settings.ts";
+import { prepareWorkingFolder, readThreadWorkspace } from "./workspaces.ts";
 
 /** Owns thread state and admits at most one turn per thread. */
 export class Threads extends Context.Service<
@@ -20,7 +20,7 @@ export class Threads extends Context.Service<
   }
 >()("openmission/Threads") {}
 
-/** Where each mission's harness runs while it has no workspace. */
+/** Where each mission's threads with no workspace run, one scratch folder per mission. */
 export class ScratchRoot extends Context.Service<ScratchRoot, string>()("openmission/ScratchRoot") {}
 
 interface Admitted {
@@ -139,12 +139,17 @@ export const threadsLayer = Layer.effect(
         const { approvalLevel, shouldStreamReplies } = yield* readSettings.pipe(
           Effect.provideService(SqlClient.SqlClient, sql),
         );
-        const permissions = yield* listMissionPermissions(turn.missionId).pipe(
+        const permissions = yield* listThreadPermissions(threadId).pipe(
           Effect.provideService(SqlClient.SqlClient, sql),
         );
+        const workspace = yield* readThreadWorkspace(threadId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
+        // Provisional until Retry and Relocate are built (workspace-attachment, Missing folder):
+        // the turn fails with the reason, and the next message retries it.
+        if (workspace?.isMissing === true) {
+          return yield* fail(threadId, turn, `The workspace folder ${workspace.path} no longer exists.`);
+        }
+        const { context, cwd } = yield* prepareWorkingFolder(workspace, join(scratchRoot, turn.missionId));
         const mcpUrl = yield* toolServer.urlFor(threadId);
-        const cwd = join(scratchRoot, turn.missionId);
-        yield* Effect.sync(() => mkdirSync(cwd, { recursive: true }));
         const onEvent = (event: HarnessEvent) =>
           event._tag === "Reply"
             ? saveReply(threadId, turn, event.text).pipe(Effect.andThen(draft(threadId, "")), Effect.orDie)
@@ -154,6 +159,7 @@ export const threadsLayer = Layer.effect(
         const outcome = yield* harness
           .runTurn({
             access: { approvalLevel, mcpUrl, permissions: permissions.map((permission) => permission.sentence) },
+            context,
             cwd,
             effort: turn.effort,
             model: turn.model,

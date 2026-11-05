@@ -14,6 +14,7 @@ import { sandboxProblem } from "./sandbox.ts";
 import { readSettings, writeSettings } from "./settings.ts";
 import { storeLayer } from "./store.ts";
 import { ScratchRoot, Threads, threadsLayer } from "./threads.ts";
+import { addBrowsableRoot, browseFolders, createFolder, seedBrowsableRoots } from "./workspaces.ts";
 
 /** The entry point shared by app commands and, later, MCP calls. */
 export class Service extends Context.Service<
@@ -61,7 +62,10 @@ const make = Effect.gen(function* () {
     const run: Effect.Effect<unknown, ServiceFailure | SqlError.SqlError, SqlClient.SqlClient> = Match.valueTags(
       request,
       {
+        AddBrowsableRoot: (add) => addBrowsableRoot(add.path).pipe(Effect.tap(() => changes.publish)),
         AnswerQuestion: (given) => approvals.answer(given.questionId, given.answer, given.message, "desktop"),
+        BrowseFolders: (browse) => browseFolders(browse.path),
+        CreateFolder: (create) => createFolder(create.parent, create.name),
         ListMissions: () => listMissions,
         ListOpenQuestions: () => listOpenQuestions,
         ReadMission: (read) => readMission(read.missionId),
@@ -84,7 +88,9 @@ const make = Effect.gen(function* () {
           ),
         StartMission: (start) =>
           nonBlank(start.text).pipe(
-            Effect.andThen((text) => once(start.requestId, start._tag, insertMission(text, start.model, start.effort))),
+            Effect.andThen((text) =>
+              once(start.requestId, start._tag, insertMission(text, start.model, start.effort, start.workspacePath)),
+            ),
             Effect.tap((started) => threads.wake(started.threadId)),
           ),
         StopThread: (stop) => threads.stop(stop.threadId).pipe(Effect.as(null)),
@@ -104,6 +110,8 @@ const make = Effect.gen(function* () {
 export interface ServiceOptions {
   readonly filename: string;
   readonly harness: Layer.Layer<Harness>;
+  /** The owner's home folder, the first browsable root (workspace-attachment). */
+  readonly homeFolder: string;
   /** The folder holding each mission's scratch folder. */
   readonly scratchRoot: string;
 }
@@ -114,7 +122,10 @@ export const serviceLayer = (options: ServiceOptions) => {
     changesLayer,
     options.harness,
     Layer.succeed(ScratchRoot, options.scratchRoot),
-  ).pipe(Layer.provideMerge(storeLayer(options.filename)));
+  ).pipe(
+    Layer.provideMerge(Layer.effectDiscard(seedBrowsableRoots(options.homeFolder))),
+    Layer.provideMerge(storeLayer(options.filename)),
+  );
   const tools = toolServerLayer.pipe(Layer.provideMerge(approvalsLayer), Layer.provideMerge(foundation));
   return Layer.effect(Service, make).pipe(Layer.provideMerge(threadsLayer), Layer.provideMerge(tools));
 };

@@ -21,7 +21,12 @@ afterEach(() => {
 });
 
 const live = (filename: string) =>
-  serviceLayer({ filename, harness: fakeHarnessLayer(REPLY_DELAY), scratchRoot: join(filename, "..", "missions") });
+  serviceLayer({
+    filename,
+    harness: fakeHarnessLayer(REPLY_DELAY),
+    homeFolder: join(filename, ".."),
+    scratchRoot: join(filename, "..", "missions"),
+  });
 
 const call = <R extends Request>(request: R) =>
   Effect.gen(function* () {
@@ -53,6 +58,7 @@ describe("starting a mission", () => {
         model: "default",
         requestId: "r1",
         text: "Plan the trip\nwith details",
+        workspacePath: null,
       });
 
       const missions = yield* call({ _tag: "ListMissions" });
@@ -73,6 +79,7 @@ describe("starting a mission", () => {
         model: "default",
         requestId: "r1",
         text: "Hello",
+        workspacePath: null,
       });
       yield* advance(REPLY_DELAY);
 
@@ -95,6 +102,7 @@ describe("starting a mission", () => {
         model: "default",
         requestId: "r1",
         text: "   \n ",
+        workspacePath: null,
       });
       expect(failure.kind).toBe("InvalidInput");
       expect(yield* call({ _tag: "ListMissions" })).toEqual([]);
@@ -109,6 +117,7 @@ describe("starting a mission", () => {
         model: "default",
         requestId: "same",
         text: "Once",
+        workspacePath: null,
       });
       const again = yield* call({
         _tag: "StartMission",
@@ -116,6 +125,7 @@ describe("starting a mission", () => {
         model: "default",
         requestId: "same",
         text: "Once",
+        workspacePath: null,
       });
       expect(again).toEqual(first);
       expect(yield* call({ _tag: "ListMissions" })).toHaveLength(1);
@@ -132,6 +142,7 @@ describe("follow-up messages", () => {
         model: "default",
         requestId: "r1",
         text: "First",
+        workspacePath: null,
       });
       yield* call({ _tag: "SendMessage", requestId: "r2", text: "Second", threadId: started.threadId });
       yield* call({ _tag: "SendMessage", requestId: "r3", text: "Third", threadId: started.threadId });
@@ -160,6 +171,7 @@ describe("follow-up messages", () => {
         model: "default",
         requestId: "r1",
         text: "One",
+        workspacePath: null,
       });
       yield* advance(REPLY_DELAY);
       yield* call({ _tag: "SendMessage", requestId: "r2", text: "Two", threadId: started.threadId });
@@ -196,6 +208,7 @@ describe("persistence", () => {
             model: "default",
             requestId: "r1",
             text: "Remember me",
+            workspacePath: null,
           });
           yield* advance(REPLY_DELAY);
           return result;

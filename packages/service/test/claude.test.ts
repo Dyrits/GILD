@@ -1,4 +1,4 @@
-import { existsSync, mkdirSync, mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
@@ -34,9 +34,10 @@ const withClaude = (options: { idleTimeout?: Duration.Input; sandboxProblem?: st
       sandboxProblem: options.sandboxProblem ?? null,
       userSettingsPath: join(directory, "no-settings.json"),
     }),
+    homeFolder: directory,
     scratchRoot: join(directory, "missions"),
   });
-  const starts = (): Array<{ pid: number; args: string[]; env: string[] }> => {
+  const starts = (): Array<{ pid: number; args: string[]; cwd: string; env: string[] }> => {
     try {
       return readFileSync(log, "utf8")
         .trim()
@@ -46,7 +47,7 @@ const withClaude = (options: { idleTimeout?: Duration.Input; sandboxProblem?: st
       return [];
     }
   };
-  return { layer, starts };
+  return { directory, layer, starts };
 };
 
 const call = <R extends Request>(request: R) =>
@@ -82,6 +83,7 @@ describe("Claude Code adapter", () => {
           model: "opus",
           requestId: "r1",
           text: "Hello",
+          workspacePath: null,
         });
         const detail = yield* settle(started.missionId, idleWith(1));
 
@@ -111,6 +113,30 @@ describe("Claude Code adapter", () => {
     },
   );
 
+  it.live("starts Claude Code in the workspace with its instructions in the system prompt", () => {
+    const { directory, layer, starts } = withClaude();
+    const app = join(realpathSync(directory), "app");
+    mkdirSync(app);
+    writeFileSync(join(app, "AGENTS.md"), "Use Bun, never pnpm.");
+    return Effect.gen(function* () {
+      const started = yield* call({
+        _tag: "StartMission",
+        effort: "default",
+        model: "default",
+        requestId: "r1",
+        text: "Hi",
+        workspacePath: app,
+      });
+      yield* settle(started.missionId, idleWith(1));
+      const [start] = starts();
+      expect(start?.cwd).toBe(app);
+      const prompt = start?.args[start.args.indexOf("--append-system-prompt") + 1] ?? "";
+      expect(prompt).toContain(`You work in the workspace "app" at ${app}.`);
+      expect(prompt).toContain("## AGENTS.md\nUse Bun, never pnpm.");
+      expect(prompt).toContain("# Approvals in OpenMission");
+    }).pipe(Effect.provide(layer));
+  });
+
   it.live("omits model and effort when the thread uses Claude Code's defaults", () => {
     const { layer, starts } = withClaude();
     return Effect.gen(function* () {
@@ -120,6 +146,7 @@ describe("Claude Code adapter", () => {
         model: "default",
         requestId: "r1",
         text: "Hi",
+        workspacePath: null,
       });
       yield* settle(started.missionId, idleWith(1));
       const args = starts()[0]?.args ?? [];
@@ -137,6 +164,7 @@ describe("Claude Code adapter", () => {
         model: "haiku",
         requestId: "r1",
         text: "One",
+        workspacePath: null,
       });
       yield* settle(started.missionId, idleWith(1));
       yield* call({ _tag: "SendMessage", requestId: "r2", text: "Two", threadId: started.threadId });
@@ -159,6 +187,7 @@ describe("Claude Code adapter", () => {
         model: "haiku",
         requestId: "r1",
         text: "One",
+        workspacePath: null,
       });
       yield* settle(started.missionId, idleWith(1));
       const settings = yield* call({ _tag: "ReadSettings" });
@@ -186,6 +215,7 @@ describe("Claude Code adapter", () => {
         model: "haiku",
         requestId: "r1",
         text: "One",
+        workspacePath: null,
       });
       yield* settle(started.missionId, idleWith(1));
       const args = starts()[0]?.args.join(" ") ?? "";
@@ -205,6 +235,7 @@ describe("Claude Code adapter", () => {
         model: "haiku",
         requestId: "r1",
         text: "One",
+        workspacePath: null,
       });
       yield* settle(started.missionId, idleWith(1));
       yield* Effect.sleep("400 millis");
@@ -228,6 +259,7 @@ describe("Claude Code adapter", () => {
         model: "haiku",
         requestId: "r1",
         text: "First",
+        workspacePath: null,
       });
       const failed = yield* settle(started.missionId, (d) => d.thread.state === "Failed");
       expect(failed.thread.failure).toContain("stand-in: cannot start");
@@ -245,7 +277,14 @@ describe("Claude Code adapter", () => {
     const { layer } = withClaude();
     return Effect.gen(function* () {
       process.env.STAND_IN_MODE = "error-result";
-      const started = yield* call({ _tag: "StartMission", effort: "low", model: "haiku", requestId: "r1", text: "Hi" });
+      const started = yield* call({
+        _tag: "StartMission",
+        effort: "low",
+        model: "haiku",
+        requestId: "r1",
+        text: "Hi",
+        workspacePath: null,
+      });
       const failed = yield* settle(started.missionId, (d) => d.thread.state === "Failed");
       expect(failed.thread.failure).toBe("There's an issue with the selected model.");
       expect(failed.messages.map((m) => m.sender)).toEqual(["user"]);
@@ -258,7 +297,14 @@ describe("Claude Code adapter", () => {
       const changes = yield* Changes;
       const drafts = yield* PubSub.subscribe(changes.drafts);
 
-      const on = yield* call({ _tag: "StartMission", effort: "low", model: "haiku", requestId: "r1", text: "Hi" });
+      const on = yield* call({
+        _tag: "StartMission",
+        effort: "low",
+        model: "haiku",
+        requestId: "r1",
+        text: "Hi",
+        workspacePath: null,
+      });
       yield* settle(on.missionId, idleWith(1));
       const seen = (yield* PubSub.takeAll(drafts)).map((d) => d.text);
       expect(seen.some((text) => text.startsWith("Reply 1 "))).toBe(true);
@@ -273,7 +319,14 @@ describe("Claude Code adapter", () => {
           shouldStreamReplies: false,
         },
       });
-      const off = yield* call({ _tag: "StartMission", effort: "low", model: "haiku", requestId: "r2", text: "Hi" });
+      const off = yield* call({
+        _tag: "StartMission",
+        effort: "low",
+        model: "haiku",
+        requestId: "r2",
+        text: "Hi",
+        workspacePath: null,
+      });
       yield* settle(off.missionId, idleWith(1));
       expect((yield* PubSub.takeAll(drafts)).filter((d) => d.text !== "")).toEqual([]);
     }).pipe(Effect.provide(layer));
@@ -291,6 +344,7 @@ describe("settings", () => {
         prefixArgs: [standIn],
         sandboxProblem: null,
       }),
+      homeFolder: directory,
       scratchRoot: join(directory, "missions"),
     };
     return Effect.gen(function* () {
@@ -326,6 +380,7 @@ describe.runIf(process.env.OPENMISSION_LIVE_CLAUDE === "1")("live Claude Code (u
           model: "haiku",
           requestId: "r1",
           text: "Reply with exactly: ok",
+          workspacePath: null,
         });
         const detail = yield* settle(started.missionId, (d) => d.thread.state !== "Running");
         expect(detail.thread.failure).toBeNull();
@@ -340,6 +395,7 @@ describe.runIf(process.env.OPENMISSION_LIVE_CLAUDE === "1")("live Claude Code (u
               idleTimeout: "1 minute",
               sandboxProblem: null,
             }),
+            homeFolder: directory,
             scratchRoot: join(directory, "missions"),
           }),
         ),
@@ -370,6 +426,7 @@ describe.runIf(process.env.OPENMISSION_LIVE_CLAUDE === "1")("live Claude Code (u
           model: "haiku",
           requestId: "r1",
           text: `Create the file ${outside} with the Bash command: touch ${outside}`,
+          workspacePath: null,
         });
         // The model may ask through request_approval, quote the owner's message, or go
         // straight to the command, whose harness prompt then asks (CHG-0031); allow
@@ -400,6 +457,7 @@ describe.runIf(process.env.OPENMISSION_LIVE_CLAUDE === "1")("live Claude Code (u
               idleTimeout: "1 minute",
               sandboxProblem: null,
             }),
+            homeFolder: directory,
             scratchRoot: join(directory, "missions"),
           }),
         ),

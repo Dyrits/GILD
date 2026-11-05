@@ -95,6 +95,19 @@ const migrations = {
     yield* sql`UPDATE settings SET value = json_set(value, '$.approvalLevel', 'RiskyOnly')
       WHERE key = 'settings' AND json_type(value, '$.approvalLevel') IS NULL`;
   }),
+  // Workspace batch: folders threads work in, the roots they are chosen from, and workspace-scoped permissions.
+  "0005_workspaces": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE browsable_roots (path TEXT PRIMARY KEY, added_at INTEGER NOT NULL)`;
+    yield* sql`CREATE TABLE workspaces (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      path TEXT NOT NULL UNIQUE,
+      created_at INTEGER NOT NULL
+    )`;
+    yield* sql`ALTER TABLE threads ADD COLUMN workspace_id TEXT REFERENCES workspaces(id)`;
+    yield* sql`ALTER TABLE standing_permissions ADD COLUMN workspace_id TEXT REFERENCES workspaces(id)`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

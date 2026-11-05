@@ -103,7 +103,7 @@ const ownerRulesOf = (path: string) => {
 const noTimeLimit = 2147483647;
 
 /** The arguments that depend on the thread's access: its endpoint, instructions, and approval level. */
-const accessArgsOf = (access: ThreadAccess, options: ClaudeOptions) => {
+const accessArgsOf = (access: ThreadAccess, context: string, options: ClaudeOptions) => {
   // A question waits with no time limit (action-approval, Waiting); without its own
   // timeout, Claude Code aborts a call silent for 300 seconds (verified 2026-11-05).
   const mcpConfig = { mcpServers: { [toolServerName]: { timeout: noTimeLimit, type: "http", url: access.mcpUrl } } };
@@ -127,7 +127,8 @@ const accessArgsOf = (access: ThreadAccess, options: ClaudeOptions) => {
     "--mcp-config",
     JSON.stringify(mcpConfig),
     "--append-system-prompt",
-    approvalInstructionsOf(access, isSandboxed),
+    // Claude Code runs without setting sources, so it reads no CLAUDE.md itself (workspaces.ts).
+    `${context}\n\n${approvalInstructionsOf(access, isSandboxed)}`,
     ...levelArgs,
   ];
 };
@@ -224,10 +225,11 @@ export const claudeHarnessLayer = (options: ClaudeOptions) =>
 
       const runTurn = (request: TurnRequest) =>
         Effect.gen(function* () {
-          const accessArgs = accessArgsOf(request.access, options);
+          const accessArgs = accessArgsOf(request.access, request.context, options);
           const signature = JSON.stringify(accessArgs);
           const existing = sessions.get(request.threadId);
-          // A changed level or set of permissions restarts the process, resuming its conversation.
+          // A changed level, set of permissions, or set of workspace instructions restarts the
+          // process, resuming its conversation.
           if (existing !== undefined && existing.signature !== signature) close(request.threadId);
           const current = sessions.get(request.threadId);
           const session =

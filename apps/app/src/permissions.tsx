@@ -1,4 +1,9 @@
-import { type ApprovalLevel, ApprovalLevel as ApprovalLevels, type MissionId } from "@openmission/contracts";
+import {
+  type ApprovalLevel,
+  ApprovalLevel as ApprovalLevels,
+  type MissionId,
+  type StandingPermission,
+} from "@openmission/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import type { ServiceClient } from "./client";
@@ -12,6 +17,18 @@ export const levelLabels = {
   CommandsAndEdits: "Also commands and edits",
   RiskyOnly: "Risky actions only",
 } as const satisfies Record<ApprovalLevel, string>;
+
+/** Whether a standing permission was widened to every mission and workspace. */
+const isEverywhere = (permission: StandingPermission) =>
+  permission.workspaceId === null && permission.missionId === null;
+
+/** Where a standing permission applies: its workspace, its mission, or everywhere. */
+const scopeOf = (permission: StandingPermission) =>
+  isEverywhere(permission)
+    ? "Everywhere"
+    : permission.workspaceId !== null
+      ? `In workspace ${permission.workspaceName}`
+      : `In ${permission.missionTitle}`;
 
 /** The approval level, standing permissions, and the history of answers. */
 export function PermissionsScreen({ client, onBack }: { client: ServiceClient; onBack: () => void }) {
@@ -65,11 +82,10 @@ export function PermissionsScreen({ client, onBack }: { client: ServiceClient; o
                 <View style={styles.flex}>
                   <Text style={styles.body}>{permission.sentence}</Text>
                   <Text style={styles.muted}>
-                    {permission.pattern} ·{" "}
-                    {permission.missionId === null ? "Everywhere" : `In ${permission.missionTitle}`}
+                    {permission.pattern} · {scopeOf(permission)}
                   </Text>
                 </View>
-                {permission.missionId !== null && (
+                {!isEverywhere(permission) && (
                   <Pressable
                     onPress={() => act(client.request({ _tag: "WidenPermission", permissionId: permission.id }))}
                   >

@@ -1,6 +1,6 @@
 // A scripted stand-in for `claude -p` in stream-json mode, shaped after
 // transcripts captured from Claude Code 2.1.302. Behavior is set by environment:
-// STAND_IN_LOG: file that receives one JSON line per process start ({ pid, args, env }).
+// STAND_IN_LOG: file that receives one JSON line per process start ({ pid, args, cwd, env }).
 // STAND_IN_MODE: "ok" (default), "fail-start" (exit 1 before answering), "error-result".
 import { appendFileSync } from "node:fs";
 import { createInterface } from "node:readline";
@@ -14,7 +14,7 @@ const sessionId = option("--session-id") ?? option("--resume");
 const mode = process.env.STAND_IN_MODE ?? "ok";
 if (process.env.STAND_IN_LOG) {
   const env = Object.keys(process.env).filter((key) => key.startsWith("OPENMISSION_"));
-  appendFileSync(process.env.STAND_IN_LOG, `${JSON.stringify({ args, env, pid: process.pid })}\n`);
+  appendFileSync(process.env.STAND_IN_LOG, `${JSON.stringify({ args, cwd: process.cwd(), env, pid: process.pid })}\n`);
 }
 if (mode === "fail-start") {
   process.stderr.write("stand-in: cannot start\n");

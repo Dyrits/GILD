@@ -217,7 +217,7 @@ export const approvalsLayer = Layer.effect(
           yield* allowOnce(threadId, request.command);
           return { isAllowed: true, text: textOf(resolution) } satisfies Decision;
         }
-        const covering = yield* findCoveringPermission(missionId, request.command);
+        const covering = yield* findCoveringPermission(threadId, request.command);
         if (covering !== null) {
           const resolution: Resolution = { message: covering.sentence, outcome: "AllowedByPermission" };
           yield* record(asked, resolution);
@@ -251,7 +251,7 @@ export const approvalsLayer = Layer.effect(
           summary: summaryOf(toolName, input),
           threadId,
         };
-        const covering = yield* findCoveringPermission(missionId, target);
+        const covering = yield* findCoveringPermission(threadId, target);
         if (covering !== null) {
           yield* record(asked, { message: covering.sentence, outcome: "AllowedByPermission" });
           return { isAllowed: true, text: "" } satisfies Decision;
@@ -276,7 +276,7 @@ export const approvalsLayer = Layer.effect(
         if (given === "AlwaysAllow") {
           yield* sql.withTransaction(
             insertPermission(
-              question.missionId,
+              question.threadId,
               question.permission ?? question.summary,
               savedPatternOf(question.pattern, question.details),
             ),

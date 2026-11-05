@@ -12,6 +12,7 @@
 - `documentation/backlog.md`: candidate work and deferrals. Read when choosing what to do next.
 - `documentation/work-in-progress.md`: the current batch, its checks, and open questions. Read first when resuming; work proceeds in batches with the iterate skill.
 - `documentation/changelog.md`: authorized agreements and verified deliveries. Append a record for each.
+- `documentation/verification/`: reproducible proofs that delivered work behaves as claimed, with their scripts and screenshots. Read before re-verifying a batch or trusting its claims.
 - `documentation/conventions.md`: how code is written here (naming, absence, errors, comments, tests). Read before writing or reviewing code.
 - `packages/service/node_modules/effect/AGENTS.md`: Effect's own guide for this installed version. Read completely before writing Effect code; search its `src/` for APIs it does not cover.
 
@@ -23,4 +24,4 @@
 
 ## Handoffs
 
-To resume the first slice batch work (choosing the workspace batch), read the [current handoff](.agents/handoffs/2026-11-05-2328-workspace-batch.md). Handoffs are shared and committed.
+To resume the first slice batch work (workspace batch, built as a draft, awaiting the owner), read the [current handoff](.agents/handoffs/2026-11-06-0017-workspace-batch-draft.md). Handoffs are shared and committed.

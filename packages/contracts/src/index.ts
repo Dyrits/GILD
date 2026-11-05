@@ -12,6 +12,32 @@ export type ThreadId = typeof ThreadId.Type;
 export const MessageId = Schema.String.pipe(Schema.brand("MessageId"));
 export type MessageId = typeof MessageId.Type;
 
+export const WorkspaceId = Schema.String.pipe(Schema.brand("WorkspaceId"));
+export type WorkspaceId = typeof WorkspaceId.Type;
+
+/** A folder a thread works in, kept by identity rather than by path (workspace-attachment). */
+export const Workspace = Schema.Struct({
+  id: WorkspaceId,
+  /** Whether the folder still exists at its path. */
+  isMissing: Schema.Boolean,
+  name: Schema.String,
+  path: Schema.String,
+});
+export type Workspace = typeof Workspace.Type;
+
+/** One folder shown by the folder browser. */
+export const Folder = Schema.Struct({ name: Schema.String, path: Schema.String });
+export type Folder = typeof Folder.Type;
+
+/** A folder's subfolders, or the browsable roots when `path` is null. */
+export const FolderListing = Schema.Struct({
+  folders: Schema.Array(Folder),
+  /** The folder above, or null at a browsable root and at the list of roots. */
+  parent: Schema.NullOr(Schema.String),
+  path: Schema.NullOr(Schema.String),
+});
+export type FolderListing = typeof FolderListing.Type;
+
 /** A client-chosen identifier; repeating a command with it returns the original outcome. */
 export const RequestId = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(128));
 
@@ -57,6 +83,8 @@ export const MissionSummary = Schema.Struct({
   title: Schema.String,
   topThreadId: ThreadId,
   usage: TokenUsage,
+  /** The top thread's workspace name; null when it runs in the mission's scratch folder. */
+  workspaceName: Schema.NullOr(Schema.String),
 });
 export type MissionSummary = typeof MissionSummary.Type;
 
@@ -121,11 +149,14 @@ export type Question = typeof Question.Type;
 export const StandingPermission = Schema.Struct({
   createdAt: Schema.Number,
   id: PermissionId,
-  /** The mission it applies to; null when widened to everywhere. */
+  /** The mission it applies to, for threads with no workspace; null otherwise. */
   missionId: Schema.NullOr(MissionId),
   missionTitle: Schema.NullOr(Schema.String),
   pattern: Schema.String,
   sentence: Schema.String,
+  /** The workspace it applies to; null for a mission's permission. Both null: everywhere. */
+  workspaceId: Schema.NullOr(WorkspaceId),
+  workspaceName: Schema.NullOr(Schema.String),
 });
 export type StandingPermission = typeof StandingPermission.Type;
 
@@ -146,6 +177,8 @@ export const ThreadView = Schema.Struct({
   id: ThreadId,
   model: ModelChoice,
   state: ThreadState,
+  /** Null when the thread runs in its mission's scratch folder. */
+  workspace: Schema.NullOr(Workspace),
 });
 
 export const MissionDetail = Schema.Struct({
@@ -164,6 +197,8 @@ export const StartMission = Schema.TaggedStruct("StartMission", {
   model: ModelChoice,
   requestId: RequestId,
   text: MessageText,
+  /** A folder under a browsable root, or null for the mission's scratch folder. */
+  workspacePath: Schema.NullOr(Schema.String),
 });
 export const SendMessage = Schema.TaggedStruct("SendMessage", {
   requestId: RequestId,
@@ -190,6 +225,12 @@ export const ReadPermissions = Schema.TaggedStruct("ReadPermissions", { missionI
 export const WidenPermission = Schema.TaggedStruct("WidenPermission", { permissionId: PermissionId });
 export const RemovePermission = Schema.TaggedStruct("RemovePermission", { permissionId: PermissionId });
 export const UpdateSettings = Schema.TaggedStruct("UpdateSettings", { settings: Settings });
+/** Lists a folder's subfolders under the browsable roots; null lists the roots. */
+export const BrowseFolders = Schema.TaggedStruct("BrowseFolders", { path: Schema.NullOr(Schema.String) });
+/** Makes a folder inside a browsable folder (New folder). */
+export const CreateFolder = Schema.TaggedStruct("CreateFolder", { name: Schema.String, parent: Schema.String });
+/** Adds an existing folder to the browsable roots (Add root). */
+export const AddBrowsableRoot = Schema.TaggedStruct("AddBrowsableRoot", { path: Schema.String });
 
 export const Request = Schema.Union([
   StartMission,
@@ -204,6 +245,9 @@ export const Request = Schema.Union([
   ReadPermissions,
   WidenPermission,
   RemovePermission,
+  BrowseFolders,
+  CreateFolder,
+  AddBrowsableRoot,
 ]);
 export type Request = typeof Request.Type;
 export type RequestTag = Request["_tag"];
@@ -215,7 +259,10 @@ export type SendMessageResult = typeof SendMessageResult.Type;
 
 /** The result schema of each request, used by both sides to encode and decode. */
 export const Results = {
+  AddBrowsableRoot: FolderListing,
   AnswerQuestion: Question,
+  BrowseFolders: FolderListing,
+  CreateFolder: Folder,
   ListMissions: Schema.Array(MissionSummary),
   ListOpenQuestions: Schema.Array(Question),
   ReadMission: MissionDetail,

@@ -7,6 +7,7 @@ import { effortLabel, modelLabels } from "./formatting";
 import { levelLabels } from "./permissions";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
+import { BrowsableRoots } from "./workspaces";
 
 export function SettingsScreen({
   client,
@@ -63,6 +64,7 @@ export function SettingsScreen({
             />
             <Text style={styles.body}>Show replies as they're written</Text>
           </View>
+          <BrowsableRoots client={client} />
         </View>
       )}
     </View>

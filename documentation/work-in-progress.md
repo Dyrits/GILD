@@ -66,6 +66,43 @@ Open, for the owner:
 - The desktop notification was not observed by an agent.
 - The service passes its whole environment to Claude Code except `OPENMISSION_` variables. Launched from an agent's shell, that leaked the agent's `CLAUDE_*` and `GIT_CONFIG_*` variables; a normal launch is not affected. Not changed.
 
+## Batch 4: built as a draft, awaiting the owner's agreement
+
+Workspace attachment, first step, aimed at self-hosting: start a mission on a folder such as this repository and let its thread work there. Built autonomously while the owner was away ("Implement the next thing you can implement autonomously, without asking any question"), so nothing below is agreed yet: each choice is the handoff's recommendation or the narrowest reading of the agreed specification, and the owner may change any of it. Agreed sources: `capabilities/workspace-attachment/specifications.md` and the first-slice design's Workspace row.
+
+### Behavior
+
+- **Choosing**: the dashboard's start form has **Workspace: none** with **Choose folder…**, a browser over the browsable roots with **Up**, **Use this folder**, and **New folder**. Hidden folders are not listed. No workspace keeps the mission's scratch folder.
+- **Browsable roots** in Settings: the home folder at first; **Add root** takes a full path to an existing folder. No removal yet.
+- **Only under a root**: a folder outside every root, or reached through a link that leaves them, is refused with the reason; nothing is saved.
+- **Workspace identity**: a folder becomes a workspace the first time it is chosen, named after the folder, kept by identifier; choosing the same folder again reuses it. The top thread's workspace is fixed at start.
+- **Running there**: the thread's harness runs in the folder. Its starting context names the workspace and path, or says it has none and names the scratch folder.
+- **Instructions**: the folder's `AGENTS.md` and `CLAUDE.md` are put into the starting context, each cut at 50,000 characters, and re-read each turn; a change restarts the Claude Code process, resuming its conversation. Probe (2026-11-06, Claude Code 2.1.302): with `--setting-sources ""`, Claude Code reads no `CLAUDE.md` itself. `@` imports inside them are not followed.
+- **Standing permissions**: Always allow in a workspace thread saves the permission for the workspace; it applies to every mission's threads in that workspace, not to a nested workspace or the scratch folder. Threads with no workspace keep mission scope. Allow everywhere widens either. The Permissions page shows "In workspace <name>".
+- **Shown**: the workspace name on the dashboard row; the workspace and path, or "No workspace", under the conversation title, with "folder missing" when it is gone.
+- **Missing folder (provisional)**: a turn in a workspace whose folder is gone fails with "The workspace folder <path> no longer exists."; the next message retries. Retry, Relocate, and Clone again stay staged (specification, Missing folder).
+- **Out**: cloning, own copies, the Workspaces page (rename, hide, delete), relocation, thread-opened workspaces, phone browsing, workspace skills and harness settings (Claude Code still runs with `--setting-sources ""`), workspace MCP servers, intel.
+
+### Checks
+
+- Automated with the fake harness and temporary folders: `packages/service/test/workspaces.test.ts` (browsing, roots, New folder, refusal outside roots and through a link, identity reuse, folder and context, scratch folder, missing folder, workspace-scoped permissions incl. nested and scratch). Adapter check with the stand-in: Claude Code starts in the workspace with its `AGENTS.md` in `--append-system-prompt`.
+- `bun run test` passes 61 with 2 skipped (the opt-in live checks, not rerun); `bun run typecheck` and `bun run check` pass. Each workspace check was shown able to fail by mutation: [proof](verification/2026-11-06-workspace-batch.md).
+- Driven in the Electron window with Claude Code and Haiku, on a clone of this repository under a browsable root. The thread quoted `AGENTS.md` without reading files, created a file, and committed it locally with no question.
+- Reviewed (review-and-refactor, Standards and Specifications): the refactors are applied and verified by the same reviewers. Open: Retry on a missing folder (needs the owner), `@` imports, a hidden-folders choice, and a check for restart on instruction change.
+- Owner run-through: pending. Start a mission on a copy of this repository, ask for a small change, see the thread follow `AGENTS.md`, run the checks, and commit.
+
+### Open, for the owner
+
+- Agree or change the scope above; the agreement then goes into the changelog (CHG-0034 if nothing intervenes), and the Delivery follows the run-through.
+- Sandbox fit for self-building, observed in the drive:
+  - `bun run check` and `bun run typecheck` run sandboxed with no question.
+  - `bun install` fails in the sandbox (`bun is unable to write files to tempdir: EPERM`) and asks once to run outside it.
+  - `bun run test` fails in the sandbox because the Electron binary download is refused, so self-building needs either an allowed network host or that download done once outside the sandbox.
+  - Decide whether to allow the package-registry and GitHub download hosts for workspaces, or to keep asking.
+- Hidden folders are not listed in the browser. Keep this, or add a "show hidden" toggle?
+- A missing workspace folder fails the turn. The specification wants Attention with Retry; build Retry now, or with Relocate?
+- Whether a workspace should also load its own Claude Code settings and skills (`--setting-sources project`), which would also let project hooks run.
+
 ## Open questions, settled when a batch needs them
 
 - Dependency gates and fake-first live launch (first-slice-design, Dependency gates).

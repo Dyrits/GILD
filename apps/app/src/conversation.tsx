@@ -74,6 +74,14 @@ export function Conversation({
           {modelLabels[data.thread.model]} · {effortLabel(data.thread.effort)} · {usageDetail(data.mission.usage)}
         </Text>
       )}
+      {data && (
+        <Text numberOfLines={1} style={styles.muted}>
+          {data.thread.workspace === null
+            ? "No workspace: the mission's scratch folder"
+            : `Workspace ${data.thread.workspace.name} · ${data.thread.workspace.path}`}
+          {data.thread.workspace?.isMissing === true && " · folder missing"}
+        </Text>
+      )}
       {data?.thread.failure != null && (
         <View style={styles.failure}>
           <Text style={styles.error}>The last turn failed: {data.thread.failure}</Text>

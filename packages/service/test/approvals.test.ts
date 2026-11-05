@@ -20,7 +20,12 @@ afterEach(() => {
 });
 
 const serviceOn = (filename: string) =>
-  serviceLayer({ filename, harness: fakeHarnessLayer("10 millis"), scratchRoot: join(filename, "..", "missions") });
+  serviceLayer({
+    filename,
+    harness: fakeHarnessLayer("10 millis"),
+    homeFolder: join(filename, ".."),
+    scratchRoot: join(filename, "..", "missions"),
+  });
 const live = () => serviceOn(databaseFile());
 
 const call = <R extends Request>(request: R) =>
@@ -64,7 +69,14 @@ const ask = (request: object) => `ask ${JSON.stringify(request)}`;
 
 let requestCount = 0;
 const start = (text: string) =>
-  call({ _tag: "StartMission", effort: "default", model: "default", requestId: `start-${++requestCount}`, text });
+  call({
+    _tag: "StartMission",
+    effort: "default",
+    model: "default",
+    requestId: `start-${++requestCount}`,
+    text,
+    workspacePath: null,
+  });
 const send = (threadId: ResultOf<"StartMission">["threadId"], text: string) =>
   call({ _tag: "SendMessage", requestId: `send-${++requestCount}`, text, threadId });
 
