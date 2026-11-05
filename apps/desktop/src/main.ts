@@ -17,7 +17,7 @@ const startService = (token: string) => {
     stdio: "inherit",
     env: {
       ...process.env,
-      OPENMISSION_DATABASE: join(dataDirectory(), "openmission.sqlite"),
+      OPENMISSION_DATA_DIR: dataDirectory(),
       OPENMISSION_TOKEN: token,
     },
   });

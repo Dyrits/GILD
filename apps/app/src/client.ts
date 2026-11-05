@@ -30,6 +30,7 @@ export class ServiceClient {
   private nextId = 0;
   private readonly pending = new Map<string, Pending>();
   private readonly listeners = new Set<() => void>();
+  private readonly draftListeners = new Set<(threadId: string, text: string) => void>();
 
   private constructor(private readonly endpoint: string) {}
 
@@ -61,6 +62,10 @@ export class ServiceClient {
   private receive(data: unknown) {
     const frame = decodeFrame(data);
     if (frame._tag === "Changed") return this.notify();
+    if (frame._tag === "Draft") {
+      for (const listener of this.draftListeners) listener(frame.threadId, frame.text);
+      return;
+    }
     const request = this.pending.get(frame.id);
     if (request === undefined) return;
     this.pending.delete(frame.id);
@@ -80,6 +85,12 @@ export class ServiceClient {
   subscribe(listener: () => void) {
     this.listeners.add(listener);
     return () => this.listeners.delete(listener);
+  }
+
+  /** Calls the listener with each thread's reply in progress; empty text ends it. */
+  subscribeDrafts(listener: (threadId: string, text: string) => void) {
+    this.draftListeners.add(listener);
+    return () => this.draftListeners.delete(listener);
   }
 
   request<R extends Request>(request: R): Promise<ResultOf<R["_tag"]>> {

@@ -4,30 +4,36 @@
 
 Build the first slice iteratively (CHG-0025): each batch leaves a runnable application with its checks. Design under review: [first-slice-design.md](first-slice-design.md) and the mission-tracking, thread-tree, and thread-messaging blueprints. Starting revision: `e445b44`.
 
-## Batch 1: thin end-to-end with the fake harness
+## Batch 1: delivered
+
+Delivered in CHG-0026 (commit 649e232). Provisional behavior still in place until decided: on startup, threads left Running become Idle and interrupted turns are not replayed; the desktop app loads only the Metro dev server; rollback of a failed mission start is not directly tested.
+
+## Batch 2: Claude Code chat without tools
 
 Status: implemented and checked; awaiting the user's run-through.
 
-Evidence (2026-11-05, committed on `main` after `e445b44` as a first draft):
+Evidence (2026-11-05, committed on `main` as a draft after `649e232`):
 
-- `bun run test`: 11 Vitest checks pass on Electron's Node 24.22.2 (`packages/service/test`): start saves mission, top thread and message with the first-line title; echo reply then Idle; blank text refused with nothing saved; repeated request identifier returns the original outcome; follow-ups keep order and run after the current turn; Idle thread wakes; unknown thread refused; data survives reopening the database; WebSocket refuses a missing or wrong token, answers requests, announces changes, and answers an invalid frame with InvalidInput.
-- `bun run typecheck` and `bun run check` pass; `expo export --platform web` bundles.
-- Driven through the Electron window over the DevTools protocol with a throwaway data folder: started a two-line mission, saw the echo, sent a follow-up and saw Running then its echo, returned to the dashboard showing Idle. After quitting and relaunching Electron, the mission and conversation were still there; the service process ended with Electron. A tokenless connection to the live service was refused. `bun run dev` starts Metro and Electron and stops both together.
-- Not checked directly: rollback when a statement fails midway through starting a mission (the three inserts share one transaction).
-
-Provisional behavior pending decisions: on startup, threads left Running become Idle and their interrupted turn is not replayed. The desktop app loads the Metro dev server only; a packaged build is not part of this batch.
+- `bun run test`: 19 checks pass on Electron's Node 24.22.2, including 8 for the Claude Code adapter against `packages/service/test/fixtures/stand-in-claude.mjs` (chat-only flags with model and effort, defaults omitted, no `OPENMISSION_` variables in the child, one process across turns, usage totals, resume after idle close, failure and retry, reported errors not saved as replies, drafts only while the setting is on) and settings persistence.
+- `OPENMISSION_LIVE_CLAUDE=1 bun run test`: the live check passed against the installed Claude Code 2.1.302 with Haiku.
+- `bun run typecheck` and `bun run check` pass.
+- Driven through the Electron window with real Claude Code and a throwaway data folder: picked Haiku and low effort; the reply streamed in a "writing…" bubble, then was saved, with the thread Running then Idle and token usage shown; a follow-up kept the conversation's context; Settings turned streaming off, after which no draft appeared; the dashboard showed token totals. Quitting Electron left no Claude Code process; after relaunching, a follow-up resumed the stored session (`--resume`) with its context. The live Claude Code process's environment had PATH and HOME but no `OPENMISSION_` variable.
+- Not checked live: a missing `claude` executable (covered by the stand-in failure checks only).
 
 Behavior:
 
-- `bun run dev` opens Electron, which starts the service in a utilityProcess and loads the Expo web app.
-- The dashboard lists missions with title, state, and last activity, and has a box that starts a mission with one message. The title is the message's first line.
-- Starting commits the mission, its top thread, and the message in one SQLite transaction. The fake harness answers with an echo after a short delay; the thread shows Running, then Idle.
-- Opening a mission shows the top thread's conversation; follow-up messages are answered the same way.
-- Data survives a restart. The WebSocket accepts only the per-launch owner token.
+- The start box has Model (Claude Code default, Fable, Opus, Sonnet, Haiku) and Effort (default, low, medium, high, xhigh, max) selectors, prefilled from saved defaults. The thread keeps its choice.
+- A Settings screen holds the default model and effort and "Show replies as they're written" (on by default).
+- Each thread runs one `claude -p` stream-json process in its mission's scratch folder, with no tools, permission prompts denied, and no MCP servers, skills, or user and project settings. OpenMission's own variables, including the owner token, are not passed to it.
+- Each assistant message is saved and shown when it arrives; with the setting on, the reply in progress shows word by word without being saved. The thread is Running until the turn's result, then Idle. Messages sent during a turn wait for the next turn.
+- Token usage (input, output, cache) adds up per mission on the dashboard and in the conversation, never in dollars.
+- An idle process closes after 10 minutes; the next message, or the first after a restart, resumes the stored session.
+- If Claude Code is missing or fails, the thread shows Failed with the reason; the next message retries, together with the messages of the failed turn.
+- The fake harness remains for checks; `OPENMISSION_HARNESS=fake` selects it. `OPENMISSION_CLAUDE_PATH` overrides the `claude` executable.
 
-Checks (Vitest on Node 24): atomic start, message order, persistence across reopening the database, request-identifier retry returning the original outcome, refusal without the owner token, contract decoding. Then one manual run-through by the user.
+Checks: adapter tests against a scripted stand-in `claude` (flags, model and effort, one process per thread, resume after idle close, failure and retry, drafts on and off, usage totals), settings persistence, one opt-in live test with `OPENMISSION_LIVE_CLAUDE=1`, and the user's run-through.
 
-Excluded: child threads, Stop and Resume, Claude Code, agent-proposed titles, chatter guard, crash recovery.
+Excluded: tools and approvals (batch 3), steering a running turn, thread tools, child threads.
 
 ## Open questions, settled when a batch needs them
 

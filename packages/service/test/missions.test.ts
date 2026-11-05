@@ -6,7 +6,7 @@ import type { MissionId, Request, RequestTag, ResultOf } from "@openmission/cont
 import { Effect, Layer } from "effect";
 import { TestClock } from "effect/testing";
 import { afterEach } from "vitest";
-import { Service, serviceLayer } from "../src/index.ts";
+import { fakeHarnessLayer, Service, serviceLayer } from "../src/index.ts";
 
 const REPLY_DELAY = "2 seconds";
 
@@ -20,7 +20,8 @@ afterEach(() => {
   for (const directory of directories.splice(0)) rmSync(directory, { recursive: true, force: true });
 });
 
-const live = (filename: string) => serviceLayer({ filename, replyDelay: REPLY_DELAY });
+const live = (filename: string) =>
+  serviceLayer({ filename, scratchRoot: join(filename, "..", "missions"), harness: fakeHarnessLayer(REPLY_DELAY) });
 
 const call = <R extends Request>(request: R) =>
   Effect.gen(function* () {
@@ -46,21 +47,33 @@ const read = (missionId: MissionId) => call({ _tag: "ReadMission", missionId });
 describe("starting a mission", () => {
   it.effect("saves the mission, its top thread, and the first message, titled by the first line", () =>
     Effect.gen(function* () {
-      const started = yield* call({ _tag: "StartMission", requestId: "r1", text: "Plan the trip\nwith details" });
+      const started = yield* call({
+        _tag: "StartMission",
+        requestId: "r1",
+        text: "Plan the trip\nwith details",
+        model: "default",
+        effort: "default",
+      });
 
       const missions = yield* call({ _tag: "ListMissions" });
       expect(missions).toHaveLength(1);
       expect(missions[0]).toMatchObject({ id: started.missionId, title: "Plan the trip", state: "Running" });
 
       const detail = yield* read(started.missionId);
-      expect(detail.thread).toEqual({ id: started.threadId, state: "Running" });
+      expect(detail.thread).toMatchObject({ id: started.threadId, state: "Running" });
       expect(detail.messages.map((m) => [m.sender, m.text])).toEqual([["user", "Plan the trip\nwith details"]]);
     }).pipe(Effect.provide(live(databaseFile()))),
   );
 
   it.effect("gets the fake harness's echo after the delay and becomes Idle", () =>
     Effect.gen(function* () {
-      const started = yield* call({ _tag: "StartMission", requestId: "r1", text: "Hello" });
+      const started = yield* call({
+        _tag: "StartMission",
+        requestId: "r1",
+        text: "Hello",
+        model: "default",
+        effort: "default",
+      });
       yield* advance(REPLY_DELAY);
 
       const detail = yield* read(started.missionId);
@@ -76,7 +89,13 @@ describe("starting a mission", () => {
 
   it.effect("refuses blank text and saves nothing", () =>
     Effect.gen(function* () {
-      const failure = yield* failureOf({ _tag: "StartMission", requestId: "r1", text: "   \n " });
+      const failure = yield* failureOf({
+        _tag: "StartMission",
+        requestId: "r1",
+        text: "   \n ",
+        model: "default",
+        effort: "default",
+      });
       expect(failure.kind).toBe("InvalidInput");
       expect(yield* call({ _tag: "ListMissions" })).toEqual([]);
     }).pipe(Effect.provide(live(databaseFile()))),
@@ -84,8 +103,20 @@ describe("starting a mission", () => {
 
   it.effect("returns the original outcome when a request identifier is repeated", () =>
     Effect.gen(function* () {
-      const first = yield* call({ _tag: "StartMission", requestId: "same", text: "Once" });
-      const again = yield* call({ _tag: "StartMission", requestId: "same", text: "Once" });
+      const first = yield* call({
+        _tag: "StartMission",
+        requestId: "same",
+        text: "Once",
+        model: "default",
+        effort: "default",
+      });
+      const again = yield* call({
+        _tag: "StartMission",
+        requestId: "same",
+        text: "Once",
+        model: "default",
+        effort: "default",
+      });
       expect(again).toEqual(first);
       expect(yield* call({ _tag: "ListMissions" })).toHaveLength(1);
     }).pipe(Effect.provide(live(databaseFile()))),
@@ -95,7 +126,13 @@ describe("starting a mission", () => {
 describe("follow-up messages", () => {
   it.effect("keep their order and are answered after the running turn", () =>
     Effect.gen(function* () {
-      const started = yield* call({ _tag: "StartMission", requestId: "r1", text: "First" });
+      const started = yield* call({
+        _tag: "StartMission",
+        requestId: "r1",
+        text: "First",
+        model: "default",
+        effort: "default",
+      });
       yield* call({ _tag: "SendMessage", requestId: "r2", threadId: started.threadId, text: "Second" });
       yield* call({ _tag: "SendMessage", requestId: "r3", threadId: started.threadId, text: "Third" });
 
@@ -117,7 +154,13 @@ describe("follow-up messages", () => {
 
   it.effect("wake an Idle thread", () =>
     Effect.gen(function* () {
-      const started = yield* call({ _tag: "StartMission", requestId: "r1", text: "One" });
+      const started = yield* call({
+        _tag: "StartMission",
+        requestId: "r1",
+        text: "One",
+        model: "default",
+        effort: "default",
+      });
       yield* advance(REPLY_DELAY);
       yield* call({ _tag: "SendMessage", requestId: "r2", threadId: started.threadId, text: "Two" });
       expect((yield* read(started.missionId)).thread.state).toBe("Running");
@@ -147,7 +190,13 @@ describe("persistence", () => {
       const filename = databaseFile();
       const started = yield* Effect.scoped(
         Effect.gen(function* () {
-          const result = yield* call({ _tag: "StartMission", requestId: "r1", text: "Remember me" });
+          const result = yield* call({
+            _tag: "StartMission",
+            requestId: "r1",
+            text: "Remember me",
+            model: "default",
+            effort: "default",
+          });
           yield* advance(REPLY_DELAY);
           return result;
         }).pipe(Effect.provide(Layer.fresh(live(filename)))),

@@ -21,6 +21,28 @@ export type ThreadState = typeof ThreadState.Type;
 export const SenderKind = Schema.Literals(["user", "agent"]);
 export type SenderKind = typeof SenderKind.Type;
 
+export const ModelChoice = Schema.Literals(["default", "fable", "opus", "sonnet", "haiku"]);
+export type ModelChoice = typeof ModelChoice.Type;
+
+export const EffortChoice = Schema.Literals(["default", "low", "medium", "high", "xhigh", "max"]);
+export type EffortChoice = typeof EffortChoice.Type;
+
+/** Token counts in the provider's own unit; never converted to a price. */
+export const TokenUsage = Schema.Struct({
+  input: Schema.Number,
+  output: Schema.Number,
+  cacheRead: Schema.Number,
+  cacheCreation: Schema.Number,
+});
+export type TokenUsage = typeof TokenUsage.Type;
+
+export const Settings = Schema.Struct({
+  defaultModel: ModelChoice,
+  defaultEffort: EffortChoice,
+  streamReplies: Schema.Boolean,
+});
+export type Settings = typeof Settings.Type;
+
 const MessageText = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(100_000));
 
 export const MissionSummary = Schema.Struct({
@@ -29,6 +51,7 @@ export const MissionSummary = Schema.Struct({
   state: ThreadState,
   topThreadId: ThreadId,
   lastActivityAt: Schema.Number,
+  usage: TokenUsage,
 });
 export type MissionSummary = typeof MissionSummary.Type;
 
@@ -42,7 +65,14 @@ export const Message = Schema.Struct({
 });
 export type Message = typeof Message.Type;
 
-export const ThreadView = Schema.Struct({ id: ThreadId, state: ThreadState });
+export const ThreadView = Schema.Struct({
+  id: ThreadId,
+  state: ThreadState,
+  model: ModelChoice,
+  effort: EffortChoice,
+  /** Why the last turn failed, while the thread is Failed. */
+  failure: Schema.NullOr(Schema.String),
+});
 
 export const MissionDetail = Schema.Struct({
   mission: MissionSummary,
@@ -53,7 +83,12 @@ export type MissionDetail = typeof MissionDetail.Type;
 
 // Requests
 
-export const StartMission = Schema.TaggedStruct("StartMission", { requestId: RequestId, text: MessageText });
+export const StartMission = Schema.TaggedStruct("StartMission", {
+  requestId: RequestId,
+  text: MessageText,
+  model: ModelChoice,
+  effort: EffortChoice,
+});
 export const SendMessage = Schema.TaggedStruct("SendMessage", {
   requestId: RequestId,
   threadId: ThreadId,
@@ -62,7 +97,17 @@ export const SendMessage = Schema.TaggedStruct("SendMessage", {
 export const ListMissions = Schema.TaggedStruct("ListMissions", {});
 export const ReadMission = Schema.TaggedStruct("ReadMission", { missionId: MissionId });
 
-export const Request = Schema.Union([StartMission, SendMessage, ListMissions, ReadMission]);
+export const ReadSettings = Schema.TaggedStruct("ReadSettings", {});
+export const UpdateSettings = Schema.TaggedStruct("UpdateSettings", { settings: Settings });
+
+export const Request = Schema.Union([
+  StartMission,
+  SendMessage,
+  ListMissions,
+  ReadMission,
+  ReadSettings,
+  UpdateSettings,
+]);
 export type Request = typeof Request.Type;
 export type RequestTag = Request["_tag"];
 
@@ -77,6 +122,8 @@ export const Results = {
   SendMessage: SendMessageResult,
   ListMissions: Schema.Array(MissionSummary),
   ReadMission: MissionDetail,
+  ReadSettings: Settings,
+  UpdateSettings: Settings,
 } as const;
 export type ResultOf<T extends RequestTag> = (typeof Results)[T]["Type"];
 
@@ -104,7 +151,10 @@ export const Failure = Schema.TaggedStruct("Failure", { id: Schema.String, error
 /** Sent after each committed change; clients refetch what they show. */
 export const Changed = Schema.TaggedStruct("Changed", { sequence: Schema.Number });
 
-export const ServerFrame = Schema.Union([Success, Failure, Changed]);
+/** The reply a thread is writing, sent only while "Show replies as they're written" is on; never saved. */
+export const Draft = Schema.TaggedStruct("Draft", { threadId: ThreadId, text: Schema.String });
+
+export const ServerFrame = Schema.Union([Success, Failure, Changed, Draft]);
 export type ServerFrame = typeof ServerFrame.Type;
 
 export const ClientFrameJson = Schema.fromJsonString(ClientFrame);

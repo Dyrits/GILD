@@ -1,13 +1,14 @@
 import type { Request } from "@openmission/contracts";
-import { Context, type Duration, Effect, Layer } from "effect";
+import { Context, Effect, Layer } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
 import { Changes, changesLayer } from "./changes.ts";
 import { invalid, ServiceFailure } from "./errors.ts";
-import { fakeHarnessLayer } from "./execution.ts";
+import type { Harness } from "./execution.ts";
 import { insertUserMessage } from "./messaging.ts";
 import { insertMission, listMissions, readMission } from "./missions.ts";
+import { readSettings, writeSettings } from "./settings.ts";
 import { storeLayer } from "./store.ts";
-import { Threads, threadsLayer } from "./threads.ts";
+import { ScratchRoot, Threads, threadsLayer } from "./threads.ts";
 
 /** The entry point shared by app commands and, later, MCP calls. */
 export class Service extends Context.Service<
@@ -54,7 +55,9 @@ const make = Effect.gen(function* () {
       switch (request._tag) {
         case "StartMission":
           return nonBlank(request.text).pipe(
-            Effect.andThen((text) => once(request.requestId, request._tag, insertMission(text))),
+            Effect.andThen((text) =>
+              once(request.requestId, request._tag, insertMission(text, request.model, request.effort)),
+            ),
             Effect.tap((started) => threads.wake(started.threadId)),
           );
         case "SendMessage":
@@ -66,6 +69,10 @@ const make = Effect.gen(function* () {
           return listMissions;
         case "ReadMission":
           return readMission(request.missionId);
+        case "ReadSettings":
+          return readSettings;
+        case "UpdateSettings":
+          return writeSettings(request.settings).pipe(Effect.tap(() => changes.publish));
       }
     })();
     return run.pipe(
@@ -79,13 +86,17 @@ const make = Effect.gen(function* () {
 
 export interface ServiceOptions {
   readonly filename: string;
-  readonly replyDelay: Duration.Input;
+  /** The folder holding each mission's scratch folder. */
+  readonly scratchRoot: string;
+  readonly harness: Layer.Layer<Harness>;
 }
 
-/** The whole local service over one SQLite file, with the fake harness. */
+/** The whole local service over one SQLite file. */
 export const serviceLayer = (options: ServiceOptions) => {
-  const foundation = Layer.mergeAll(changesLayer, fakeHarnessLayer(options.replyDelay)).pipe(
-    Layer.provideMerge(storeLayer(options.filename)),
-  );
+  const foundation = Layer.mergeAll(
+    changesLayer,
+    options.harness,
+    Layer.succeed(ScratchRoot, options.scratchRoot),
+  ).pipe(Layer.provideMerge(storeLayer(options.filename)));
   return Layer.effect(Service, make).pipe(Layer.provideMerge(threadsLayer), Layer.provideMerge(foundation));
 };

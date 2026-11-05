@@ -5,7 +5,7 @@ import { describe, expect, it } from "@effect/vitest";
 import { ServerFrameJson } from "@openmission/contracts";
 import { Effect, Schema } from "effect";
 import { afterEach } from "vitest";
-import { serveLoopback, serviceLayer } from "../src/index.ts";
+import { fakeHarnessLayer, serveLoopback, serviceLayer } from "../src/index.ts";
 
 const TOKEN = "owner-token-for-tests";
 const decodeFrame = Schema.decodeUnknownSync(ServerFrameJson);
@@ -21,7 +21,11 @@ const running = serveLoopback({ port: 0, token: TOKEN }).pipe(Effect.map(({ port
 const fresh = () => {
   const directory = mkdtempSync(join(tmpdir(), "openmission-test-"));
   directories.push(directory);
-  return serviceLayer({ filename: join(directory, "openmission.sqlite"), replyDelay: "10 millis" });
+  return serviceLayer({
+    filename: join(directory, "openmission.sqlite"),
+    scratchRoot: join(directory, "missions"),
+    harness: fakeHarnessLayer("10 millis"),
+  });
 };
 
 const connect = (url: string) =>
@@ -59,7 +63,16 @@ describe("loopback WebSocket", () => {
       const port = yield* running;
       const { socket, frames } = yield* connect(`ws://127.0.0.1:${port}/?token=${TOKEN}`);
       socket.send(
-        JSON.stringify({ id: "1", request: { _tag: "StartMission", requestId: "r1", text: "Over the wire" } }),
+        JSON.stringify({
+          id: "1",
+          request: {
+            _tag: "StartMission",
+            requestId: "r1",
+            text: "Over the wire",
+            model: "default",
+            effort: "default",
+          },
+        }),
       );
 
       const reply = yield* until(() => frames.find((f) => (f as { id?: string }).id === "1"));

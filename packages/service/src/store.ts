@@ -43,6 +43,22 @@ const migrations = {
       outcome TEXT NOT NULL
     )`;
   }),
+  "0002_claude_code_chat": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE threads ADD COLUMN model TEXT NOT NULL DEFAULT 'default'`;
+    yield* sql`ALTER TABLE threads ADD COLUMN effort TEXT NOT NULL DEFAULT 'default'`;
+    yield* sql`ALTER TABLE threads ADD COLUMN session_id TEXT`;
+    yield* sql`ALTER TABLE threads ADD COLUMN failure TEXT`;
+    yield* sql`CREATE TABLE usage (
+      turn_id TEXT PRIMARY KEY REFERENCES turns(id),
+      mission_id TEXT NOT NULL REFERENCES missions(id),
+      input INTEGER NOT NULL,
+      output INTEGER NOT NULL,
+      cache_read INTEGER NOT NULL,
+      cache_creation INTEGER NOT NULL
+    )`;
+    yield* sql`CREATE TABLE settings (key TEXT PRIMARY KEY, value TEXT NOT NULL)`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

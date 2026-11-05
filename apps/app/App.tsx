@@ -2,12 +2,13 @@ import type { MissionId } from "@openmission/contracts";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { ServiceClient } from "./src/client";
-import { Conversation, Dashboard } from "./src/screens";
+import { Conversation, Dashboard, SettingsScreen } from "./src/screens";
 
 export default function App() {
   const [client, setClient] = useState<ServiceClient>();
   const [failure, setFailure] = useState<string>();
   const [openMission, setOpenMission] = useState<MissionId>();
+  const [showSettings, setShowSettings] = useState(false);
 
   useEffect(() => {
     ServiceClient.connect().then(setClient, (error: Error) => setFailure(error.message));
@@ -20,8 +21,9 @@ export default function App() {
       </View>
     );
   }
+  if (showSettings) return <SettingsScreen client={client} onBack={() => setShowSettings(false)} />;
   return openMission === undefined ? (
-    <Dashboard client={client} onOpen={setOpenMission} />
+    <Dashboard client={client} onOpen={setOpenMission} onSettings={() => setShowSettings(true)} />
   ) : (
     <Conversation client={client} missionId={openMission} onBack={() => setOpenMission(undefined)} />
   );

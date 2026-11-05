@@ -1,6 +1,13 @@
 import { timingSafeEqual } from "node:crypto";
 import type { IncomingMessage } from "node:http";
-import { type ClientFrame, ClientFrameJson, Results, type ServerFrame, ServerFrameJson } from "@openmission/contracts";
+import {
+  type ClientFrame,
+  ClientFrameJson,
+  Results,
+  type ServerFrame,
+  ServerFrameJson,
+  type ThreadId,
+} from "@openmission/contracts";
 import { Effect, Exit, PubSub, Schema } from "effect";
 import { WebSocket, WebSocketServer } from "ws";
 import { Changes } from "./changes.ts";
@@ -99,6 +106,17 @@ export const serveLoopback = (options: { readonly port: number; readonly token: 
       Effect.tap((sequence) =>
         Effect.sync(() => {
           for (const client of wss.clients) send(client, { _tag: "Changed", sequence });
+        }),
+      ),
+      Effect.forever,
+      Effect.forkScoped,
+    );
+
+    const drafts = yield* PubSub.subscribe(changes.drafts);
+    yield* PubSub.take(drafts).pipe(
+      Effect.tap(({ threadId, text }) =>
+        Effect.sync(() => {
+          for (const client of wss.clients) send(client, { _tag: "Draft", threadId: threadId as ThreadId, text });
         }),
       ),
       Effect.forever,
