@@ -430,3 +430,14 @@ Reason: Keep the owner's own conventions where they help readability, and drop t
 References: documentation/conventions.md, packages/service/src/service.ts
 Validation: The owner listed their usual conventions and accepted each recommendation on 2026-11-05. Removing one handler from the dispatch fails `tsc`; `bun run test`, typecheck, and Biome pass.
 Evidence: "I agree with your recommandations. So, as you said."
+
+## CHG-0030 · 2026-11-05 · Batch 2 delivered: Claude Code chat without tools
+
+Type: Feature
+Event: Delivery
+Scope: First slice, batch 2
+
+Summary: Missions now run on the installed Claude Code in chat-only mode, as agreed in CHG-0027: model and effort picked at start from saved defaults, one long-lived process per thread resumed by session after idle close or restart, replies streamed word by word behind a setting, token usage per mission, and Failed with a reason and retry. Later in the batch, code conventions (CHG-0028, CHG-0029) and the setup's checks and guards were applied without changing behavior.
+References: commits ddb888d, baaf1eb, d62a904; documentation/work-in-progress.md; packages/service/src/claude.ts
+Validation: `bun run test` passes 19 checks with 1 skipped (the opt-in live check, which passed against Claude Code 2.1.302 earlier in the batch); typecheck and Biome pass; the flow was driven in the Electron window with real Claude Code before the conventions refactor. The user ran the app and accepted it.
+Evidence: User, after the run-through: "Seems good to me."

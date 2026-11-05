@@ -23,4 +23,4 @@
 
 ## Handoffs
 
-To resume the first slice's batch work, read the [current handoff](.agents/handoffs/2026-11-05-2136-claude-code-chat-batch.md). Handoffs are shared and committed.
+To resume the first slice batch work (choosing batch 3), read the [current handoff](.agents/handoffs/2026-11-05-2219-choose-batch-3.md). Handoffs are shared and committed.
