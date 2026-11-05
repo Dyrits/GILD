@@ -263,3 +263,39 @@ Reason: Expo already supplies the app's bundler, and the other packages do not y
 References: documentation/architecture.md
 Validation: The user explicitly requested removal of Vite+ and a committed, pushed handoff.
 Evidence: "Remove Vite+ from our choice."
+
+## CHG-0016 · 2026-11-05 · Hosted execution and guest discussions agreed
+
+Type: Documentation
+Event: Agreement
+Scope: Multiplayer architecture
+
+Summary: In the first hosted multiplayer version, all agents run on the mission host. Each guest may either trigger agents or only discuss. Discussion-only guests write in discussions beneath messages; their messages enter agent context only when the host explicitly submits selected messages. The host may instead write their own conclusion. Approval authority, standing permissions, spending, private context, and revocation remain open.
+Reason: Keep execution and workspace access on one computer, and let the host choose which guest discussion reaches agents.
+References: documentation/architecture.md
+Validation: The user accepted both recommendations in the resumed multiplayer interview on 2026-11-05.
+Evidence: Q1, "Yes, host execution and two guest permissions"; Q2, "Yes, only explicitly submitted messages".
+
+## CHG-0017 · 2026-11-05 · Host authority and spending agreed
+
+Type: Documentation
+Event: Agreement
+Scope: Multiplayer architecture
+
+Summary: Only the host approves risky actions, grants standing permissions, and changes budgets. Guest-triggered work uses the host's provider account and counts toward the mission and global budgets. Access to host resources and guest visibility remain open; the proposed sharing toggle has no agreed scope or default yet.
+Reason: Guests may request work within the host's budgets while the host retains authority over risky actions and spending limits.
+References: documentation/architecture.md
+Validation: The user accepted the recommendations in multiplayer Q3 and Q4 on 2026-11-05.
+Evidence: Q3, "Yes, only the host"; Q4, "Yes, host pays within existing budgets".
+
+## CHG-0018 · 2026-11-05 · Shared mission resource access and visibility agreed
+
+Type: Documentation
+Event: Agreement
+Scope: Multiplayer architecture
+
+Summary: A toggle when sharing a mission lets its agents retain access to the host's selected MCP connections, skills, and intel, regardless of who triggers a turn. It is on by default. Turning it off restricts all turns in that shared mission to resources explicitly selected by the host. Guests see shared conversations and agent results; resource settings, credentials, and unshared intel remain hidden. Replies may reveal information obtained through enabled resources.
+Reason: Preserve agent capabilities when a guest triggers work while keeping host resource configuration private.
+References: documentation/architecture.md
+Validation: The user accepted the recommendations in multiplayer Q6 and Q7 on 2026-11-05.
+Evidence: Q6, "Yes, on by default"; Q7, "Yes, show conversations and results".

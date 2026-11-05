@@ -6,19 +6,21 @@ OpenMission is a desktop application whose local service owns all data in one SQ
 
 Multiplayer must eventually support both invited people joining one host's missions and collaboration across people's own installations. The single-user design below describes the first build. Before designing its modules and data model, settle execution ownership and authority between participants for both forms.
 
-For now, each shared mission has one host installation that owns its authoritative state. Collaborators join from a browser or their own installation. Collaboration pauses while that host is offline. The user accepted this working choice on 2026-11-04, subject to evolution; replicated state and offline edits remain possible future changes. This does not decide where threads execute or what participants may access or authorize.
+For now, each shared mission has one host installation that owns its authoritative state. Collaborators join from a browser or their own installation. Collaboration pauses while that host is offline. The user accepted this working choice on 2026-11-04, subject to evolution; replicated state and offline edits remain possible future changes.
 
 The current architecture has assumptions that need review:
 
-The discussion is considering host-only execution with two guest permissions: guests who may trigger agents and guests who may only discuss. The user proposed replies within a discussion that the host can choose to send to an agent, or convey in their own words. These proposals still need a completed behavior agreement, including which messages enter agent context. Automatic discussion summarization is deferred in the [backlog](backlog.md).
+For the first hosted multiplayer version, all agents run on the mission host. Each guest has one of two permissions: triggering agents or discussing only. Discussion-only guests write in discussions beneath messages. Their discussion messages enter agent context only when the host explicitly submits selected messages. The host may instead write their own conclusion. The user confirmed these choices on 2026-11-05 (CHG-0016). Automatic discussion summarization is deferred in the [backlog](backlog.md).
+
+Only the host approves risky actions, grants standing permissions, and changes budgets. Guest-triggered work uses the host's provider account and counts toward the mission and global budgets (CHG-0017). Guest permission to trigger agents does not grant approval or budget authority.
+
+When sharing a mission, a toggle controls whether its agents retain access to the host's selected MCP connections, skills, and intel. It is on by default, and applies regardless of who triggers a turn. With it off, all turns in that shared mission use only resources the host explicitly selects. Guests see shared conversations and agent results; resource settings, credentials, and unshared intel remain hidden. Agent replies may reveal information obtained through enabled resources. The user confirmed this access and visibility boundary on 2026-11-05 (CHG-0018).
 
 - A paired device represents the owner. Another person needs their own identity, access grants, and revocation; possession of a device pairing must not imply permission to all missions.
-- Approvals, standing permissions, and budgets refer to one user. Collaboration must identify who can authorize actions and whose provider account pays for execution.
-- Global intel, skills, and MCP connections currently belong to one installation. Collaboration must distinguish personal configuration and private data from shared mission context.
-- Workspace paths and harness processes belong to one computer. A shared mission needs a defined execution host; a path alone cannot identify a workspace across computers.
+- Workspace paths and harness processes belong to the mission host in the first hosted version. Future execution across installations will need workspace identities beyond local paths.
 - One local service owns mission state under the current working choice. If independently writable replicas are introduced later, they will require synchronization and conflict rules.
 
-Only mission-state ownership is settled provisionally; the remaining questions are open. SQLite and the service boundary do not by themselves require replacement. The local-data requirement must be reconciled with whatever sharing model the user chooses.
+Mission-state ownership is settled provisionally. Execution, guest discussion behavior, host authority, spending, resource access, and guest visibility are settled for the first hosted version. Identity, revocation, and the local-data requirement's sharing exception remain open. SQLite and the service boundary do not by themselves require replacement.
 
 ## Stack
 

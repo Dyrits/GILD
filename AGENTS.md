@@ -13,4 +13,4 @@
 
 ## Handoffs
 
-To resume multiplayer architecture and tool loading, read the [current handoff](.agents/handoffs/2026-11-04-2334-multiplayer-and-toolchain.md). Handoffs are shared and committed.
+To resume multiplayer architecture and tool loading, read the [current handoff](.agents/handoffs/2026-11-05-0108-hosted-multiplayer-permissions.md). Handoffs are shared and committed.
