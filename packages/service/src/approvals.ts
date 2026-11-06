@@ -147,8 +147,16 @@ export const approvalsLayer = Layer.effect(
         const deferred = yield* Deferred.make<Resolution>();
         const isAtWork = yield* sql.withTransaction(
           Effect.gen(function* () {
-            const [thread] = yield* sql<{ state: string }>`SELECT state FROM threads WHERE id = ${asked.threadId}`;
-            if (thread?.state !== "Running" && thread?.state !== "Attention") return false;
+            const [thread] = yield* sql<{
+              state: string;
+              blocker: string | null;
+            }>`SELECT state, blocker FROM threads WHERE id = ${asked.threadId}`;
+            if (
+              thread === undefined ||
+              thread.blocker !== null ||
+              (thread.state !== "Running" && thread.state !== "Attention")
+            )
+              return false;
             waiting.set(id, deferred);
             const now = yield* Clock.currentTimeMillis;
             yield* sql`INSERT INTO questions (id, mission_id, thread_id, source, summary, details, pattern, permission,
@@ -179,7 +187,7 @@ export const approvalsLayer = Layer.effect(
               device = ${device}, resolved_at = ${now}
             WHERE id = ${questionId} AND outcome IS NULL`;
           yield* sql`UPDATE threads SET state = 'Running'
-            WHERE id = ${threadId} AND state = 'Attention'
+            WHERE id = ${threadId} AND state = 'Attention' AND blocker IS NULL
               AND NOT EXISTS (SELECT 1 FROM questions WHERE thread_id = ${threadId} AND outcome IS NULL)`;
           yield* sql.afterCommit(changes.publish);
         }),

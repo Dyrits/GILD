@@ -73,10 +73,13 @@ export type MessageDelivery = typeof MessageDelivery.Type;
 
 export const Settings = Schema.Struct({
   approvalLevel: ApprovalLevel,
+  /** Messages between two threads before the owner decides how they continue. */
+  chatterThreshold: Schema.Int.check(Schema.isGreaterThanOrEqualTo(2)),
   /** What Send does while a thread runs; the second button does the other. */
   defaultDelivery: MessageDelivery,
   defaultEffort: EffortChoice,
   defaultModel: ModelChoice,
+  shouldShowAgentThreads: Schema.Boolean,
   shouldStreamReplies: Schema.Boolean,
 });
 export type Settings = typeof Settings.Type;
@@ -188,7 +191,7 @@ export const PermissionsView = Schema.Struct({
 export type PermissionsView = typeof PermissionsView.Type;
 
 /** What keeps a thread in Attention besides an open question: its workspace folder is gone (workspace-attachment, Missing folder). */
-export const ThreadBlocker = Schema.Literals(["MissingWorkspace"]);
+export const ThreadBlocker = Schema.Literals(["MissingWorkspace", "Chatter"]);
 export type ThreadBlocker = typeof ThreadBlocker.Type;
 
 /** One thread in a mission's tree, as the side tree lists it. */
@@ -225,8 +228,20 @@ export const ThreadView = Schema.Struct({
 });
 export type ThreadView = typeof ThreadView.Type;
 
+/** One paused exchange, identified independently of later pauses of the same pair. */
+export const ChatterNotice = Schema.Struct({
+  count: Schema.Number,
+  firstId: ThreadId,
+  firstTitle: Schema.String,
+  id: Schema.String,
+  secondId: ThreadId,
+  secondTitle: Schema.String,
+});
+export type ChatterNotice = typeof ChatterNotice.Type;
+
 /** A mission with its thread tree and one selected thread's conversation. */
 export const MissionDetail = Schema.Struct({
+  chatter: Schema.Array(ChatterNotice),
   /** The selected thread's messages. */
   messages: Schema.Array(Message),
   mission: MissionSummary,
@@ -271,6 +286,25 @@ export const OpenThread = Schema.TaggedStruct("OpenThread", {
   text: MessageText,
 });
 
+/** The counts and snapshot covered by one permanent deletion confirmation. */
+export const DeletionPreview = Schema.Struct({
+  confirmation: Schema.String,
+  descendantCount: Schema.Number,
+  isMission: Schema.Boolean,
+  runningCount: Schema.Number,
+});
+export type DeletionPreview = typeof DeletionPreview.Type;
+/** Reads the subtree before the owner confirms its deletion. */
+export const PreviewDeletion = Schema.TaggedStruct("PreviewDeletion", { threadId: ThreadId });
+/** Deletes exactly the subtree the owner reviewed, or asks for a fresh preview if it changed. */
+export const DeleteThread = Schema.TaggedStruct("DeleteThread", { confirmation: Schema.String, threadId: ThreadId });
+
+/** The owner resolves exactly one chatter pause. */
+export const ResolveChatter = Schema.TaggedStruct("ResolveChatter", {
+  choice: Schema.Literals(["Continue", "Stop"]),
+  id: Schema.String,
+});
+
 export const ReadSettings = Schema.TaggedStruct("ReadSettings", {});
 
 /** The owner's answer to one open question. */
@@ -308,6 +342,9 @@ export const AddBrowsableRoot = Schema.TaggedStruct("AddBrowsableRoot", { path: 
 
 export const Request = Schema.Union([
   StartMission,
+  PreviewDeletion,
+  ResolveChatter,
+  DeleteThread,
   SendMessage,
   ListMissions,
   ReadMission,
@@ -343,14 +380,17 @@ export const Results = {
   AnswerQuestion: Question,
   BrowseFolders: FolderListing,
   CreateFolder: Folder,
+  DeleteThread: Schema.Null,
   InterruptThread: Schema.Null,
   ListMissions: Schema.Array(MissionSummary),
   ListOpenQuestions: Schema.Array(Question),
   OpenThread: OpenThreadResult,
+  PreviewDeletion: DeletionPreview,
   ReadMission: MissionDetail,
   ReadPermissions: PermissionsView,
   ReadSettings: Settings,
   RemovePermission: Schema.Null,
+  ResolveChatter: Schema.Null,
   ResumeThread: Schema.Null,
   RetryThread: Schema.Null,
   SendMessage: SendMessageResult,

@@ -2,6 +2,7 @@ import { Context, Effect, Layer, Ref } from "effect";
 
 /** What the Threads service does for the tool server: start a thread's next turn, or interrupt its turn. */
 export interface WakerHandlers {
+  readonly cancel: (ids: ReadonlyArray<string>) => Effect.Effect<void>;
   readonly interrupt: (threadId: string) => Effect.Effect<boolean>;
   readonly wake: (threadId: string) => Effect.Effect<void>;
 }
@@ -14,6 +15,7 @@ export class Waker extends Context.Service<
   Waker,
   {
     readonly register: (handlers: WakerHandlers) => Effect.Effect<void>;
+    readonly cancel: (ids: ReadonlyArray<string>) => Effect.Effect<void>;
     readonly interrupt: (threadId: string) => Effect.Effect<boolean>;
     readonly wake: (threadId: string) => Effect.Effect<void>;
   }
@@ -23,10 +25,12 @@ export const wakerLayer = Layer.effect(
   Waker,
   Effect.gen(function* () {
     const registered = yield* Ref.make<WakerHandlers>({
+      cancel: () => Effect.void,
       interrupt: () => Effect.succeed(false),
       wake: () => Effect.void,
     });
     return {
+      cancel: (ids) => Ref.get(registered).pipe(Effect.flatMap((handlers) => handlers.cancel(ids))),
       interrupt: (threadId) => Ref.get(registered).pipe(Effect.flatMap((handlers) => handlers.interrupt(threadId))),
       register: (handlers) => Ref.set(registered, handlers),
       wake: (threadId) => Ref.get(registered).pipe(Effect.flatMap((handlers) => handlers.wake(threadId))),

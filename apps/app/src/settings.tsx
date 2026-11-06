@@ -6,7 +6,7 @@ import {
   type Settings,
 } from "@openmission/contracts";
 import { useState } from "react";
-import { Pressable, Switch, Text, View } from "react-native";
+import { Pressable, Switch, Text, TextInput, View } from "react-native";
 import type { ServiceClient } from "./client";
 import { Choice } from "./controls";
 import { effortLabel, modelLabels } from "./formatting";
@@ -30,6 +30,7 @@ export function SettingsScreen({
   onPermissions: () => void;
 }) {
   const { data: settings, error } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
+  const [threshold, setThreshold] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const save = (change: Partial<Settings>) => {
     if (settings === null) return;
@@ -75,6 +76,35 @@ export function SettingsScreen({
             options={MessageDeliveries.literals}
             value={settings.defaultDelivery}
           />
+          <View style={styles.toggle}>
+            <Switch
+              onValueChange={(shouldShowAgentThreads) => save({ shouldShowAgentThreads })}
+              value={settings.shouldShowAgentThreads}
+            />
+            <Text style={styles.body}>Show threads opened by agents</Text>
+          </View>
+          <Text style={styles.label}>Chatter guard · messages between two threads</Text>
+          <View style={styles.row}>
+            <TextInput
+              accessibilityLabel="Chatter guard threshold"
+              keyboardType="number-pad"
+              onChangeText={setThreshold}
+              style={styles.input}
+              value={threshold ?? String(settings.chatterThreshold)}
+            />
+            <Pressable
+              onPress={() => {
+                const value = Number(threshold ?? settings.chatterThreshold);
+                if (!Number.isSafeInteger(value) || value < 2) {
+                  setSaveError("Use a whole number of at least 2.");
+                  return;
+                }
+                save({ chatterThreshold: value });
+              }}
+            >
+              <Text style={styles.link}>Save</Text>
+            </Pressable>
+          </View>
           <View style={styles.toggle}>
             <Switch
               onValueChange={(shouldStreamReplies) => save({ shouldStreamReplies })}

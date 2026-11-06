@@ -351,9 +351,11 @@ describe("Claude Code adapter", () => {
         _tag: "UpdateSettings",
         settings: {
           approvalLevel: "RiskyOnly",
+          chatterThreshold: 20,
           defaultDelivery: "Steer",
           defaultEffort: "default",
           defaultModel: "default",
+          shouldShowAgentThreads: true,
           shouldStreamReplies: false,
         },
       });
@@ -482,17 +484,21 @@ describe("settings", () => {
       const defaults = yield* call({ _tag: "ReadSettings" }).pipe(Effect.provide(serviceLayer(options)));
       expect(defaults).toEqual({
         approvalLevel: "RiskyOnly",
+        chatterThreshold: 20,
         defaultDelivery: "Steer",
         defaultEffort: "default",
         defaultModel: "default",
+        shouldShowAgentThreads: true,
         shouldStreamReplies: true,
       });
 
       const updated = {
         approvalLevel: "CommandsAndEdits",
+        chatterThreshold: 20,
         defaultDelivery: "Queue",
         defaultEffort: "high",
         defaultModel: "sonnet",
+        shouldShowAgentThreads: true,
         shouldStreamReplies: false,
       } as const;
       yield* call({ _tag: "UpdateSettings", settings: updated }).pipe(Effect.provide(serviceLayer(options)));
@@ -509,7 +515,9 @@ describe("settings", () => {
         ON CONFLICT (key) DO UPDATE SET value = excluded.value`;
       expect(yield* call({ _tag: "ReadSettings" })).toEqual({
         ...saved,
+        chatterThreshold: 20,
         defaultDelivery: "Steer",
+        shouldShowAgentThreads: true,
         shouldStreamReplies: false,
       });
     }).pipe(Effect.provide(layer));

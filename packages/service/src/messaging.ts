@@ -1,6 +1,7 @@
 import type { MessageId, SendMessageResult } from "@openmission/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
+import { resetOwnerChatter, resetResultChatter } from "./chatter.ts";
 import { notFound } from "./errors.ts";
 
 /** A message to record in a thread: from the owner, or from another thread of its mission. */
@@ -21,17 +22,19 @@ export const insertMessage = (message: NewMessage) =>
     const sql = yield* SqlClient.SqlClient;
     const [thread] = yield* sql<{
       missionId: string;
-    }>`SELECT mission_id AS missionId FROM threads WHERE id = ${message.threadId}`;
+    }>`SELECT mission_id AS missionId FROM threads WHERE id = ${message.threadId} AND is_deleting = 0`;
     if (thread === undefined) return yield* notFound("No such thread.");
+    if (message.fromThreadId === null) yield* resetOwnerChatter(message.threadId);
+    else if (message.isResult) yield* resetResultChatter(message.fromThreadId, message.threadId);
     const now = yield* Clock.currentTimeMillis;
     const messageId = crypto.randomUUID();
     const [next] = yield* sql<{ sequence: number }>`
       SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM messages WHERE thread_id = ${message.threadId}`;
     yield* sql`INSERT INTO messages
-        (id, mission_id, thread_id, sender_kind, sender_thread_id, is_result, is_queued, text, sequence, sent_at)
+        (id, mission_id, thread_id, sender_kind, sender_thread_id, is_result, is_queued, text, sequence, sent_at, sender_title)
       VALUES (${messageId}, ${thread.missionId}, ${message.threadId},
         ${message.fromThreadId === null ? "user" : "thread"}, ${message.fromThreadId}, ${message.isResult ? 1 : 0},
-        ${message.isQueued ? 1 : 0}, ${message.text}, ${next?.sequence ?? 1}, ${now})`;
+        ${message.isQueued ? 1 : 0}, ${message.text}, ${next?.sequence ?? 1}, ${now}, (SELECT title FROM threads WHERE id = ${message.fromThreadId}))`;
     yield* sql`UPDATE missions SET last_activity_at = ${now} WHERE id = ${thread.missionId}`;
     return messageId as MessageId;
   });
@@ -49,6 +52,6 @@ export const deliveredTextOf = (message: {
   readonly isResult: boolean;
   readonly text: string;
 }) =>
-  message.fromThreadId === null
+  message.fromThreadId === null && message.fromTitle === null
     ? message.text
-    : `${message.isResult ? "Result" : "Message"} from thread "${message.fromTitle ?? ""}" (${message.fromThreadId}):\n${message.text}`;
+    : `${message.isResult ? "Result" : "Message"} from thread "${message.fromTitle ?? ""}" (${message.fromThreadId ?? "deleted"}):\n${message.text}`;

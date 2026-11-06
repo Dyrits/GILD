@@ -4,9 +4,11 @@ import { Clock, Context, Effect, FiberMap, FiberSet, Layer, Match, PubSub } from
 import { SqlClient } from "effect/sql";
 import { Approvals } from "./approvals.ts";
 import { Changes } from "./changes.ts";
+import { requireChatterDecision } from "./chatter.ts";
 import { invalid, type ServiceFailure } from "./errors.ts";
 import { Harness, type HarnessEvent, type TurnOutcome } from "./execution.ts";
 import { threadInstructionsOf } from "./instructions.ts";
+import { makeLifecycle } from "./lifecycle.ts";
 import { ToolServer } from "./mcp.ts";
 import { deliveredTextOf } from "./messaging.ts";
 import { listThreadPermissions } from "./permissions.ts";
@@ -19,6 +21,8 @@ import { prepareWorkingFolder, readThreadWorkspace } from "./workspaces.ts";
 export class Threads extends Context.Service<
   Threads,
   {
+    /** Cancels turns already invalidated in a committed lifecycle change. */
+    readonly cancel: (ids: ReadonlyArray<string>) => Effect.Effect<void>;
     /** Takes a thread waiting on its missing workspace folder out of Attention and starts its turn again. */
     readonly retry: (threadId: string) => Effect.Effect<void, ServiceFailure>;
     /** Continues a Stopped thread with the messages kept for it (thread-tree, Stopping). */
@@ -107,7 +111,7 @@ export const threadsLayer = Layer.effect(
             fromTitle: string | null;
             isResult: number;
           }>`
-            SELECT m.id, m.text, m.sender_thread_id AS fromThreadId, s.title AS fromTitle, m.is_result AS isResult
+            SELECT m.id, m.text, m.sender_thread_id AS fromThreadId, COALESCE(s.title, m.sender_title) AS fromTitle, m.is_result AS isResult
             FROM messages m LEFT JOIN threads s ON s.id = m.sender_thread_id
             WHERE m.thread_id = ${threadId} AND m.sender_kind IN ('user', 'thread') AND m.delivered_turn_id IS NULL
             ORDER BY m.sequence`;
@@ -142,9 +146,15 @@ export const threadsLayer = Layer.effect(
         }),
       );
 
+    const isCurrent = (turnId: string) =>
+      sql<{ id: string }>`SELECT id FROM turns WHERE id = ${turnId} AND status = 'running'`.pipe(
+        Effect.map((rows) => rows.length > 0),
+      );
+
     const saveReply = (threadId: string, turn: Admitted, text: string) =>
       sql.withTransaction(
         Effect.gen(function* () {
+          if (!(yield* isCurrent(turn.turnId))) return;
           const now = yield* Clock.currentTimeMillis;
           const [next] = yield* sql<{ sequence: number }>`
             SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM messages WHERE thread_id = ${threadId}`;
@@ -159,6 +169,7 @@ export const threadsLayer = Layer.effect(
     const complete = (threadId: string, turn: Admitted, outcome: TurnOutcome) =>
       sql.withTransaction(
         Effect.gen(function* () {
+          if (!(yield* isCurrent(turn.turnId))) return;
           const { isInterrupted, sessionId, usage } = outcome;
           const now = yield* Clock.currentTimeMillis;
           if (usage !== null) {
@@ -187,6 +198,7 @@ export const threadsLayer = Layer.effect(
       sql
         .withTransaction(
           Effect.gen(function* () {
+            if (!(yield* isCurrent(turn.turnId))) return;
             const now = yield* Clock.currentTimeMillis;
             yield* sql`UPDATE turns SET status = 'failed', ended_at = ${now} WHERE id = ${turn.turnId}`;
             yield* sql`UPDATE messages SET delivered_turn_id = NULL WHERE delivered_turn_id = ${turn.turnId}`;
@@ -205,6 +217,7 @@ export const threadsLayer = Layer.effect(
       sql
         .withTransaction(
           Effect.gen(function* () {
+            if (!(yield* isCurrent(turn.turnId))) return;
             yield* sql`UPDATE messages SET delivered_turn_id = ${turn.turnId}
               WHERE id = ${messageId} AND delivered_turn_id IS NULL`;
             yield* sql.afterCommit(changes.publish);
@@ -218,6 +231,7 @@ export const threadsLayer = Layer.effect(
      */
     const steerInto = (threadId: string, turn: ActiveTurn) =>
       Effect.gen(function* () {
+        if (!(yield* isCurrent(turn.turnId))) return;
         const pending = yield* sql<{
           id: string;
           text: string;
@@ -225,12 +239,13 @@ export const threadsLayer = Layer.effect(
           fromTitle: string | null;
           isResult: number;
         }>`
-          SELECT m.id, m.text, m.sender_thread_id AS fromThreadId, s.title AS fromTitle, m.is_result AS isResult
+          SELECT m.id, m.text, m.sender_thread_id AS fromThreadId, COALESCE(s.title, m.sender_title) AS fromTitle, m.is_result AS isResult
           FROM messages m LEFT JOIN threads s ON s.id = m.sender_thread_id
           WHERE m.thread_id = ${threadId} AND m.sender_kind IN ('user', 'thread') AND m.delivered_turn_id IS NULL
             AND m.is_queued = 0
           ORDER BY m.sequence`;
         for (const message of pending) {
+          if (!(yield* isCurrent(turn.turnId))) return;
           if (turn.written.has(message.id)) continue;
           turn.written.add(message.id);
           const text = deliveredTextOf({ ...message, isResult: message.isResult === 1 });
@@ -270,6 +285,7 @@ export const threadsLayer = Layer.effect(
 
     const run = (threadId: string, turn: Admitted): Effect.Effect<void, unknown> =>
       Effect.gen(function* () {
+        if (!(yield* isCurrent(turn.turnId))) return;
         const { approvalLevel, shouldStreamReplies } = yield* readSettings.pipe(
           Effect.provideService(SqlClient.SqlClient, sql),
         );
@@ -288,6 +304,7 @@ export const threadsLayer = Layer.effect(
             Reply: (reply) =>
               saveReply(threadId, turn, reply.text).pipe(Effect.andThen(draft(threadId, "")), Effect.orDie),
           });
+        if (!(yield* isCurrent(turn.turnId))) return;
         active.set(threadId, { turnId: turn.turnId, written: new Set() });
         const outcome = yield* harness
           .runTurn({
@@ -342,38 +359,24 @@ export const threadsLayer = Layer.effect(
         return true;
       });
 
-    const stop = (threadId: string) =>
-      Effect.gen(function* () {
-        // Stopped comes first: the harness may still prompt while it exits, and only
-        // a thread at work can be asked (approvals.ts).
-        const missionId = yield* sql.withTransaction(
-          Effect.gen(function* () {
-            const now = yield* Clock.currentTimeMillis;
-            const [thread] = yield* sql<{
-              missionId: string;
-            }>`SELECT mission_id AS missionId FROM threads WHERE id = ${threadId}`;
-            if (thread === undefined) return null;
-            yield* sql`UPDATE turns SET status = 'stopped', ended_at = ${now} WHERE thread_id = ${threadId} AND status = 'running'`;
-            yield* sql`UPDATE threads SET state = 'Stopped', blocker = NULL WHERE id = ${threadId}`;
-            yield* relaxAncestors(threadId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
-            yield* touch(thread.missionId, now);
-            yield* sql.afterCommit(changes.publish);
-            return thread.missionId;
-          }),
-        );
-        // Interrupting the turn closes its harness process (claude.ts).
-        yield* FiberMap.remove(turns, threadId);
-        yield* approvals.withdraw(threadId);
-        yield* draft(threadId, "");
-        if (missionId !== null) yield* wakeWaiting(missionId, threadId);
-      }).pipe(Effect.orDie);
+    const { cancel, stop } = makeLifecycle({
+      approvals,
+      cancelTurn: (id) => FiberMap.remove(turns, id),
+      changes,
+      clearDraft: (id) => draft(id, "").pipe(Effect.asVoid),
+      sql,
+      wakeWaiting,
+    });
 
     const resume = (threadId: string) =>
       Effect.gen(function* () {
         const isStopped = yield* sql.withTransaction(
           Effect.gen(function* () {
-            const [thread] = yield* sql<{ state: string }>`SELECT state FROM threads WHERE id = ${threadId}`;
+            const [thread] = yield* sql<{
+              state: string;
+            }>`SELECT state FROM threads WHERE id = ${threadId} AND is_deleting = 0`;
             if (thread?.state !== "Stopped") return false;
+            yield* requireChatterDecision(threadId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
             yield* sql`UPDATE threads SET state = 'Idle' WHERE id = ${threadId}`;
             yield* sql.afterCommit(changes.publish);
             return true;
@@ -399,7 +402,7 @@ export const threadsLayer = Layer.effect(
         yield* wake(threadId);
       }).pipe(Effect.catchTag("SqlError", Effect.die));
 
-    yield* waker.register({ interrupt, wake });
-    return { interrupt, resume, retry, stop, wake };
+    yield* waker.register({ cancel, interrupt, wake });
+    return { cancel, interrupt, resume, retry, stop, wake };
   }),
 );

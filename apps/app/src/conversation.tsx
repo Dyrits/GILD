@@ -6,6 +6,7 @@ import { Composer, StateBadge } from "./controls";
 import { effortLabel, modelLabels, usageDetail } from "./formatting";
 import { QuestionCard, QuestionLine } from "./questions";
 import { styles } from "./styles";
+import { ChatterNotices, DeleteThreadAction } from "./threadActions";
 import { maxOwnerDepth, OpenThreadForm, ThreadTree } from "./threadTree";
 import { useServiceQuery } from "./useServiceQuery";
 import { MissingFolderNotice } from "./workspaces";
@@ -90,8 +91,10 @@ function ThreadPane({
   client,
   detail,
   onSelect,
+  onDeleted,
 }: {
   client: ServiceClient;
+  onDeleted: () => void;
   detail: MissionDetail;
   onSelect: (threadId: ThreadId) => void;
 }) {
@@ -101,7 +104,7 @@ function ThreadPane({
   const [isOpening, setIsOpening] = useState(false);
   const followNewest = useFollowNewest();
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
-  const isInTurn = thread.state === "Running" || thread.state === "Attention";
+  const isInTurn = thread.state === "Running" || (thread.state === "Attention" && thread.blocker === null);
   const defaultDelivery = settings?.defaultDelivery ?? "Steer";
   const other = ({ Queue: "Steer", Steer: "Queue" } as const satisfies Record<MessageDelivery, MessageDelivery>)[
     defaultDelivery
@@ -138,6 +141,8 @@ function ThreadPane({
           </Pressable>
         )}
       </View>
+      <DeleteThreadAction client={client} onDeleted={onDeleted} threadId={thread.id} />
+      <ChatterNotices client={client} notices={detail.chatter} />
       {actionError !== null && <Text style={styles.error}>{actionError}</Text>}
       <Text numberOfLines={1} style={styles.muted}>
         {modelLabels[thread.model]} · {effortLabel(thread.effort)} ·{" "}
@@ -230,6 +235,7 @@ export function Conversation({
   missionId: MissionId;
   onBack: () => void;
 }) {
+  const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
   const [selectedId, setSelectedId] = useState<ThreadId | null>(null);
   const { data, error } = useServiceQuery(
     client,
@@ -253,8 +259,21 @@ export function Conversation({
       {error !== null && <Text style={styles.error}>{error}</Text>}
       {data && (
         <View style={[styles.flex, styles.split]}>
-          <ThreadTree onSelect={setSelectedId} selectedId={data.thread.id} threads={data.threads} />
-          {detail && <ThreadPane client={client} detail={detail} key={detail.thread.id} onSelect={setSelectedId} />}
+          <ThreadTree
+            onSelect={setSelectedId}
+            selectedId={data.thread.id}
+            shouldShowAgentThreads={settings?.shouldShowAgentThreads ?? true}
+            threads={data.threads}
+          />
+          {detail && (
+            <ThreadPane
+              client={client}
+              detail={detail}
+              key={detail.thread.id}
+              onDeleted={() => (detail.thread.parentId === null ? onBack() : setSelectedId(detail.thread.parentId))}
+              onSelect={setSelectedId}
+            />
+          )}
         </View>
       )}
     </View>

@@ -1,12 +1,15 @@
 import { Settings } from "@openmission/contracts";
 import { Effect, Schema } from "effect";
 import { SqlClient } from "effect/sql";
+import { invalid } from "./errors.ts";
 
 export const defaultSettings: Settings = {
   approvalLevel: "RiskyOnly",
+  chatterThreshold: 20,
   defaultDelivery: "Steer",
   defaultEffort: "default",
   defaultModel: "default",
+  shouldShowAgentThreads: true,
   shouldStreamReplies: true,
 };
 
@@ -26,8 +29,11 @@ export const readSettings = Effect.gen(function* () {
 
 export const writeSettings = (settings: Settings) =>
   Effect.gen(function* () {
+    const parsed = yield* Schema.decodeUnknownEffect(Settings)(settings).pipe(
+      Effect.catch(() => invalid("Invalid settings: chatter threshold must be an integer of at least 2.")),
+    );
     const sql = yield* SqlClient.SqlClient;
-    yield* sql`INSERT INTO settings (key, value) VALUES ('settings', ${JSON.stringify(settings)})
+    yield* sql`INSERT INTO settings (key, value) VALUES ('settings', ${JSON.stringify(parsed)})
       ON CONFLICT (key) DO UPDATE SET value = excluded.value`;
     return settings;
   });

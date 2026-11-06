@@ -24,4 +24,4 @@
 
 ## Handoffs
 
-To resume after batch 6 (interrupts and steering, delivered; batch 7 to choose), read the [current handoff](.agents/handoffs/2026-11-06-0942-steering-delivered.md). Handoffs are shared and committed.
+To resume batch 7 (folding, deleting, chatter guard; built, owner's look pending), read the [current handoff](.agents/handoffs/2026-11-06-1105-batch-7-built.md). Handoffs are shared and committed.

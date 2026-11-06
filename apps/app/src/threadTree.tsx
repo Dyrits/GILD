@@ -11,7 +11,9 @@ import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { newRequestId, type ServiceClient } from "./client";
 import { Choice, Composer, StateBadge } from "./controls";
+import { foldThreads } from "./folding";
 import { effortLabel, modelLabels } from "./formatting";
+import { foldedLabelOf } from "./labels";
 import { styles } from "./styles";
 
 /** The owner opens threads down to this many levels beneath the top thread (thread-tree, Limits). */
@@ -21,23 +23,25 @@ export const maxOwnerDepth = 4;
 export function ThreadTree({
   onSelect,
   selectedId,
+  shouldShowAgentThreads,
   threads,
 }: {
   onSelect: (threadId: ThreadId) => void;
   selectedId: ThreadId;
+  shouldShowAgentThreads: boolean;
   threads: ReadonlyArray<ThreadSummary>;
 }) {
+  const [unfolded, setUnfolded] = useState<ReadonlySet<string>>(new Set());
   return (
     <ScrollView contentContainerStyle={styles.treeList} style={styles.tree}>
-      {threads.map((thread) => (
+      {foldThreads(threads, shouldShowAgentThreads, unfolded).map(({ thread, depth, foldedCount }) => (
         <Pressable
           key={thread.id}
-          onPress={() => onSelect(thread.id)}
-          style={[
-            styles.treeRow,
-            { paddingLeft: 8 + thread.depth * 16 },
-            thread.id === selectedId && styles.treeRowSelected,
-          ]}
+          onPress={() => {
+            if (foldedCount > 0) setUnfolded((current) => new Set([...current, thread.id]));
+            onSelect(thread.id);
+          }}
+          style={[styles.treeRow, { paddingLeft: 8 + depth * 16 }, thread.id === selectedId && styles.treeRowSelected]}
         >
           <View style={styles.treeTitleRow}>
             <Text numberOfLines={1} style={[styles.treeTitle, thread.id === selectedId && styles.treeTitleSelected]}>
@@ -45,6 +49,7 @@ export function ThreadTree({
             </Text>
             <StateBadge state={thread.state} />
           </View>
+          {foldedCount > 0 && <Text style={styles.treeNote}>{foldedLabelOf(foldedCount)}</Text>}
           {thread.waitingCount > 0 && thread.state !== "Running" && (
             <Text style={styles.treeNote}>
               {thread.waitingCount === 1 ? "1 message waiting" : `${thread.waitingCount} messages waiting`}

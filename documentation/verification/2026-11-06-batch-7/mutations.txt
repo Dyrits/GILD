@@ -1,0 +1,23 @@
+M1 threshold off by one: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 8 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  8 failed | 112 passed | 5 skipped (125)
+M2 owner message never resets: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 119 passed | 5 skipped (125)
+M3 result never resets: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 119 passed | 5 skipped (125)
+M4 Continue does not wake: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 119 passed | 5 skipped (125)
+M5 Stop both leaves them Attention: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 119 passed | 5 skipped (125)
+M6 mission scratch folder kept: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 119 passed | 5 skipped (125)
+M7 mission permissions kept: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 119 passed | 5 skipped (125)
+M8 running count wrong: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 119 passed | 5 skipped (125)
+M9 workspace not protected: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 119 passed | 5 skipped (125)
+M10 urgent threads fold: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 119 passed | 5 skipped (125)
+M11 folding default off: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  4 failed | 116 passed | 5 skipped (125)
+restored:       Tests  120 passed | 5 skipped (125)

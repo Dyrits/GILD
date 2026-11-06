@@ -130,6 +130,23 @@ const migrations = {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`ALTER TABLE messages ADD COLUMN is_queued INTEGER NOT NULL DEFAULT 0`;
   }),
+  "0009_thread_cleanup": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE threads ADD COLUMN is_deleting INTEGER NOT NULL DEFAULT 0`;
+    yield* sql`ALTER TABLE messages ADD COLUMN sender_title TEXT`;
+    yield* sql`UPDATE messages SET sender_title = (SELECT title FROM threads WHERE id = sender_thread_id)`;
+  }),
+  "0010_chatter_guard": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE chatter (
+      first_id TEXT NOT NULL REFERENCES threads(id),
+      second_id TEXT NOT NULL REFERENCES threads(id),
+      count INTEGER NOT NULL DEFAULT 0,
+      pause_id TEXT UNIQUE,
+      pause_count INTEGER,
+      PRIMARY KEY (first_id, second_id)
+    )`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

@@ -5,6 +5,7 @@ import { Context, Effect, Exit, Layer, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { Approvals } from "./approvals.ts";
 import { Changes } from "./changes.ts";
+import { countChatter } from "./chatter.ts";
 import { insertMessage } from "./messaging.ts";
 import { isBeneath, isWithinReach, openThreadByAgent, reportResult } from "./tree.ts";
 import { Waker } from "./waker.ts";
@@ -259,14 +260,17 @@ export const toolServerLayer = Layer.effect(
         const { text, to } = decoded.value;
         return commit(
           Effect.gen(function* () {
-            if (!(yield* isWithinReach(threadId, to))) return false;
+            if (!(yield* isWithinReach(threadId, to))) return null;
             yield* insertMessage({ fromThreadId: threadId, isQueued: false, isResult: false, text, threadId: to });
-            return true;
+            return yield* countChatter(threadId, to);
           }),
         ).pipe(
-          Effect.flatMap((isSent) =>
-            isSent
-              ? waker.wake(to).pipe(Effect.as(textResult("Sent.")))
+          Effect.flatMap((paused) =>
+            paused !== null
+              ? waker
+                  .cancel(paused)
+                  .pipe(Effect.andThen(waker.wake(to)))
+                  .pipe(Effect.as(textResult("Sent.")))
               : Effect.succeed(
                   textResult(
                     "Not sent: you can only message your parent or a thread directly beneath you, by its id.",
@@ -281,7 +285,7 @@ export const toolServerLayer = Layer.effect(
     const tokens = new Map<string, string>();
     const threads = new Map<string, string>();
 
-    const callTool = (threadId: string, name: string, args: unknown) => {
+    const dispatchTool = (threadId: string, name: string, args: unknown) => {
       if (name === "request_approval") {
         const decoded = decodeApproval(args);
         if (Exit.isFailure(decoded))
@@ -323,6 +327,17 @@ export const toolServerLayer = Layer.effect(
       if (threadTool !== void 0) return threadTool(threadId, args);
       return Effect.succeed(textResult(`Unknown tool: ${name}`, true));
     };
+
+    const callTool = (threadId: string, name: string, args: unknown) =>
+      Effect.gen(function* () {
+        const [caller] = yield* sql<{
+          blocker: string | null;
+        }>`SELECT blocker FROM threads WHERE id = ${threadId} AND is_deleting = 0`;
+        if (caller === undefined) return textResult("Unknown thread.", true);
+        if (caller.blocker === "Chatter" && name !== "send_thread_message" && name !== "report_result")
+          return textResult("Paused by the chatter guard. Wait for the owner.", true);
+        return yield* dispatchTool(threadId, name, args);
+      }).pipe(Effect.orDie);
 
     const respondJson = (response: ServerResponse, body: unknown) => {
       response.writeHead(200, { "content-type": "application/json" });

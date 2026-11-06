@@ -58,7 +58,7 @@ const insertThread = (opening: Opening) =>
       model: ModelChoice;
       effort: EffortChoice;
       workspaceId: string | null;
-    }>`SELECT mission_id AS missionId, model, effort, workspace_id AS workspaceId FROM threads WHERE id = ${opening.parentId}`;
+    }>`SELECT mission_id AS missionId, model, effort, workspace_id AS workspaceId FROM threads WHERE id = ${opening.parentId} AND is_deleting = 0`;
     if (parent === undefined) return yield* notFound("No such thread.");
     const threadId = crypto.randomUUID();
     yield* sql`INSERT INTO threads (id, mission_id, parent_id, state, model, effort, workspace_id, title, is_opened_by_agent)
@@ -98,7 +98,7 @@ export const openThreadByAgent = (
     const sql = yield* SqlClient.SqlClient;
     const [caller] = yield* sql<{
       missionId: string;
-    }>`SELECT mission_id AS missionId FROM threads WHERE id = ${callerId}`;
+    }>`SELECT mission_id AS missionId FROM threads WHERE id = ${callerId} AND is_deleting = 0`;
     if (caller === undefined) return { _tag: "Refused", reason: "Unknown thread." } as const;
     if (request.trim() === "") return { _tag: "Refused", reason: "The request is empty." } as const;
     if ((yield* runningCountOf(caller.missionId)) >= maxRunning) {
