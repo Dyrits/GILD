@@ -8,9 +8,9 @@ Agents work on files: a repository to fix, a folder of documents to sort. Each t
 
 ### Choosing a workspace
 
-- A mission's or thread's workspace is chosen before it starts, in its settings: by browsing folders, by giving a git repository link, or none. A new thread copies its opener's workspace unless the opener chooses another or none (see [thread-tree](../thread-tree/specifications.md#opening-a-thread)).
-- The folder browser shows only folders under the **browsable roots** in Settings. These start with the user's home folder; **Add root** adds others, for example `/Volumes/Drive/Code`. The browser has **New folder**.
-- The phone browses the computer's folders the same way, under the same roots.
+- A mission's or thread's workspace is chosen before it starts, in its settings: by choosing a folder, by giving a git repository link, or none. A new thread copies its opener's workspace unless the opener chooses another or none (see [thread-tree](../thread-tree/specifications.md#opening-a-thread)).
+- On the desktop, **Choose folder…** opens the system's own folder dialog (Finder on macOS, Explorer on Windows), with its New Folder and hidden-file controls; any folder the user can open may be chosen (CHG-0035).
+- The phone browses the computer's folders in OpenMission's own browser, limited to the **browsable roots** in Settings. These start with the user's home folder; **Add root** adds others, for example `/Volumes/Drive/Code`. The browser has **New folder**. The browser, with **Show hidden**, and the roots are built and kept for phone browsing; the desktop does not show them.
 - A folder becomes a workspace the first time it is chosen; there is no separate setup. Workspaces are listed on the **Workspaces** page in Settings, where the user can rename them.
 - A thread belongs only to the workspace chosen for it. A workspace inside another stays part of the outer folder for the outer workspace's threads, but its intel and standing permissions apply only to its own threads.
 
@@ -79,7 +79,7 @@ Threads use these thread tools in addition to `open_thread` and `open_mission`, 
 
 - **Automated, with a fake harness and temporary folders**:
   - a folder becoming a workspace when first chosen, and listed on the Workspaces page;
-  - browsing and choosing limited to the browsable roots, from the desktop and through the phone interface;
+  - choosing any folder through the desktop's system dialog, and phone browsing limited to the browsable roots;
   - a repository cloned into the clone location and reused when given again; a failed clone refused with git's reason;
   - a thread opening a thread in a folder under a root or cloning without asking, and refused outside the roots;
   - threads with no workspace sharing their mission's scratch folder, kept on archive and deleted with the mission;
@@ -111,7 +111,7 @@ Threads use these thread tools in addition to `open_thread` and `open_mission`, 
 - Changing a thread's workspace after it starts, except relocating it.
 - Several workspaces for one thread.
 - A `.openmission` folder inside workspaces.
-- Folders outside the browsable roots.
+- Folders outside the browsable roots, when browsing from the phone or opened by a thread.
 - A terminal; possibly later as a developer option.
 
 ## Technical notes

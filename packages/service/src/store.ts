@@ -108,6 +108,11 @@ const migrations = {
     yield* sql`ALTER TABLE threads ADD COLUMN workspace_id TEXT REFERENCES workspaces(id)`;
     yield* sql`ALTER TABLE standing_permissions ADD COLUMN workspace_id TEXT REFERENCES workspaces(id)`;
   }),
+  // Retry on a missing workspace folder (CHG-0034): what holds a thread in Attention besides a question.
+  "0006_thread_blocker": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE threads ADD COLUMN blocker TEXT`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

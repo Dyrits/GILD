@@ -65,6 +65,15 @@ app
       webPreferences: { contextIsolation: true, preload: join(here, "preload.cjs"), sandbox: true },
       width: 1200,
     });
+    // Choose folder… opens the system's own dialog, Finder or Explorer (CHG-0035); null when cancelled.
+    ipcMain.handle("openmission:chooseFolder", async () => {
+      const chosen = await dialog.showOpenDialog(window, {
+        buttonLabel: "Use this folder",
+        properties: ["openDirectory", "createDirectory"],
+        title: "Choose a workspace folder",
+      });
+      return chosen.canceled ? null : (chosen.filePaths[0] ?? null);
+    });
     if (!(await load(window))) quitWith(`Could not load ${appUrl}`);
   })
   .catch((error: Error) => quitWith(error.message));

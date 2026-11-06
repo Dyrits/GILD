@@ -12,7 +12,7 @@ afterEach(() => {
   for (const directory of directories.splice(0)) rmSync(directory, { force: true, recursive: true });
 });
 
-/** A service whose home folder is `home` and whose data lives beside it, outside the roots. */
+/** A service with folders to choose as workspaces, and its data beside them. */
 const setUp = () => {
   const base = realpathSync(mkdtempSync(join(tmpdir(), "openmission-workspaces-")));
   directories.push(base);
@@ -79,11 +79,11 @@ const push = {
 };
 const ask = `ask ${JSON.stringify(push)}`;
 
-describe("browsing folders", () => {
+describe("browsing folders for the phone", () => {
   it.live("starts the browsable roots with the home folder", () => {
     const { home, layer } = setUp();
     return Effect.gen(function* () {
-      const roots = yield* call({ _tag: "BrowseFolders", path: null });
+      const roots = yield* call({ _tag: "BrowseFolders", path: null, shouldIncludeHidden: false });
       expect(roots.folders.map((folder) => folder.path)).toEqual([home]);
     }).pipe(Effect.provide(layer));
   });
@@ -91,13 +91,21 @@ describe("browsing folders", () => {
   it.live("lists a folder's visible subfolders and its parent below the root", () => {
     const { home, layer } = setUp();
     return Effect.gen(function* () {
-      const listing = yield* call({ _tag: "BrowseFolders", path: home });
+      const listing = yield* call({ _tag: "BrowseFolders", path: home, shouldIncludeHidden: false });
       expect(listing).toMatchObject({ parent: null, path: home });
       expect(listing.folders.map((folder) => folder.name)).toEqual(["app"]);
 
-      const inner = yield* call({ _tag: "BrowseFolders", path: join(home, "app") });
+      const inner = yield* call({ _tag: "BrowseFolders", path: join(home, "app"), shouldIncludeHidden: false });
       expect(inner.parent).toBe(home);
       expect(inner.folders.map((folder) => folder.name)).toEqual(["lib"]);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("lists hidden folders only when asked", () => {
+    const { home, layer } = setUp();
+    return Effect.gen(function* () {
+      const listing = yield* call({ _tag: "BrowseFolders", path: home, shouldIncludeHidden: true });
+      expect(listing.folders.map((folder) => folder.name)).toEqual([".hidden", "app"]);
     }).pipe(Effect.provide(layer));
   });
 
@@ -105,9 +113,13 @@ describe("browsing folders", () => {
     const { home, layer, outside } = setUp();
     symlinkSync(outside, join(home, "shortcut"));
     return Effect.gen(function* () {
-      const refused = yield* failureOf({ _tag: "BrowseFolders", path: outside });
+      const refused = yield* failureOf({ _tag: "BrowseFolders", path: outside, shouldIncludeHidden: false });
       expect(refused.kind).toBe("InvalidInput");
-      const linked = yield* failureOf({ _tag: "BrowseFolders", path: join(home, "shortcut") });
+      const linked = yield* failureOf({
+        _tag: "BrowseFolders",
+        path: join(home, "shortcut"),
+        shouldIncludeHidden: false,
+      });
       expect(linked.message).toContain("outside the browsable roots");
     }).pipe(Effect.provide(layer));
   });
@@ -117,7 +129,7 @@ describe("browsing folders", () => {
     return Effect.gen(function* () {
       const roots = yield* call({ _tag: "AddBrowsableRoot", path: outside });
       expect(roots.folders.map((folder) => folder.path)).toEqual([home, outside]);
-      const listing = yield* call({ _tag: "BrowseFolders", path: outside });
+      const listing = yield* call({ _tag: "BrowseFolders", path: outside, shouldIncludeHidden: false });
       expect(listing.path).toBe(outside);
     }).pipe(Effect.provide(layer));
   });
@@ -135,7 +147,7 @@ describe("browsing folders", () => {
     return Effect.gen(function* () {
       const made = yield* call({ _tag: "CreateFolder", name: "notes", parent: home });
       expect(made).toEqual({ name: "notes", path: join(home, "notes") });
-      const listing = yield* call({ _tag: "BrowseFolders", path: home });
+      const listing = yield* call({ _tag: "BrowseFolders", path: home, shouldIncludeHidden: false });
       expect(listing.folders.map((folder) => folder.name)).toEqual(["app", "notes"]);
     }).pipe(Effect.provide(layer));
   });
@@ -164,16 +176,25 @@ describe("starting a mission in a workspace", () => {
     }).pipe(Effect.provide(layer));
   });
 
-  it.live("refuses a folder outside the roots and saves nothing", () => {
+  it.live("accepts any existing folder, chosen through the system's folder dialog", () => {
+    const { layer, outside } = setUp();
+    return Effect.gen(function* () {
+      const started = yield* start("Work there", outside);
+      const detail = yield* read(started.missionId);
+      expect(detail.thread.workspace).toMatchObject({ name: "outside", path: outside });
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("refuses a path that is not an existing folder and saves nothing", () => {
     const { layer, outside } = setUp();
     return Effect.gen(function* () {
       const refused = yield* failureOf({
         _tag: "StartMission",
         effort: "default",
         model: "default",
-        requestId: "outside",
+        requestId: "missing",
         text: "Work there",
-        workspacePath: outside,
+        workspacePath: join(outside, "nothing"),
       });
       expect(refused.kind).toBe("InvalidInput");
       expect(yield* call({ _tag: "ListMissions" })).toHaveLength(0);
@@ -220,7 +241,7 @@ describe("starting a mission in a workspace", () => {
     }).pipe(Effect.provide(layer));
   });
 
-  it.live("fails the turn with the reason when the workspace folder is gone", () => {
+  it.live("sends the thread to Attention with Retry when the workspace folder is gone, keeping the message", () => {
     const { home, layer } = setUp();
     const gone = join(home, "gone");
     mkdirSync(gone);
@@ -229,9 +250,93 @@ describe("starting a mission in a workspace", () => {
       yield* settle(started.missionId, repliedWith(1));
       rmSync(gone, { recursive: true });
       yield* call({ _tag: "SendMessage", requestId: "again", text: "Again", threadId: started.threadId });
-      const detail = yield* settle(started.missionId, (current) => current.thread.state === "Failed");
-      expect(detail.thread.failure).toBe(`The workspace folder ${gone} no longer exists.`);
+      const detail = yield* settle(started.missionId, (current) => current.thread.state === "Attention");
+      expect(detail.thread.blocker).toBe("MissingWorkspace");
       expect(detail.thread.workspace?.isMissing).toBe(true);
+      expect(detail.mission.state).toBe("Attention");
+      yield* Effect.sleep("50 millis");
+      expect((yield* read(started.missionId)).messages.filter((m) => m.sender === "agent")).toHaveLength(1);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("runs the waiting messages on Retry once the folder is back", () => {
+    const { home, layer } = setUp();
+    const gone = join(home, "gone");
+    mkdirSync(gone);
+    return Effect.gen(function* () {
+      const started = yield* start("Hello", gone);
+      yield* settle(started.missionId, repliedWith(1));
+      rmSync(gone, { recursive: true });
+      yield* call({ _tag: "SendMessage", requestId: "again", text: "Again", threadId: started.threadId });
+      yield* call({ _tag: "SendMessage", requestId: "more", text: "More", threadId: started.threadId });
+      yield* settle(started.missionId, (current) => current.thread.state === "Attention");
+      mkdirSync(gone);
+      yield* call({ _tag: "RetryThread", threadId: started.threadId });
+      const detail = yield* settle(started.missionId, repliedWith(2));
+      expect(lastReply(detail)).toBe("Echo: Again\n\nMore");
+      expect(detail.thread).toMatchObject({ blocker: null, state: "Idle" });
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("stays in Attention when Retry finds the folder still missing", () => {
+    const { home, layer } = setUp();
+    const gone = join(home, "gone");
+    mkdirSync(gone);
+    return Effect.gen(function* () {
+      const started = yield* start("Hello", gone);
+      yield* settle(started.missionId, repliedWith(1));
+      rmSync(gone, { recursive: true });
+      yield* call({ _tag: "SendMessage", requestId: "again", text: "Again", threadId: started.threadId });
+      yield* settle(started.missionId, (current) => current.thread.state === "Attention");
+      yield* call({ _tag: "RetryThread", threadId: started.threadId });
+      const detail = yield* settle(started.missionId, (current) => current.thread.state === "Attention");
+      expect(detail.thread.blocker).toBe("MissingWorkspace");
+      expect(detail.messages.filter((m) => m.sender === "agent")).toHaveLength(1);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("refuses Retry for a thread that is not waiting on its folder", () => {
+    const { home, layer } = setUp();
+    return Effect.gen(function* () {
+      const started = yield* start("Hello", join(home, "app"));
+      yield* settle(started.missionId, repliedWith(1));
+      const refused = yield* failureOf({ _tag: "RetryThread", threadId: started.threadId });
+      expect(refused.kind).toBe("InvalidInput");
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("keeps a thread waiting on its missing folder in Attention after a restart", () => {
+    const { home, layer } = setUp();
+    const gone = join(home, "gone");
+    mkdirSync(gone);
+    const begin = Effect.gen(function* () {
+      const started = yield* start("Hello", gone);
+      yield* settle(started.missionId, repliedWith(1));
+      rmSync(gone, { recursive: true });
+      yield* call({ _tag: "SendMessage", requestId: "again", text: "Again", threadId: started.threadId });
+      yield* settle(started.missionId, (current) => current.thread.state === "Attention");
+      return started;
+    }).pipe(Effect.provide(layer));
+    return Effect.gen(function* () {
+      const started = yield* begin;
+      const detail = yield* read(started.missionId).pipe(Effect.provide(layer));
+      expect(detail.thread).toMatchObject({ blocker: "MissingWorkspace", state: "Attention" });
+    });
+  });
+
+  it.live("clears the wait on Stop", () => {
+    const { home, layer } = setUp();
+    const gone = join(home, "gone");
+    mkdirSync(gone);
+    return Effect.gen(function* () {
+      const started = yield* start("Hello", gone);
+      yield* settle(started.missionId, repliedWith(1));
+      rmSync(gone, { recursive: true });
+      yield* call({ _tag: "SendMessage", requestId: "again", text: "Again", threadId: started.threadId });
+      yield* settle(started.missionId, (current) => current.thread.state === "Attention");
+      yield* call({ _tag: "StopThread", threadId: started.threadId });
+      const detail = yield* read(started.missionId);
+      expect(detail.thread).toMatchObject({ blocker: null, state: "Stopped" });
     }).pipe(Effect.provide(layer));
   });
 });

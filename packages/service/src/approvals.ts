@@ -3,10 +3,9 @@ import { Clock, Context, Deferred, Effect, Layer } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
 import { Changes } from "./changes.ts";
 import { invalid, notFound, type ServiceFailure } from "./errors.ts";
-import { isLocalGit, savedPatternOf, summaryOf, targetOf } from "./patterns.ts";
+import { plainActionOf, reasonOf, savedPatternOf, sensitivityOf, targetOf } from "./patterns.ts";
 import { findCoveringPermission, insertPermission } from "./permissions.ts";
 import { readQuestion } from "./questions.ts";
-import { sandboxProblem } from "./sandbox.ts";
 import { readSettings } from "./settings.ts";
 
 /** What a thread passes to `request_approval`: one action, said in plain language, with its exact target. */
@@ -55,7 +54,6 @@ const outcomeOfAnswer = {
   Allow: "Allowed",
   AlwaysAllow: "AlwaysAllowed",
   Deny: "Denied",
-  Discard: "Discarded",
 } as const satisfies Record<Answer, QuestionOutcome>;
 
 const allowingOutcomes: ReadonlyArray<QuestionOutcome> = [
@@ -63,6 +61,7 @@ const allowingOutcomes: ReadonlyArray<QuestionOutcome> = [
   "AlwaysAllowed",
   "AllowedByMessage",
   "AllowedByPermission",
+  "AllowedAutomatically",
 ];
 
 // Shown to the thread after an approval: an approved command must leave the
@@ -89,13 +88,13 @@ export const approvalsLayer = Layer.effect(
     const waiting = new Map<string, Deferred.Deferred<Resolution>>();
     // Targets approved through `request_approval` that the next matching harness prompt may run once.
     const allowances = new Map<string, Array<string>>();
-    const isSandboxed = (yield* sandboxProblem) === null;
 
     // Provisional until recovery is settled (work-in-progress, open questions): a
     // restart ends the harness process behind an open question, so it is withdrawn.
     const startedAt = yield* Clock.currentTimeMillis;
     yield* sql`UPDATE questions SET outcome = 'Withdrawn', resolved_at = ${startedAt} WHERE outcome IS NULL`;
-    yield* sql`UPDATE threads SET state = 'Idle' WHERE state = 'Attention'`;
+    // A thread waiting on its missing workspace folder keeps waiting for Retry.
+    yield* sql`UPDATE threads SET state = 'Idle' WHERE state = 'Attention' AND blocker IS NULL`;
 
     const missionOf = (threadId: string) =>
       sql<{ missionId: string }>`SELECT mission_id AS missionId FROM threads WHERE id = ${threadId}`.pipe(
@@ -234,21 +233,36 @@ export const approvalsLayer = Layer.effect(
       Effect.gen(function* () {
         const target = targetOf(toolName, input);
         if (yield* takeAllowance(threadId, target)) return { isAllowed: true, text: "" } satisfies Decision;
-        // The sandbox protects `.git`, so local git leaves it; at the default level it
-        // counts as an edit inside the workspace and runs unasked (CHG-0032).
-        if (toolName === "Bash" && isSandboxed && isLocalGit(target)) {
-          const { approvalLevel } = yield* readSettings;
-          if (approvalLevel === "RiskyOnly") return { isAllowed: true, text: "" } satisfies Decision;
-        }
         const missionId = yield* missionOf(threadId);
         if (missionId === null) return { isAllowed: false, text: "Unknown thread." } satisfies Decision;
+        const { approvalLevel } = yield* readSettings;
+        const sensitivity = sensitivityOf(toolName, input);
+        const reason = reasonOf(input);
+        const plain = `${reason ?? plainActionOf(toolName)}.`;
+        // At the default level only a sensitive action asks; anything else runs and leaves
+        // a line, with or without a sandbox (CHG-0035).
+        if (approvalLevel === "RiskyOnly" && sensitivity === null) {
+          yield* record(
+            {
+              details: target,
+              missionId,
+              pattern: null,
+              permission: null,
+              source: "Harness",
+              summary: plain,
+              threadId,
+            },
+            { message: null, outcome: "AllowedAutomatically" },
+          );
+          return { isAllowed: true, text: "" } satisfies Decision;
+        }
         const asked: Asked = {
           details: target,
           missionId,
           pattern: null,
-          permission: null,
+          permission: sensitivity?.permission ?? null,
           source: "Harness",
-          summary: summaryOf(toolName, input),
+          summary: sensitivity === null ? plain : `${reason ?? sensitivity.permission}. ${sensitivity.consequence}`,
           threadId,
         };
         const covering = yield* findCoveringPermission(threadId, target);

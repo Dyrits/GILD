@@ -53,7 +53,7 @@ const decodePrompt = Schema.decodeUnknownExit(AnswerPromptArguments);
 const tools = [
   {
     description:
-      "Ask the owner before one risky action (see your instructions). One call per action. Wait for the answer; do the action only if it is Allowed.",
+      "Ask the owner before one sensitive action (see your instructions). One call per action. Wait for the answer; do the action only if it is Allowed.",
     inputSchema: {
       properties: {
         action: {

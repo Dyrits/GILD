@@ -45,7 +45,7 @@ The one permanent thread outside every mission that the user can talk to about a
 _Avoid_: Coordinator, dispatcher, orchestrator, main thread, Mission control
 
 **Workspace**:
-A folder or repository on the user's computer, under a browsable root or cloned by OpenMission, that a thread is attached to before it starts.
+A folder or repository on the user's computer, chosen by the user or cloned by OpenMission, that a thread is attached to before it starts.
 _Avoid_: Project, repo, directory
 
 **Browsable root**:

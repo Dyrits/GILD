@@ -62,7 +62,7 @@ export const TokenUsage = Schema.Struct({
 });
 export type TokenUsage = typeof TokenUsage.Type;
 
-/** How much asks for approval (action-approval, Approval level; CHG-0031). */
+/** How much asks for approval: sensitive actions only, or also commands and edits (action-approval, Approval level; CHG-0035). */
 export const ApprovalLevel = Schema.Literals(["RiskyOnly", "CommandsAndEdits"]);
 export type ApprovalLevel = typeof ApprovalLevel.Type;
 
@@ -117,6 +117,8 @@ export const QuestionOutcome = Schema.Literals([
   "Withdrawn",
   "AllowedByMessage",
   "AllowedByPermission",
+  /** A harness prompt that is not a sensitive action, run without a question (CHG-0035). */
+  "AllowedAutomatically",
 ]);
 export type QuestionOutcome = typeof QuestionOutcome.Type;
 
@@ -170,7 +172,13 @@ export const PermissionsView = Schema.Struct({
 });
 export type PermissionsView = typeof PermissionsView.Type;
 
+/** What keeps a thread in Attention besides an open question: its workspace folder is gone (workspace-attachment, Missing folder). */
+export const ThreadBlocker = Schema.Literals(["MissingWorkspace"]);
+export type ThreadBlocker = typeof ThreadBlocker.Type;
+
 export const ThreadView = Schema.Struct({
+  /** Why the thread waits in Attention for Retry, or null. */
+  blocker: Schema.NullOr(ThreadBlocker),
   effort: EffortChoice,
   /** Why the last turn failed, while the thread is Failed. */
   failure: Schema.NullOr(Schema.String),
@@ -197,7 +205,7 @@ export const StartMission = Schema.TaggedStruct("StartMission", {
   model: ModelChoice,
   requestId: RequestId,
   text: MessageText,
-  /** A folder under a browsable root, or null for the mission's scratch folder. */
+  /** An existing folder, chosen in the system's folder dialog, or null for the mission's scratch folder. */
   workspacePath: Schema.NullOr(Schema.String),
 });
 export const SendMessage = Schema.TaggedStruct("SendMessage", {
@@ -211,22 +219,29 @@ export const ReadMission = Schema.TaggedStruct("ReadMission", { missionId: Missi
 export const ReadSettings = Schema.TaggedStruct("ReadSettings", {});
 
 /** The owner's answer to one open question. */
-export const Answer = Schema.Literals(["Allow", "AlwaysAllow", "Deny", "Discard"]);
+export const Answer = Schema.Literals(["Allow", "AlwaysAllow", "Deny"]);
 export type Answer = typeof Answer.Type;
 export const AnswerQuestion = Schema.TaggedStruct("AnswerQuestion", {
   answer: Answer,
-  /** Deny with a message: why, or what to do instead. */
+  /** On Deny, an optional message: why, or what to do instead. */
   message: Schema.NullOr(Schema.String),
   questionId: QuestionId,
 });
 export const ListOpenQuestions = Schema.TaggedStruct("ListOpenQuestions", {});
 export const StopThread = Schema.TaggedStruct("StopThread", { threadId: ThreadId });
+/** Tries again a thread waiting in Attention on its missing workspace folder (Retry). */
+export const RetryThread = Schema.TaggedStruct("RetryThread", { threadId: ThreadId });
 export const ReadPermissions = Schema.TaggedStruct("ReadPermissions", { missionId: Schema.NullOr(MissionId) });
 export const WidenPermission = Schema.TaggedStruct("WidenPermission", { permissionId: PermissionId });
 export const RemovePermission = Schema.TaggedStruct("RemovePermission", { permissionId: PermissionId });
 export const UpdateSettings = Schema.TaggedStruct("UpdateSettings", { settings: Settings });
+// Folder browsing under the browsable roots, kept for the phone; the desktop uses the system dialog (CHG-0035).
 /** Lists a folder's subfolders under the browsable roots; null lists the roots. */
-export const BrowseFolders = Schema.TaggedStruct("BrowseFolders", { path: Schema.NullOr(Schema.String) });
+export const BrowseFolders = Schema.TaggedStruct("BrowseFolders", {
+  path: Schema.NullOr(Schema.String),
+  /** Whether folders whose names start with a dot are listed too (Show hidden). */
+  shouldIncludeHidden: Schema.Boolean,
+});
 /** Makes a folder inside a browsable folder (New folder). */
 export const CreateFolder = Schema.TaggedStruct("CreateFolder", { name: Schema.String, parent: Schema.String });
 /** Adds an existing folder to the browsable roots (Add root). */
@@ -242,6 +257,7 @@ export const Request = Schema.Union([
   AnswerQuestion,
   ListOpenQuestions,
   StopThread,
+  RetryThread,
   ReadPermissions,
   WidenPermission,
   RemovePermission,
@@ -269,6 +285,7 @@ export const Results = {
   ReadPermissions: PermissionsView,
   ReadSettings: Settings,
   RemovePermission: Schema.Null,
+  RetryThread: Schema.Null,
   SendMessage: SendMessageResult,
   StartMission: StartMissionResult,
   StopThread: Schema.Null,

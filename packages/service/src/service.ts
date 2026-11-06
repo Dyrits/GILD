@@ -5,6 +5,7 @@ import { Approvals, approvalsLayer } from "./approvals.ts";
 import { Changes, changesLayer } from "./changes.ts";
 import { invalid, ServiceFailure } from "./errors.ts";
 import type { Harness } from "./execution.ts";
+import { addBrowsableRoot, browseFolders, createFolder, seedBrowsableRoots } from "./folders.ts";
 import { toolServerLayer } from "./mcp.ts";
 import { insertUserMessage } from "./messaging.ts";
 import { insertMission, listMissions, readMission } from "./missions.ts";
@@ -14,7 +15,6 @@ import { sandboxProblem } from "./sandbox.ts";
 import { readSettings, writeSettings } from "./settings.ts";
 import { storeLayer } from "./store.ts";
 import { ScratchRoot, Threads, threadsLayer } from "./threads.ts";
-import { addBrowsableRoot, browseFolders, createFolder, seedBrowsableRoots } from "./workspaces.ts";
 
 /** The entry point shared by app commands and, later, MCP calls. */
 export class Service extends Context.Service<
@@ -64,7 +64,7 @@ const make = Effect.gen(function* () {
       {
         AddBrowsableRoot: (add) => addBrowsableRoot(add.path).pipe(Effect.tap(() => changes.publish)),
         AnswerQuestion: (given) => approvals.answer(given.questionId, given.answer, given.message, "desktop"),
-        BrowseFolders: (browse) => browseFolders(browse.path),
+        BrowseFolders: (browse) => browseFolders(browse.path, browse.shouldIncludeHidden),
         CreateFolder: (create) => createFolder(create.parent, create.name),
         ListMissions: () => listMissions,
         ListOpenQuestions: () => listOpenQuestions,
@@ -81,6 +81,7 @@ const make = Effect.gen(function* () {
           }),
         ReadSettings: () => readSettings,
         RemovePermission: (remove) => removePermission(remove.permissionId).pipe(Effect.tap(() => changes.publish)),
+        RetryThread: (retry) => threads.retry(retry.threadId).pipe(Effect.as(null)),
         SendMessage: (send) =>
           nonBlank(send.text).pipe(
             Effect.andThen((text) => once(send.requestId, send._tag, insertUserMessage(send.threadId, text))),

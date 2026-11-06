@@ -137,6 +137,41 @@ describe("Claude Code adapter", () => {
     }).pipe(Effect.provide(layer));
   });
 
+  it.live("lets a sandboxed workspace thread reach the package registry and release downloads unasked", () => {
+    const { directory, layer, starts } = withClaude();
+    const app = join(realpathSync(directory), "app");
+    mkdirSync(app);
+    return Effect.gen(function* () {
+      const started = yield* call({
+        _tag: "StartMission",
+        effort: "default",
+        model: "default",
+        requestId: "r1",
+        text: "Hi",
+        workspacePath: app,
+      });
+      yield* settle(started.missionId, idleWith(1));
+      const [start] = starts();
+      const settings = JSON.parse(start?.args[start.args.indexOf("--settings") + 1] ?? "{}");
+      expect(settings.sandbox).toMatchObject({ autoAllowBashIfSandboxed: true, enabled: true });
+      expect(settings.sandbox.network).toEqual({
+        allowedDomains: [
+          "registry.npmjs.org",
+          "github.com",
+          "objects.githubusercontent.com",
+          "release-assets.githubusercontent.com",
+        ],
+        allowLocalBinding: true,
+      });
+      expect(settings.sandbox.filesystem.allowWrite).toEqual([
+        "~/.bun/install/cache",
+        "~/Library/Caches/electron",
+        "~/.cache/electron",
+      ]);
+      expect(settings.env).toEqual({ NODE_USE_ENV_PROXY: "1" });
+    }).pipe(Effect.provide(layer));
+  });
+
   it.live("omits model and effort when the thread uses Claude Code's defaults", () => {
     const { layer, starts } = withClaude();
     return Effect.gen(function* () {

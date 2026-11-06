@@ -6,6 +6,7 @@ import { styles } from "./styles";
 
 const outcomeLabels = {
   Allowed: "Allowed",
+  AllowedAutomatically: "Ran",
   AllowedByMessage: "Allowed by your message",
   AllowedByPermission: "Allowed by a standing permission",
   AlwaysAllowed: "Always allowed",
@@ -24,11 +25,12 @@ const shortDetailOf = (details: string) => {
   return first.length > lineLength || first !== details.trim() ? `${first.slice(0, lineLength).trimEnd()}…` : first;
 };
 
-/** The short line an answered, discarded, or withdrawn question leaves in its thread. */
+/** The short line an answered or withdrawn question, or an action run without one, leaves in its thread. */
 export function QuestionLine({ question }: { question: Question }) {
   const parts = [
     question.outcome === null ? "Open" : outcomeLabels[question.outcome],
-    shortDetailOf(question.details),
+    // An action run without a question is told in plain words; its command stays in the history.
+    question.outcome === "AllowedAutomatically" ? question.summary.replace(/\.$/, "") : shortDetailOf(question.details),
     question.resolvedAt === null ? null : shortTimeOf(question.resolvedAt),
     question.device,
   ].filter((part) => part !== null);
@@ -67,7 +69,6 @@ export function QuestionCard({
   onOpenMission?: () => void;
 }) {
   const [isShowingDetails, setIsShowingDetails] = useState(false);
-  const [isWritingDenial, setIsWritingDenial] = useState(false);
   const [denial, setDenial] = useState("");
   const [error, setError] = useState<string | null>(null);
   const send = (answer: Answer, message: string | null = null) =>
@@ -102,22 +103,14 @@ export function QuestionCard({
       <View style={styles.chips}>
         <AnswerButton isPrimary label="Allow" onPress={() => send("Allow")} />
         <AnswerButton label="Always allow" onPress={() => send("AlwaysAllow")} />
-        <AnswerButton label="Deny" onPress={() => send("Deny")} />
-        <AnswerButton label="Deny with a message" onPress={() => setIsWritingDenial(true)} />
-        <AnswerButton label="Discard" onPress={() => send("Discard")} />
+        <AnswerButton label="Deny" onPress={() => send("Deny", denial.trim() === "" ? null : denial)} />
       </View>
-      {isWritingDenial && (
-        <View style={styles.composer}>
-          <TextInput
-            multiline
-            onChangeText={setDenial}
-            placeholder="Why, or what to do instead…"
-            style={styles.input}
-            value={denial}
-          />
-          <AnswerButton isPrimary label="Deny" onPress={() => send("Deny", denial)} />
-        </View>
-      )}
+      <TextInput
+        onChangeText={setDenial}
+        placeholder="Optional, with Deny: why, or what to do instead"
+        style={styles.input}
+        value={denial}
+      />
       {error !== null && <Text style={styles.error}>{error}</Text>}
     </View>
   );

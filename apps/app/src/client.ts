@@ -10,7 +10,7 @@ import { Schema } from "effect";
 
 declare global {
   interface Window {
-    openMission?: { endpoint(): Promise<string> };
+    openMission?: { chooseFolder(): Promise<string | null>; endpoint(): Promise<string> };
   }
 }
 

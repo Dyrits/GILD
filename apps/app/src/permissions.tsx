@@ -15,7 +15,7 @@ import { useServiceQuery } from "./useServiceQuery";
 /** The names of the approval levels (action-approval, Approval level). */
 export const levelLabels = {
   CommandsAndEdits: "Also commands and edits",
-  RiskyOnly: "Risky actions only",
+  RiskyOnly: "Sensitive actions only",
 } as const satisfies Record<ApprovalLevel, string>;
 
 /** Whether a standing permission was widened to every mission and workspace. */
@@ -71,7 +71,9 @@ export function PermissionsScreen({ client, onBack }: { client: ServiceClient; o
               value={view.level}
             />
             {view.sandboxProblem !== null && view.level === "RiskyOnly" && (
-              <Text style={styles.muted}>{view.sandboxProblem} Until then, every command and edit asks.</Text>
+              <Text style={styles.muted}>
+                {view.sandboxProblem} Commands run without it; only sensitive actions ask.
+              </Text>
             )}
           </View>
           <View style={styles.section}>

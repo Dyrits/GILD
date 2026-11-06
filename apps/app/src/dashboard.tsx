@@ -73,7 +73,7 @@ export function Dashboard({
       />
       <Choice label={(m) => modelLabels[m]} onChange={setModel} options={ModelChoices.literals} value={chosenModel} />
       <Choice label={effortLabel} onChange={setEffort} options={EffortChoices.literals} value={chosenEffort} />
-      <WorkspacePicker client={client} onChange={setWorkspacePath} value={workspacePath} />
+      <WorkspacePicker onChange={setWorkspacePath} value={workspacePath} />
       {error !== null && <Text style={styles.error}>{error}</Text>}
       <FlatList<MissionSummary>
         data={missions ?? []}

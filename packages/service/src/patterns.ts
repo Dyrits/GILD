@@ -24,11 +24,26 @@ export const savedPatternOf = (proposed: string | null, target: string) =>
 const stringField = (input: unknown, key: string) =>
   Predicate.isObject(input) && Predicate.hasProperty(input, key) && Predicate.isString(input[key]) ? input[key] : null;
 
-/** The question's sentence for a harness tool call, with Claude Code's own reason when it gives one. */
-export const summaryOf = (toolName: string, input: unknown) => {
-  const reason = stringField(input, "description")?.trim().replace(/\.$/, "") ?? "";
-  return reason === "" ? `Claude Code asks to use ${toolName}.` : `Claude Code asks to use ${toolName}: ${reason}.`;
+const plainActions: Record<string, string> = {
+  Bash: "Run a command",
+  Edit: "Change a file",
+  MultiEdit: "Change a file",
+  NotebookEdit: "Change a notebook",
+  Read: "Read a file",
+  WebFetch: "Open a web page",
+  WebSearch: "Search the web",
+  Write: "Write a file",
 };
+
+/** Claude Code's own reason for a tool call, without its final period, or null when it gives none. */
+export const reasonOf = (input: unknown) => {
+  const reason = stringField(input, "description")?.trim().replace(/\.$/, "") ?? "";
+  return reason === "" ? null : reason;
+};
+
+/** The kind of a harness tool call in plain words, such as "Run a command". */
+export const plainActionOf = (toolName: string) =>
+  Object.hasOwn(plainActions, toolName) ? (plainActions[toolName] ?? toolName) : `Use ${toolName}`;
 
 /** The exact target of a harness tool call: the command for Bash, else the tool and its file, address, or input. */
 export const targetOf = (toolName: string, input: unknown) => {
@@ -42,98 +57,134 @@ export const targetOf = (toolName: string, input: unknown) => {
   return `${toolName} ${subject}`;
 };
 
+/** A sensitive action: the kind Always allow saves, and what it affects, in plain words (CHG-0035). */
+export interface Sensitivity {
+  readonly consequence: string;
+  readonly permission: string;
+}
+
+// Where a command word may begin: the start, or after a shell operator, a
+// substitution, or a wrapper such as `bunx`, `npx`, or `xargs`.
+const commandStart = /(?:^|[;&|({\n`]|\$\(|\bbunx\s+|\bnpx\s+|\bxargs\s+)\s*/.source;
+const command = (body: string) => new RegExp(`${commandStart}${body}`);
+// A git subcommand, after any global options such as `-c key=value` or `-C path`.
+const git = (body: string) => command(String.raw`git(?:\s+-[cC]\s+\S+|\s+--?[\w-]+(?:=\S+)?)*\s+${body}`);
+const secretPath =
+  /(?:^|[\s'"=/])(?:~|\$HOME|\/Users\/[^/\s]+|\/home\/[^/\s]+)?\/?\.(?:ssh|aws|gnupg|netrc|docker\/config\.json|config\/gh|kube)\b/;
+
+const sensitiveCommands: ReadonlyArray<readonly [RegExp, Sensitivity]> = [
+  [
+    git(String.raw`push\b`),
+    {
+      consequence:
+        "This sends your commits off this computer, where everyone with access to the repository can see them.",
+      permission: "Push code",
+    },
+  ],
+  [
+    command(
+      String.raw`(?:(?:npm|bun|yarn|pnpm|cargo|poetry|gem)\s+(?:publish|push)\b|twine\s+upload\b|docker\s+push\b|gh\s+release\s+(?:create|upload|edit|delete)\b)`,
+    ),
+    {
+      consequence: "This makes a package or release public, and a published version usually cannot be taken back.",
+      permission: "Publish",
+    },
+  ],
+  [
+    command(
+      String.raw`(?:wrangler\s+(?:deploy|publish|pages\s+deploy)\b|vercel\b|netlify\s+deploy\b|fly(?:ctl)?\s+deploy\b|firebase\s+deploy\b|terraform\s+(?:apply|destroy)\b|pulumi\s+(?:up|destroy)\b|kubectl\s+(?:apply|delete|create|replace|rollout|scale)\b|serverless\s+deploy\b|heroku\b|cf\s+deploy\b)`,
+    ),
+    { consequence: "This changes a live service that other people may be using.", permission: "Deploy" },
+  ],
+  [
+    command(
+      String.raw`gh\s+(?:(?:pr|issue)\s+(?:create|comment|merge|close|reopen|edit|review|delete)\b|repo\s+(?:create|delete|edit|rename|archive)\b|api\b.*\s(?:-X\s*(?:POST|PUT|PATCH|DELETE)|--method\s+(?:POST|PUT|PATCH|DELETE)|-[fF]\s))`,
+    ),
+    {
+      consequence: "This writes something under your GitHub account that other people can see.",
+      permission: "Post on GitHub",
+    },
+  ],
+  [
+    command(String.raw`(?:mail|mailx|sendmail|mutt|osascript)\b`),
+    { consequence: "This sends a message or controls another app in your name.", permission: "Send a message" },
+  ],
+  [
+    command(
+      String.raw`(?:curl\b.*\s(?:-X\s*(?:POST|PUT|PATCH|DELETE)|--request\s+(?:POST|PUT|PATCH|DELETE)|-d\b|--data\S*|-F\b|--form\b|-T\b|--upload-file\b)|wget\b.*--post)`,
+    ),
+    {
+      consequence: "This submits information to a server outside this computer.",
+      permission: "Send data to a website",
+    },
+  ],
+  [
+    command(String.raw`(?:ssh|scp|sftp)\b|rsync\b.*\S:`),
+    {
+      consequence: "This runs commands on, or copies files to, another machine.",
+      permission: "Connect to another computer",
+    },
+  ],
+  [
+    git(
+      String.raw`(?:reset\s+.*--hard|reset\s+--hard|clean\s+-\w*f|checkout\s+(?:-f\b|.*\s--\s)|checkout\s+--\s|restore\b|stash\s+(?:drop|clear)\b|branch\s+.*-D\b|branch\s+-D\b|switch\s+(?:.*\s)?(?:-f\b|--force|--discard-changes))`,
+    ),
+    {
+      consequence: "Changes that were never committed, or a branch, are deleted and cannot be recovered.",
+      permission: "Discard work",
+    },
+  ],
+  [
+    command(String.raw`rm\s+(?:-\w+\s+)*(?:\S+\s+)*\.git(?:\s|/|$)`),
+    {
+      consequence: "Changes that were never committed, or a branch, are deleted and cannot be recovered.",
+      permission: "Discard work",
+    },
+  ],
+  [
+    command(String.raw`rm\s+(?:-\w+\s+)*(?:\S+\s+)*(?:\/|~|\$HOME|\.\.(?:\/|\s|$))`),
+    {
+      consequence: "They do not go to the Trash and cannot be recovered.",
+      permission: "Delete files outside the workspace",
+    },
+  ],
+  [
+    command(
+      String.raw`(?:sudo|doas|su)\b|(?:launchctl|systemctl|crontab|shutdown|reboot|halt|diskutil|mkfs\S*|scutil|networksetup|csrutil|chsh)\b|defaults\s+(?:write|delete)\b|dd\s+\S*of=|(?:brew|apt|apt-get|dnf|yum|pacman|port)\s+(?:install|uninstall|remove|upgrade|reinstall)\b|(?:npm|pnpm|yarn)\s+(?:install|i|add|uninstall|remove)\s+(?:.*\s)?(?:-g|--global)\b|bun\s+(?:add|install|i|remove)\s+(?:.*\s)?(?:-g|--global)\b|yarn\s+global\b`,
+    ),
+    {
+      consequence: "This alters settings or software outside the workspace, for every program on this computer.",
+      permission: "Change this computer's system",
+    },
+  ],
+];
+
+const secrets: Sensitivity = {
+  consequence: "This opens credentials that give access to your accounts.",
+  permission: "Read passwords or keys",
+};
+const secretCommand = command(String.raw`(?:security\s+(?:find|dump|export)-|gh\s+auth\s+token\b)`);
+
+// Claude Code's file tools raise a prompt only outside the working folder at the default level.
+const fileWritingTools = ["Write", "Edit", "MultiEdit", "NotebookEdit"];
+
 /**
- * Splits a command into `&&`-joined segments of words, removing quotes. Returns
- * null for anything this reading cannot vouch for: other shell operators,
- * redirections, substitutions, escapes, or unbalanced quotes.
+ * The sensitive action a harness tool call is, or null for ordinary work that runs without a
+ * question (CHG-0035). A best-effort list: the thread flags what it misses through `request_approval`.
  */
-const segmentsOf = (command: string): Array<Array<string>> | null => {
-  const segments: Array<Array<string>> = [[]];
-  let word: string | null = null;
-  let quote: "'" | '"' | null = null;
-  const endWord = () => {
-    if (word !== null) segments.at(-1)?.push(word);
-    word = null;
-  };
-  for (let index = 0; index < command.length; index++) {
-    const char = command[index] ?? "";
-    if (quote !== null) {
-      if (char === quote) quote = null;
-      else if (quote === '"' && /[$`\\]/.test(char)) return null;
-      else word = (word ?? "") + char;
-    } else if (char === "'" || char === '"') {
-      quote = char;
-      word = word ?? "";
-    } else if (char === " " || char === "\t") {
-      endWord();
-    } else if (char === "&" && command[index + 1] === "&") {
-      endWord();
-      segments.push([]);
-      index++;
-    } else if (/[;&|<>()`$\\\n\r]/.test(char)) {
-      return null;
-    } else {
-      word = (word ?? "") + char;
-    }
+export const sensitivityOf = (toolName: string, input: unknown): Sensitivity | null => {
+  if (toolName === "Bash") {
+    const text = (stringField(input, "command") ?? "").trim();
+    if (secretPath.test(text) || secretCommand.test(text)) return secrets;
+    return sensitiveCommands.find(([pattern]) => pattern.test(text))?.[1] ?? null;
   }
-  if (quote !== null) return null;
-  endWord();
-  return segments.every((segment) => segment.length > 0) ? segments : null;
-};
-
-const isInsideWorkspace = (path: string) =>
-  path !== "" && !path.startsWith("/") && !path.startsWith("~") && !path.split("/").includes("..");
-
-const forbids =
-  (...options: ReadonlyArray<string>) =>
-  (args: ReadonlyArray<string>) =>
-    !args.some((arg) => options.includes(arg) || options.some((option) => arg.startsWith(`${option}=`)));
-
-const isReading = (args: ReadonlyArray<string>) => !args.some((arg) => arg.startsWith("--output"));
-
-const isLocalInit = (args: ReadonlyArray<string>) => {
-  for (let index = 0; index < args.length; index++) {
-    const arg = args[index] ?? "";
-    if (arg === "-b" || arg === "--initial-branch") index++;
-    else if (arg.startsWith("--initial-branch=") || ["--bare", "-q", "--quiet"].includes(arg)) continue;
-    else if (arg.startsWith("-") || !isInsideWorkspace(arg)) return false;
+  const path = stringField(input, "file_path") ?? stringField(input, "notebook_path") ?? stringField(input, "path");
+  if (path !== null && secretPath.test(path)) return secrets;
+  if (fileWritingTools.includes(toolName)) {
+    return {
+      consequence: "This changes a file that other programs on this computer may rely on.",
+      permission: "Change a file outside the workspace",
+    };
   }
-  return true;
-};
-
-const deletesOrForces = (arg: string) => /^-[a-zA-Z]*[dDf]/.test(arg) && !arg.startsWith("--");
-
-// Local git that only changes the workspace's own repository (CHG-0032). Each
-// entry refuses the options that delete, force, or write elsewhere.
-const localGitCommands: Record<string, (args: ReadonlyArray<string>) => boolean> = {
-  add: () => true,
-  branch: (args) => !args.some(deletesOrForces) && forbids("--delete", "--force")(args),
-  commit: () => true,
-  diff: isReading,
-  init: isLocalInit,
-  log: isReading,
-  "rev-parse": () => true,
-  show: isReading,
-  status: () => true,
-  switch: forbids("-f", "--force", "--discard-changes", "-C", "--force-create"),
-  tag: (args) => !args.some(deletesOrForces) && forbids("--delete", "--force")(args),
-};
-
-const isLocalGitSegment = (words: ReadonlyArray<string>) => {
-  if (words[0] !== "git") return false;
-  let index = 1;
-  // Only an author name or address may be set inline; other settings can run code.
-  while (words[index] === "-c") {
-    const setting = words[index + 1] ?? "";
-    if (!setting.startsWith("user.name=") && !setting.startsWith("user.email=")) return false;
-    index += 2;
-  }
-  const command = words[index] ?? "";
-  return Object.hasOwn(localGitCommands, command) && (localGitCommands[command]?.(words.slice(index + 1)) ?? false);
-};
-
-/** Whether a command is only local git on the workspace's repository, answered without a question at the default level. */
-export const isLocalGit = (command: string) => {
-  const segments = segmentsOf(command.trim());
-  return segments?.every(isLocalGitSegment) ?? false;
+  return null;
 };

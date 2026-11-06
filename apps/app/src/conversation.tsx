@@ -7,6 +7,7 @@ import { effortLabel, modelLabels, usageDetail } from "./formatting";
 import { QuestionCard, QuestionLine } from "./questions";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
+import { MissingFolderNotice } from "./workspaces";
 
 /** The reply a thread is writing, while the service streams it. */
 function useDraft(client: ServiceClient, threadId: string | null) {
@@ -81,6 +82,9 @@ export function Conversation({
             : `Workspace ${data.thread.workspace.name} · ${data.thread.workspace.path}`}
           {data.thread.workspace?.isMissing === true && " · folder missing"}
         </Text>
+      )}
+      {data?.thread.blocker === "MissingWorkspace" && data.thread.workspace !== null && (
+        <MissingFolderNotice client={client} path={data.thread.workspace.path} threadId={data.thread.id} />
       )}
       {data?.thread.failure != null && (
         <View style={styles.failure}>

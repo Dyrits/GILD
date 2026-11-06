@@ -90,7 +90,7 @@ export const readMission = (missionId: string) =>
     const [row] = yield* missionRows(sql, missionId);
     if (row === undefined) return yield* notFound("No such mission.");
     const [thread] = yield* sql<Omit<MissionDetail["thread"], "workspace">>`
-      SELECT id, state, model, effort, failure FROM threads WHERE id = ${row.topThreadId}`;
+      SELECT id, state, model, effort, failure, blocker FROM threads WHERE id = ${row.topThreadId}`;
     if (thread === undefined) return yield* notFound("The mission has no top thread.");
     const workspace = yield* readThreadWorkspace(row.topThreadId);
     const messages = yield* sql<MissionDetail["messages"][number]>`

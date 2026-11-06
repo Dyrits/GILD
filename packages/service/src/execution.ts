@@ -10,6 +10,8 @@ export type HarnessEvent =
 /** What a thread may use in a turn, and how its actions are approved (CHG-0031). */
 export interface ThreadAccess {
   readonly approvalLevel: ApprovalLevel;
+  /** Whether the thread works in a workspace, whose sandbox may fetch dependencies (CHG-0034). */
+  readonly isInWorkspace: boolean;
   /** The thread's own MCP endpoint serving `request_approval` and the permission prompt tool. */
   readonly mcpUrl: string;
   /** The sentences of the standing permissions that apply to the thread. */

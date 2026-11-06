@@ -1,5 +1,5 @@
-// Entry point when Electron starts the service as a utilityProcess.
 import { homedir } from "node:os";
+// Entry point when Electron starts the service as a utilityProcess.
 import { join } from "node:path";
 import { Config, Effect, Layer } from "effect";
 import { claudeHarnessLayer } from "./claude.ts";

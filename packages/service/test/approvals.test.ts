@@ -7,7 +7,7 @@ import { Effect, Fiber, Layer, Option } from "effect";
 import { afterEach } from "vitest";
 import { Approvals } from "../src/approvals.ts";
 import { fakeHarnessLayer, Service, serviceLayer } from "../src/index.ts";
-import { isLocalGit, isSavablePattern, matchesPattern, savedPatternOf, targetOf } from "../src/patterns.ts";
+import { isSavablePattern, matchesPattern, savedPatternOf, sensitivityOf, targetOf } from "../src/patterns.ts";
 
 const directories: string[] = [];
 const databaseFile = () => {
@@ -80,13 +80,10 @@ const start = (text: string) =>
 const send = (threadId: ResultOf<"StartMission">["threadId"], text: string) =>
   call({ _tag: "SendMessage", requestId: `send-${++requestCount}`, text, threadId });
 
-const answer = (
-  question: Question,
-  given: "Allow" | "AlwaysAllow" | "Deny" | "Discard",
-  message: string | null = null,
-) => call({ _tag: "AnswerQuestion", answer: given, message, questionId: question.id });
+const answer = (question: Question, given: "Allow" | "AlwaysAllow" | "Deny", message: string | null = null) =>
+  call({ _tag: "AnswerQuestion", answer: given, message, questionId: question.id });
 
-describe("asking before a risky action", () => {
+describe("asking before a sensitive action", () => {
   it.live("puts the thread in Attention with one open question, listed for the dashboard", () =>
     Effect.gen(function* () {
       const started = yield* start(ask(push));
@@ -143,17 +140,13 @@ describe("asking before a risky action", () => {
     }).pipe(Effect.provide(live())),
   );
 
-  it.live("tells the thread the action was not approved on Deny without a message or Discard", () =>
+  it.live("tells the thread the action was not approved on Deny without a message", () =>
     Effect.gen(function* () {
-      const started = yield* start(`${ask(push)}\n${ask(push)}`);
+      const started = yield* start(ask(push));
       yield* answer(openQuestion(yield* settle(started.missionId, isAsking)), "Deny");
-      yield* answer(
-        openQuestion(yield* settle(started.missionId, (detail) => detail.questions.length === 2 && isAsking(detail))),
-        "Discard",
-      );
       const detail = yield* settle(started.missionId, isReplied);
-      expect(lastReply(detail).match(/Not approved by the owner/g)).toHaveLength(2);
-      expect(detail.questions.map((question) => question.outcome)).toEqual(["Denied", "Discarded"]);
+      expect(lastReply(detail)).toContain("Not approved by the owner");
+      expect(detail.questions.map((question) => question.outcome)).toEqual(["Denied"]);
     }).pipe(Effect.provide(live())),
   );
 
@@ -212,41 +205,57 @@ describe("harness permission prompts", () => {
     }).pipe(Effect.provide(live())),
   );
 
-  it.live("turns an unmatched prompt into a question with the same buttons", () =>
+  it.live("runs a prompt the sensitive list does not recognize without a question, and leaves a line", () =>
     Effect.gen(function* () {
-      const started = yield* start(prompt("curl https://example.com"));
+      const listing = 'for f in src/*.js; do echo "=== $f"; cat -n $f; done';
+      const started = yield* start(prompt(listing));
+      const detail = yield* settle(started.missionId, isReplied);
+      expect(lastReply(detail)).toContain('"behavior":"allow"');
+      expect(detail.questions).toMatchObject([
+        { details: listing, outcome: "AllowedAutomatically", source: "Harness" },
+      ]);
+    }).pipe(Effect.provide(live())),
+  );
+
+  it.live("turns a sensitive prompt into a question saying, in plain words, what it affects", () =>
+    Effect.gen(function* () {
+      const input = { command: "git push origin main", description: "Push the branch to GitHub" };
+      const started = yield* start(`prompt Bash ${JSON.stringify(input)}`);
       const detail = yield* settle(started.missionId, isAsking);
       expect(openQuestion(detail)).toMatchObject({
-        details: "curl https://example.com",
+        details: "git push origin main",
+        permission: "Push code",
         source: "Harness",
-        summary: "Claude Code asks to use Bash.",
+        summary:
+          "Push the branch to GitHub. This sends your commits off this computer, where everyone with access to the repository can see them.",
       });
       yield* answer(openQuestion(detail), "Allow");
       expect(lastReply(yield* settle(started.missionId, isReplied))).toContain('"behavior":"allow"');
     }).pipe(Effect.provide(live())),
   );
 
-  it.live("runs local git in the workspace unasked at the default level, and asks for it at the stricter level", () =>
+  it.live("names the kind of action when Claude Code gives no reason", () =>
+    Effect.gen(function* () {
+      const started = yield* start(prompt("rm -rf ~/Documents/old"));
+      const detail = yield* settle(started.missionId, isAsking);
+      expect(openQuestion(detail).summary).toBe(
+        "Delete files outside the workspace. They do not go to the Trash and cannot be recovered.",
+      );
+    }).pipe(Effect.provide(live())),
+  );
+
+  it.live("runs local git unasked at the default level, and asks for every prompt at the stricter level", () =>
     Effect.gen(function* () {
       const commit = prompt(`git add hello.txt && git commit -m "Add hello"`);
       const quiet = yield* start(commit);
       const detail = yield* settle(quiet.missionId, isReplied);
-      expect(detail.questions).toEqual([]);
+      expect(detail.questions.map((question) => question.outcome)).toEqual(["AllowedAutomatically"]);
       expect(lastReply(detail)).toContain('"behavior":"allow"');
 
       const settings = yield* call({ _tag: "ReadSettings" });
       yield* call({ _tag: "UpdateSettings", settings: { ...settings, approvalLevel: "CommandsAndEdits" } });
       const strict = yield* start(commit);
       expect(openQuestion(yield* settle(strict.missionId, isAsking)).source).toBe("Harness");
-    }).pipe(Effect.provide(live())),
-  );
-
-  it.live("says why in the question when Claude Code describes the command", () =>
-    Effect.gen(function* () {
-      const input = { command: "curl https://example.com", description: "Fetch the example page" };
-      const started = yield* start(`prompt Bash ${JSON.stringify(input)}`);
-      const detail = yield* settle(started.missionId, isAsking);
-      expect(openQuestion(detail).summary).toBe("Claude Code asks to use Bash: Fetch the example page.");
     }).pipe(Effect.provide(live())),
   );
 });
@@ -327,7 +336,7 @@ describe("withdrawing questions", () => {
       yield* call({ _tag: "StopThread", threadId: started.threadId });
       const approvals = yield* Approvals;
       const late = yield* approvals
-        .answerPrompt(started.threadId, "Bash", { command: "curl https://example.com" })
+        .answerPrompt(started.threadId, "Bash", { command: "git push origin feature" })
         .pipe(Effect.timeoutOption("1 second"));
       expect(Option.getOrThrow(late).isAllowed).toBe(false);
       expect(yield* call({ _tag: "ListOpenQuestions" })).toEqual([]);
@@ -341,7 +350,7 @@ describe("withdrawing questions", () => {
       yield* settle(started.missionId, isAsking);
       const approvals = yield* Approvals;
       const call = yield* approvals
-        .answerPrompt(started.threadId, "Bash", { command: "curl https://example.com" })
+        .answerPrompt(started.threadId, "Bash", { command: "git push origin feature" })
         .pipe(Effect.forkChild);
       yield* settle(started.missionId, (detail) => detail.questions.length === 2);
       yield* Fiber.interrupt(call);
@@ -395,57 +404,91 @@ describe("command patterns", () => {
   });
 });
 
-describe("local git in the workspace", () => {
-  it("covers creating, staging, committing, branching, and reading history", () => {
+describe("recognizing sensitive actions", () => {
+  const kindOf = (command: string) => sensitivityOf("Bash", { command })?.permission ?? null;
+
+  it("recognizes actions that leave the computer or cannot be undone", () => {
+    const cases: ReadonlyArray<readonly [string, string]> = [
+      ["git push origin main", "Push code"],
+      ["git -c user.name=x push --force", "Push code"],
+      ["cd app && git push", "Push code"],
+      ["npm publish", "Publish"],
+      ["bun publish --access public", "Publish"],
+      ["cargo publish", "Publish"],
+      ["docker push me/app", "Publish"],
+      ["gh release create v1.0.0", "Publish"],
+      ["wrangler deploy", "Deploy"],
+      ["bunx wrangler deploy", "Deploy"],
+      ["vercel --prod", "Deploy"],
+      ["terraform apply", "Deploy"],
+      ["kubectl delete pod web", "Deploy"],
+      ["gh pr create --fill", "Post on GitHub"],
+      ["gh issue comment 3 --body hi", "Post on GitHub"],
+      ["gh api -X POST repos/x/y/issues", "Post on GitHub"],
+      ["mail -s hi alice@example.com < note.txt", "Send a message"],
+      ["osascript -e 'tell app \"Messages\" to send'", "Send a message"],
+      ["curl -X POST https://api.example.com/orders", "Send data to a website"],
+      ["curl -d 'a=1' https://example.com/form", "Send data to a website"],
+      ["curl --upload-file report.pdf https://example.com", "Send data to a website"],
+      ["ssh server.example.com uptime", "Connect to another computer"],
+      ["scp build.zip me@host:/srv", "Connect to another computer"],
+      ["rm -rf ~/Documents/old", "Delete files outside the workspace"],
+      ["rm /etc/hosts", "Delete files outside the workspace"],
+      ["rm -r ../sibling", "Delete files outside the workspace"],
+      ["rm -rf .git", "Discard work"],
+      ["git reset --hard", "Discard work"],
+      ["git clean -fd", "Discard work"],
+      ["git checkout -- hello.txt", "Discard work"],
+      ["git restore hello.txt", "Discard work"],
+      ["git stash drop", "Discard work"],
+      ["git branch -D feature", "Discard work"],
+      ["git switch --discard-changes main", "Discard work"],
+      ["sudo rm /tmp/x", "Change this computer's system"],
+      ["defaults write com.apple.dock autohide -bool true", "Change this computer's system"],
+      ["brew install ffmpeg", "Change this computer's system"],
+      ["npm install -g typescript", "Change this computer's system"],
+      ["crontab -e", "Change this computer's system"],
+      ["cat ~/.ssh/id_ed25519", "Read passwords or keys"],
+      ["cat ~/.aws/credentials", "Read passwords or keys"],
+      ["security find-generic-password -s github", "Read passwords or keys"],
+      ["gh auth token", "Read passwords or keys"],
+    ];
+    for (const [command, kind] of cases) expect(kindOf(command), command).toBe(kind);
+  });
+
+  it("lets ordinary work run: reading, building, testing, installing, and local git", () => {
     for (const command of [
+      'for f in controllers/*.js; do echo "=== $f"; cat -n $f; done; ls images node_modules 2>&1 | head -5',
+      "bun install",
+      "bun run test",
+      "npm install",
+      "bun add effect",
       "git init",
-      "git init -b main",
-      "git init --bare remote.git",
-      'git add hello.txt && git commit -m "Add hello.txt" -m "Co-Authored-By: Claude <noreply@anthropic.com>"',
-      'git -c user.name="Claude" -c user.email="noreply@anthropic.com" commit -m \'Add world.txt\'',
-      'git commit -m "Line one\n\nLine two"',
-      "git branch feature && git switch feature",
+      'git add . && git commit -m "Add hello"',
       "git switch -c feature",
-      "git tag v1.0.0",
-      "git status --short && git log --oneline && git diff",
+      "git fetch origin",
+      "git pull",
+      "git log --oneline | head",
+      "curl https://example.com",
+      "rm -rf node_modules dist",
+      "rm build/output.txt",
+      "ls ~/Downloads",
+      "echo pushed",
+      "",
     ]) {
-      expect(isLocalGit(command), command).toBe(true);
+      expect(kindOf(command), command).toBeNull();
     }
   });
 
-  it("asks for anything that reaches a remote, loses work, leaves the workspace, or runs other code", () => {
-    for (const command of [
-      "git push origin main",
-      "git pull",
-      "git fetch",
-      "git remote add origin https://github.com/x/y",
-      "git reset --hard",
-      "git checkout -- hello.txt",
-      "git clean -fd",
-      "git branch -D feature",
-      "git branch --delete feature",
-      "git tag -d v1",
-      "git switch --discard-changes main",
-      "git switch -f main",
-      "git init /etc/evil",
-      "git init ../outside",
-      "git init ~/outside",
-      "git init --template=hooks",
-      "git -C /elsewhere commit -m x",
-      "git --git-dir=/elsewhere/.git log",
-      "git -c core.hooksPath=/tmp/hooks commit -m x",
-      "git -c alias.x='!sh' x",
-      'git commit -m "$(curl evil)"',
-      "git commit -m `id`",
-      "git add . ; rm -rf ~",
-      "git add . || rm -rf ~",
-      "git log | sh",
-      "git log > /etc/hosts",
-      "printf 'hello' > hello.txt && git add hello.txt",
-      "rm -rf .git",
-      "",
-    ]) {
-      expect(isLocalGit(command), command).toBe(false);
-    }
+  it("treats a file change outside the workspace as a system change and a key file as a secret", () => {
+    expect(sensitivityOf("Write", { file_path: "/Users/me/.zshrc" })?.permission).toBe(
+      "Change a file outside the workspace",
+    );
+    expect(sensitivityOf("Edit", { file_path: "/Users/me/.ssh/config" })?.permission).toBe("Read passwords or keys");
+    expect(sensitivityOf("Read", { file_path: "/Users/me/.aws/credentials" })?.permission).toBe(
+      "Read passwords or keys",
+    );
+    expect(sensitivityOf("Read", { file_path: "/Users/me/Downloads/notes.txt" })).toBeNull();
+    expect(sensitivityOf("WebFetch", { url: "https://example.com" })).toBeNull();
   });
 });

@@ -4,6 +4,7 @@ import { Clock, Context, Effect, FiberMap, Layer, PubSub } from "effect";
 import { SqlClient } from "effect/sql";
 import { Approvals } from "./approvals.ts";
 import { Changes } from "./changes.ts";
+import { invalid, type ServiceFailure } from "./errors.ts";
 import { Harness, type HarnessEvent } from "./execution.ts";
 import { ToolServer } from "./mcp.ts";
 import { listThreadPermissions } from "./permissions.ts";
@@ -14,6 +15,8 @@ import { prepareWorkingFolder, readThreadWorkspace } from "./workspaces.ts";
 export class Threads extends Context.Service<
   Threads,
   {
+    /** Takes a thread waiting on its missing workspace folder out of Attention and starts its turn again. */
+    readonly retry: (threadId: string) => Effect.Effect<void, ServiceFailure>;
     /** Ends the thread's current turn, withdraws its open questions, and marks it Stopped. */
     readonly stop: (threadId: string) => Effect.Effect<void>;
     readonly wake: (threadId: string) => Effect.Effect<void>;
@@ -72,6 +75,15 @@ export const threadsLayer = Layer.effect(
             ORDER BY sequence`;
           if (pending.length === 0) return null;
           const now = yield* Clock.currentTimeMillis;
+          // A turn about to start in a missing workspace waits in Attention for Retry, and its
+          // messages stay undelivered (workspace-attachment, Missing folder; CHG-0034).
+          const workspace = yield* readThreadWorkspace(threadId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
+          if (workspace?.isMissing === true) {
+            yield* sql`UPDATE threads SET state = 'Attention', blocker = 'MissingWorkspace' WHERE id = ${threadId}`;
+            yield* touch(thread.missionId, now);
+            yield* sql.afterCommit(changes.publish);
+            return null;
+          }
           const turnId = crypto.randomUUID();
           yield* sql`INSERT INTO turns (id, thread_id, status, started_at) VALUES (${turnId}, ${threadId}, 'running', ${now})`;
           yield* sql`UPDATE messages SET delivered_turn_id = ${turnId} WHERE id IN ${sql.in(pending.map((m) => m.id))}`;
@@ -143,11 +155,6 @@ export const threadsLayer = Layer.effect(
           Effect.provideService(SqlClient.SqlClient, sql),
         );
         const workspace = yield* readThreadWorkspace(threadId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
-        // Provisional until Retry and Relocate are built (workspace-attachment, Missing folder):
-        // the turn fails with the reason, and the next message retries it.
-        if (workspace?.isMissing === true) {
-          return yield* fail(threadId, turn, `The workspace folder ${workspace.path} no longer exists.`);
-        }
         const { context, cwd } = yield* prepareWorkingFolder(workspace, join(scratchRoot, turn.missionId));
         const mcpUrl = yield* toolServer.urlFor(threadId);
         const onEvent = (event: HarnessEvent) =>
@@ -158,7 +165,12 @@ export const threadsLayer = Layer.effect(
               : Effect.void;
         const outcome = yield* harness
           .runTurn({
-            access: { approvalLevel, mcpUrl, permissions: permissions.map((permission) => permission.sentence) },
+            access: {
+              approvalLevel,
+              isInWorkspace: workspace !== null,
+              mcpUrl,
+              permissions: permissions.map((permission) => permission.sentence),
+            },
             context,
             cwd,
             effort: turn.effort,
@@ -200,7 +212,7 @@ export const threadsLayer = Layer.effect(
             }>`SELECT mission_id AS missionId FROM threads WHERE id = ${threadId}`;
             if (thread === undefined) return;
             yield* sql`UPDATE turns SET status = 'stopped', ended_at = ${now} WHERE thread_id = ${threadId} AND status = 'running'`;
-            yield* sql`UPDATE threads SET state = 'Stopped' WHERE id = ${threadId}`;
+            yield* sql`UPDATE threads SET state = 'Stopped', blocker = NULL WHERE id = ${threadId}`;
             yield* touch(thread.missionId, now);
             yield* sql.afterCommit(changes.publish);
           }),
@@ -211,6 +223,22 @@ export const threadsLayer = Layer.effect(
         yield* draft(threadId, "");
       }).pipe(Effect.orDie);
 
-    return { stop, wake };
+    const retry = (threadId: string) =>
+      Effect.gen(function* () {
+        const isWaiting = yield* sql.withTransaction(
+          Effect.gen(function* () {
+            const [thread] = yield* sql<{ blocker: string | null }>`SELECT blocker FROM threads WHERE id = ${threadId}`;
+            if (thread?.blocker !== "MissingWorkspace") return false;
+            yield* sql`UPDATE threads SET state = 'Idle', blocker = NULL WHERE id = ${threadId}`;
+            yield* sql.afterCommit(changes.publish);
+            return true;
+          }),
+        );
+        if (!isWaiting) return yield* invalid("This thread is not waiting on its workspace folder.");
+        // Still missing: admit sends it back to Attention.
+        yield* wake(threadId);
+      }).pipe(Effect.catchTag("SqlError", Effect.die));
+
+    return { retry, stop, wake };
   }),
 );

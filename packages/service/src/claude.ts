@@ -102,6 +102,36 @@ const ownerRulesOf = (path: string) => {
 /** The longest timer Node allows, in milliseconds: about 24.8 days. */
 const noTimeLimit = 2147483647;
 
+/**
+ * What a sandboxed thread in a workspace may also do unasked, so it can install the project's
+ * dependencies and run its checks (CHG-0034; probe of 2026-11-06 with Bun 1.4.3 and Electron 45):
+ * reach the package registry and GitHub's release downloads, write Bun's and Electron's caches,
+ * listen on loopback for test servers, and send Node's own downloads through the sandbox proxy.
+ */
+const workspaceSandbox = {
+  env: { NODE_USE_ENV_PROXY: "1" },
+  sandbox: {
+    filesystem: { allowWrite: ["~/.bun/install/cache", "~/Library/Caches/electron", "~/.cache/electron"] },
+    network: {
+      allowedDomains: [
+        "registry.npmjs.org",
+        "github.com",
+        "objects.githubusercontent.com",
+        "release-assets.githubusercontent.com",
+      ],
+      allowLocalBinding: true,
+    },
+  },
+};
+
+/** Claude Code's sandbox settings: always on and unasked inside it, widened for a workspace thread. */
+const sandboxSettingsOf = (access: ThreadAccess) => {
+  const base = { autoAllowBashIfSandboxed: true, enabled: true };
+  return access.isInWorkspace
+    ? { env: workspaceSandbox.env, sandbox: { ...base, ...workspaceSandbox.sandbox } }
+    : { sandbox: base };
+};
+
 /** The arguments that depend on the thread's access: its endpoint, instructions, and approval level. */
 const accessArgsOf = (access: ThreadAccess, context: string, options: ClaudeOptions) => {
   // A question waits with no time limit (action-approval, Waiting); without its own
@@ -109,12 +139,7 @@ const accessArgsOf = (access: ThreadAccess, context: string, options: ClaudeOpti
   const mcpConfig = { mcpServers: { [toolServerName]: { timeout: noTimeLimit, type: "http", url: access.mcpUrl } } };
   const isSandboxed = access.approvalLevel === "RiskyOnly" && options.sandboxProblem === null;
   const levelArgs = isSandboxed
-    ? [
-        "--permission-mode",
-        "acceptEdits",
-        "--settings",
-        JSON.stringify({ sandbox: { autoAllowBashIfSandboxed: true, enabled: true } }),
-      ]
+    ? ["--permission-mode", "acceptEdits", "--settings", JSON.stringify(sandboxSettingsOf(access))]
     : [
         "--permission-mode",
         "default",

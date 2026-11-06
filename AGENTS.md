@@ -24,4 +24,4 @@
 
 ## Handoffs
 
-To resume the first slice batch work (workspace batch, built as a draft, awaiting the owner), read the [current handoff](.agents/handoffs/2026-11-06-0017-workspace-batch-draft.md). Handoffs are shared and committed.
+To resume batch 4 (agreed, autonomous threads, awaiting the owner's run-through), read the [current handoff](.agents/handoffs/2026-11-06-0712-autonomous-threads.md). Handoffs are shared and committed.
