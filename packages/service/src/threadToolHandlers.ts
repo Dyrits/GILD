@@ -3,6 +3,7 @@ import { SqlClient } from "effect/sql";
 import type { Approvals } from "./approvals.ts";
 import type { Changes } from "./changes.ts";
 import { countChatter } from "./chatter.ts";
+import { intelToolsOf } from "./intelTools.ts";
 import { journalToolsOf } from "./journalTools.ts";
 import { insertMessage } from "./messaging.ts";
 import type { Suggestions } from "./suggestions.ts";
@@ -28,6 +29,7 @@ export const makeToolHandlers = (dependencies: {
   const answer = (text: string, isError = false): ToolAnswer => ({ isError, text });
 
   const handlers: ToolHandlers = {
+    ...intelToolsOf(commit),
     ...journalToolsOf(commit),
     ...titleToolsOf(commit),
     answer_prompt: (threadId, { input, tool_name }) =>

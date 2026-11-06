@@ -4,6 +4,7 @@
 export * from "./budgets.ts";
 export * from "./frames.ts";
 export * from "./ids.ts";
+export * from "./intel.ts";
 export * from "./journal.ts";
 export * from "./questions.ts";
 export * from "./records.ts";

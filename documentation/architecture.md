@@ -60,6 +60,7 @@ Mission-state ownership is settled provisionally. Execution, guest discussion be
 - **Thread tool catalogue** (`threadTools.ts`): each thread tool defined once, with its MCP listing, argument decoding, and whether it runs unasked derived from that definition; `threadToolHandlers.ts` answers each through the module that owns it, and `mcp.ts` is the transport.
 - **Endpoints** (`endpoints.ts`): each thread's secret MCP URL, between Threads (which needs a URL to run a turn) and the tool server (which calls Threads).
 - **Missions** (`missions.ts`, `missionDetail.ts`, `dashboard.ts`): starting a mission and its summary, what the owner reads of one mission, and the dashboard's list.
+- **Intel** (`intel.ts`, `intelChanges.ts`, `intelViews.ts`, `intelTools.ts`): each thread's lookup scope and recall, changes by threads and the owner with the approval of global ones, and what the panel and `search_intel` read.
 - **Budgets** (`budgets.ts`, `budgetViews.ts`, `budgetPeriods.ts`, `spending.ts`): stops and releases at limits, what the owner reads, and the release when a global period starts over. Spending rows outlive the threads and missions that spent them.
 
 ## Flows

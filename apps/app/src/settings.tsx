@@ -142,6 +142,13 @@ export function SettingsScreen({
             value={settings.briefingLimit}
           />
           <NumberSetting
+            label="Intel warning · percent of a model's context window before a thread's intel icon turns red"
+            minimum={1}
+            onInvalid={setSaveError}
+            onSave={(intelWarningPercent) => save({ intelWarningPercent: Math.min(intelWarningPercent, 100) })}
+            value={settings.intelWarningPercent}
+          />
+          <NumberSetting
             label="Ask about a mission after this many days without activity"
             minimum={1}
             onInvalid={setSaveError}

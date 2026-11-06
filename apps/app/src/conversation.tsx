@@ -6,6 +6,7 @@ import { newRequestId, type ServiceClient } from "./client";
 import { Composer, StateBadge } from "./controls";
 import { type Entry, EntryView, entriesOf } from "./conversationEntries";
 import { effortLabel, modelLabels, usageDetail } from "./formatting";
+import { IntelIcon, IntelScreen } from "./intel";
 import { JournalScreen } from "./journal";
 import { MissionEndingActions, MissionTitle } from "./missionActions";
 import { styles } from "./styles";
@@ -64,10 +65,12 @@ function ThreadPane({
   onDeleted,
   onOpenMission,
   onOpenBudget,
+  onOpenIntel,
 }: {
   client: ServiceClient;
   onDeleted: () => void;
   onOpenBudget: () => void;
+  onOpenIntel: () => void;
   onOpenMission: (missionId: MissionId) => void;
   detail: MissionDetail;
   onSelect: (threadId: ThreadId) => void;
@@ -98,6 +101,7 @@ function ThreadPane({
         <Text numberOfLines={1} style={[styles.paneTitle, styles.flex]}>
           {thread.title}
         </Text>
+        <IntelIcon gauge={detail.intelGauge} onPress={onOpenIntel} />
         <StateBadge state={thread.state} />
         {canStop && (
           <Pressable onPress={() => act(client.request({ _tag: "StopThread", threadId: thread.id }))}>
@@ -208,6 +212,7 @@ export function Conversation({
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
   const [selectedId, setSelectedId] = useState<ThreadId | null>(null);
   const [isJournalOpen, setIsJournalOpen] = useState(false);
+  const [intelThread, setIntelThread] = useState<{ id: ThreadId; title: string } | null>(null);
   const [budgetScope, setBudgetScope] = useState<BudgetScope | null>(null);
   const { data, error } = useServiceQuery(
     client,
@@ -223,6 +228,16 @@ export function Conversation({
         missionId={budgetScope === "Mission" ? missionId : null}
         onBack={() => setBudgetScope(null)}
         title={budgetScope === "Mission" ? `Budget · ${data?.mission.title ?? ""}` : "Global budget"}
+      />
+    );
+  }
+  if (intelThread !== null) {
+    return (
+      <IntelScreen
+        client={client}
+        onBack={() => setIntelThread(null)}
+        threadId={intelThread.id}
+        title={`Intel · ${intelThread.title}`}
       />
     );
   }
@@ -274,6 +289,7 @@ export function Conversation({
               key={detail.thread.id}
               onDeleted={() => (detail.thread.parentId === null ? onBack() : setSelectedId(detail.thread.parentId))}
               onOpenBudget={() => setBudgetScope(detail.budgetStop?.scope ?? "Mission")}
+              onOpenIntel={() => setIntelThread({ id: detail.thread.id, title: detail.thread.title })}
               onOpenMission={onOpenMission}
               onSelect={setSelectedId}
             />

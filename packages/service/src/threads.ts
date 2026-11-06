@@ -11,6 +11,7 @@ import { Endpoints } from "./endpoints.ts";
 import { invalid, type ServiceFailure } from "./errors.ts";
 import { Harness, type HarnessEvent, type TurnOutcome } from "./execution.ts";
 import { threadInstructionsOf } from "./instructions.ts";
+import { intelContextOf } from "./intel.ts";
 import { journalContextOf } from "./journal.ts";
 import {
   endTurn,
@@ -297,8 +298,9 @@ export const threadsLayer = Layer.effect(
         const prepared = yield* prepareWorkingFolder(workspace, join(scratchRoot, turn.missionId));
         const { cwd } = prepared;
         const journal = yield* journalContextOf(threadId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
+        const intel = yield* intelContextOf(threadId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
         const budget = yield* budgetLineOf(turn.missionId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
-        const context = [prepared.context, threadInstructionsOf(yield* readPosition(threadId)), journal]
+        const context = [prepared.context, threadInstructionsOf(yield* readPosition(threadId)), journal, intel]
           .filter((part) => part !== null)
           .join("\n\n");
         const mcpUrl = yield* endpoints.urlFor(threadId);

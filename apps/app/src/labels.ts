@@ -1,4 +1,10 @@
-import type { BudgetLimits, SuggestionOutcome } from "@openmission/contracts";
+import type {
+  BudgetLimits,
+  IntelChange,
+  IntelChangeStatus,
+  IntelGauge,
+  SuggestionOutcome,
+} from "@openmission/contracts";
 
 const threadsOf = (count: number) => (count === 1 ? "1 thread" : `${count} threads`);
 
@@ -65,3 +71,31 @@ export const raisedLimitsOf = (limits: BudgetLimits, factor: number): BudgetLimi
   cost: limits.cost === null ? null : Math.round(limits.cost * factor * 100) / 100,
   tokens: limits.tokens === null ? null : Math.ceil(limits.tokens * factor),
 });
+
+/** What a thread's change to intel does, for example "Save intel to Global" (scoped-intel). */
+export const intelActionOf = (change: Pick<IntelChange, "kind" | "previousText" | "scopeLabel" | "text">) =>
+  change.kind === "Save"
+    ? `Save intel to ${change.scopeLabel}`
+    : change.kind === "Forget"
+      ? `Delete intel from ${change.scopeLabel}`
+      : change.previousText === change.text
+        ? `Move intel to ${change.scopeLabel}`
+        : `Correct intel in ${change.scopeLabel}`;
+
+const intelStatusLabels = {
+  Approved: " · approved",
+  Awaiting: " · awaiting your approval",
+  Declined: " · declined",
+  Done: "",
+} as const satisfies Record<IntelChangeStatus, string>;
+
+/** A thread's change to intel as one line in its conversation, for example "Save intel to Global · approved". */
+export const intelChangeLineOf = (
+  change: Pick<IntelChange, "kind" | "previousText" | "scopeLabel" | "status" | "text">,
+) => `${intelActionOf(change)}${intelStatusLabels[change.status]}`;
+
+/** The intel icon's text: the count and its share of the model's context window, for example "Intel · 3 · 0.2%". */
+export const intelGaugeLabelOf = (gauge: Pick<IntelGauge, "count" | "tokens" | "windowTokens">) => {
+  const percent = (gauge.tokens * 100) / gauge.windowTokens;
+  return `Intel · ${gauge.count} · ${percent === 0 ? "0" : percent < 0.1 ? "<0.1" : percent.toFixed(1)}%`;
+};

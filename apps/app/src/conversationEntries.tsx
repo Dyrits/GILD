@@ -1,5 +1,6 @@
 import type {
   BudgetEvent,
+  IntelChange,
   Message,
   MissionDetail,
   MissionId,
@@ -9,6 +10,7 @@ import type {
 } from "@openmission/contracts";
 import { Text, View } from "react-native";
 import type { ServiceClient } from "./client";
+import { IntelChangeCard, IntelChangeLine } from "./intel";
 import { QuestionCard, QuestionLine } from "./questions";
 import { styles } from "./styles";
 import { SuggestionCard, SuggestionLine } from "./suggestions";
@@ -19,9 +21,10 @@ export type Entry = { key: string; at: number } & (
   | { _tag: "Question"; question: Question }
   | { _tag: "Suggestion"; suggestion: Suggestion }
   | { _tag: "BudgetEvent"; event: BudgetEvent }
+  | { _tag: "IntelChange"; change: IntelChange }
 );
 
-/** Messages, questions, off-topic suggestions, and budget lines in the order they happened. */
+/** Messages, questions, off-topic suggestions, budget lines, and intel changes in the order they happened. */
 export const entriesOf = (detail: MissionDetail): Array<Entry> =>
   [
     ...detail.messages.map((message): Entry => ({ _tag: "Message", at: message.sentAt, key: message.id, message })),
@@ -32,6 +35,7 @@ export const entriesOf = (detail: MissionDetail): Array<Entry> =>
       (suggestion): Entry => ({ _tag: "Suggestion", at: suggestion.askedAt, key: suggestion.id, suggestion }),
     ),
     ...detail.budgetEvents.map((event): Entry => ({ _tag: "BudgetEvent", at: event.at, event, key: event.id })),
+    ...detail.intelChanges.map((change): Entry => ({ _tag: "IntelChange", at: change.at, change, key: change.id })),
   ].sort((a, b) => a.at - b.at);
 
 const shortened = (title: string) => (title.length > 60 ? `${title.slice(0, 59)}…` : title);
@@ -75,6 +79,12 @@ export function EntryView({
           {entry.event.text} · {new Date(entry.event.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
         </Text>
       </View>
+    );
+  if (entry._tag === "IntelChange")
+    return entry.change.status === "Awaiting" ? (
+      <IntelChangeCard change={entry.change} client={client} />
+    ) : (
+      <IntelChangeLine change={entry.change} />
     );
   if (entry._tag === "Suggestion")
     return entry.suggestion.outcome === null ? (

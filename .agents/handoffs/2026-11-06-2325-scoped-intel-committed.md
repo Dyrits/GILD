@@ -1,0 +1,45 @@
+# Handoff: batch 12 (scoped intel) built, committed, awaiting the owner's acceptance
+
+Supersedes: `2026-11-06-2310-scoped-intel.md`
+Workspace: /Volumes/APFS-G-DRIVE/Codelab/Dyrits/OpenMission, branch `main`
+
+To resume: read this whole file first. Treat every claim in State not marked verified as unverified, and check it against the Sources. Read the superseded handoff only when something here cannot be resolved from this file and its Sources. Confirm what was in flight and what you will do next with the user before starting. Never edit this file: a later state goes into a new handoff.
+
+## Goal
+
+The owner wants an MVP fast and adjusts afterwards; for this session: "build, step by step and we verify it works. The look and feel will be adjusted later. Don't ask any question for this session, build what is next." An agent chose scoped intel as batch 12, built it test-first, and drove it in the window.
+
+## State
+
+- Verified by command output just before this handoff: `bun run test` passed 237 with 5 opt-in live tests skipped; `bun run typecheck`, `bun run check`, `git diff --check`, the desktop build, and `CI=1 bunx expo export --platform web` passed; 12 of 12 mutations caught.
+- Verified in the Electron window on the fake harness: every claim C1–C10 of the proof.
+- Assumed: all batch 12 work and this handoff are committed and pushed to `main` on the owner's request ("You can hand-off, commit and push") in the commit that adds this file. Check with `git log -1` and `git status -sb`. `.zcode/` stays untracked.
+- Not agreed or accepted by the owner: batch 12 and its provisional choices (CHG-0049, work-in-progress Batch 12).
+- Not verified: a live Claude Code thread using the intel tools; a model with a larger context window (all count 200,000).
+- Drive processes this session started (Metro on 8083, Electron on 9335/9336) were stopped. Other Electron instances (a default one with Metro on 8081, one on 9333) were running before and were left alone.
+
+## Decisions
+
+- Provisional, listed in work-in-progress (Batch 12): `mission` as a scope name; widening order thread, mission, workspace, global; global changes wait without blocking the thread and the thread is not told the decision; every model counts 200,000 tokens; owner edits leave no thread line; `search_intel` matches shared words; intel is part of every turn's context.
+- Structure (`documentation/architecture.md`, Inside the local service): `intel.ts` (scope chain, recall, gauge), `intelChanges.ts` (thread and owner changes, approvals), `intelViews.ts` (panel, thread lines, search), `intelTools.ts` (tool answers). No module-load cycle: `intel.ts` imports neither of the others.
+- Migration `0016_scoped_intel`: tables `intels` and `intel_changes`, no foreign keys; `deleting.ts` erases a deleted thread's intel and changes.
+
+## Next
+
+1. Ask the owner to agree and accept batch 12 with its provisional choices (proof: `documentation/verification/2026-11-06-scoped-intel.md`); record the acceptance in the changelog.
+2. Next feature batch, candidates: Tidy up intel plus the starting-context warning (finishes scoped-intel), tool-and-skill-loading, mission-coordination (Control), thread-handover.
+3. With approval, the live Claude Code checks still listed as not verified in batches 10–12.
+
+## Open questions
+
+- Another session was revising `documentation/capabilities/scoped-intel/specifications.md` (intel kinds, fading, a global index, duplicates) and `documentation/glossary.md`, and adding `documentation/inspirations.md`, all uncommitted and left out of this commit. Batch 12 was built against the committed specification; once that revision is agreed, the gap becomes the next intel batch. The owner or that session can say where it stands.
+- Carried over from the superseded handoff: no test for withdrawing a suggestion when a turn fails; the batch 11 proof's observations; the open questions in work-in-progress.
+
+## Sources
+
+- `documentation/changelog.md` (CHG-0049)
+- `documentation/work-in-progress.md` (Batch 12)
+- `documentation/verification/2026-11-06-scoped-intel.md` and its folder (screenshots, `mutations.py`, `mutations.txt`)
+- `documentation/capabilities/scoped-intel/specifications.md`
+- `packages/service/src/intel.ts`, `intelChanges.ts`, `intelViews.ts`, `intelTools.ts`, `threadTools.ts`, `store.ts` (migration 0016); `packages/contracts/src/intel.ts`; `apps/app/src/intel.tsx`
+- `packages/service/test/intel.test.ts`

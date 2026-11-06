@@ -255,6 +255,38 @@ const migrations = {
     yield* sql`CREATE INDEX usage_mission ON usage (mission_id)`;
     yield* sql`CREATE INDEX usage_ended ON usage (ended_at)`;
   }),
+  // Scoped intel: each intel at its scope, and each thread's change to intel, done or awaiting the owner.
+  // The thread and workspace columns carry no reference: deleting a thread erases its intel explicitly.
+  "0016_scoped_intel": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE intels (
+      id TEXT PRIMARY KEY,
+      scope TEXT NOT NULL,
+      thread_id TEXT,
+      workspace_id TEXT,
+      text TEXT NOT NULL,
+      saved_by_thread_id TEXT,
+      saved_by_title TEXT,
+      saved_at INTEGER NOT NULL,
+      updated_at INTEGER NOT NULL
+    )`;
+    yield* sql`CREATE INDEX intels_thread ON intels (thread_id)`;
+    yield* sql`CREATE TABLE intel_changes (
+      id TEXT PRIMARY KEY,
+      thread_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      status TEXT NOT NULL,
+      intel_id TEXT,
+      scope TEXT NOT NULL,
+      scope_thread_id TEXT,
+      scope_workspace_id TEXT,
+      text TEXT NOT NULL,
+      previous_text TEXT,
+      at INTEGER NOT NULL,
+      resolved_at INTEGER
+    )`;
+    yield* sql`CREATE INDEX intel_changes_thread ON intel_changes (thread_id)`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

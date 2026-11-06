@@ -33,3 +33,11 @@ export type SuggestionId = typeof SuggestionId.Type;
 /** Identifies a reached budget's stop and its question. */
 export const BudgetStopId = Schema.String.pipe(Schema.brand("BudgetStopId"));
 export type BudgetStopId = typeof BudgetStopId.Type;
+
+/** Identifies an intel (scoped-intel). */
+export const IntelId = Schema.String.pipe(Schema.brand("IntelId"));
+export type IntelId = typeof IntelId.Type;
+
+/** Identifies a thread's change to intel, done or awaiting the owner's approval (scoped-intel). */
+export const IntelChangeId = Schema.String.pipe(Schema.brand("IntelChangeId"));
+export type IntelChangeId = typeof IntelChangeId.Type;

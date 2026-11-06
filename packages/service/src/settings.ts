@@ -18,6 +18,7 @@ export const defaultSettings: Settings = {
   globalBudget: { cost: null, tokens: null },
   globalBudgetPeriod: "Month",
   inactivityDays: 14,
+  intelWarningPercent: 10,
   shouldAutoArchive: false,
   shouldOpenOffTopicMissions: false,
   shouldShowAgentThreads: true,

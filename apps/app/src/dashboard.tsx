@@ -97,6 +97,7 @@ export function Dashboard({
   onBack,
   onOpen,
   onSettings,
+  onIntel,
 }: {
   client: ServiceClient;
   isArchived: boolean;
@@ -104,6 +105,8 @@ export function Dashboard({
   onBack: () => void;
   onOpen: (id: MissionId) => void;
   onSettings: () => void;
+  /** Opens the intel panel with all intel. */
+  onIntel: () => void;
 }) {
   const [search, setSearch] = useState("");
   const [state, setState] = useState<MissionState | null>(null);
@@ -141,6 +144,11 @@ export function Dashboard({
         {!isArchived && (
           <Pressable onPress={onArchived}>
             <Text style={styles.link}>Archived</Text>
+          </Pressable>
+        )}
+        {!isArchived && (
+          <Pressable onPress={onIntel}>
+            <Text style={styles.link}>Intel</Text>
           </Pressable>
         )}
         <Pressable onPress={onSettings}>

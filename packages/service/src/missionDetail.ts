@@ -4,6 +4,8 @@ import { SqlClient } from "effect/sql";
 import { listBudgetEvents, readHeldStop } from "./budgetViews.ts";
 import { readChatter } from "./chatter.ts";
 import { notFound } from "./errors.ts";
+import { readGauge } from "./intel.ts";
+import { listThreadIntelChanges } from "./intelViews.ts";
 import { threadActionsOf } from "./lifecycle.ts";
 import { listMissionSummaries } from "./missions.ts";
 import { listThreadQuestions } from "./questions.ts";
@@ -63,6 +65,8 @@ export const readMission = (missionId: string, threadId: string | null) =>
       budgetEvents: selected.parentId === null ? yield* listBudgetEvents(missionId) : [],
       budgetStop: yield* readHeldStop(selected.id),
       chatter: yield* readChatter(selected.id),
+      intelChanges: yield* listThreadIntelChanges(selected.id),
+      intelGauge: yield* readGauge(selected.id),
       messages: messages.map((message) => ({
         ...message,
         isQueued: message.isQueued === 1,

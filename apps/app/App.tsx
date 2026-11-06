@@ -4,6 +4,7 @@ import { StyleSheet, Text, View } from "react-native";
 import { ServiceClient } from "./src/client";
 import { Conversation } from "./src/conversation";
 import { Dashboard } from "./src/dashboard";
+import { IntelScreen } from "./src/intel";
 import { useAttentionNotice } from "./src/notifications";
 import { PermissionsScreen } from "./src/permissions";
 import { SettingsScreen } from "./src/settings";
@@ -15,6 +16,7 @@ export default function App() {
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
   const [isArchivedOpen, setIsArchivedOpen] = useState(false);
+  const [isIntelOpen, setIsIntelOpen] = useState(false);
   useAttentionNotice(client);
 
   useEffect(() => {
@@ -27,6 +29,9 @@ export default function App() {
         <Text>{failure ?? "Connecting to the local service…"}</Text>
       </View>
     );
+  }
+  if (isIntelOpen) {
+    return <IntelScreen client={client} onBack={() => setIsIntelOpen(false)} threadId={null} title="All intel" />;
   }
   if (isPermissionsOpen) return <PermissionsScreen client={client} onBack={() => setIsPermissionsOpen(false)} />;
   if (isSettingsOpen) {
@@ -45,6 +50,7 @@ export default function App() {
       key={isArchivedOpen ? "archived" : "missions"}
       onArchived={() => setIsArchivedOpen(true)}
       onBack={() => setIsArchivedOpen(false)}
+      onIntel={() => setIsIntelOpen(true)}
       onOpen={setOpenMission}
       onSettings={() => setIsSettingsOpen(true)}
     />

@@ -4,6 +4,8 @@ import {
   budgetUseTextOf,
   deletionQuestionOf,
   foldedLabelOf,
+  intelChangeLineOf,
+  intelGaugeLabelOf,
   journalAuthorOf,
   meterLevelOf,
   promptQuestionOf,
@@ -78,5 +80,27 @@ describe("budget meters", () => {
   it("raises each set limit by the factor and leaves an empty one empty", () => {
     expect(raisedLimitsOf({ cost: 2, tokens: null }, 1.5)).toEqual({ cost: 3, tokens: null });
     expect(raisedLimitsOf({ cost: null, tokens: 1000 }, 1.25)).toEqual({ cost: null, tokens: 1250 });
+  });
+});
+
+describe("intel labels", () => {
+  const change = { kind: "Save", previousText: null, scopeLabel: "Global", status: "Done", text: "A fact." } as const;
+
+  it("names each kind of change with its scope and status", () => {
+    expect(intelChangeLineOf(change)).toBe("Save intel to Global");
+    expect(intelChangeLineOf({ ...change, status: "Awaiting" })).toBe("Save intel to Global · awaiting your approval");
+    expect(intelChangeLineOf({ ...change, kind: "Forget", status: "Declined" })).toBe(
+      "Delete intel from Global · declined",
+    );
+    expect(intelChangeLineOf({ ...change, kind: "Update", previousText: "Old.", status: "Approved" })).toBe(
+      "Correct intel in Global · approved",
+    );
+    expect(intelChangeLineOf({ ...change, kind: "Update", previousText: "A fact." })).toBe("Move intel to Global");
+  });
+
+  it("gives the intel count and its share of the context window", () => {
+    expect(intelGaugeLabelOf({ count: 0, tokens: 0, windowTokens: 200_000 })).toBe("Intel · 0 · 0%");
+    expect(intelGaugeLabelOf({ count: 2, tokens: 100, windowTokens: 200_000 })).toBe("Intel · 2 · <0.1%");
+    expect(intelGaugeLabelOf({ count: 9, tokens: 21_000, windowTokens: 200_000 })).toBe("Intel · 9 · 10.5%");
   });
 });

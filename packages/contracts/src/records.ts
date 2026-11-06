@@ -1,6 +1,7 @@
 import { Schema } from "effect";
 import { BudgetEvent, BudgetLimits, BudgetPeriod, BudgetStop, BudgetUse } from "./budgets.ts";
 import { MessageId, MissionId, SuggestionId, ThreadId, WorkspaceId } from "./ids.ts";
+import { IntelChange, IntelGauge } from "./intel.ts";
 import { ApprovalLevel, Question } from "./questions.ts";
 import { Workspace, WorkspaceChoice } from "./workspaces.ts";
 
@@ -58,6 +59,8 @@ export const Settings = Schema.Struct({
   globalBudgetPeriod: BudgetPeriod,
   /** Days without activity before the dashboard asks to archive or mark a mission done (mission-tracking). */
   inactivityDays: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+  /** The share of the chosen model's context window, in percent, past which a thread's intel icon turns red (scoped-intel). */
+  intelWarningPercent: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1), Schema.isLessThanOrEqualTo(100)),
   /** Whether Done missions are archived automatically, off by default (mission-tracking, Ending a mission). */
   shouldAutoArchive: Schema.Boolean,
   /** Whether an off-topic request opens a new mission without asking when no mission matches (thread-tree). */
@@ -256,6 +259,10 @@ export const MissionDetail = Schema.Struct({
   /** The mission's open budget stop when the selected thread holds its question. */
   budgetStop: Schema.NullOr(BudgetStop),
   chatter: Schema.Array(ChatterNotice),
+  /** The selected thread's changes to intel, done and awaiting approval, in the order made. */
+  intelChanges: Schema.Array(IntelChange),
+  /** How much of its model's context window the intel in the selected thread's scope takes. */
+  intelGauge: IntelGauge,
   /** The selected thread's messages. */
   messages: Schema.Array(Message),
   mission: MissionSummary,

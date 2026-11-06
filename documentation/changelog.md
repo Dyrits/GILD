@@ -646,3 +646,33 @@ Summary: Fixes the eight findings of the review of batches 9–11, test-first, a
 References: documentation/work-in-progress.md (Review, fixes, and architecture after batch 11); documentation/verification/2026-11-06-review-fixes.md; documentation/architecture-audit/architecture-audit-2026-11-06-1959.html; documentation/architecture.md (Inside the local service)
 Validation: `bun run test` passed 216 with 5 skipped; typecheck, `bun run check`, the desktop build, and a Metro web export passed; each test file passes alone and the service has no module-load cycle; 10 of 10 mutations caught; the standards and specifications reviewers re-checked the result. Not verified live with Claude Code.
 Evidence: The owner's request "Fix everything." after the review report.
+
+## CHG-0049 · 2026-11-06 · Batch 12 built: scoped intel
+
+Type: Code
+Event: Delivery
+Scope: First slice, batch 12; Scoped intel
+
+Summary: Scoped intel as built and listed in work-in-progress (Batch 12): intel at thread, mission, workspace, or global scope; `save_intel`, `search_intel`, `update_intel`, and `forget_intel`; global saves, changes, and deletions and every widening wait for the owner's approval in the thread and the intel panel; every turn's context carries the intel in scope, most specific first; a 200-token limit per intel; the intel icon with its warning setting; the intel panel with filters, Edit, and Delete. Tidy up intel and the starting-context warning are staged. Chosen by an agent under the owner's instruction to build what is next without questions; not yet agreed or accepted by the owner.
+References: documentation/capabilities/scoped-intel/specifications.md; documentation/work-in-progress.md (Batch 12); documentation/verification/2026-11-06-scoped-intel.md
+Validation: `bun run test` passed 237 with 5 skipped; typecheck, `bun run check`, the desktop build, and a Metro web export passed; 12 of 12 mutations caught. Driven in the window on the fake harness. Not verified: a live Claude Code thread using the intel tools; a model with a larger context window.
+Evidence: The owner's instruction of 2026-11-06: "For now, we build, step by step and we verify it works. The look and feel will be adjusted later. Don't ask any question for this session, build what is next."
+
+## CHG-0050 · 2026-11-06 · Intel over time specified; inspirations listed
+
+Type: Documentation
+Event: Agreement
+Scope: Scoped intel; Glossary; Backlog; Inspirations
+
+Summary: Scoped intel gains rules for intel over time, after reading Rerun, souls.house's hearth guide, and Timon:
+- intel kinds (rule, preference, decision, fact, temporary) with half-lives, and pinning;
+- global intel in context as an index, read in full through `search_intel`, new lines added at the end;
+- fading by real use only, dormant and archived intel, never deleted by fading;
+- honest skips, recorded origin, and duplicates saved as replacements, global ones approved;
+- widening and narrowing proposed from evidence; history with undo; ranked search;
+- Tidy up intel as an optional routine that only prepares a proposal.
+Adds `documentation/inspirations.md`, listing the products OpenMission follows, their good ideas, what was taken, and what to check on. Capsules and journal compression go to the backlog. The half-lives are starting values, adjustable in settings.
+Reason: Global intel grows across every workspace; carrying all of it in every turn does not scale.
+References: documentation/capabilities/scoped-intel/specifications.md; documentation/inspirations.md; documentation/glossary.md (Intel); documentation/backlog.md
+Validation: Requested by the owner on 2026-11-06. Not built; batch 12 still carries every intel in full.
+Evidence: The owner's request "Yes, you can update the documentation to have better memory management. Also, would be nice to mention tools we are following and getting inspired by, in order to take the good ideas and see what interesting feature they already have or will release in the future."

@@ -33,6 +33,10 @@ const definitionOf = <S extends Schema.ConstraintDecoder<unknown> & Schema.Top>(
 
 const invalid = (text: string): ToolAnswer => ({ isError: true, text });
 
+const ToolScope = Schema.Literals(["thread", "mission", "workspace", "global"]);
+const scopeHelp =
+  "thread: you and the threads beneath you; mission: every thread of this mission; workspace: every thread in this folder, in any mission; global: everywhere, after the owner's approval.";
+
 /** Every thread tool, by name. */
 export const threadTools = {
   answer_prompt: definitionOf({
@@ -52,6 +56,13 @@ export const threadTools = {
     invalid: invalid("Invalid arguments: give request."),
     isUnasked: true,
     schema: Schema.Struct({ request: text("The off-topic part of the owner's message.") }),
+  }),
+  forget_intel: definitionOf({
+    description:
+      "Delete an intel that no longer holds, by its id. Thread and workspace intel go at once; deleting a global intel waits for the owner's approval.",
+    invalid: invalid("Invalid arguments: give id."),
+    isUnasked: true,
+    schema: Schema.Struct({ id: text("The intel's id, as your context or search_intel gives it.") }),
   }),
   interrupt_thread: definitionOf({
     description:
@@ -116,6 +127,26 @@ export const threadTools = {
       ),
     }),
   }),
+  save_intel: definitionOf({
+    description:
+      "Save one fact, preference, or decision that later work should know, at the narrowest scope that fits. Thread, mission, and workspace intel are saved at once; global intel waits for the owner's approval.",
+    invalid: invalid("Invalid arguments: give text and scope (thread, mission, workspace, or global)."),
+    isUnasked: true,
+    schema: Schema.Struct({
+      scope: ToolScope.annotate({ description: `Where it applies. ${scopeHelp}` }),
+      text: text("One fact, at most 200 tokens."),
+    }),
+  }),
+  search_intel: definitionOf({
+    description:
+      "Search the intel in your scope by words: your thread, the threads above you, your workspace, then global, most specific first.",
+    invalid: invalid("Invalid arguments: give query, and optionally scope (thread, mission, workspace, or global)."),
+    isUnasked: true,
+    schema: Schema.Struct({
+      query: text("Words to look for."),
+      scope: Schema.optionalKey(ToolScope.annotate({ description: `Only intel of this scope. ${scopeHelp}` })),
+    }),
+  }),
   send_thread_message: definitionOf({
     description:
       "Send a message to your parent thread or to a thread directly beneath you, by its id. It joins that thread's current turn if it is running, and wakes it if it is idle.",
@@ -143,6 +174,17 @@ export const threadTools = {
       ),
       text: text("The off-topic part of the owner's message, as written."),
       title: text("A short title of a few words for a new mission or aside."),
+    }),
+  }),
+  update_intel: definitionOf({
+    description:
+      "Correct an intel's text, or propose a wider scope for it when it is not specific to where it was saved. Thread and workspace corrections apply at once; a change to global intel and every widening wait for the owner's approval.",
+    invalid: invalid("Invalid arguments: give id, and text, scope, or both."),
+    isUnasked: true,
+    schema: Schema.Struct({
+      id: text("The intel's id, as your context or search_intel gives it."),
+      scope: Schema.optionalKey(ToolScope.annotate({ description: `A wider scope to move it to. ${scopeHelp}` })),
+      text: optionalText("The corrected text, one fact, at most 200 tokens."),
     }),
   }),
   update_journal: definitionOf({

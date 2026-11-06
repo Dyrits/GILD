@@ -296,6 +296,45 @@ Fixed point `63d4b15` to `083003f`, reviewed on two axes, then fixed and refacto
 - Files over about 250 lines: `claude.ts`, `threads.ts`, `approvals.ts`, `requests.ts`, `conversation.tsx`, `service.ts`, `store.ts`, `records.ts`, `suggestions.ts`. Most of `claude.ts`, `threads.ts`, `approvals.ts`, and `store.ts` predates this work.
 - Not verified live: a Claude Code turn with the budget line in its message.
 
+## Batch 12: built, awaiting the owner
+
+Scoped intel (scoped-intel specifications), chosen by an agent under the owner's instruction of 2026-11-06 ("build what is next", no questions this session); not yet agreed by the owner. Built test-first and driven in the window on the fake harness: [proof](verification/2026-11-06-scoped-intel.md). Uncommitted, on `554a28c`. Recorded in CHG-0049.
+
+### Behavior
+
+- **Scopes**: an intel belongs to a thread (and the threads beneath it), a workspace, or global; intel on the mission's top thread applies to the whole mission.
+- **Thread tools**: `save_intel` (text, scope `thread`, `mission`, `workspace`, or `global`), `search_intel` (query, optional scope), `update_intel` (id, text, wider scope, or both), `forget_intel` (id).
+- **Saving**: thread, mission, and workspace intel are saved at once and shown in the thread as a line; a global save answers "Awaiting approval" and shows as a card with **Approve** and **Decline** in its thread and in the intel panel. At most 200 tokens per intel (4 characters per token). Workspace intel is refused for a thread without a workspace.
+- **Recall**: every turn's context carries all the intel in the thread's scope, most specific first, saying the first listed wins a conflict, with the rules: narrowest scope, a rule the owner gives in a chat saved without asking, correct, delete, propose widening, and where the mission stands belongs in the journal.
+- **Correcting and deleting**: a thread changes or deletes thread and workspace intel in its scope at once; a change to or deletion of global intel waits for approval; intel outside its scope is refused.
+- **Widening**: `update_intel` with a wider scope waits for approval; a narrower or equal scope is refused.
+- **Size warning**: Settings **Intel warning** (default 10%); the thread header's **Intel · N · P%** turns red when the intel in scope takes more than that share of the model's context window, and opens the intel panel for that thread.
+- **Intel panel**: from the thread's intel icon (that thread's scope, most specific first, with its gauge) or the dashboard's **Intel** link (all intel). Changes awaiting approval first, then each intel with scope, saver, time, and size; filters All, Thread and mission, Workspace, Global; **Edit** and **Delete** on any intel.
+- **Deleting a thread** erases its own intel and its changes, awaiting or done.
+
+### Provisional, until the owner decides
+
+- Every model counts a 200,000-token context window until harnesses report theirs (backlog, Thread panel and context gauge).
+- `mission` is a scope name for threads: thread intel on the top thread. Widening counts thread, mission, workspace, global in that order.
+- A global change waits without blocking the thread, which carries on; the thread is not told the owner's decision, and an approved intel reaches it at its next turn.
+- Approving a change to an intel deleted meanwhile records it as declined.
+- The owner's edits and deletions apply at once and leave no line in a thread; the owner cannot add intel from the panel.
+- `search_intel` matches shared words, as `find_missions` does; no full-text index yet.
+- Intel recall is part of every turn's context, like the journal, not only a new thread's first turn.
+
+### Staged
+
+- **Tidy up intel** from the panel (scoped-intel, Intel panel).
+- The warning before a thread starts with too large a starting context (thread-tree, Opening a thread).
+- Standing permissions for global intel changes (scoped-intel, Requirements).
+
+### Checks
+
+- Automated with the fake harness: 19 checks in `intel.test.ts`; 2 label checks.
+- `bun run test` (237 passed, 5 skipped), `bun run typecheck`, `bun run check`, desktop build, Metro web export; 12 of 12 mutations caught.
+- Driven in the window on the fake harness: see the proof.
+- Not run: a live Claude Code thread using the intel tools.
+
 ## Open questions, settled when a batch needs them
 
 - Dependency gates and fake-first live launch (first-slice-design, Dependency gates).

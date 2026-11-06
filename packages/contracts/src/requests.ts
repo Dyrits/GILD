@@ -2,6 +2,8 @@ import { Schema } from "effect";
 import { BudgetLimits, BudgetWindow } from "./budgets.ts";
 import {
   BudgetStopId,
+  IntelChangeId,
+  IntelId,
   MessageId,
   MissionId,
   PermissionId,
@@ -10,6 +12,7 @@ import {
   ThreadId,
   WorkspaceId,
 } from "./ids.ts";
+import { IntelScope, IntelView } from "./intel.ts";
 import { JournalView } from "./journal.ts";
 import { PermissionsView, Question } from "./questions.ts";
 import {
@@ -131,6 +134,21 @@ export const AddJournalEntry = Schema.TaggedStruct("AddJournalEntry", {
   text: MessageText,
 });
 
+/** The intel panel: the intel in a thread's scope, most specific first, or all intel; filtered by scope. */
+export const ListIntel = Schema.TaggedStruct("ListIntel", {
+  scope: Schema.NullOr(IntelScope),
+  threadId: Schema.NullOr(ThreadId),
+});
+/** The owner corrects an intel's text. */
+export const EditIntel = Schema.TaggedStruct("EditIntel", { intelId: IntelId, text: MessageText });
+/** The owner deletes an intel. */
+export const DeleteIntel = Schema.TaggedStruct("DeleteIntel", { intelId: IntelId });
+/** The owner approves or declines a thread's change awaiting approval: a global save, change, or deletion, or a widening. */
+export const ResolveIntelChange = Schema.TaggedStruct("ResolveIntelChange", {
+  changeId: IntelChangeId,
+  isApproved: Schema.Boolean,
+});
+
 /** The owner's answer to one open question. */
 export const Answer = Schema.Literals(["Allow", "AlwaysAllow", "Deny"]);
 export type Answer = typeof Answer.Type;
@@ -209,6 +227,10 @@ export const Request = Schema.Union([
   ReadJournal,
   RewriteBriefing,
   AddJournalEntry,
+  ListIntel,
+  EditIntel,
+  DeleteIntel,
+  ResolveIntelChange,
   AnswerQuestion,
   AnswerSuggestion,
   SetMissionBudget,
@@ -248,10 +270,13 @@ export const Results = {
   AnswerSuggestion: Suggestion,
   BrowseFolders: FolderListing,
   CreateFolder: Folder,
+  DeleteIntel: Schema.Null,
   DeleteThread: Schema.Null,
   DismissMissionPrompt: Schema.Null,
+  EditIntel: Schema.Null,
   EndMission: Schema.Null,
   InterruptThread: Schema.Null,
+  ListIntel: IntelView,
   ListMissions: MissionList,
   ListOpenQuestions: Schema.Array(Question),
   OpenThread: OpenThreadResult,
@@ -267,6 +292,7 @@ export const Results = {
   RenameMission: Schema.Null,
   ReopenMission: Schema.Null,
   ResolveChatter: Schema.Null,
+  ResolveIntelChange: Schema.Null,
   ResumeThread: Schema.Null,
   RetryThread: Schema.Null,
   RewriteBriefing: JournalView,

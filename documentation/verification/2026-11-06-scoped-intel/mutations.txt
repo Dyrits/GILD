@@ -1,0 +1,13 @@
+CAUGHT intelChanges.ts if (isWidening || row.scope === "Global")
+CAUGHT intelChanges.ts if (placement.scope === "Global") {       yield* insertChang
+CAUGHT intelChanges.ts return tokens > intelLimit
+CAUGHT intelChanges.ts     if (row.scope === "Global") {       yield* insertChange(
+CAUGHT intel.ts return rows.toSorted((a, b) => rankOf(a) - rankOf(b));
+CAUGHT intel.ts isOverWarning: tokens * 100 > windowTokens * intelWarningPer
+CAUGHT intel.ts WHERE (i.scope = 'Thread' AND i.thread_id IN ${sql.in(chain.
+CAUGHT intel.ts OR (i.scope = 'Workspace' AND i.workspace_id = ${chain.works
+CAUGHT intel.ts yield* sql`DELETE FROM intels WHERE scope = 'Thread' AND thr
+CAUGHT intel.ts always run the tests before a commit
+CAUGHT intelChanges.ts const isApplied = isApproved && (change.kind === "Save" || t
+CAUGHT intelChanges.ts mission: { scope: "Thread", threadId: chain.topThreadId, wor
+12/12

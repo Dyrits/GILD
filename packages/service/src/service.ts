@@ -14,6 +14,8 @@ import { endpointsLayer } from "./endpoints.ts";
 import { invalid, ServiceFailure } from "./errors.ts";
 import type { Harness } from "./execution.ts";
 import { addBrowsableRoot, browseFolders, createFolder, seedBrowsableRoots } from "./folders.ts";
+import { deleteIntelByOwner, editIntelByOwner, resolveIntelChange } from "./intelChanges.ts";
+import { readIntelView } from "./intelViews.ts";
 import { type JournalOutcome, readJournalView, updateJournal } from "./journal.ts";
 import { toolServerLayer } from "./mcp.ts";
 import { insertUserMessage } from "./messaging.ts";
@@ -130,6 +132,8 @@ const make = Effect.gen(function* () {
             ),
         BrowseFolders: (browse) => browseFolders(browse.path, browse.shouldIncludeHidden),
         CreateFolder: (create) => createFolder(create.parent, create.name),
+        DeleteIntel: (given) =>
+          sql.withTransaction(deleteIntelByOwner(given.intelId)).pipe(Effect.tap(() => changes.publish)),
         DeleteThread: (given) =>
           deleteThread(given.threadId, given.confirmation).pipe(
             Effect.provideService(Threads, threads),
@@ -138,6 +142,8 @@ const make = Effect.gen(function* () {
           ),
         DismissMissionPrompt: (given) =>
           dismissPrompt(given.missionId, given.prompt).pipe(Effect.tap(() => changes.publish)),
+        EditIntel: (given) =>
+          sql.withTransaction(editIntelByOwner(given.intelId, given.text)).pipe(Effect.tap(() => changes.publish)),
         EndMission: (given) =>
           endMission(given.missionId, given.ending, given.snapshot).pipe(
             Effect.provideService(Threads, threads),
@@ -151,6 +157,7 @@ const make = Effect.gen(function* () {
                 isInterrupted ? Effect.succeed(null) : invalid("This thread is not running."),
               ),
             ),
+        ListIntel: (list) => readIntelView(list.scope, list.threadId),
         ListMissions: (filters) => listMissions(filters),
         ListOpenQuestions: () => listOpenQuestions,
         OpenThread: (open) =>
@@ -188,6 +195,10 @@ const make = Effect.gen(function* () {
             Effect.provideService(Threads, threads),
             Effect.provideService(Changes, changes),
           ),
+        ResolveIntelChange: (given) =>
+          sql
+            .withTransaction(resolveIntelChange(given.changeId, given.isApproved))
+            .pipe(Effect.tap(() => changes.publish)),
         ResumeThread: (resume) => threads.resume(resume.threadId).pipe(Effect.as(null)),
         RetryThread: (retry) => threads.retry(retry.threadId).pipe(Effect.as(null)),
         RewriteBriefing: (rewrite) => {
