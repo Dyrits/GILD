@@ -74,6 +74,11 @@ export const deleteThread = Effect.fn("deleteThread")(function* (threadId: strin
       yield* sql`DELETE FROM questions WHERE thread_id IN ${sql.in(ids)}`;
       yield* sql`DELETE FROM usage WHERE turn_id IN (SELECT id FROM turns WHERE thread_id IN ${sql.in(ids)})`;
       yield* sql`DELETE FROM turns WHERE thread_id IN ${sql.in(ids)}`;
+      if (root.parentId === null) {
+        // Before the threads go: the top thread marked as deleting is what lets the entries go (store.ts, 0011).
+        yield* sql`DELETE FROM journal_entries WHERE mission_id = ${root.missionId}`;
+        yield* sql`DELETE FROM journals WHERE mission_id = ${root.missionId}`;
+      }
       for (const row of rows.toReversed()) yield* sql`DELETE FROM threads WHERE id = ${row.id}`;
       if (root.parentId === null) {
         yield* sql`DELETE FROM standing_permissions WHERE mission_id = ${root.missionId}`;

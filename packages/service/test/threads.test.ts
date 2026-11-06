@@ -150,7 +150,9 @@ describe("results and thread messages", () => {
   it.live("sends a reported result to the parent, makes the reporter Done, and wakes the parent", () =>
     Effect.gen(function* () {
       const started = yield* start(
-        tool("open_thread", { request: tool("report_result", { result: "There are 42 files." }) }),
+        tool("open_thread", {
+          request: tool("report_result", { journal: "nothing to record", result: "There are 42 files." }),
+        }),
       );
       const done = yield* settle(started.missionId, (detail) => {
         const child = childrenOf(detail, started.threadId)[0];
@@ -210,7 +212,7 @@ describe("results and thread messages", () => {
 
   it.live("continues a Done thread when a message reaches it", () =>
     Effect.gen(function* () {
-      const started = yield* start(tool("report_result", { result: "Finished." }));
+      const started = yield* start(tool("report_result", { journal: "nothing to record", result: "Finished." }));
       yield* settle(started.missionId, (detail) => detail.thread.state === "Done");
       yield* send(started.threadId, "One more thing");
       const detail = yield* settle(started.missionId, (current) => lastText(current) === "Echo: One more thing");

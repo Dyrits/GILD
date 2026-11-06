@@ -6,6 +6,8 @@ import { SqlClient } from "effect/sql";
 import { Approvals } from "./approvals.ts";
 import { Changes } from "./changes.ts";
 import { countChatter } from "./chatter.ts";
+import { nothingToRecord } from "./journal.ts";
+import { journalToolDefinitions, journalToolsOf } from "./journalTools.ts";
 import { insertMessage } from "./messaging.ts";
 import { isBeneath, isWithinReach, openThreadByAgent, reportResult } from "./tree.ts";
 import { Waker } from "./waker.ts";
@@ -28,10 +30,15 @@ export const toolServerName = "openmission";
 /** The tool name Claude Code's `--permission-prompt-tool` takes. */
 export const promptToolName = `mcp__${toolServerName}__answer_prompt`;
 export const approvalToolName = `mcp__${toolServerName}__request_approval`;
-/** The thread tools a thread uses without asking (thread-tree and thread-messaging; CHG-0037, CHG-0039). */
-export const threadToolNames = ["open_thread", "send_thread_message", "report_result", "interrupt_thread"].map(
-  (name) => `mcp__${toolServerName}__${name}`,
-);
+/** The thread tools a thread uses without asking (thread-tree, thread-messaging, mission-journal; CHG-0037, CHG-0039, CHG-0043). */
+export const threadToolNames = [
+  "open_thread",
+  "send_thread_message",
+  "report_result",
+  "interrupt_thread",
+  "read_journal",
+  "update_journal",
+].map((name) => `mcp__${toolServerName}__${name}`);
 
 const RequestApprovalArguments = Schema.Struct({
   action: Schema.String,
@@ -50,7 +57,7 @@ const OpenThreadArguments = Schema.Struct({
 
 const SendThreadMessageArguments = Schema.Struct({ text: Schema.String, to: Schema.String });
 
-const ReportResultArguments = Schema.Struct({ result: Schema.String });
+const ReportResultArguments = Schema.Struct({ journal: Schema.String, result: Schema.String });
 
 const InterruptThreadArguments = Schema.Struct({ thread: Schema.String });
 
@@ -139,12 +146,16 @@ const tools = [
   },
   {
     description:
-      "When your work is done, report your result to the thread that opened you. You become Done; a later message continues you.",
+      "When your work is done, report your result to the thread that opened you, with an entry for the mission's journal. You become Done; a later message continues you.",
     inputSchema: {
       properties: {
+        journal: {
+          description: `The entry for the mission's journal saying what you did or decided, or exactly "${nothingToRecord}".`,
+          type: "string",
+        },
         result: { description: "The result, complete enough to use without your conversation.", type: "string" },
       },
-      required: ["result"],
+      required: ["result", "journal"],
       type: "object",
     },
     name: "report_result",
@@ -159,6 +170,7 @@ const tools = [
     },
     name: "interrupt_thread",
   },
+  ...journalToolDefinitions,
   {
     description: "Used by Claude Code itself to answer permission prompts. Never call it yourself.",
     inputSchema: {
@@ -243,8 +255,15 @@ export const toolServerLayer = Layer.effect(
       },
       report_result: (threadId, args) => {
         const decoded = decodeReportResult(args);
-        if (Exit.isFailure(decoded)) return Effect.succeed(textResult("Invalid arguments: give result.", true));
-        return commit(reportResult(threadId, decoded.value.result)).pipe(
+        if (Exit.isFailure(decoded) || decoded.value.journal.trim() === "") {
+          return Effect.succeed(
+            textResult(
+              `Not reported: give result, and journal: an entry for the mission's journal, or exactly "${nothingToRecord}".`,
+              true,
+            ),
+          );
+        }
+        return commit(reportResult(threadId, decoded.value.result, decoded.value.journal)).pipe(
           Effect.flatMap((parentId) =>
             parentId === null
               ? Effect.succeed(textResult("Reported. You are the mission's top thread: the owner reads your replies."))
@@ -254,6 +273,13 @@ export const toolServerLayer = Layer.effect(
           ),
         );
       },
+      ...Object.fromEntries(
+        Object.entries(journalToolsOf(commit)).map(([name, answer]) => [
+          name,
+          (threadId: string, args: unknown) =>
+            answer(threadId, args).pipe(Effect.map(({ isError, text }) => textResult(text, isError))),
+        ]),
+      ),
       send_thread_message: (threadId, args) => {
         const decoded = decodeSendThreadMessage(args);
         if (Exit.isFailure(decoded)) return Effect.succeed(textResult("Invalid arguments: give to and text.", true));

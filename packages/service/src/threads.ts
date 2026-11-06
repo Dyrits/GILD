@@ -8,6 +8,7 @@ import { requireChatterDecision } from "./chatter.ts";
 import { invalid, type ServiceFailure } from "./errors.ts";
 import { Harness, type HarnessEvent, type TurnOutcome } from "./execution.ts";
 import { threadInstructionsOf } from "./instructions.ts";
+import { journalContextOf } from "./journal.ts";
 import { makeLifecycle } from "./lifecycle.ts";
 import { ToolServer } from "./mcp.ts";
 import { deliveredTextOf } from "./messaging.ts";
@@ -295,7 +296,8 @@ export const threadsLayer = Layer.effect(
         const workspace = yield* readThreadWorkspace(threadId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
         const prepared = yield* prepareWorkingFolder(workspace, join(scratchRoot, turn.missionId));
         const { cwd } = prepared;
-        const context = `${prepared.context}\n\n${threadInstructionsOf(yield* readPosition(threadId))}`;
+        const journal = yield* journalContextOf(threadId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
+        const context = `${prepared.context}\n\n${threadInstructionsOf(yield* readPosition(threadId))}\n\n${journal}`;
         const mcpUrl = yield* toolServer.urlFor(threadId);
         const onEvent = (event: HarnessEvent) =>
           Match.valueTags(event, {

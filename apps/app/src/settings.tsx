@@ -31,6 +31,7 @@ export function SettingsScreen({
 }) {
   const { data: settings, error } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
   const [threshold, setThreshold] = useState<string | null>(null);
+  const [briefingLimit, setBriefingLimit] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const save = (change: Partial<Settings>) => {
     if (settings === null) return;
@@ -100,6 +101,28 @@ export function SettingsScreen({
                   return;
                 }
                 save({ chatterThreshold: value });
+              }}
+            >
+              <Text style={styles.link}>Save</Text>
+            </Pressable>
+          </View>
+          <Text style={styles.label}>Briefing limit · tokens a mission's briefing may hold</Text>
+          <View style={styles.row}>
+            <TextInput
+              accessibilityLabel="Briefing limit"
+              keyboardType="number-pad"
+              onChangeText={setBriefingLimit}
+              style={styles.input}
+              value={briefingLimit ?? String(settings.briefingLimit)}
+            />
+            <Pressable
+              onPress={() => {
+                const value = Number(briefingLimit ?? settings.briefingLimit);
+                if (!Number.isSafeInteger(value) || value < 1) {
+                  setSaveError("Use a whole number of at least 1.");
+                  return;
+                }
+                save({ briefingLimit: value });
               }}
             >
               <Text style={styles.link}>Save</Text>

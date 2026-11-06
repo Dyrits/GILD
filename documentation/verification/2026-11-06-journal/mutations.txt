@@ -1,0 +1,25 @@
+M1 limit off by one: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 139 passed | 5 skipped (145)
+M2 stale rewrite accepted: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  2 failed | 138 passed | 5 skipped (145)
+M3 empty entry accepted: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 139 passed | 5 skipped (145)
+M4 token estimate per 3 characters: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  2 failed | 138 passed | 5 skipped (145)
+M5 starting context with 19 entries: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 139 passed | 5 skipped (145)
+M6 opener messages from before the entry: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 139 passed | 5 skipped (145)
+M7 opener messages left out: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 139 passed | 5 skipped (145)
+M8 result entry not recorded: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 139 passed | 5 skipped (145)
+M9 entries editable: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 139 passed | 5 skipped (145)
+M10 owner entry by a thread: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 139 passed | 5 skipped (145)
+M11 owner rewrite without default entry: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  2 failed | 138 passed | 5 skipped (145)
+M12 over-limit label missing: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 139 passed | 5 skipped (145)
+restored:       Tests  140 passed | 5 skipped (145)

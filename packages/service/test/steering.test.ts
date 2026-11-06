@@ -135,7 +135,7 @@ describe("steering a running thread", () => {
   it.live("joins a result from a thread beneath to its parent's running turn", () =>
     Effect.gen(function* () {
       const started = yield* start(
-        `${tool("open_thread", { request: tool("report_result", { result: "42" }), title: "Answer" })}\nwait 800`,
+        `${tool("open_thread", { request: tool("report_result", { journal: "nothing to record", result: "42" }), title: "Answer" })}\nwait 800`,
       );
       const detail = yield* settle(started.missionId, isIdleWith(1));
       const [reply] = repliesOf(detail);

@@ -93,7 +93,7 @@ describe("guarding against chatter", () => {
       yield* call({ _tag: "UpdateSettings", settings: { ...settings, chatterThreshold: 2 } });
       const { missionId, threadId, childId } = yield* pair;
       yield* message(threadId, childId);
-      yield* tool(childId, "report_result", { result: "Finished" });
+      yield* tool(childId, "report_result", { journal: "nothing to record", result: "Finished" });
       yield* message(childId, threadId);
       expect((yield* read(missionId)).chatter).toHaveLength(0);
       yield* message(threadId, childId);

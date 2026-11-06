@@ -2,6 +2,7 @@ import type { EffortChoice, ModelChoice, OpenThreadResult, ThreadId } from "@ope
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, notFound } from "./errors.ts";
+import { type JournalAuthor, nothingToRecord, openerMessagesOf, updateJournal } from "./journal.ts";
 import { insertMessage } from "./messaging.ts";
 import { titleOf } from "./missions.ts";
 
@@ -61,9 +62,11 @@ const insertThread = (opening: Opening) =>
     }>`SELECT mission_id AS missionId, model, effort, workspace_id AS workspaceId FROM threads WHERE id = ${opening.parentId} AND is_deleting = 0`;
     if (parent === undefined) return yield* notFound("No such thread.");
     const threadId = crypto.randomUUID();
-    yield* sql`INSERT INTO threads (id, mission_id, parent_id, state, model, effort, workspace_id, title, is_opened_by_agent)
+    const openerMessages = yield* openerMessagesOf(opening.parentId);
+    yield* sql`INSERT INTO threads (id, mission_id, parent_id, state, model, effort, workspace_id, title, is_opened_by_agent, opener_messages)
       VALUES (${threadId}, ${parent.missionId}, ${opening.parentId}, 'Idle', ${opening.model ?? parent.model},
-        ${opening.effort ?? parent.effort}, ${parent.workspaceId}, ${titleOf(opening.title ?? opening.text)}, ${opening.isOpenedByAgent ? 1 : 0})`;
+        ${opening.effort ?? parent.effort}, ${parent.workspaceId}, ${titleOf(opening.title ?? opening.text)}, ${opening.isOpenedByAgent ? 1 : 0},
+        ${openerMessages})`;
     const messageId = yield* insertMessage({
       fromThreadId: opening.isOpenedByAgent ? opening.parentId : null,
       isQueued: false,
@@ -137,17 +140,27 @@ export const isBeneath = (parentId: string, childId: string) =>
     return rows.length > 0;
   });
 
+/** Whether a result's journal answer says there is nothing to record, in any case and with a final period. */
+export const isNothingToRecord = (journal: string) =>
+  journal.trim().toLowerCase().replace(/\.$/, "") === nothingToRecord;
+
 /**
- * Records the caller's result: it goes to the parent as a thread message, and the turn now running ends
- * the caller Done. Returns the parent, or null for a top thread. Callers run it in a transaction.
+ * Records the caller's journal entry, unless it has nothing to record, then its result: it goes to the
+ * parent as a thread message, and the turn now running ends the caller Done. Returns the parent, or null
+ * for a top thread. Callers run it in a transaction.
  */
-export const reportResult = (threadId: string, result: string) =>
+export const reportResult = (threadId: string, result: string, journal: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const [thread] = yield* sql<{
+      missionId: string;
       parentId: string | null;
-    }>`SELECT parent_id AS parentId FROM threads WHERE id = ${threadId}`;
+    }>`SELECT mission_id AS missionId, parent_id AS parentId FROM threads WHERE id = ${threadId}`;
     if (thread === undefined) return yield* notFound("No such thread.");
+    if (!isNothingToRecord(journal)) {
+      const author: JournalAuthor = { kind: "thread", threadId };
+      yield* updateJournal(thread.missionId, author, journal, null);
+    }
     yield* sql`UPDATE threads SET reported_turn_id = (
         SELECT id FROM turns WHERE thread_id = ${threadId} AND status = 'running' ORDER BY started_at DESC LIMIT 1)
       WHERE id = ${threadId}`;

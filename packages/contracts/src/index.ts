@@ -73,6 +73,8 @@ export type MessageDelivery = typeof MessageDelivery.Type;
 
 export const Settings = Schema.Struct({
   approvalLevel: ApprovalLevel,
+  /** The most tokens a mission's briefing may hold, estimated at about 4 characters per token (mission-journal, Size). */
+  briefingLimit: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
   /** Messages between two threads before the owner decides how they continue. */
   chatterThreshold: Schema.Int.check(Schema.isGreaterThanOrEqualTo(2)),
   /** What Send does while a thread runs; the second button does the other. */
@@ -254,6 +256,35 @@ export const MissionDetail = Schema.Struct({
 });
 export type MissionDetail = typeof MissionDetail.Type;
 
+/** Who wrote a journal entry: a thread of the mission, or the owner (mission-journal, Content). */
+export const JournalAuthorKind = Schema.Literals(["thread", "user"]);
+export type JournalAuthorKind = typeof JournalAuthorKind.Type;
+
+/** One change log entry; never edited or deleted. */
+export const JournalEntry = Schema.Struct({
+  authorKind: JournalAuthorKind,
+  /** The writing thread's title when it wrote the entry; null for the owner. */
+  authorTitle: Schema.NullOr(Schema.String),
+  /** The entry's place in the change log, from 1. */
+  number: Schema.Number,
+  text: Schema.String,
+  writtenAt: Schema.Number,
+});
+export type JournalEntry = typeof JournalEntry.Type;
+
+/** A mission's journal as the owner reads it: the briefing and the whole change log, newest first. */
+export const JournalView = Schema.Struct({
+  briefing: Schema.String,
+  /** The briefing's estimated size and its limit, in tokens. */
+  briefingTokens: Schema.Number,
+  entries: Schema.Array(JournalEntry),
+  limit: Schema.Number,
+  missionId: MissionId,
+  /** Increases with each rewrite; a rewrite names the version it was based on. */
+  version: Schema.Number,
+});
+export type JournalView = typeof JournalView.Type;
+
 // Requests
 
 export const StartMission = Schema.TaggedStruct("StartMission", {
@@ -307,6 +338,23 @@ export const ResolveChatter = Schema.TaggedStruct("ResolveChatter", {
 
 export const ReadSettings = Schema.TaggedStruct("ReadSettings", {});
 
+export const ReadJournal = Schema.TaggedStruct("ReadJournal", { missionId: MissionId });
+/** The owner rewrites the briefing; refused when another rewrite came after `basedOn` (mission-journal, The user). */
+export const RewriteBriefing = Schema.TaggedStruct("RewriteBriefing", {
+  basedOn: Schema.Number,
+  briefing: Schema.String,
+  /** The entry recorded with the rewrite; null records "Rewrote the briefing". */
+  entry: Schema.NullOr(Schema.String),
+  missionId: MissionId,
+  requestId: RequestId,
+});
+/** The owner adds a change log entry. */
+export const AddJournalEntry = Schema.TaggedStruct("AddJournalEntry", {
+  missionId: MissionId,
+  requestId: RequestId,
+  text: MessageText,
+});
+
 /** The owner's answer to one open question. */
 export const Answer = Schema.Literals(["Allow", "AlwaysAllow", "Deny"]);
 export type Answer = typeof Answer.Type;
@@ -350,6 +398,9 @@ export const Request = Schema.Union([
   ReadMission,
   ReadSettings,
   UpdateSettings,
+  ReadJournal,
+  RewriteBriefing,
+  AddJournalEntry,
   AnswerQuestion,
   ListOpenQuestions,
   StopThread,
@@ -377,6 +428,7 @@ export type OpenThreadResult = typeof OpenThreadResult.Type;
 /** The result schema of each request, used by both sides to encode and decode. */
 export const Results = {
   AddBrowsableRoot: FolderListing,
+  AddJournalEntry: JournalView,
   AnswerQuestion: Question,
   BrowseFolders: FolderListing,
   CreateFolder: Folder,
@@ -386,6 +438,7 @@ export const Results = {
   ListOpenQuestions: Schema.Array(Question),
   OpenThread: OpenThreadResult,
   PreviewDeletion: DeletionPreview,
+  ReadJournal: JournalView,
   ReadMission: MissionDetail,
   ReadPermissions: PermissionsView,
   ReadSettings: Settings,
@@ -393,6 +446,7 @@ export const Results = {
   ResolveChatter: Schema.Null,
   ResumeThread: Schema.Null,
   RetryThread: Schema.Null,
+  RewriteBriefing: JournalView,
   SendMessage: SendMessageResult,
   StartMission: StartMissionResult,
   StopThread: Schema.Null,

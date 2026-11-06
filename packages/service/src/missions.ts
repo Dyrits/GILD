@@ -12,6 +12,7 @@ import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { readChatter } from "./chatter.ts";
 import { notFound } from "./errors.ts";
+import { insertJournal } from "./journal.ts";
 import { listThreadQuestions } from "./questions.ts";
 import { attachWorkspace, readThreadWorkspace } from "./workspaces.ts";
 
@@ -41,6 +42,7 @@ export const insertMission = (text: string, model: ModelChoice, effort: EffortCh
       VALUES (${threadId}, ${missionId}, 'Idle', ${model}, ${effort}, ${workspaceId}, ${titleOf(text)})`;
     yield* sql`INSERT INTO messages (id, mission_id, thread_id, sender_kind, text, sequence, sent_at)
       VALUES (${messageId}, ${missionId}, ${threadId}, 'user', ${text}, 1, ${now})`;
+    yield* insertJournal(missionId);
     return { messageId, missionId, threadId } as StartMissionResult;
   });
 

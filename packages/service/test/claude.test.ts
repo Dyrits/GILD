@@ -351,6 +351,7 @@ describe("Claude Code adapter", () => {
         _tag: "UpdateSettings",
         settings: {
           approvalLevel: "RiskyOnly",
+          briefingLimit: 2000,
           chatterThreshold: 20,
           defaultDelivery: "Steer",
           defaultEffort: "default",
@@ -484,6 +485,7 @@ describe("settings", () => {
       const defaults = yield* call({ _tag: "ReadSettings" }).pipe(Effect.provide(serviceLayer(options)));
       expect(defaults).toEqual({
         approvalLevel: "RiskyOnly",
+        briefingLimit: 2000,
         chatterThreshold: 20,
         defaultDelivery: "Steer",
         defaultEffort: "default",
@@ -494,6 +496,7 @@ describe("settings", () => {
 
       const updated = {
         approvalLevel: "CommandsAndEdits",
+        briefingLimit: 500,
         chatterThreshold: 20,
         defaultDelivery: "Queue",
         defaultEffort: "high",
@@ -515,6 +518,7 @@ describe("settings", () => {
         ON CONFLICT (key) DO UPDATE SET value = excluded.value`;
       expect(yield* call({ _tag: "ReadSettings" })).toEqual({
         ...saved,
+        briefingLimit: 2000,
         chatterThreshold: 20,
         defaultDelivery: "Steer",
         shouldShowAgentThreads: true,
@@ -632,7 +636,7 @@ describe.runIf(process.env.OPENMISSION_LIVE_CLAUDE === "1")("live Claude Code (u
           effort: "low",
           model: "haiku",
           requestId: "r1",
-          text: "Call open_thread once with the request: 'Compute 6 times 7, then call report_result with only the number.' Then end your turn. When the result arrives, reply with only that number.",
+          text: "Call open_thread once with the request: 'Compute 6 times 7, then call report_result with only the number as result and 'nothing to record' as journal.' Then end your turn. When the result arrives, reply with only that number.",
           workspacePath: null,
         });
         let detail = yield* read(started.missionId);

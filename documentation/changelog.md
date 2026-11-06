@@ -578,3 +578,26 @@ Summary: Folding, deleting, and the chatter guard as agreed in CHG-0041. With **
 References: documentation/work-in-progress.md (Batch 7); documentation/verification/2026-11-06-batch-7.md; packages/service/src/chatter.ts, deleting.ts, lifecycle.ts, scratch.ts, store.ts, threads.ts; apps/app/src/labels.ts
 Validation: `bun run test` passed 122 with 5 skipped; typecheck, `bun run check`, and the desktop build passed; 11 of 11 mutations caught. Driven in the window on the fake harness. The owner accepted the look on 2026-11-06; the interface gets a later pass, including shortening titles in notices by available width (backlog, Interface pass).
 Evidence: The owner's answers: look, "Yes, it is okay. And the UI part will be taking care later."; chatter pause, "Keep ending turns"; notice titles, "It doesn't matter much for now, but shorten it depending of the UI size."
+
+## CHG-0043 · 2026-11-06 · Batch 8 agreed: mission journal
+
+Type: Documentation
+Event: Agreement
+Scope: First slice, batch 8; Mission journal; Thread tree
+
+Summary: Each mission gets a journal: a briefing with a version, limited to 2,000 tokens (about 4 characters per token, adjustable in Settings), and a change log only ever added to, each entry with its author (a thread or the owner) and time. Threads use `read_journal` (the briefing, its version, and entries from a starting point) and `update_journal` (an entry, optionally a new briefing and the version it was based on); a rewrite over the limit is refused with its reason, and one based on an older version is refused with the current briefing and version. Every briefing rewrite comes with an entry. `report_result` takes a required `journal` argument: an entry, or exactly "nothing to record"; the entry is recorded with the result. Every thread's starting context carries the briefing and the 20 latest entries, and a thread opened beneath another also carries its opener's messages since the journal's latest entry. The owner reads the journal in a Journal view opened from the mission header, rewrites the briefing, and adds entries; each change is recorded as an entry by the owner.
+Reason: Threads start without each other's history and lose track of where the mission stands.
+References: documentation/capabilities/mission-journal/specifications.md; documentation/capabilities/thread-tree/specifications.md#opening-a-thread; documentation/work-in-progress.md (Batch 8)
+Validation: The owner chose batch 8 and answered three questions on 2026-11-06. Staged: asides (not built), `find_missions` and the entries written when a mission ends (mission-tracking), summarizing a starting context that exceeds the model's window, and the human acceptance with two harnesses (only Claude Code exists).
+Evidence: batch, "Mission journal (Recommended)"; implementer, "Here, test-first"; scope, "Also opener's messages"; result entry, "Required field (Recommended)"; interface, "Journal view (Recommended)".
+
+## CHG-0044 · 2026-11-06 · Batch 8 delivered: mission journal
+
+Type: Code
+Event: Delivery
+Scope: First slice, batch 8; Mission journal; Thread tree
+
+Summary: The mission journal as agreed in CHG-0043. Each mission has a versioned briefing, limited by the Settings value **Briefing limit** (2,000 tokens by default, about 4 characters per token), and a change log whose entries record their author and time and which the database refuses to edit or delete. Threads use `read_journal` and `update_journal`; a rewrite over the limit, or based on an older version, is refused with the current briefing. `report_result` requires `journal`: an entry, or "nothing to record". Every turn's context carries the briefing and the 20 latest entries; a thread opened beneath another also carries its opener's messages since the latest entry, at most 40 (provisional). The owner reads and edits the journal in the Journal view opened from the mission header. Deleting a mission erases its journal; a deleted thread's entries keep its saved title.
+References: documentation/work-in-progress.md (Batch 8); documentation/verification/2026-11-06-journal.md; packages/service/src/journal.ts, journalTools.ts, mcp.ts, tree.ts, threads.ts, store.ts, deleting.ts, service.ts; apps/app/src/journal.tsx, conversation.tsx, settings.tsx, labels.ts
+Validation: `bun run test` passed 140 with 5 skipped, and 145 of 145 with `OPENMISSION_LIVE_CLAUDE=1`; typecheck, `bun run check`, and the desktop build passed; 12 of 12 mutations caught. Driven in the window with Claude Code (Haiku): a thread opened after the owner's briefing rewrite answered from the journal alone. The owner accepted the look on 2026-11-06. Staged: asides, `find_missions`, mission-ending entries, summarizing a long starting context, and the two-harness acceptance.
+Evidence: The owner's answer "Yes." to the batch 8 acceptance question.

@@ -8,6 +8,7 @@ import { deleteThread, previewDeletion } from "./deleting.ts";
 import { invalid, ServiceFailure } from "./errors.ts";
 import type { Harness } from "./execution.ts";
 import { addBrowsableRoot, browseFolders, createFolder, seedBrowsableRoots } from "./folders.ts";
+import { type JournalOutcome, readJournalView, updateJournal } from "./journal.ts";
 import { toolServerLayer } from "./mcp.ts";
 import { insertUserMessage } from "./messaging.ts";
 import { insertMission, listMissions, readMission } from "./missions.ts";
@@ -31,6 +32,20 @@ const storageFailure = (error: SqlError.SqlError) =>
 
 const nonBlank = (text: string): Effect.Effect<string, ServiceFailure> =>
   text.trim().length === 0 ? invalid("The message is empty.") : Effect.succeed(text);
+
+/** The owner's journal change as the app sees it: the updated journal, or the refusal as a service failure. */
+const ownerOutcomeOf = (missionId: string, outcome: JournalOutcome) =>
+  outcome._tag === "Recorded"
+    ? readJournalView(missionId)
+    : Effect.fail(
+        new ServiceFailure({
+          kind: outcome.reason === "Stale" ? "StaleVersion" : "InvalidInput",
+          message:
+            outcome.reason === "Stale"
+              ? "The briefing changed since you started editing. Review the current briefing and try again."
+              : outcome.text.replace("Not recorded: ", ""),
+        }),
+      );
 
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
@@ -69,6 +84,18 @@ const make = Effect.gen(function* () {
       request,
       {
         AddBrowsableRoot: (add) => addBrowsableRoot(add.path).pipe(Effect.tap(() => changes.publish)),
+        AddJournalEntry: (add) =>
+          nonBlank(add.text).pipe(
+            Effect.andThen((text) =>
+              once(
+                add.requestId,
+                add._tag,
+                updateJournal(add.missionId, { kind: "user" }, text, null).pipe(
+                  Effect.flatMap((outcome) => ownerOutcomeOf(add.missionId, outcome)),
+                ),
+              ),
+            ),
+          ),
         AnswerQuestion: (given) => approvals.answer(given.questionId, given.answer, given.message, "desktop"),
         BrowseFolders: (browse) => browseFolders(browse.path, browse.shouldIncludeHidden),
         CreateFolder: (create) => createFolder(create.parent, create.name),
@@ -96,6 +123,7 @@ const make = Effect.gen(function* () {
             Effect.tap((opened) => threads.wake(opened.threadId)),
           ),
         PreviewDeletion: (given) => previewDeletion(given.threadId),
+        ReadJournal: (read) => readJournalView(read.missionId),
         ReadMission: (read) => readMission(read.missionId, read.threadId),
         ReadPermissions: (read) =>
           Effect.gen(function* () {
@@ -117,6 +145,17 @@ const make = Effect.gen(function* () {
           ),
         ResumeThread: (resume) => threads.resume(resume.threadId).pipe(Effect.as(null)),
         RetryThread: (retry) => threads.retry(retry.threadId).pipe(Effect.as(null)),
+        RewriteBriefing: (rewrite) => {
+          const entry = rewrite.entry === null || rewrite.entry.trim() === "" ? "Rewrote the briefing" : rewrite.entry;
+          return once(
+            rewrite.requestId,
+            rewrite._tag,
+            updateJournal(rewrite.missionId, { kind: "user" }, entry, {
+              basedOn: rewrite.basedOn,
+              briefing: rewrite.briefing,
+            }).pipe(Effect.flatMap((outcome) => ownerOutcomeOf(rewrite.missionId, outcome))),
+          );
+        },
         SendMessage: (send) =>
           Effect.gen(function* () {
             const text = yield* nonBlank(send.text);

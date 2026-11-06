@@ -4,6 +4,7 @@ import { FlatList, type NativeScrollEvent, type NativeSyntheticEvent, Pressable,
 import { newRequestId, type ServiceClient } from "./client";
 import { Composer, StateBadge } from "./controls";
 import { effortLabel, modelLabels, usageDetail } from "./formatting";
+import { JournalScreen } from "./journal";
 import { QuestionCard, QuestionLine } from "./questions";
 import { styles } from "./styles";
 import { ChatterNotices, DeleteThreadAction } from "./threadActions";
@@ -237,6 +238,7 @@ export function Conversation({
 }) {
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
   const [selectedId, setSelectedId] = useState<ThreadId | null>(null);
+  const [isJournalOpen, setIsJournalOpen] = useState(false);
   const { data, error } = useServiceQuery(
     client,
     { _tag: "ReadMission", missionId, threadId: selectedId },
@@ -244,6 +246,16 @@ export function Conversation({
   );
   // A query for a newly selected thread answers after the previous one; keep showing what matches.
   const detail = data !== null && (selectedId === null || data.thread.id === selectedId) ? data : null;
+  if (isJournalOpen) {
+    return (
+      <JournalScreen
+        client={client}
+        missionId={missionId}
+        onBack={() => setIsJournalOpen(false)}
+        title={data?.mission.title ?? ""}
+      />
+    );
+  }
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
@@ -253,6 +265,9 @@ export function Conversation({
         <Text numberOfLines={1} style={[styles.heading, styles.flex]}>
           {data?.mission.title ?? ""}
         </Text>
+        <Pressable onPress={() => setIsJournalOpen(true)}>
+          <Text style={styles.link}>Journal</Text>
+        </Pressable>
         {data && <StateBadge state={data.mission.state} />}
       </View>
       {data && <Text style={styles.muted}>{usageDetail(data.mission.usage)}</Text>}

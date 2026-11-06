@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { deletionQuestionOf, foldedLabelOf } from "../src/labels";
+import { briefingSizeOf, deletionQuestionOf, foldedLabelOf, journalAuthorOf } from "../src/labels";
 
 describe("tree and deletion labels", () => {
   it("names one folded thread in the singular", () => {
@@ -16,5 +16,17 @@ describe("tree and deletion labels", () => {
     expect(deletionQuestionOf({ descendantCount: 5, runningCount: 2 })).toBe(
       "Delete this thread and 5 threads beneath it (2 running)?",
     );
+  });
+});
+
+describe("journal labels", () => {
+  it("names the owner as You and a thread by its title", () => {
+    expect(journalAuthorOf({ authorKind: "user", authorTitle: null })).toBe("You");
+    expect(journalAuthorOf({ authorKind: "thread", authorTitle: "Count files" })).toBe('Thread "Count files"');
+  });
+
+  it("shows the briefing's size against its limit, and when it is over", () => {
+    expect(briefingSizeOf(120, 2000)).toBe("About 120 of 2,000 tokens");
+    expect(briefingSizeOf(2100, 2000)).toBe("About 2,100 of 2,000 tokens: over the limit");
   });
 });
