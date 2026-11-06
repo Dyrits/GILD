@@ -99,7 +99,7 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
 
 | Tool | Purpose | Arguments | Answer |
 | --- | --- | --- | --- |
-| `open_thread` | Open a thread beneath the caller | A request; optionally a harness, agent, model, effort, workspace, and Own copy (see [workspace-attachment](../workspace-attachment/specifications.md)) | The new thread's identifier, or a refusal and its reason |
+| `open_thread` | Open a thread beneath the caller | A request; optionally a short title, a harness, agent, model, effort, workspace, and Own copy (see [workspace-attachment](../workspace-attachment/specifications.md)) | The new thread's identifier, or a refusal and its reason |
 | `find_missions` | Find missions that fit a request | The request | Up to 3 matching missions, each with its title, briefing, and state |
 | `suggest_mission` | Show the off-topic suggestion for a user's message | The off-topic part of the message, a proposed mission title, and the matching missions | The user's choice, and the identifier of the mission or aside the message went to |
 

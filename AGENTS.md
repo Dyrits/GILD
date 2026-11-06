@@ -24,4 +24,4 @@
 
 ## Handoffs
 
-To resume batch 4 (agreed, autonomous threads, awaiting the owner's run-through), read the [current handoff](.agents/handoffs/2026-11-06-0712-autonomous-threads.md). Handoffs are shared and committed.
+To resume batch 5 (thread tree core, built, awaiting the owner's look), read the [current handoff](.agents/handoffs/2026-11-06-0838-thread-tree-core.md). Handoffs are shared and committed.

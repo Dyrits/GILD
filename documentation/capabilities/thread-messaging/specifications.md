@@ -42,7 +42,7 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
 | Tool | Purpose | Arguments | Answer |
 | --- | --- | --- | --- |
 | `send_thread_message` | Send a message | Receiving thread (a parent, a thread directly beneath, a referenced thread or mission, or Control), text, whether a reply is wanted | The message's identifier, queued until explicit resume when the receiver is Stopped; or a refusal and its reason when the target is outside its reach |
-| `report_result` | Report the thread's result to its parent | — | — |
+| `report_result` | Report the thread's result to its parent | The result | — |
 | `interrupt_thread` | Interrupt a thread directly beneath the caller | — | — |
 
 ## Acceptance and validation

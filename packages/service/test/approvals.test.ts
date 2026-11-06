@@ -40,7 +40,7 @@ const failureOf = <R extends Request>(request: R) =>
     return yield* Effect.flip(service.handle(request));
   });
 
-const read = (missionId: MissionId) => call({ _tag: "ReadMission", missionId });
+const read = (missionId: MissionId) => call({ _tag: "ReadMission", missionId, threadId: null });
 
 const settle = (missionId: MissionId, check: (detail: MissionDetail) => boolean) =>
   Effect.gen(function* () {
@@ -95,7 +95,7 @@ describe("asking before a sensitive action", () => {
       expect(openQuestion(detail)).toMatchObject({
         details: "git push origin main",
         pattern: "git push *",
-        permission: "Push code to GitHub",
+        permission: "Push code",
         source: "Thread",
         summary: push.action,
       });
@@ -103,6 +103,18 @@ describe("asking before a sensitive action", () => {
       expect(open.map((question) => [question.missionTitle, question.threadId])).toEqual([
         [detail.mission.title, started.threadId],
       ]);
+    }).pipe(Effect.provide(live())),
+  );
+
+  it.live("names what Always allow saves after the sensitive list, and after the thread for actions it misses", () =>
+    Effect.gen(function* () {
+      const recognized = yield* start(ask(push));
+      expect(openQuestion(yield* settle(recognized.missionId, isAsking)).permission).toBe("Push code");
+
+      const missed = yield* start(
+        ask({ action: "Rotate the staging token", command: "./rotate-token.sh staging", permission: "Rotate tokens" }),
+      );
+      expect(openQuestion(yield* settle(missed.missionId, isAsking)).permission).toBe("Rotate tokens");
     }).pipe(Effect.provide(live())),
   );
 
@@ -274,12 +286,12 @@ describe("standing permissions", () => {
         expect(view.permissions[0]).toMatchObject({
           missionId: first.missionId,
           pattern: "git push *",
-          sentence: "Push code to GitHub",
+          sentence: "Push code",
         });
 
         yield* send(first.threadId, ask({ ...push, command: "git push origin feature" }));
         const spared = yield* settle(first.missionId, (detail) => detail.questions.length === 2 && isReplied(detail));
-        expect(spared.questions[1]).toMatchObject({ message: "Push code to GitHub", outcome: "AllowedByPermission" });
+        expect(spared.questions[1]).toMatchObject({ message: "Push code", outcome: "AllowedByPermission" });
 
         const other = yield* start(ask(push));
         const asking = yield* settle(other.missionId, isAsking);

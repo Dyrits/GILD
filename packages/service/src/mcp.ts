@@ -1,7 +1,13 @@
 import { randomBytes } from "node:crypto";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import { EffortChoice, ModelChoice } from "@openmission/contracts";
 import { Context, Effect, Exit, Layer, Schema } from "effect";
+import { SqlClient } from "effect/sql";
 import { Approvals } from "./approvals.ts";
+import { Changes } from "./changes.ts";
+import { insertMessage } from "./messaging.ts";
+import { isWithinReach, openThreadByAgent, reportResult } from "./tree.ts";
+import { Waker } from "./waker.ts";
 
 /**
  * Serves the thread tools over MCP on loopback (ADR 0005). Each thread gets its
@@ -21,6 +27,10 @@ export const toolServerName = "openmission";
 /** The tool name Claude Code's `--permission-prompt-tool` takes. */
 export const promptToolName = `mcp__${toolServerName}__answer_prompt`;
 export const approvalToolName = `mcp__${toolServerName}__request_approval`;
+/** The thread tools a thread uses without asking (thread-tree and thread-messaging; CHG-0037). */
+export const threadToolNames = ["open_thread", "send_thread_message", "report_result"].map(
+  (name) => `mcp__${toolServerName}__${name}`,
+);
 
 const RequestApprovalArguments = Schema.Struct({
   action: Schema.String,
@@ -29,6 +39,17 @@ const RequestApprovalArguments = Schema.Struct({
   permission: Schema.optional(Schema.String),
   quote: Schema.optional(Schema.String),
 });
+
+const OpenThreadArguments = Schema.Struct({
+  effort: Schema.optional(EffortChoice),
+  model: Schema.optional(ModelChoice),
+  request: Schema.String,
+  title: Schema.optional(Schema.String),
+});
+
+const SendThreadMessageArguments = Schema.Struct({ text: Schema.String, to: Schema.String });
+
+const ReportResultArguments = Schema.Struct({ result: Schema.String });
 
 const AnswerPromptArguments = Schema.Struct({
   input: Schema.Unknown,
@@ -49,6 +70,9 @@ const decodeCall = Schema.decodeUnknownExit(CallParams);
 const decodeInitialize = Schema.decodeUnknownExit(InitializeParams);
 const decodeApproval = Schema.decodeUnknownExit(RequestApprovalArguments);
 const decodePrompt = Schema.decodeUnknownExit(AnswerPromptArguments);
+const decodeOpenThread = Schema.decodeUnknownExit(OpenThreadArguments);
+const decodeSendThreadMessage = Schema.decodeUnknownExit(SendThreadMessageArguments);
+const decodeReportResult = Schema.decodeUnknownExit(ReportResultArguments);
 
 const tools = [
   {
@@ -58,7 +82,7 @@ const tools = [
       properties: {
         action: {
           description:
-            "One plain sentence: what you want to do and why, e.g. 'Push today's 3 commits to GitHub so the release can start'.",
+            "One plain sentence: what you want to do and why, e.g. 'Push today's 3 commits so the release can start'.",
           type: "string",
         },
         command: { description: "The exact command, file path, or recipient and text.", type: "string" },
@@ -67,7 +91,7 @@ const tools = [
           type: "string",
         },
         permission: {
-          description: "A short sentence naming this kind of action, e.g. 'Push code to GitHub'.",
+          description: "A short sentence naming this kind of action, e.g. 'Push code'.",
           type: "string",
         },
         quote: {
@@ -80,6 +104,46 @@ const tools = [
       type: "object",
     },
     name: "request_approval",
+  },
+  {
+    description:
+      "Open a thread beneath you to work on one request on its own, in parallel with you. It starts with your request, in your working folder, with your model and effort unless you choose others, and reports its result to you as a message. Use it instead of subagents.",
+    inputSchema: {
+      properties: {
+        effort: { enum: [...EffortChoice.literals], type: "string" },
+        model: { enum: [...ModelChoice.literals], type: "string" },
+        request: {
+          description: "Everything the new thread needs to know: it sees none of your conversation.",
+          type: "string",
+        },
+        title: { description: "A short title for the new thread, a few words, shown to the owner.", type: "string" },
+      },
+      required: ["request"],
+      type: "object",
+    },
+    name: "open_thread",
+  },
+  {
+    description:
+      "Send a message to your parent thread or to a thread directly beneath you, by its id. It reaches that thread at its next turn and wakes it if it is idle.",
+    inputSchema: {
+      properties: { text: { type: "string" }, to: { description: "The receiving thread's id.", type: "string" } },
+      required: ["to", "text"],
+      type: "object",
+    },
+    name: "send_thread_message",
+  },
+  {
+    description:
+      "When your work is done, report your result to the thread that opened you. You become Done; a later message continues you.",
+    inputSchema: {
+      properties: {
+        result: { description: "The result, complete enough to use without your conversation.", type: "string" },
+      },
+      required: ["result"],
+      type: "object",
+    },
+    name: "report_result",
   },
   {
     description: "Used by Claude Code itself to answer permission prompts. Never call it yourself.",
@@ -112,7 +176,76 @@ export const toolServerLayer = Layer.effect(
   ToolServer,
   Effect.gen(function* () {
     const approvals = yield* Approvals;
+    const sql = yield* SqlClient.SqlClient;
+    const changes = yield* Changes;
+    const waker = yield* Waker;
     const context = yield* Effect.context<never>();
+
+    /** Runs a tree change in one transaction and announces it once committed. */
+    const commit = <A, E>(work: Effect.Effect<A, E, SqlClient.SqlClient>) =>
+      sql
+        .withTransaction(work.pipe(Effect.tap(() => sql.afterCommit(changes.publish))))
+        .pipe(Effect.provideService(SqlClient.SqlClient, sql), Effect.orDie);
+
+    const threadTools: Record<
+      string,
+      (threadId: string, args: unknown) => Effect.Effect<ReturnType<typeof textResult>>
+    > = {
+      open_thread: (threadId, args) => {
+        const decoded = decodeOpenThread(args);
+        if (Exit.isFailure(decoded)) return Effect.succeed(textResult("Invalid arguments: give request.", true));
+        const { effort, model, request, title } = decoded.value;
+        return commit(openThreadByAgent(threadId, request, title ?? null, model ?? null, effort ?? null)).pipe(
+          Effect.flatMap((outcome) =>
+            outcome._tag === "Refused"
+              ? Effect.succeed(textResult(outcome.reason, true))
+              : waker
+                  .wake(outcome.threadId)
+                  .pipe(
+                    Effect.as(
+                      textResult(`Opened thread ${outcome.threadId}. Its result will come to you as a message.`),
+                    ),
+                  ),
+          ),
+        );
+      },
+      report_result: (threadId, args) => {
+        const decoded = decodeReportResult(args);
+        if (Exit.isFailure(decoded)) return Effect.succeed(textResult("Invalid arguments: give result.", true));
+        return commit(reportResult(threadId, decoded.value.result)).pipe(
+          Effect.flatMap((parentId) =>
+            parentId === null
+              ? Effect.succeed(textResult("Reported. You are the mission's top thread: the owner reads your replies."))
+              : waker
+                  .wake(parentId)
+                  .pipe(Effect.as(textResult("Reported to your parent. You are Done once this turn ends."))),
+          ),
+        );
+      },
+      send_thread_message: (threadId, args) => {
+        const decoded = decodeSendThreadMessage(args);
+        if (Exit.isFailure(decoded)) return Effect.succeed(textResult("Invalid arguments: give to and text.", true));
+        const { text, to } = decoded.value;
+        return commit(
+          Effect.gen(function* () {
+            if (!(yield* isWithinReach(threadId, to))) return false;
+            yield* insertMessage({ fromThreadId: threadId, isResult: false, text, threadId: to });
+            return true;
+          }),
+        ).pipe(
+          Effect.flatMap((isSent) =>
+            isSent
+              ? waker.wake(to).pipe(Effect.as(textResult("Sent.")))
+              : Effect.succeed(
+                  textResult(
+                    "Not sent: you can only message your parent or a thread directly beneath you, by its id.",
+                    true,
+                  ),
+                ),
+          ),
+        );
+      },
+    };
     const run = Effect.runPromiseWith(context);
     const tokens = new Map<string, string>();
     const threads = new Map<string, string>();
@@ -155,6 +288,8 @@ export const toolServerLayer = Layer.effect(
             ),
           );
       }
+      const threadTool = Object.hasOwn(threadTools, name) ? threadTools[name] : void 0;
+      if (threadTool !== void 0) return threadTool(threadId, args);
       return Effect.succeed(textResult(`Unknown tool: ${name}`, true));
     };
 

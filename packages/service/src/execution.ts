@@ -64,13 +64,18 @@ export const callThreadTool = (mcpUrl: string, name: string, args: unknown) =>
     return parsed.result.content.map((block) => block.text).join("");
   });
 
-// The fake's script: a line `ask <json>` calls request_approval and `prompt <tool> <json input>`
-// raises a harness permission prompt, each answered before the echo; `cwd` and `context`
+// The fake's script: a line `ask <json>` calls request_approval, `prompt <tool> <json input>`
+// raises a harness permission prompt, and `call <tool> <json>` calls any thread tool, each
+// answered before the echo; `wait <millis>` keeps the turn running; `cwd` and `context`
 // report the working folder and the starting context.
 const scriptedCall = (request: TurnRequest, line: string) => {
   const access = request.access;
   if (line === "cwd") return Effect.succeed(request.cwd);
   if (line === "context") return Effect.succeed(request.context);
+  const wait = /^wait (\d+)$/.exec(line);
+  if (wait !== null) return Effect.sleep(Number(wait[1])).pipe(Effect.as(`waited ${wait[1]}`));
+  const tool = /^call (\S+) (.*)$/.exec(line);
+  if (tool !== null) return callThreadTool(access.mcpUrl, tool[1] ?? "", JSON.parse(tool[2] ?? "{}"));
   if (line.startsWith("ask ")) return callThreadTool(access.mcpUrl, "request_approval", JSON.parse(line.slice(4)));
   const prompt = /^prompt (\S+) (.*)$/.exec(line);
   if (prompt !== null) {

@@ -56,7 +56,7 @@ const call = <R extends Request>(request: R) =>
     return (yield* service.handle(request)) as ResultOf<R["_tag"] & RequestTag>;
   });
 
-const read = (missionId: MissionId) => call({ _tag: "ReadMission", missionId });
+const read = (missionId: MissionId) => call({ _tag: "ReadMission", missionId, threadId: null });
 
 const settle = (missionId: MissionId, check: (detail: MissionDetail) => boolean) =>
   Effect.gen(function* () {
@@ -483,6 +483,50 @@ describe.runIf(process.env.OPENMISSION_LIVE_CLAUDE === "1")("live Claude Code (u
         expect(existsSync(outside)).toBe(true);
         expect(detail.questions.length, JSON.stringify(detail.questions)).toBeGreaterThan(0);
         expect(detail.questions.every((q) => q.outcome !== null)).toBe(true);
+      }).pipe(
+        Effect.provide(
+          serviceLayer({
+            filename: join(directory, "openmission.sqlite"),
+            harness: claudeHarnessLayer({
+              command: process.env.OPENMISSION_CLAUDE_PATH ?? "claude",
+              idleTimeout: "1 minute",
+              sandboxProblem: null,
+            }),
+            homeFolder: directory,
+            scratchRoot: join(directory, "missions"),
+          }),
+        ),
+      );
+    },
+    180_000,
+  );
+
+  it.live(
+    "opens a thread beneath that reports its result back to the opener",
+    () => {
+      const directory = temporary();
+      return Effect.gen(function* () {
+        const started = yield* call({
+          _tag: "StartMission",
+          effort: "low",
+          model: "haiku",
+          requestId: "r1",
+          text: "Call open_thread once with the request: 'Compute 6 times 7, then call report_result with only the number.' Then end your turn. When the result arrives, reply with only that number.",
+          workspacePath: null,
+        });
+        let detail = yield* read(started.missionId);
+        for (let i = 0; i < 1200; i++) {
+          detail = yield* read(started.missionId);
+          const child = detail.threads.find((thread) => thread.parentId === started.threadId);
+          const hasResult = detail.messages.some((message) => message.isResult);
+          if (child?.state === "Done" && hasResult && detail.thread.state === "Idle") break;
+          yield* Effect.sleep("100 millis");
+        }
+        const child = detail.threads.find((thread) => thread.parentId === started.threadId);
+        expect(child).toMatchObject({ depth: 1, isOpenedByAgent: true, state: "Done" });
+        expect(detail.messages.find((message) => message.isResult)?.text).toContain("42");
+        expect(detail.messages.at(-1)).toMatchObject({ sender: "agent" });
+        expect(detail.messages.at(-1)?.text).toContain("42");
       }).pipe(
         Effect.provide(
           serviceLayer({

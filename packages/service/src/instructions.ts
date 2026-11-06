@@ -24,6 +24,7 @@ export const approvalInstructionsOf = (access: ThreadAccess, isSandboxed: boolea
     ...(isSandboxed
       ? [
           "Your commands run in a sandbox. When it blocks one you need (for example a write to .git, or a network host it does not allow), run it again with dangerouslyDisableSandbox set to true; OpenMission lets it run unless it is sensitive.",
+          "This includes a project's setup step, such as an install script that sets the git hooks path, that fails only because the sandbox protects a file under .git: run that step again with dangerouslyDisableSandbox set to true, so the project's own checks run when you commit.",
         ]
       : []),
     "Ask about exactly one action per call; for three actions, make three calls.",
@@ -33,4 +34,23 @@ export const approvalInstructionsOf = (access: ThreadAccess, isSandboxed: boolea
     access.permissions.length === 0
       ? "The owner has granted no standing permissions."
       : `Standing permissions the owner granted, which request_approval answers at once: ${access.permissions.join("; ")}.`,
+  ].join("\n");
+
+/** A thread's place in its mission's tree, as its starting context names it. */
+export interface ThreadPosition {
+  readonly parent: { readonly id: string; readonly title: string } | null;
+  readonly threadId: string;
+  readonly title: string;
+}
+
+/** How a thread works with the threads around it (thread-tree and thread-messaging; CHG-0037). */
+export const threadInstructionsOf = (position: ThreadPosition) =>
+  [
+    "# Threads in OpenMission",
+    `You are the thread "${position.title}" (id ${position.threadId}) in an OpenMission mission.`,
+    position.parent === null
+      ? "You are the mission's top thread: the owner talks to you directly."
+      : `The thread "${position.parent.title}" (id ${position.parent.id}) opened you. When your work is done, call report_result with your complete result; it reaches that thread.`,
+    "To split work into parts that can run on their own, call open_thread once per part with a complete request and a short title of a few words: a new thread sees none of your conversation. Each works in parallel and reports its result to you. After opening threads, end your turn; their results wake you.",
+    "Messages from other threads reach you as 'Message from thread \"<title>\" (<id>)' and results as 'Result from thread \"<title>\" (<id>)'. Answer your parent or a thread directly beneath you with send_thread_message and its id.",
   ].join("\n");

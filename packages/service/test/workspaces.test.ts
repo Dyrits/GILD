@@ -42,7 +42,7 @@ const failureOf = <R extends Request>(request: R) =>
     return yield* Effect.flip(service.handle(request));
   });
 
-const read = (missionId: MissionId) => call({ _tag: "ReadMission", missionId });
+const read = (missionId: MissionId) => call({ _tag: "ReadMission", missionId, threadId: null });
 
 const settle = (missionId: MissionId, check: (detail: MissionDetail) => boolean) =>
   Effect.gen(function* () {

@@ -44,7 +44,8 @@ export const RequestId = Schema.String.check(Schema.isMinLength(1), Schema.isMax
 export const ThreadState = Schema.Literals(["Running", "Waiting", "Attention", "Idle", "Done", "Failed", "Stopped"]);
 export type ThreadState = typeof ThreadState.Type;
 
-export const SenderKind = Schema.Literals(["user", "agent"]);
+/** Who wrote a message: the owner, the thread's own agent, or another thread of the mission (thread-messaging). */
+export const SenderKind = Schema.Literals(["user", "agent", "thread"]);
 export type SenderKind = typeof SenderKind.Type;
 
 export const ModelChoice = Schema.Literals(["default", "fable", "opus", "sonnet", "haiku"]);
@@ -89,7 +90,13 @@ export const MissionSummary = Schema.Struct({
 export type MissionSummary = typeof MissionSummary.Type;
 
 export const Message = Schema.Struct({
+  /** The sending thread, for a thread message; null otherwise. */
+  fromThreadId: Schema.NullOr(ThreadId),
+  /** The sending thread's title, for a thread message; null otherwise. */
+  fromTitle: Schema.NullOr(Schema.String),
   id: MessageId,
+  /** Whether it is a result reported by a thread beneath (thread-tree, Results). */
+  isResult: Schema.Boolean,
   sender: SenderKind,
   sentAt: Schema.Number,
   sequence: Schema.Number,
@@ -176,25 +183,51 @@ export type PermissionsView = typeof PermissionsView.Type;
 export const ThreadBlocker = Schema.Literals(["MissingWorkspace"]);
 export type ThreadBlocker = typeof ThreadBlocker.Type;
 
+/** One thread in a mission's tree, as the side tree lists it. */
+export const ThreadSummary = Schema.Struct({
+  /** Levels beneath the top thread, which is 0. */
+  depth: Schema.Number,
+  id: ThreadId,
+  /** Whether a thread opened it with `open_thread`, rather than the owner. */
+  isOpenedByAgent: Schema.Boolean,
+  parentId: Schema.NullOr(ThreadId),
+  state: ThreadState,
+  title: Schema.String,
+  /** Messages kept for the thread and not yet delivered, such as while it is Stopped. */
+  waitingCount: Schema.Number,
+});
+export type ThreadSummary = typeof ThreadSummary.Type;
+
 export const ThreadView = Schema.Struct({
   /** Why the thread waits in Attention for Retry, or null. */
   blocker: Schema.NullOr(ThreadBlocker),
+  /** Levels beneath the top thread, which is 0. */
+  depth: Schema.Number,
   effort: EffortChoice,
   /** Why the last turn failed, while the thread is Failed. */
   failure: Schema.NullOr(Schema.String),
   id: ThreadId,
   model: ModelChoice,
+  parentId: Schema.NullOr(ThreadId),
   state: ThreadState,
+  title: Schema.String,
+  waitingCount: Schema.Number,
   /** Null when the thread runs in its mission's scratch folder. */
   workspace: Schema.NullOr(Workspace),
 });
+export type ThreadView = typeof ThreadView.Type;
 
+/** A mission with its thread tree and one selected thread's conversation. */
 export const MissionDetail = Schema.Struct({
+  /** The selected thread's messages. */
   messages: Schema.Array(Message),
   mission: MissionSummary,
-  /** The thread's questions, open and recorded, in the order asked. */
+  /** The selected thread's questions, open and recorded, in the order asked. */
   questions: Schema.Array(Question),
+  /** The selected thread: the one asked for, or the top thread. */
   thread: ThreadView,
+  /** Every thread of the mission, each parent before the threads beneath it. */
+  threads: Schema.Array(ThreadSummary),
 });
 export type MissionDetail = typeof MissionDetail.Type;
 
@@ -214,7 +247,19 @@ export const SendMessage = Schema.TaggedStruct("SendMessage", {
   threadId: ThreadId,
 });
 export const ListMissions = Schema.TaggedStruct("ListMissions", {});
-export const ReadMission = Schema.TaggedStruct("ReadMission", { missionId: MissionId });
+/** Reads a mission with the conversation of one of its threads; null reads the top thread. */
+export const ReadMission = Schema.TaggedStruct("ReadMission", {
+  missionId: MissionId,
+  threadId: Schema.NullOr(ThreadId),
+});
+/** The owner opens a thread beneath any thread of a mission, with its first message (thread-tree, Opening a thread). */
+export const OpenThread = Schema.TaggedStruct("OpenThread", {
+  effort: EffortChoice,
+  model: ModelChoice,
+  parentThreadId: ThreadId,
+  requestId: RequestId,
+  text: MessageText,
+});
 
 export const ReadSettings = Schema.TaggedStruct("ReadSettings", {});
 
@@ -229,6 +274,8 @@ export const AnswerQuestion = Schema.TaggedStruct("AnswerQuestion", {
 });
 export const ListOpenQuestions = Schema.TaggedStruct("ListOpenQuestions", {});
 export const StopThread = Schema.TaggedStruct("StopThread", { threadId: ThreadId });
+/** Continues a Stopped thread with the messages kept for it (thread-tree, Stopping). */
+export const ResumeThread = Schema.TaggedStruct("ResumeThread", { threadId: ThreadId });
 /** Tries again a thread waiting in Attention on its missing workspace folder (Retry). */
 export const RetryThread = Schema.TaggedStruct("RetryThread", { threadId: ThreadId });
 export const ReadPermissions = Schema.TaggedStruct("ReadPermissions", { missionId: Schema.NullOr(MissionId) });
@@ -258,6 +305,8 @@ export const Request = Schema.Union([
   ListOpenQuestions,
   StopThread,
   RetryThread,
+  OpenThread,
+  ResumeThread,
   ReadPermissions,
   WidenPermission,
   RemovePermission,
@@ -272,6 +321,8 @@ export const StartMissionResult = Schema.Struct({ messageId: MessageId, missionI
 export type StartMissionResult = typeof StartMissionResult.Type;
 export const SendMessageResult = Schema.Struct({ messageId: MessageId });
 export type SendMessageResult = typeof SendMessageResult.Type;
+export const OpenThreadResult = Schema.Struct({ messageId: MessageId, threadId: ThreadId });
+export type OpenThreadResult = typeof OpenThreadResult.Type;
 
 /** The result schema of each request, used by both sides to encode and decode. */
 export const Results = {
@@ -281,10 +332,12 @@ export const Results = {
   CreateFolder: Folder,
   ListMissions: Schema.Array(MissionSummary),
   ListOpenQuestions: Schema.Array(Question),
+  OpenThread: OpenThreadResult,
   ReadMission: MissionDetail,
   ReadPermissions: PermissionsView,
   ReadSettings: Settings,
   RemovePermission: Schema.Null,
+  ResumeThread: Schema.Null,
   RetryThread: Schema.Null,
   SendMessage: SendMessageResult,
   StartMission: StartMissionResult,

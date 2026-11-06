@@ -7,7 +7,7 @@ import type { TokenUsage } from "@openmission/contracts";
 import { Duration, Effect, Exit, Layer, Queue, Schema } from "effect";
 import { Harness, HarnessFailure, type ThreadAccess, type TurnRequest } from "./execution.ts";
 import { approvalInstructionsOf } from "./instructions.ts";
-import { approvalToolName, promptToolName, toolServerName } from "./mcp.ts";
+import { approvalToolName, promptToolName, threadToolNames, toolServerName } from "./mcp.ts";
 
 export interface ClaudeOptions {
   /** The executable; `claude` on the PATH by default. */
@@ -59,7 +59,8 @@ const baseArgs = [
   "--include-partial-messages",
   "--tools",
   "default",
-  // One thread is one Claude Code conversation; native subagents stay off until thread-tree decides them.
+  // One thread is one Claude Code conversation; native subagents stay off, and threads open
+  // threads with open_thread instead (ADR 0007).
   "--disallowedTools",
   "Agent",
   "Task",
@@ -73,6 +74,7 @@ const baseArgs = [
   promptToolName,
   "--allowedTools",
   approvalToolName,
+  ...threadToolNames,
 ];
 
 const PermissionRules = Schema.Struct({

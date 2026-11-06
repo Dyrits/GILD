@@ -205,7 +205,8 @@ export const approvalsLayer = Layer.effect(
           details: request.command,
           missionId,
           pattern: request.pattern,
-          permission: request.permission,
+          // The sensitive list names the kinds it knows, so a push saves "Push code" whatever the thread called it.
+          permission: sensitivityOf("Bash", { command: request.command })?.permission ?? request.permission,
           source: "Thread",
           summary: request.action,
           threadId,

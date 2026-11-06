@@ -15,6 +15,8 @@ import { sandboxProblem } from "./sandbox.ts";
 import { readSettings, writeSettings } from "./settings.ts";
 import { storeLayer } from "./store.ts";
 import { ScratchRoot, Threads, threadsLayer } from "./threads.ts";
+import { openThreadByOwner } from "./tree.ts";
+import { wakerLayer } from "./waker.ts";
 
 /** The entry point shared by app commands and, later, MCP calls. */
 export class Service extends Context.Service<
@@ -68,7 +70,14 @@ const make = Effect.gen(function* () {
         CreateFolder: (create) => createFolder(create.parent, create.name),
         ListMissions: () => listMissions,
         ListOpenQuestions: () => listOpenQuestions,
-        ReadMission: (read) => readMission(read.missionId),
+        OpenThread: (open) =>
+          nonBlank(open.text).pipe(
+            Effect.andThen((text) =>
+              once(open.requestId, open._tag, openThreadByOwner(open.parentThreadId, text, open.model, open.effort)),
+            ),
+            Effect.tap((opened) => threads.wake(opened.threadId)),
+          ),
+        ReadMission: (read) => readMission(read.missionId, read.threadId),
         ReadPermissions: (read) =>
           Effect.gen(function* () {
             const settings = yield* readSettings;
@@ -81,6 +90,7 @@ const make = Effect.gen(function* () {
           }),
         ReadSettings: () => readSettings,
         RemovePermission: (remove) => removePermission(remove.permissionId).pipe(Effect.tap(() => changes.publish)),
+        ResumeThread: (resume) => threads.resume(resume.threadId).pipe(Effect.as(null)),
         RetryThread: (retry) => threads.retry(retry.threadId).pipe(Effect.as(null)),
         SendMessage: (send) =>
           nonBlank(send.text).pipe(
@@ -121,6 +131,7 @@ export interface ServiceOptions {
 export const serviceLayer = (options: ServiceOptions) => {
   const foundation = Layer.mergeAll(
     changesLayer,
+    wakerLayer,
     options.harness,
     Layer.succeed(ScratchRoot, options.scratchRoot),
   ).pipe(

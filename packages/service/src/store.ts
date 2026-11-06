@@ -113,6 +113,18 @@ const migrations = {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`ALTER TABLE threads ADD COLUMN blocker TEXT`;
   }),
+  // Thread tree core (CHG-0037): thread titles and openers, results, and messages between threads.
+  "0007_thread_tree": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE threads ADD COLUMN title TEXT NOT NULL DEFAULT ''`;
+    yield* sql`ALTER TABLE threads ADD COLUMN is_opened_by_agent INTEGER NOT NULL DEFAULT 0`;
+    // The turn in which the thread reported its result; that turn ends it Done.
+    yield* sql`ALTER TABLE threads ADD COLUMN reported_turn_id TEXT`;
+    yield* sql`UPDATE threads SET title = (SELECT m.title FROM missions m WHERE m.id = threads.mission_id)`;
+    yield* sql`ALTER TABLE messages ADD COLUMN sender_thread_id TEXT REFERENCES threads(id)`;
+    yield* sql`ALTER TABLE messages ADD COLUMN is_result INTEGER NOT NULL DEFAULT 0`;
+    yield* sql`CREATE INDEX threads_by_parent ON threads (parent_id)`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

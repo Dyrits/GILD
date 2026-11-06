@@ -499,3 +499,25 @@ Reason: The owner: users are either casual, and need explanations in natural lan
 References: documentation/capabilities/action-approval/specifications.md, documentation/capabilities/workspace-attachment/specifications.md, documentation/work-in-progress.md (Batch 4)
 Validation: The user answered four questions on 2026-11-06, after seeing a harness question for a read-only `for … cat` loop inside the workspace.
 Evidence: "Maybe we should avoid asking too much permissions … The assistant needs to be autonomous in OpenMission, and if they ask permissions all the time, they can't really do anything by themselves."; "we could just open Finder or Explorer to browser the files in order to open a workspace"; autonomy, "Autonomous, ask sensitive (Recommended)"; judge, "Built-in list + thread (Recommended)"; wording, "Plain consequence + 3 buttons (Recommended)"; folder pick, "Native dialog, drop browser (Recommended)".
+
+## CHG-0036 · 2026-11-06 · Batch 4 delivered: workspace attachment, first step, with autonomous threads
+
+Type: Code
+Event: Delivery
+Scope: First slice, batch 4; Workspace attachment; Action approval
+
+Summary: Missions start on a folder chosen with the system's dialog, and their thread works there with the folder's `AGENTS.md` and `CLAUDE.md`, the widened workspace sandbox, workspace-scoped standing permissions, and Retry when the folder goes missing (CHG-0034). Threads work autonomously and ask in plain words only before sensitive actions (CHG-0035). Fixed during the run-through: the conversation now keeps the newest entry in view unless the owner has scrolled up; Always allow saves the sensitive list's label ("Push code") for a command the list recognizes, rather than the thread's; the Permissions history shows each mission's title on one line.
+References: documentation/work-in-progress.md (Batch 4); documentation/verification/2026-11-06-batch-4-drive.md; documentation/verification/2026-11-06-autonomous-threads.md; apps/app/src/conversation.tsx, permissions.tsx; packages/service/src/approvals.ts, mcp.ts
+Validation: `OPENMISSION_LIVE_CLAUDE=1 bun run test` passes 74 of 74; typecheck, Biome, and the desktop build pass. An agent ran the owner's run-through in the Electron window at the owner's request, with Claude Code and Sonnet on a clone of this repository: the thread followed `AGENTS.md`, ran the checks, and committed without a question; a named push ran, an unnamed push asked in plain words; Always allow saved a workspace permission; Retry held and then delivered; a non-sensitive unsandboxed command left a "Ran" line. Not verified: operating the Finder dialog itself (no accessibility access for the agent), and the desktop notification.
+Evidence: "I want you to directly use the app and try it. … continue building the app."
+
+## CHG-0037 · 2026-11-06 · Batch 5 agreed: thread tree core
+
+Type: Documentation
+Event: Agreement
+Scope: First slice, batch 5; Thread tree; Thread messaging
+Summary: Threads open threads beneath themselves with `open_thread`, which copies the opener's model, effort, and workspace unless overridden; report their result to their parent with `report_result`, becoming Done; and message their parent and the threads directly beneath them with `send_thread_message`, delivered at the receiver's next turn. A thread whose turn ends while threads beneath it run is Waiting; a message wakes Waiting, Idle, and Done threads. Stop does not cascade; a Stopped thread keeps its messages, the tree shows "N messages waiting", and Resume continues it. At most 8 threads run at once in a mission. The owner can write to any thread and open a thread beneath any thread, down to 4 levels. The conversation screen gets a side tree of the mission's threads with their states; the selected thread's conversation shows on the right. Thread instructions also tell a thread to re-run a setup step outside the sandbox when it fails only on a protected Git file. Staged: folding agent-opened threads, deleting, off-topic routing, interrupts, steering mid-turn, the chatter guard, the journal and intel in starting context, and references across missions.
+Reason: The first slice's boundary is a mission with threads beneath it that report results and can be stopped and continued; the run-through showed a fresh clone's commits skipping the pre-commit hook.
+References: documentation/work-in-progress.md (Batch 5), documentation/capabilities/thread-tree/specifications.md, documentation/capabilities/thread-messaging/specifications.md, documentation/first-slice-design.md
+Validation: The owner answered three questions on 2026-11-06.
+Evidence: scope, "Tree core (Recommended)"; view, "Side tree + chat (Recommended)"; hooks, "Tell threads (Recommended)".

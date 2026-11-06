@@ -47,7 +47,7 @@ const advance = (duration: Parameters<typeof TestClock.adjust>[0]) =>
     for (let i = 0; i < 20; i++) yield* Effect.yieldNow;
   });
 
-const read = (missionId: MissionId) => call({ _tag: "ReadMission", missionId });
+const read = (missionId: MissionId) => call({ _tag: "ReadMission", missionId, threadId: null });
 
 describe("starting a mission", () => {
   it.effect("saves the mission, its top thread, and the first message, titled by the first line", () =>

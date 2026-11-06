@@ -66,38 +66,43 @@ Open, for the owner:
 - The desktop notification was not observed by an agent.
 - The service passes its whole environment to Claude Code except `OPENMISSION_` variables. Launched from an agent's shell, that leaked the agent's `CLAUDE_*` and `GIT_CONFIG_*` variables; a normal launch is not affected. Not changed.
 
-## Batch 4: agreed, built, awaiting the owner's run-through
+## Batch 4: delivered
 
-Workspace attachment, first step, aimed at self-hosting: start a mission on a folder such as this repository and let its thread work there. Built as a draft while the owner was away, then agreed in CHG-0034 with three changes: Show hidden, Retry on a missing folder, and download hosts for workspace threads. CHG-0035 then made threads autonomous (only sensitive actions ask), rewrote questions for casual users, and replaced the in-app folder browser with the system's folder dialog. Agreed sources: CHG-0034, CHG-0035, `capabilities/workspace-attachment/specifications.md`, and the first-slice design's Workspace row.
-
-### Behavior
-
-- **Choosing**: the dashboard's start form has **Workspace: none** with **Choose folder…**, which opens the system's own folder dialog (Finder, Explorer), with its New Folder and hidden-file controls. Any existing folder may be chosen; a path that is not one is refused and nothing is saved. No workspace keeps the mission's scratch folder. The in-app browser (with **Up**, **New folder**, and **Show hidden**) and the browsable roots stay in the service and in `apps/app/src/folderBrowser.tsx`, checked but not shown, for phone browsing (CHG-0035). The service still refuses browsing outside the roots.
-- **Workspace identity**: a folder becomes a workspace the first time it is chosen, named after the folder, kept by identifier; choosing the same folder again reuses it. The top thread's workspace is fixed at start.
-- **Running there**: the thread's harness runs in the folder. Its starting context names the workspace and path, or says it has none and names the scratch folder.
-- **Instructions**: the folder's `AGENTS.md` and `CLAUDE.md` are put into the starting context, each cut at 50,000 characters, and re-read each turn; a change restarts the Claude Code process, resuming its conversation. Probe (2026-11-06, Claude Code 2.1.302): with `--setting-sources ""`, Claude Code reads no `CLAUDE.md` itself. `@` imports inside them are not followed.
-- **Standing permissions**: Always allow in a workspace thread saves the permission for the workspace; it applies to every mission's threads in that workspace, not to a nested workspace or the scratch folder. Threads with no workspace keep mission scope. Allow everywhere widens either. The Permissions page shows "In workspace <name>".
-- **Shown**: the workspace name on the dashboard row; the workspace and path, or "No workspace", under the conversation title, with "folder missing" when it is gone.
-- **Missing folder**: a thread about to start a turn in a workspace whose folder is gone goes to Attention and says "The workspace folder <path> no longer exists." with **Retry**. Its messages wait undelivered, new ones join them, and a restart keeps the thread waiting. Retry runs them once the folder is back, or returns the thread to Attention. Stop ends the wait. Relocate and Clone again stay staged. No desktop notification yet: it follows open questions only.
-- **Sandbox in a workspace**: at the default level, a workspace thread's sandbox also reaches `registry.npmjs.org`, `github.com`, `objects.githubusercontent.com`, and `release-assets.githubusercontent.com`, writes Bun's and Electron's caches (`~/.bun/install/cache`, `~/Library/Caches/electron`, `~/.cache/electron`), listens on loopback, and runs with `NODE_USE_ENV_PROXY=1` so Node's downloads go through the sandbox proxy. Threads with no workspace keep the closed sandbox. Probe (2026-11-06, Claude Code 2.1.302, Bun 1.4.3, Electron 45.2.3, on a fresh clone): the hosts alone were not enough. `bun install` needed the cache write, Electron's download needed the proxy variable, and the tests needed loopback; with all four, `bun run test` passed 61 of 61 (2 skipped) inside the sandbox.
-- **Autonomy (CHG-0035)**: at **Sensitive actions only**, a harness prompt runs without a question unless OpenMission's sensitive list recognizes it (`sensitivityOf` in `patterns.ts`): push, publish, deploy, posting on GitHub, mail or `osascript`, `curl` that sends data, `ssh`/`scp`/`rsync` to a host, `rm` outside the workspace or of `.git`, git commands that discard work, system changes (`sudo`, `defaults write`, global installs, `brew install`, …), secrets (`~/.ssh`, `~/.aws`, `security`, `gh auth token`), and file-tool writes outside the workspace. Each such run leaves a line "Ran · <Claude Code's reason> · time". This holds with or without a sandbox. The thread's instructions list the sensitive actions and tell it to work autonomously otherwise. The local-git special case (CHG-0032) is gone: local git is ordinary work. At **Also commands and edits**, every prompt still asks.
-- **Questions (CHG-0035)**: a sensitive harness prompt reads "<Claude Code's reason, or the kind of action>. <What it affects>", for example "Push the branch to GitHub. This sends your commits off this computer, where everyone with access to the repository can see them." Buttons: **Allow**, **Always allow**, **Deny**, with an optional message field used by Deny. Discard is gone; the kind of action ("Push code") is what Always allow saves.
-- **Out**: cloning, own copies, the Workspaces page (rename, hide, delete), relocation, thread-opened workspaces, phone browsing, workspace skills and harness settings (Claude Code still runs with `--setting-sources ""`), workspace MCP servers, intel.
-
-### Checks
-
-- Automated with the fake harness and temporary folders: `packages/service/test/workspaces.test.ts` (browsing, roots, New folder, refusal outside roots and through a link, identity reuse, folder and context, scratch folder, missing folder, workspace-scoped permissions incl. nested and scratch). Adapter check with the stand-in: Claude Code starts in the workspace with its `AGENTS.md` in `--append-system-prompt`.
-- After CHG-0035: `bun run test` passes 71 with 2 skipped (the local-git checks were removed with their code; the sensitive-list, autonomy, and any-folder checks were added; the browsing checks stay); the live run with `OPENMISSION_LIVE_CLAUDE=1` passed 65 of 65 before the browsing code was kept. The desktop shell builds. Not driven in the window: the native dialog and the new question card. After CHG-0034: `bun run test` passed 68 with 2 skipped, and with `OPENMISSION_LIVE_CLAUDE=1` 70 of 70; `bun run typecheck` and `bun run check` pass. The new checks (Show hidden, the five missing-folder checks, the workspace sandbox settings) failed before their code was written. The draft's workspace checks were shown able to fail by mutation: [proof](verification/2026-11-06-workspace-batch.md).
-- Driven in the Electron window with Claude Code and Haiku, on a clone of this repository under a browsable root. The thread quoted `AGENTS.md` without reading files, created a file, and committed it locally with no question.
-- Reviewed (review-and-refactor, Standards and Specifications): the refactors are applied and verified by the same reviewers. Open: `@` imports and a check for restart on instruction change. Retry and the hidden-folders choice were settled in CHG-0034.
-- Owner run-through: pending. Start a mission on this repository (or a copy), ask for a small change, and watch the thread follow `AGENTS.md`, run `bun run test` unasked, and commit. Rename a workspace folder, send a message, see Retry, rename it back, and choose Retry. Choose the folder with Finder. Check that reading and listing files raises no question, and that a push asks in plain words.
+Delivered in CHG-0036 after an agent's run-through in the window at the owner's request ([proof](verification/2026-11-06-batch-4-drive.md)). Agreed in CHG-0034 and CHG-0035. Not verified: operating the Finder dialog itself, and the desktop notification. Provisional behavior still in place until decided: the sensitive list is best effort; a missing-folder wait raises no desktop notification; Relocate and Clone again are staged.
 
 ### Open, for the owner
 
-- In a fresh clone, `bun install` still ends with an error in the sandbox: the `prepare` script runs `git config core.hooksPath`, and the sandbox protects `.git/config`. The dependencies are installed by then. An existing checkout, such as this repository, is not affected.
+- In a fresh clone, `bun install`'s `prepare` step cannot set `core.hooksPath` inside the sandbox, so commits skip the pre-commit hook until something sets it. A thread asked to set it does so with no question.
 - Whether a workspace should also load its own Claude Code settings and skills (`--setting-sources project`), which would also let project hooks run.
-- A missing-folder wait raises no desktop notification.
-- The sensitive list is best effort: a command it does not recognize runs, at the default level, unless the thread flags it. The stricter level remains for owners who want every prompt to ask.
+
+## Batch 5: built and checked, awaiting the owner's look
+
+Thread tree core, agreed in CHG-0037. Built test-first and driven in the window: [proof](verification/2026-11-06-thread-tree.md). Pending: the owner's judgment of the side tree, then the Delivery record. Sources: thread-tree and thread-messaging specifications and blueprints.
+
+### Behavior
+
+- **Opening by a thread**: `open_thread` with a request and optional short title, model, and effort opens a thread directly beneath the caller, in the caller's workspace, and starts it with the request. The answer is the new thread's identifier, or a refusal with its reason. Starting context: the request and who opened it; journal and intel are staged.
+- **Opening by the owner**: "Open thread beneath" on the selected thread, with model and effort shown and changeable before the first message. Down to 4 levels below the top thread; agents have no depth limit.
+- **Running limit**: at most 8 threads Running at once in a mission. `open_thread` past the limit is refused with the reason; a message to a thread past the limit waits until a slot frees.
+- **Results**: `report_result` with the result text sends it to the parent as a thread message and makes the caller Done. The top thread has no parent: its result is shown in its own conversation. A result can be reported while threads beneath still run.
+- **Thread messages**: `send_thread_message` to the parent or a thread directly beneath; others refused with the reason. Delivered at the receiver's next turn; a message wakes Waiting, Idle, and Done threads; each message shows its sender.
+- **Waiting**: a turn ending while threads beneath the thread are Running or Waiting leaves it Waiting rather than Idle.
+- **Stop and Resume**: Stop affects only the selected thread. Messages reaching a Stopped thread are kept; the tree shows "N messages waiting". Resume makes it Idle and delivers them.
+- **View**: the conversation screen shows a side tree with each thread's title, state, and waiting count; selecting one shows its conversation, model, effort, and workspace.
+- **Hooks**: the thread instructions say that a setup step failing only because the sandbox protects a Git file is re-run outside the sandbox.
+
+### Provisional, until decided
+
+- On startup, Waiting threads become Idle with Running ones, since nothing runs beneath them any more.
+- The top thread's `report_result` makes it Done with no message: its replies are already the owner's.
+- A thread message reaches a running thread at its next turn only; mid-turn delivery is staged.
+- The phone layout of the side tree is not designed; the tree is a fixed 280-point column.
+
+### Checks
+
+- Automated with the fake harness: opening by owner and thread with copied settings and overrides; depth and running limits; results to the parent and Done; message reach and refusal; delivery and waking; Waiting; Stop without cascade, kept messages, and Resume.
+- Live: one Claude Code mission that opens a thread, gets its result, and reports.
+- Driven in the window: the side tree, selecting threads, writing to a child, Stop and Resume.
 
 ## Open questions, settled when a batch needs them
 
