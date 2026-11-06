@@ -1,5 +1,5 @@
-import type { IntelChange, IntelScope, IntelView } from "@openmission/contracts";
-import { Effect } from "effect";
+import type { IntelChange, IntelScope, IntelStateFilter, IntelView } from "@openmission/contracts";
+import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import {
   type IntelRow,
@@ -12,12 +12,16 @@ import {
   selectIntels,
 } from "./intel.ts";
 import type { ToolScope } from "./intelChanges.ts";
+import { readFading, stateOfIntel } from "./intelFading.ts";
 import { wordsOf } from "./matching.ts";
 
 // What the owner and threads read of intel: the panel, a thread's changes, and search_intel.
 
 /** The most intels `search_intel` answers with. */
 const searchLimit = 20;
+/** A word found in this many intels or fewer, such as a name, counts more in search (scoped-intel, External contract). */
+const rareWordLimit = 3;
+const rareWordWeight = 3;
 
 const selectChanges = (sql: SqlClient.SqlClient) => sql`
   SELECT c.id, c.thread_id AS threadId, t.title AS threadTitle, c.kind, c.status, c.intel_id AS intelId, c.scope,
@@ -60,18 +64,26 @@ export const listThreadIntelChanges = (threadId: string) =>
     return rows.map(changeOf);
   });
 
-/** The intel panel: one thread's scope or all intel, filtered by scope, and every change awaiting approval. */
-export const readIntelView = (scope: IntelScope | null, threadId: string | null) =>
+/**
+ * The intel panel: one thread's scope or all intel, filtered by scope and state, and every change awaiting
+ * approval.
+ */
+export const readIntelView = (scope: IntelScope | null, state: IntelStateFilter | null, threadId: string | null) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
+    const fading = yield* readFading;
     const rows =
       threadId === null
         ? yield* sql<IntelRow>`${selectIntels(sql)} ORDER BY i.saved_at DESC`
         : yield* listInScope(yield* readScopeChain(threadId));
+    const isOfState = (row: IntelRow) =>
+      state === null || (state === "Pinned" ? row.isPinned === 1 : stateOfIntel(row, fading) === state);
     return {
       awaiting: yield* listAwaitingChanges,
       gauge: threadId === null ? null : yield* readGauge(threadId),
-      intels: rows.filter((row) => scope === null || row.scope === scope).map(intelOf),
+      intels: rows
+        .filter((row) => (scope === null || row.scope === scope) && isOfState(row))
+        .map((row) => intelOf(row, fading)),
     } satisfies IntelView;
   });
 
@@ -83,19 +95,49 @@ const isOfToolScope = (row: IntelRow, scope: ToolScope) =>
     workspace: row.scope === "Workspace",
   })[scope];
 
-/** `search_intel`: the intel in the thread's scope sharing words with the query, most specific first. */
-export const searchIntelText = (threadId: string, query: string, scope: ToolScope | null) =>
+/** Ranks intels by the query's words they share, a rare word counting more; ties keep the scope order. */
+const rankByWords = (rows: ReadonlyArray<IntelRow>, query: string) => {
+  const wanted = wordsOf(query);
+  const wordsByIntel = new Map(rows.map((row) => [row.id, wordsOf(row.text)]));
+  const intelsWith = (word: string) => rows.filter((row) => wordsByIntel.get(row.id)?.has(word)).length;
+  const weights = new Map([...wanted].map((word) => [word, intelsWith(word) <= rareWordLimit ? rareWordWeight : 1]));
+  return rows
+    .map((row) => {
+      const words = wordsByIntel.get(row.id) ?? new Set<string>();
+      let score = 0;
+      for (const [word, weight] of weights) if (words.has(word)) score += weight;
+      return { row, score };
+    })
+    .filter(({ score }) => score > 0)
+    .toSorted((a, b) => b.score - a.score)
+    .map(({ row }) => row);
+};
+
+/**
+ * `search_intel`: the active and dormant intel in the thread's scope read by identifier or matching the
+ * query's words, best match first. Each intel returned counts as a use, so it fades slower and a dormant one
+ * becomes active again (scoped-intel, Fading). Callers run it in a transaction.
+ */
+export const searchIntelText = (
+  threadId: string,
+  query: string | null,
+  ids: ReadonlyArray<string>,
+  scope: ToolScope | null,
+) =>
   Effect.gen(function* () {
-    const wanted = wordsOf(query);
-    const rows = yield* listInScope(yield* readScopeChain(threadId));
-    const found = rows
-      .filter((row) => scope === null || isOfToolScope(row, scope))
-      .filter((row) => {
-        const words = wordsOf(row.text);
-        return [...wanted].some((word) => words.has(word));
-      })
-      .slice(0, searchLimit);
-    return found.length === 0
-      ? "No intel matches. Your starting context already lists all the intel in your scope."
-      : `Intel matching, most specific first; when two conflict, the one listed first wins:\n${intelLinesOf(found)}`;
+    const sql = yield* SqlClient.SqlClient;
+    const fading = yield* readFading;
+    const rows = (yield* listInScope(yield* readScopeChain(threadId))).filter(
+      (row) => (scope === null || isOfToolScope(row, scope)) && stateOfIntel(row, fading) !== "Archived",
+    );
+    const named = rows.filter((row) => ids.includes(row.id));
+    const matched = query === null ? [] : rankByWords(rows, query).filter((row) => !ids.includes(row.id));
+    const found = [...named, ...matched].slice(0, searchLimit);
+    if (found.length === 0) {
+      return "No intel matches. Your context already lists the active intel in your scope, and global intel as an index.";
+    }
+    const now = yield* Clock.currentTimeMillis;
+    yield* sql`UPDATE intels SET uses = uses + 1, last_used_at = ${now}
+      WHERE id IN ${sql.in(found.map((row) => row.id))}`;
+    return `Intel found, best match first; when two conflict, the more specific scope wins:\n${intelLinesOf(found)}`;
   });

@@ -1,9 +1,9 @@
-import type { Intel, IntelChange, IntelGauge, IntelScope, ThreadId } from "@openmission/contracts";
+import type { Intel, IntelChange, IntelGauge, IntelScope, IntelStateFilter, ThreadId } from "@openmission/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import type { ServiceClient } from "./client";
 import { timeOf } from "./formatting";
-import { intelActionOf, intelChangeLineOf, intelGaugeLabelOf } from "./labels";
+import { intelActionOf, intelChangeLineOf, intelFadingLabelOf, intelGaugeLabelOf } from "./labels";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
 
@@ -83,7 +83,7 @@ export function IntelChangeLine({ change }: { change: IntelChange }) {
   );
 }
 
-/** One intel in the panel, with Edit and Delete. */
+/** One intel in the panel, with Edit, Pin or Unpin, Restore when it faded, and Delete. */
 function IntelRow({ client, intel }: { client: ServiceClient; intel: Intel }) {
   const [draft, setDraft] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -102,12 +102,25 @@ function IntelRow({ client, intel }: { client: ServiceClient; intel: Intel }) {
         {timeOf(intel.savedAt)}
         {intel.updatedAt !== intel.savedAt ? ` · changed ${timeOf(intel.updatedAt)}` : ""} · {intel.tokens} tokens
       </Text>
+      <Text style={styles.muted}>{intelFadingLabelOf(intel)}</Text>
       {draft === null ? (
         <View style={styles.row}>
           <Text style={[styles.body, styles.flex]}>{intel.text}</Text>
           <Pressable onPress={() => setDraft(intel.text)}>
             <Text style={styles.link}>Edit</Text>
           </Pressable>
+          <Pressable
+            onPress={() =>
+              act(client.request({ _tag: "PinIntel", intelId: intel.id, isPinned: !intel.isPinned }), () => {})
+            }
+          >
+            <Text style={styles.link}>{intel.isPinned ? "Unpin" : "Pin"}</Text>
+          </Pressable>
+          {intel.state !== "Active" && (
+            <Pressable onPress={() => act(client.request({ _tag: "RestoreIntel", intelId: intel.id }), () => {})}>
+              <Text style={styles.link}>Restore</Text>
+            </Pressable>
+          )}
           <Pressable onPress={() => act(client.request({ _tag: "DeleteIntel", intelId: intel.id }), () => {})}>
             <Text style={styles.link}>Delete</Text>
           </Pressable>
@@ -139,6 +152,13 @@ function IntelRow({ client, intel }: { client: ServiceClient; intel: Intel }) {
 }
 
 const scopes = [null, "Thread", "Workspace", "Global"] as const satisfies ReadonlyArray<IntelScope | null>;
+const states = [
+  null,
+  "Active",
+  "Dormant",
+  "Archived",
+  "Pinned",
+] as const satisfies ReadonlyArray<IntelStateFilter | null>;
 const scopeNames = { Global: "Global", Thread: "Thread and mission", Workspace: "Workspace" } as const satisfies Record<
   IntelScope,
   string
@@ -160,10 +180,11 @@ export function IntelScreen({
   title: string;
 }) {
   const [scope, setScope] = useState<IntelScope | null>(null);
+  const [state, setState] = useState<IntelStateFilter | null>(null);
   const { data, error } = useServiceQuery(
     client,
-    { _tag: "ListIntel", scope, threadId },
-    `intel:${threadId ?? "all"}:${scope ?? "all"}`,
+    { _tag: "ListIntel", scope, state, threadId },
+    `intel:${threadId ?? "all"}:${scope ?? "all"}:${state ?? "all"}`,
   );
   return (
     <View style={styles.screen}>
@@ -202,6 +223,19 @@ export function IntelScreen({
               >
                 <Text style={[styles.chipText, scope === choice && styles.chipTextSelected]}>
                   {choice === null ? "All" : scopeNames[choice]}
+                </Text>
+              </Pressable>
+            ))}
+          </View>
+          <View style={[styles.chips, { marginBottom: 12 }]}>
+            {states.map((choice) => (
+              <Pressable
+                key={choice ?? "all"}
+                onPress={() => setState(choice)}
+                style={[styles.chip, state === choice && styles.chipSelected]}
+              >
+                <Text style={[styles.chipText, state === choice && styles.chipTextSelected]}>
+                  {choice === null ? "Any state" : choice}
                 </Text>
               </Pressable>
             ))}

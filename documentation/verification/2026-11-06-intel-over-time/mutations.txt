@@ -1,0 +1,21 @@
+CAUGHT intelFading.ts if (intel.isPinned === 1 || halfLifeDays === null) return 1;
+CAUGHT intelFading.ts Rule: null,
+CAUGHT intelFading.ts (1 + Math.log2(1 + intel.uses))
+CAUGHT intelFading.ts strength < archivedBelow ? "Archived"
+CAUGHT intelFading.ts export const dormantBelow = 0.15;
+CAUGHT intelFading.ts Temporary: halfLives.temporary,
+CAUGHT intelFading.ts if (flat.length <= summaryLength) return flat;
+CAUGHT intel.ts sum + tokensOf(summaryOf(row.text))
+CAUGHT intel.ts toSorted((a, b) => a.savedAt - b.savedAt)
+CAUGHT intel.ts inFull: active.filter((row) => row.scope !== "Global"),
+CAUGHT intel.ts ["1 dormant intel in your scope
+CAUGHT intelViews.ts intelsWith(word) <= rareWordLimit ? rareWordWeight : 1
+CAUGHT intelViews.ts .toSorted((a, b) => b.score - a.score)
+CAUGHT intelViews.ts && stateOfIntel(row, fading) !== "Archived"
+CAUGHT intelViews.ts SET uses = uses + 1, last_used_at = ${now}
+CAUGHT intelChanges.ts insertIntel(placement, change.intelKind, change.text, change
+CAUGHT intelChanges.ts yield* sql`UPDATE intels SET last_used_at = ${now} WHERE id 
+CAUGHT intelViews.ts state === "Pinned" ? row.isPinned === 1
+CAUGHT intelChanges.ts ${isPinned ? 1 : 0}
+CAUGHT intel.ts save it as an intel of kind rule
+20/20

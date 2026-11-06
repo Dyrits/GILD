@@ -60,6 +60,13 @@ export const Settings = Schema.Struct({
   /** Days without activity before the dashboard asks to archive or mark a mission done (mission-tracking). */
   inactivityDays: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
   /** The share of the chosen model's context window, in percent, past which a thread's intel icon turns red (scoped-intel). */
+  /** Days over which an unused intel's strength halves, by kind; a rule never fades (scoped-intel, Kinds). */
+  intelHalfLives: Schema.Struct({
+    decision: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+    fact: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+    preference: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+    temporary: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+  }),
   intelWarningPercent: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1), Schema.isLessThanOrEqualTo(100)),
   /** Whether Done missions are archived automatically, off by default (mission-tracking, Ending a mission). */
   shouldAutoArchive: Schema.Boolean,

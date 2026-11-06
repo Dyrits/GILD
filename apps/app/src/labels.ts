@@ -1,5 +1,6 @@
 import type {
   BudgetLimits,
+  Intel,
   IntelChange,
   IntelChangeStatus,
   IntelGauge,
@@ -99,3 +100,13 @@ export const intelGaugeLabelOf = (gauge: Pick<IntelGauge, "count" | "tokens" | "
   const percent = (gauge.tokens * 100) / gauge.windowTokens;
   return `Intel · ${gauge.count} · ${percent === 0 ? "0" : percent < 0.1 ? "<0.1" : percent.toFixed(1)}%`;
 };
+
+/** An intel's fading in the panel, for example "Preference · active · strength 82% · used 3 times · pinned". */
+export const intelFadingLabelOf = (intel: Pick<Intel, "isPinned" | "kind" | "state" | "strength" | "uses">) =>
+  [
+    intel.kind,
+    intel.state.toLowerCase(),
+    `strength ${Math.round(intel.strength * 100)}%`,
+    intel.uses === 0 ? "not used yet" : intel.uses === 1 ? "used once" : `used ${intel.uses} times`,
+    ...(intel.isPinned ? ["pinned"] : []),
+  ].join(" · ");

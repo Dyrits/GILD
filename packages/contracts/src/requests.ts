@@ -12,7 +12,7 @@ import {
   ThreadId,
   WorkspaceId,
 } from "./ids.ts";
-import { IntelScope, IntelView } from "./intel.ts";
+import { IntelScope, IntelStateFilter, IntelView } from "./intel.ts";
 import { JournalView } from "./journal.ts";
 import { PermissionsView, Question } from "./questions.ts";
 import {
@@ -134,11 +134,16 @@ export const AddJournalEntry = Schema.TaggedStruct("AddJournalEntry", {
   text: MessageText,
 });
 
-/** The intel panel: the intel in a thread's scope, most specific first, or all intel; filtered by scope. */
+/** The intel panel: the intel in a thread's scope, most specific first, or all intel; filtered by scope and state. */
 export const ListIntel = Schema.TaggedStruct("ListIntel", {
   scope: Schema.NullOr(IntelScope),
+  state: Schema.NullOr(IntelStateFilter),
   threadId: Schema.NullOr(ThreadId),
 });
+/** The owner pins an intel so it never fades, or unpins it. */
+export const PinIntel = Schema.TaggedStruct("PinIntel", { intelId: IntelId, isPinned: Schema.Boolean });
+/** The owner makes a dormant or archived intel active again, at full strength. */
+export const RestoreIntel = Schema.TaggedStruct("RestoreIntel", { intelId: IntelId });
 /** The owner corrects an intel's text. */
 export const EditIntel = Schema.TaggedStruct("EditIntel", { intelId: IntelId, text: MessageText });
 /** The owner deletes an intel. */
@@ -230,6 +235,8 @@ export const Request = Schema.Union([
   ListIntel,
   EditIntel,
   DeleteIntel,
+  PinIntel,
+  RestoreIntel,
   ResolveIntelChange,
   AnswerQuestion,
   AnswerSuggestion,
@@ -280,6 +287,7 @@ export const Results = {
   ListMissions: MissionList,
   ListOpenQuestions: Schema.Array(Question),
   OpenThread: OpenThreadResult,
+  PinIntel: Schema.Null,
   PreviewDeletion: DeletionPreview,
   PreviewEnding: EndingPreview,
   ReadBudget: BudgetWindow,
@@ -293,6 +301,7 @@ export const Results = {
   ReopenMission: Schema.Null,
   ResolveChatter: Schema.Null,
   ResolveIntelChange: Schema.Null,
+  RestoreIntel: Schema.Null,
   ResumeThread: Schema.Null,
   RetryThread: Schema.Null,
   RewriteBriefing: JournalView,

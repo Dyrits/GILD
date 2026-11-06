@@ -287,6 +287,16 @@ const migrations = {
     )`;
     yield* sql`CREATE INDEX intel_changes_thread ON intel_changes (thread_id)`;
   }),
+  "0017_intel_over_time": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    // Intel saved before kinds existed counts as a fact, last used when it was saved.
+    yield* sql`ALTER TABLE intels ADD COLUMN kind TEXT NOT NULL DEFAULT 'Fact'`;
+    yield* sql`ALTER TABLE intels ADD COLUMN is_pinned INTEGER NOT NULL DEFAULT 0`;
+    yield* sql`ALTER TABLE intels ADD COLUMN uses INTEGER NOT NULL DEFAULT 0`;
+    yield* sql`ALTER TABLE intels ADD COLUMN last_used_at INTEGER NOT NULL DEFAULT 0`;
+    yield* sql`UPDATE intels SET last_used_at = saved_at`;
+    yield* sql`ALTER TABLE intel_changes ADD COLUMN intel_kind TEXT NOT NULL DEFAULT 'Fact'`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

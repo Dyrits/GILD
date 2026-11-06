@@ -14,9 +14,10 @@ afterEach(() => {
   for (const value of fixtures.splice(0)) value.remove();
 });
 
-const save = (threadId: ThreadId, text: string, scope: string) => tool(threadId, "save_intel", { scope, text });
+const save = (threadId: ThreadId, text: string, scope: string) =>
+  tool(threadId, "save_intel", { kind: "fact", scope, text });
 const panel = (threadId: ThreadId | null = null, scope: IntelScope | null = null) =>
-  call({ _tag: "ListIntel", scope, threadId });
+  call({ _tag: "ListIntel", scope, state: null, threadId });
 /** A mission whose top thread has finished its first turn, in a workspace or the scratch folder. */
 const idle = (workspacePath: string | null = null, text = "Hello") =>
   Effect.gen(function* () {

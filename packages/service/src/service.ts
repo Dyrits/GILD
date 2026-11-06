@@ -14,7 +14,13 @@ import { endpointsLayer } from "./endpoints.ts";
 import { invalid, ServiceFailure } from "./errors.ts";
 import type { Harness } from "./execution.ts";
 import { addBrowsableRoot, browseFolders, createFolder, seedBrowsableRoots } from "./folders.ts";
-import { deleteIntelByOwner, editIntelByOwner, resolveIntelChange } from "./intelChanges.ts";
+import {
+  deleteIntelByOwner,
+  editIntelByOwner,
+  pinIntelByOwner,
+  resolveIntelChange,
+  restoreIntelByOwner,
+} from "./intelChanges.ts";
 import { readIntelView } from "./intelViews.ts";
 import { type JournalOutcome, readJournalView, updateJournal } from "./journal.ts";
 import { toolServerLayer } from "./mcp.ts";
@@ -157,7 +163,7 @@ const make = Effect.gen(function* () {
                 isInterrupted ? Effect.succeed(null) : invalid("This thread is not running."),
               ),
             ),
-        ListIntel: (list) => readIntelView(list.scope, list.threadId),
+        ListIntel: (list) => readIntelView(list.scope, list.state, list.threadId),
         ListMissions: (filters) => listMissions(filters),
         ListOpenQuestions: () => listOpenQuestions,
         OpenThread: (open) =>
@@ -167,6 +173,8 @@ const make = Effect.gen(function* () {
             ),
             Effect.tap((opened) => threads.wake(opened.threadId)),
           ),
+        PinIntel: (given) =>
+          sql.withTransaction(pinIntelByOwner(given.intelId, given.isPinned)).pipe(Effect.tap(() => changes.publish)),
         PreviewDeletion: (given) => previewDeletion(given.threadId),
         PreviewEnding: (given) => previewEnding(given.missionId, given.ending),
         ReadBudget: (read) => readBudgetWindow(read.missionId),
@@ -199,6 +207,8 @@ const make = Effect.gen(function* () {
           sql
             .withTransaction(resolveIntelChange(given.changeId, given.isApproved))
             .pipe(Effect.tap(() => changes.publish)),
+        RestoreIntel: (given) =>
+          sql.withTransaction(restoreIntelByOwner(given.intelId)).pipe(Effect.tap(() => changes.publish)),
         ResumeThread: (resume) => threads.resume(resume.threadId).pipe(Effect.as(null)),
         RetryThread: (retry) => threads.retry(retry.threadId).pipe(Effect.as(null)),
         RewriteBriefing: (rewrite) => {

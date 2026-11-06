@@ -149,6 +149,34 @@ export function SettingsScreen({
             value={settings.intelWarningPercent}
           />
           <NumberSetting
+            label="Intel half-life · days for an unused preference intel to fade by half"
+            minimum={1}
+            onInvalid={setSaveError}
+            onSave={(preference) => save({ intelHalfLives: { ...settings.intelHalfLives, preference } })}
+            value={settings.intelHalfLives.preference}
+          />
+          <NumberSetting
+            label="Intel half-life · days for an unused decision intel to fade by half"
+            minimum={1}
+            onInvalid={setSaveError}
+            onSave={(decision) => save({ intelHalfLives: { ...settings.intelHalfLives, decision } })}
+            value={settings.intelHalfLives.decision}
+          />
+          <NumberSetting
+            label="Intel half-life · days for an unused fact intel to fade by half"
+            minimum={1}
+            onInvalid={setSaveError}
+            onSave={(fact) => save({ intelHalfLives: { ...settings.intelHalfLives, fact } })}
+            value={settings.intelHalfLives.fact}
+          />
+          <NumberSetting
+            label="Intel half-life · days for an unused temporary intel to fade by half"
+            minimum={1}
+            onInvalid={setSaveError}
+            onSave={(temporary) => save({ intelHalfLives: { ...settings.intelHalfLives, temporary } })}
+            value={settings.intelHalfLives.temporary}
+          />
+          <NumberSetting
             label="Ask about a mission after this many days without activity"
             minimum={1}
             onInvalid={setSaveError}

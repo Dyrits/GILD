@@ -5,6 +5,7 @@ import {
   deletionQuestionOf,
   foldedLabelOf,
   intelChangeLineOf,
+  intelFadingLabelOf,
   intelGaugeLabelOf,
   journalAuthorOf,
   meterLevelOf,
@@ -102,5 +103,14 @@ describe("intel labels", () => {
     expect(intelGaugeLabelOf({ count: 0, tokens: 0, windowTokens: 200_000 })).toBe("Intel · 0 · 0%");
     expect(intelGaugeLabelOf({ count: 2, tokens: 100, windowTokens: 200_000 })).toBe("Intel · 2 · <0.1%");
     expect(intelGaugeLabelOf({ count: 9, tokens: 21_000, windowTokens: 200_000 })).toBe("Intel · 9 · 10.5%");
+  });
+
+  it("names an intel's kind, state, strength, uses, and pin", () => {
+    const intel = { isPinned: false, kind: "Preference", state: "Active", strength: 0.816, uses: 0 } as const;
+    expect(intelFadingLabelOf(intel)).toBe("Preference · active · strength 82% · not used yet");
+    expect(intelFadingLabelOf({ ...intel, uses: 1 })).toBe("Preference · active · strength 82% · used once");
+    expect(intelFadingLabelOf({ ...intel, isPinned: true, strength: 1, uses: 3 })).toBe(
+      "Preference · active · strength 100% · used 3 times · pinned",
+    );
   });
 });

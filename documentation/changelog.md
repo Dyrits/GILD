@@ -676,3 +676,20 @@ Reason: Global intel grows across every workspace; carrying all of it in every t
 References: documentation/capabilities/scoped-intel/specifications.md; documentation/inspirations.md; documentation/glossary.md (Intel); documentation/backlog.md
 Validation: Requested by the owner on 2026-11-06. Not built; batch 12 still carries every intel in full.
 Evidence: The owner's request "Yes, you can update the documentation to have better memory management. Also, would be nice to mention tools we are following and getting inspired by, in order to take the good ideas and see what interesting feature they already have or will release in the future."
+
+## CHG-0051 · 2026-11-06 · Batch 13 built: intel over time
+
+Type: Code
+Event: Delivery
+Scope: First slice, batch 13; Scoped intel
+
+Summary: Part of the intel-over-time rules agreed in CHG-0050, as built and listed in work-in-progress (Batch 13):
+- `save_intel` takes a kind (rule, preference, decision, fact, temporary); half-lives in Settings, a rule never fades; the owner pins intel;
+- strength falls by half over the kind's half-life since the last use, slower with uses; dormant below 0.15, archived below 0.05, worked out when read;
+- each turn's context carries active scoped intel in full, active global intel as an index added to at its end, and the count of dormant intels;
+- `search_intel` searches active and dormant intel by words or identifiers, ranks the closest match and rare words first, and counts each intel returned as a use;
+- the intel panel shows kind, state, strength, and uses, filters by state, and offers Pin, Unpin, and Restore.
+Replacing duplicates, origin references, evidence-based widening and narrowing, history with undo, and Tidy up stay staged. Chosen by an agent under the owner's instruction to build what is next without questions; not yet agreed or accepted by the owner.
+References: documentation/capabilities/scoped-intel/specifications.md; documentation/work-in-progress.md (Batch 13); documentation/verification/2026-11-06-intel-over-time.md; packages/service/src/intelFading.ts, intel.ts, intelViews.ts, intelChanges.ts, threadTools.ts, store.ts (migration 0017); apps/app/src/intel.tsx, settings.tsx
+Validation: `bun run test` passed 253 with 5 skipped; typecheck, `bun run check`, the desktop build, and a Metro web export passed. 20 of 20 mutations were caught in a separate worktree, the new checks fail on the starting commit, and a migration check passed. The batch was driven in the window on the fake harness, with days simulated in the database. A fresh-context agent reproduced the whole proof. The look awaits the owner. Not verified: a live Claude Code thread using kinds, the index, and search.
+Evidence: The owner's instruction of 2026-11-06, repeated for this session: "For now, we build, step by step and we verify it works. The look and feel will be adjusted later. Don't ask any question for this session, build what is next."

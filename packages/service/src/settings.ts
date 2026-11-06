@@ -18,6 +18,7 @@ export const defaultSettings: Settings = {
   globalBudget: { cost: null, tokens: null },
   globalBudgetPeriod: "Month",
   inactivityDays: 14,
+  intelHalfLives: { decision: 45, fact: 45, preference: 90, temporary: 3 },
   intelWarningPercent: 10,
   shouldAutoArchive: false,
   shouldOpenOffTopicMissions: false,
@@ -44,7 +45,7 @@ export const writeSettings = (settings: Settings) =>
     const parsed = yield* Schema.decodeUnknownEffect(Settings)(settings).pipe(
       Effect.catch(() =>
         invalid(
-          "Invalid settings: the chatter threshold must be a whole number of at least 2; the briefing limit and the inactivity and auto-archive days at least 1; budget limits above 0, tokens in whole numbers.",
+          "Invalid settings: the chatter threshold must be a whole number of at least 2; the briefing limit, the inactivity and auto-archive days, and the intel half-lives at least 1; budget limits above 0, tokens in whole numbers.",
         ),
       ),
     );

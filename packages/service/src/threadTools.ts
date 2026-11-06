@@ -34,6 +34,14 @@ const definitionOf = <S extends Schema.ConstraintDecoder<unknown> & Schema.Top>(
 const invalid = (text: string): ToolAnswer => ({ isError: true, text });
 
 const ToolScope = Schema.Literals(["thread", "mission", "workspace", "global"]);
+const ToolKind = Schema.Literals(["rule", "preference", "decision", "fact", "temporary"]);
+const kindHelp =
+  "rule: an instruction to follow, never fades; preference: how the owner likes things; decision: a settled choice; fact: how things are; temporary: true for days only.";
+
+/** The answer to a `search_intel` call with neither query nor ids. */
+export const searchInvalid = invalid(
+  "Invalid arguments: give query, ids, or both, and optionally scope (thread, mission, workspace, or global).",
+);
 const scopeHelp =
   "thread: you and the threads beneath you; mission: every thread of this mission; workspace: every thread in this folder, in any mission; global: everywhere, after the owner's approval.";
 
@@ -129,21 +137,27 @@ export const threadTools = {
   }),
   save_intel: definitionOf({
     description:
-      "Save one fact, preference, or decision that later work should know, at the narrowest scope that fits. Thread, mission, and workspace intel are saved at once; global intel waits for the owner's approval.",
-    invalid: invalid("Invalid arguments: give text and scope (thread, mission, workspace, or global)."),
+      "Save one rule, preference, decision, or fact that later work should know, at the narrowest scope that fits, only when it is worth keeping. Thread, mission, and workspace intel are saved at once; global intel waits for the owner's approval.",
+    invalid: invalid(
+      "Invalid arguments: give text, scope (thread, mission, workspace, or global), and kind (rule, preference, decision, fact, or temporary).",
+    ),
     isUnasked: true,
     schema: Schema.Struct({
+      kind: ToolKind.annotate({ description: `What it is, which sets how fast it fades unused. ${kindHelp}` }),
       scope: ToolScope.annotate({ description: `Where it applies. ${scopeHelp}` }),
       text: text("One fact, at most 200 tokens."),
     }),
   }),
   search_intel: definitionOf({
     description:
-      "Search the intel in your scope by words: your thread, the threads above you, your workspace, then global, most specific first.",
-    invalid: invalid("Invalid arguments: give query, and optionally scope (thread, mission, workspace, or global)."),
+      "Search the active and dormant intel in your scope by words, best match first, or read intels in full by their ids, such as global intel from your context's index. Reading an intel counts as a use and keeps it from fading.",
+    invalid: searchInvalid,
     isUnasked: true,
     schema: Schema.Struct({
-      query: text("Words to look for."),
+      ids: Schema.optionalKey(
+        Schema.Array(Schema.String).annotate({ description: "Intel ids to read in full, as your context lists them." }),
+      ),
+      query: optionalText("Words to look for."),
       scope: Schema.optionalKey(ToolScope.annotate({ description: `Only intel of this scope. ${scopeHelp}` })),
     }),
   }),

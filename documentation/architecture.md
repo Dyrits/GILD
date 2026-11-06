@@ -1,6 +1,6 @@
 # Architecture
 
-OpenMission is a desktop application whose local service owns all data in one SQLite file and runs every thread through harness adapters. One Expo app is the interface everywhere: its web build runs in the Electron desktop window and as the installable phone web app, and the same code builds native phone apps later. A relay Worker, deployed by each user to their own Cloudflare account, carries the phone's end-to-end encrypted traffic and receives webhook triggers. The first slice is built (batches 1–11 in `documentation/work-in-progress.md`): the local service, the harness adapters for Claude Code and a fake, and the app in the desktop window. The phone web app, the relay Worker, routines, workflows, and intel are not built yet.
+OpenMission is a desktop application whose local service owns all data in one SQLite file and runs every thread through harness adapters. One Expo app is the interface everywhere: its web build runs in the Electron desktop window and as the installable phone web app, and the same code builds native phone apps later. A relay Worker, deployed by each user to their own Cloudflare account, carries the phone's end-to-end encrypted traffic and receives webhook triggers. The first slice is built (batches 1–13 in `documentation/work-in-progress.md`): the local service, the harness adapters for Claude Code and a fake, scoped intel, and the app in the desktop window. The phone web app, the relay Worker, routines, and workflows are not built yet.
 
 ## Future multiplayer: open architecture questions
 
@@ -60,7 +60,7 @@ Mission-state ownership is settled provisionally. Execution, guest discussion be
 - **Thread tool catalogue** (`threadTools.ts`): each thread tool defined once, with its MCP listing, argument decoding, and whether it runs unasked derived from that definition; `threadToolHandlers.ts` answers each through the module that owns it, and `mcp.ts` is the transport.
 - **Endpoints** (`endpoints.ts`): each thread's secret MCP URL, between Threads (which needs a URL to run a turn) and the tool server (which calls Threads).
 - **Missions** (`missions.ts`, `missionDetail.ts`, `dashboard.ts`): starting a mission and its summary, what the owner reads of one mission, and the dashboard's list.
-- **Intel** (`intel.ts`, `intelChanges.ts`, `intelViews.ts`, `intelTools.ts`): each thread's lookup scope and recall, changes by threads and the owner with the approval of global ones, and what the panel and `search_intel` read.
+- **Intel** (`intel.ts`, `intelFading.ts`, `intelChanges.ts`, `intelViews.ts`, `intelTools.ts`): each thread's lookup scope and recall (scoped intel in full, global intel as an index), kinds and fading worked out when read, changes by threads and the owner with the approval of global ones, and what the panel and `search_intel` read, ranked and counted as uses.
 - **Budgets** (`budgets.ts`, `budgetViews.ts`, `budgetPeriods.ts`, `spending.ts`): stops and releases at limits, what the owner reads, and the release when a global period starts over. Spending rows outlive the threads and missions that spent them.
 
 ## Flows

@@ -335,6 +335,39 @@ Scoped intel (scoped-intel specifications), chosen by an agent under the owner's
 - Driven in the window on the fake harness: see the proof.
 - Not run: a live Claude Code thread using the intel tools.
 
+## Batch 13: built, awaiting the owner
+
+Part of the agreed intel-over-time rules (CHG-0050, scoped-intel Kinds, Recall, Fading, intel panel, ranked search), chosen by an agent under the owner's instruction of 2026-11-06 ("build what is next", no questions this session). Starts from `5901f13`, uncommitted. Built test-first on the fake harness and its test clock and driven in the window: [proof](verification/2026-11-06-intel-over-time.md). Recorded in CHG-0051.
+
+### Behavior
+
+- **Kinds**: `save_intel` takes a kind (rule, preference, decision, fact, temporary). Half-lives in Settings (**Intel half-lives**, days): preference 90, decision 45, fact 45, temporary 3; a rule never fades. The context tells threads to save a rule the owner gives in a chat as a rule.
+- **Pinning**: the owner pins or unpins any intel in the panel; a pinned intel never fades.
+- **Fading**: strength = 0.5 ^ (days since last use or save ÷ (half-life × (1 + log2(1 + uses)))). Below 0.15 dormant, below 0.05 archived. Worked out when read, so nothing runs on a timer.
+- **Uses**: each intel `search_intel` returns counts one use and becomes active again. Being in the context is not a use.
+- **Recall**: every turn's context carries active thread, mission, and workspace intel in full, most specific first; active global intel as an index, one line each (identifier, kind, a short summary), oldest first so a new one is added at the end; then how many dormant intels in scope are not listed.
+- **Search**: `search_intel` takes words, identifiers, or both, optionally a scope; it searches active and dormant intel in scope, never archived, ranks by shared words with a word found in three intels or fewer counting three times, then by scope, most specific first; it answers with each intel's identifier, scope, kind, and full text.
+- **Gauge**: counts what the context carries: active intel in full plus the index lines.
+- **Intel panel**: each intel shows kind, strength, state, uses, and whether pinned; filters by state (All, Active, Dormant, Archived, Pinned) next to the scope filters; **Pin**/**Unpin** and, for dormant or archived intel, **Restore** (strength back to full, not counted as a use).
+
+### Provisional, until the owner decides
+
+- A short summary is the text's first 80 characters, cut at a word, with "…".
+- Restoring sets the last use to now without counting a use.
+- An owner edit, a correction, or a widening is not a use.
+- A global save awaiting approval keeps its kind; approval saves it with that kind.
+
+### Staged, next intel batch
+
+- Duplicates saved as replacements; history with undo, including fading steps; widening and narrowing proposed from evidence; Tidy up intel and its routine; a thread saying it relied on an intel counting as a use; the journal entry or message an intel rests on.
+
+### Checks
+
+- Automated: 15 checks in `intelOverTime.test.ts` on the test clock; 1 label check; batch 12's intel checks save as fact; a migration check of 0017 in the proof's folder.
+- `bun run test` (253 passed, 5 skipped), `bun run typecheck`, `bun run check`, `git diff --check`, desktop build, Metro web export; 20 of 20 mutations caught in a separate worktree; the proof reproduced by a fresh-context agent.
+- Driven in the window on the fake harness, days simulated in the database: see the proof.
+- Not run: a live Claude Code thread using kinds, the index, and search.
+
 ## Open questions, settled when a batch needs them
 
 - Dependency gates and fake-first live launch (first-slice-design, Dependency gates).

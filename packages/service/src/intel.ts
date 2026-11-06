@@ -1,7 +1,8 @@
-import type { Intel, IntelGauge, IntelId, IntelScope, MissionId, ModelChoice } from "@openmission/contracts";
+import type { Intel, IntelGauge, IntelId, IntelKind, IntelScope, MissionId, ModelChoice } from "@openmission/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { notFound } from "./errors.ts";
+import { type Fading, readFading, stateOfIntel, strengthOf, summaryOf } from "./intelFading.ts";
 import { tokensOf } from "./journal.ts";
 import { readSettings } from "./settings.ts";
 
@@ -71,7 +72,10 @@ export const readScopeChain = (threadId: string) =>
 /** One stored intel with what its scope label needs. */
 export interface IntelRow {
   readonly id: string;
+  readonly isPinned: number;
   readonly isTopThread: number;
+  readonly kind: IntelKind;
+  readonly lastUsedAt: number;
   readonly missionId: string | null;
   readonly missionTitle: string | null;
   readonly savedAt: number;
@@ -81,13 +85,14 @@ export interface IntelRow {
   readonly threadId: string | null;
   readonly threadTitle: string | null;
   readonly updatedAt: number;
+  readonly uses: number;
   readonly workspaceId: string | null;
   readonly workspaceName: string | null;
 }
 
 /** Selects intels with what their scope labels need; callers add the condition and order. */
 export const selectIntels = (sql: SqlClient.SqlClient) => sql`
-  SELECT i.id, i.scope, i.text, i.thread_id AS threadId, i.workspace_id AS workspaceId, i.saved_by_title AS savedByTitle,
+  SELECT i.id, i.scope, i.kind, i.is_pinned AS isPinned, i.uses, i.last_used_at AS lastUsedAt, i.text, i.thread_id AS threadId, i.workspace_id AS workspaceId, i.saved_by_title AS savedByTitle,
     i.saved_at AS savedAt, i.updated_at AS updatedAt, t.title AS threadTitle, t.mission_id AS missionId,
     m.title AS missionTitle, (m.top_thread_id = i.thread_id) AS isTopThread, w.name AS workspaceName
   FROM intels i LEFT JOIN threads t ON t.id = i.thread_id LEFT JOIN missions m ON m.id = t.mission_id
@@ -110,17 +115,23 @@ export const scopeLabelOf = (row: {
     Workspace: `Workspace ${row.workspaceName ?? ""}`,
   })[row.scope];
 
-/** An intel as the owner reads it. */
-export const intelOf = (row: IntelRow): Intel => ({
+/** An intel as the owner reads it, with its strength at that time. */
+export const intelOf = (row: IntelRow, fading: Fading): Intel => ({
   id: row.id as IntelId,
+  isPinned: row.isPinned === 1,
+  kind: row.kind,
+  lastUsedAt: row.lastUsedAt,
   missionId: row.missionId as MissionId | null,
   savedAt: row.savedAt,
   savedByTitle: row.savedByTitle,
   scope: row.scope,
   scopeLabel: scopeLabelOf(row),
+  state: stateOfIntel(row, fading),
+  strength: strengthOf(row, fading),
   text: row.text,
   tokens: tokensOf(row.text),
   updatedAt: row.updatedAt,
+  uses: row.uses,
 });
 
 /** The intel in a thread's scope, most specific first: the thread, each thread above, the workspace, then global. */
@@ -146,23 +157,24 @@ export const readIntel = (intelId: string) =>
     return row ?? null;
   });
 
-/** How much of its model's context window the intel in a thread's scope takes (scoped-intel, Size warning). */
-export const readGauge = (threadId: string) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    const intels = yield* listInScope(yield* readScopeChain(threadId));
-    const [thread] = yield* sql<{ model: ModelChoice }>`SELECT model FROM threads WHERE id = ${threadId}`;
-    const { intelWarningPercent } = yield* readSettings;
-    const windowTokens = contextWindows[thread?.model ?? "default"];
-    const tokens = intels.reduce((sum, intel) => sum + tokensOf(intel.text), 0);
-    return {
-      count: intels.length,
-      isOverWarning: tokens * 100 > windowTokens * intelWarningPercent,
-      tokens,
-      warningPercent: intelWarningPercent,
-      windowTokens,
-    } satisfies IntelGauge;
-  });
+/** What a turn's context carries of a thread's intel (scoped-intel, Recall). */
+interface Recall {
+  /** Dormant intels in scope, not listed. */
+  readonly dormantCount: number;
+  /** Active global intel, oldest first, so a new one is added at the end of the index. */
+  readonly index: ReadonlyArray<IntelRow>;
+  /** Active thread, mission, and workspace intel, most specific first. */
+  readonly inFull: ReadonlyArray<IntelRow>;
+}
+
+const recallOf = (rows: ReadonlyArray<IntelRow>, fading: Fading): Recall => {
+  const active = rows.filter((row) => stateOfIntel(row, fading) === "Active");
+  return {
+    dormantCount: rows.filter((row) => stateOfIntel(row, fading) === "Dormant").length,
+    index: active.filter((row) => row.scope === "Global").toSorted((a, b) => a.savedAt - b.savedAt),
+    inFull: active.filter((row) => row.scope !== "Global"),
+  };
+};
 
 const agentLabelOf = (row: IntelRow) =>
   ({
@@ -171,24 +183,60 @@ const agentLabelOf = (row: IntelRow) =>
     Workspace: "workspace",
   })[row.scope];
 
-/** Intel as a thread reads it: one line each, with its identifier and scope. */
+/** Intel as a thread reads it in full: one line each, with its identifier, scope, and kind. */
 export const intelLinesOf = (rows: ReadonlyArray<IntelRow>) =>
-  rows.map((row) => `- [${row.id}] (${agentLabelOf(row)}) ${row.text}`).join("\n");
+  rows.map((row) => `- [${row.id}] (${agentLabelOf(row)}, ${row.kind.toLowerCase()}) ${row.text}`).join("\n");
+
+/** The global index: one line per active global intel with its identifier, kind, and a short summary. */
+const indexLinesOf = (rows: ReadonlyArray<IntelRow>) =>
+  rows.map((row) => `- [${row.id}] (global, ${row.kind.toLowerCase()}) ${summaryOf(row.text)}`).join("\n");
+
+/** How much of its model's context window the intel in a thread's scope takes (scoped-intel, Size warning). */
+export const readGauge = (threadId: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const recall = recallOf(yield* listInScope(yield* readScopeChain(threadId)), yield* readFading);
+    const [thread] = yield* sql<{ model: ModelChoice }>`SELECT model FROM threads WHERE id = ${threadId}`;
+    const { intelWarningPercent } = yield* readSettings;
+    const windowTokens = contextWindows[thread?.model ?? "default"];
+    const tokens =
+      recall.inFull.reduce((sum, row) => sum + tokensOf(row.text), 0) +
+      recall.index.reduce((sum, row) => sum + tokensOf(summaryOf(row.text)), 0);
+    return {
+      count: recall.inFull.length + recall.index.length,
+      isOverWarning: tokens * 100 > windowTokens * intelWarningPercent,
+      tokens,
+      warningPercent: intelWarningPercent,
+      windowTokens,
+    } satisfies IntelGauge;
+  });
 
 /** A thread's intel context for each turn: the intel in its scope and how to keep it (scoped-intel, Recall). */
 export const intelContextOf = (threadId: string) =>
   Effect.gen(function* () {
     const chain = yield* readScopeChain(threadId);
-    const rows = yield* listInScope(chain);
+    const recall = recallOf(yield* listInScope(chain), yield* readFading);
+    const count = recall.dormantCount;
+    const dormant =
+      count === 0
+        ? []
+        : count === 1
+          ? ["1 dormant intel in your scope is not listed; search_intel finds it by words."]
+          : [`${count} dormant intels in your scope are not listed; search_intel finds them by words.`];
     return [
       "# Intel",
-      "Intel is what OpenMission keeps between threads: facts, preferences, and decisions, each at the scope where it applies. The intel in your scope, most specific first; when two conflict, the one listed first wins:",
-      rows.length === 0 ? "(none yet)" : intelLinesOf(rows),
+      "Intel is what OpenMission keeps between threads: rules, preferences, decisions, facts, and temporary notes, each at the scope where it applies. The intel in your scope, most specific first; when two conflict, the one listed first wins:",
+      recall.inFull.length === 0 ? "(none yet)" : intelLinesOf(recall.inFull),
       "",
-      `When you learn a fact, preference, or decision that later work should know, save it with save_intel: one fact per intel, at most ${intelLimit} tokens. Choose the narrowest scope that fits: thread (you and the threads beneath you), mission (every thread of this mission), workspace (every thread working in this folder, in any mission), or global (everywhere; it waits for the owner's approval).`,
+      "Global intel, as an index of one line each; read one in full with search_intel and its id:",
+      recall.index.length === 0 ? "(none yet)" : indexLinesOf(recall.index),
+      ...dormant,
+      "",
+      `Before saving, check there is something worth keeping: saving nothing is better than a vague or forced intel. When you learn something later work should know, save it with save_intel: one fact per intel, at most ${intelLimit} tokens. Choose the narrowest scope that fits: thread (you and the threads beneath you), mission (every thread of this mission), workspace (every thread working in this folder, in any mission), or global (everywhere; it waits for the owner's approval).`,
+      "Choose its kind: rule (never fades), preference, decision, fact, or temporary (fades in days). Intel nobody uses fades, so search_intel for what you need: reading an intel there keeps it alive.",
       ...(chain.workspaceId === null ? ["You have no workspace, so workspace intel is not available to you."] : []),
-      "When the owner gives you a rule in a chat, such as 'always run the tests before a commit', save it as an intel without being asked.",
-      "Correct an intel that turned out wrong with update_intel, and delete one that no longer holds with forget_intel. When an intel is not specific to where it was saved, such as a general convention or a preference of the owner, propose a wider scope with update_intel; the owner approves the move. Call search_intel to look for intel by words.",
+      "When the owner gives you a rule in a chat, such as 'always run the tests before a commit', save it as an intel of kind rule without being asked.",
+      "Correct an intel that turned out wrong with update_intel, and delete one that no longer holds with forget_intel. When an intel is not specific to where it was saved, such as a general convention or a preference of the owner, propose a wider scope with update_intel; the owner approves the move.",
       "Where the mission stands belongs in the journal, not in intel.",
     ].join("\n");
   });

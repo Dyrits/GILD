@@ -1,4 +1,4 @@
-import type { IntelChangeKind, IntelChangeStatus } from "@openmission/contracts";
+import type { IntelChangeKind, IntelChangeStatus, IntelKind } from "@openmission/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, notFound } from "./errors.ts";
@@ -12,6 +12,7 @@ import {
   type ScopeChain,
   widthOf,
 } from "./intel.ts";
+import { kindOfTool, type ToolKind } from "./intelFading.ts";
 import { tokensOf } from "./journal.ts";
 import type { ToolAnswer } from "./threadTools.ts";
 
@@ -61,6 +62,7 @@ export const textProblemOf = (text: string) => {
 
 interface ChangeRecord {
   readonly intelId: string | null;
+  readonly intelKind: IntelKind;
   readonly kind: IntelChangeKind;
   readonly placement: Placement;
   readonly previousText: string | null;
@@ -73,23 +75,24 @@ const insertChange = (change: ChangeRecord) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const now = yield* Clock.currentTimeMillis;
-    yield* sql`INSERT INTO intel_changes (id, thread_id, kind, status, intel_id, scope, scope_thread_id,
+    yield* sql`INSERT INTO intel_changes (id, thread_id, kind, status, intel_id, intel_kind, scope, scope_thread_id,
         scope_workspace_id, text, previous_text, at, resolved_at)
       VALUES (${crypto.randomUUID()}, ${change.threadId}, ${change.kind}, ${change.status}, ${change.intelId},
+        ${change.intelKind},
         ${change.placement.scope}, ${change.placement.threadId}, ${change.placement.workspaceId}, ${change.text},
         ${change.previousText}, ${now}, ${change.status === "Done" ? now : null})`;
   });
 
 /** Stores a new intel, saved by a thread or, with null, by the owner. Callers run it in a transaction. */
-const insertIntel = (placement: Placement, text: string, savedBy: string | null) =>
+const insertIntel = (placement: Placement, kind: IntelKind, text: string, savedBy: string | null) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const now = yield* Clock.currentTimeMillis;
     const id = crypto.randomUUID();
-    yield* sql`INSERT INTO intels (id, scope, thread_id, workspace_id, text, saved_by_thread_id, saved_by_title,
-        saved_at, updated_at)
-      VALUES (${id}, ${placement.scope}, ${placement.threadId}, ${placement.workspaceId}, ${text.trim()}, ${savedBy},
-        (SELECT title FROM threads WHERE id = ${savedBy}), ${now}, ${now})`;
+    yield* sql`INSERT INTO intels (id, scope, kind, thread_id, workspace_id, text, saved_by_thread_id, saved_by_title,
+        saved_at, updated_at, last_used_at)
+      VALUES (${id}, ${placement.scope}, ${kind}, ${placement.threadId}, ${placement.workspaceId}, ${text.trim()},
+        ${savedBy}, (SELECT title FROM threads WHERE id = ${savedBy}), ${now}, ${now}, ${now})`;
     return id;
   });
 
@@ -105,21 +108,22 @@ const awaitingText =
   "Awaiting approval: the owner decides on it. Carry on with your work; do not make the same change again.";
 
 /** `save_intel`: saves thread and workspace intel at once; a global save waits for the owner. */
-export const saveIntel = (threadId: string, text: string, scope: ToolScope) =>
+export const saveIntel = (threadId: string, text: string, scope: ToolScope, toolKind: ToolKind) =>
   Effect.gen(function* () {
     const problem = textProblemOf(text);
     if (problem !== null) return answer(`Not saved: ${problem}.`, true);
     const chain = yield* readScopeChain(threadId);
     const placement = placementOf(chain, scope);
     if (typeof placement === "string") return answer(`Not saved: ${placement}.`, true);
-    const change = { kind: "Save", placement, previousText: null, text: text.trim(), threadId } as const;
+    const intelKind = kindOfTool[toolKind];
+    const change = { intelKind, kind: "Save", placement, previousText: null, text: text.trim(), threadId } as const;
     if (placement.scope === "Global") {
       yield* insertChange({ ...change, intelId: null, status: "Awaiting" });
       return answer(awaitingText);
     }
-    const intelId = yield* insertIntel(placement, text, threadId);
+    const intelId = yield* insertIntel(placement, intelKind, text, threadId);
     yield* insertChange({ ...change, intelId, status: "Done" });
-    return answer(`Saved intel ${intelId} (${scope}).`);
+    return answer(`Saved intel ${intelId} (${scope}, ${toolKind}).`);
   });
 
 /** The intel with that identifier in the thread's scope, or null. */
@@ -147,6 +151,7 @@ export const updateIntel = (threadId: string, intelId: string, text: string | nu
     }
     const change = {
       intelId,
+      intelKind: row.kind,
       kind: "Update",
       placement,
       previousText: row.text,
@@ -171,6 +176,7 @@ export const forgetIntel = (threadId: string, intelId: string) =>
     if (row === null) return answer(`Not deleted: no intel ${intelId} in your scope.`, true);
     const change = {
       intelId,
+      intelKind: row.kind,
       kind: "Forget",
       placement: placementOfRow(row),
       previousText: row.text,
@@ -194,6 +200,7 @@ export const resolveIntelChange = (changeId: string, isApproved: boolean) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const [change] = yield* sql<{
+      intelKind: IntelKind;
       kind: IntelChangeKind;
       status: IntelChangeStatus;
       intelId: string | null;
@@ -203,7 +210,7 @@ export const resolveIntelChange = (changeId: string, isApproved: boolean) =>
       text: string;
       threadId: string;
     }>`
-      SELECT kind, status, intel_id AS intelId, scope, scope_thread_id AS scopeThreadId,
+      SELECT kind, intel_kind AS intelKind, status, intel_id AS intelId, scope, scope_thread_id AS scopeThreadId,
         scope_workspace_id AS scopeWorkspaceId, text, thread_id AS threadId
       FROM intel_changes WHERE id = ${changeId}`;
     if (change === undefined) return yield* notFound("No such change to intel.");
@@ -212,7 +219,7 @@ export const resolveIntelChange = (changeId: string, isApproved: boolean) =>
     const target = change.intelId === null ? null : yield* readIntel(change.intelId);
     const isApplied = isApproved && (change.kind === "Save" || target !== null);
     if (isApplied && change.kind === "Save") {
-      const intelId = yield* insertIntel(placement, change.text, change.threadId);
+      const intelId = yield* insertIntel(placement, change.intelKind, change.text, change.threadId);
       yield* sql`UPDATE intel_changes SET intel_id = ${intelId} WHERE id = ${changeId}`;
     }
     if (isApplied && change.kind === "Update" && change.intelId !== null) {
@@ -245,5 +252,27 @@ export const deleteIntelByOwner = (intelId: string) =>
     const now = yield* Clock.currentTimeMillis;
     yield* sql`UPDATE intel_changes SET status = 'Declined', resolved_at = ${now}
       WHERE intel_id = ${intelId} AND status = 'Awaiting'`;
+    return null;
+  });
+
+/** The owner pins an intel so it never fades, or unpins it. Callers run it in a transaction. */
+export const pinIntelByOwner = (intelId: string, isPinned: boolean) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    if ((yield* readIntel(intelId)) === null) return yield* notFound("No such intel.");
+    yield* sql`UPDATE intels SET is_pinned = ${isPinned ? 1 : 0} WHERE id = ${intelId}`;
+    return null;
+  });
+
+/**
+ * The owner makes a dormant or archived intel active again: its last use becomes now, at full strength,
+ * without counting a use (work-in-progress, Batch 13). Callers run it in a transaction.
+ */
+export const restoreIntelByOwner = (intelId: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    if ((yield* readIntel(intelId)) === null) return yield* notFound("No such intel.");
+    const now = yield* Clock.currentTimeMillis;
+    yield* sql`UPDATE intels SET last_used_at = ${now} WHERE id = ${intelId}`;
     return null;
   });
