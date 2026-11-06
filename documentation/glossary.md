@@ -138,6 +138,19 @@ _Avoid_: Memory, note, knowledge, lore
 **Intel scope**:
 Where an intel lives and who sees it: a thread (and the threads beneath it), a workspace, or global.
 
+**Intel kind**:
+What an intel is (rule, preference, decision, fact, or temporary), which sets how fast it fades when unused.
+
+**Intel index**:
+The one-line-per-intel list of active global intel in a thread's context; the full text is read through `search_intel`.
+
+**Dormant intel**:
+An intel that faded below a strength of 0.15: out of the index and starting context, still found by search.
+
+**Archived intel**:
+An intel that faded below a strength of 0.05: out of search too, kept in the intel panel, where the user can restore it.
+_Avoid_: Deleted intel
+
 ## Devices
 
 **Paired device**:
