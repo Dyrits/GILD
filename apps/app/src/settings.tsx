@@ -20,6 +20,49 @@ const deliveryLabels = {
   Steer: "Steer its current turn",
 } as const satisfies Record<MessageDelivery, string>;
 
+/** A whole-number setting with its own Save, checked against its minimum before saving. */
+function NumberSetting({
+  label,
+  minimum,
+  value,
+  onSave,
+  onInvalid,
+}: {
+  label: string;
+  minimum: number;
+  value: number;
+  onSave: (value: number) => void;
+  onInvalid: (message: string) => void;
+}) {
+  const [draft, setDraft] = useState<string | null>(null);
+  return (
+    <View>
+      <Text style={styles.label}>{label}</Text>
+      <View style={styles.row}>
+        <TextInput
+          accessibilityLabel={label}
+          keyboardType="number-pad"
+          onChangeText={setDraft}
+          style={styles.input}
+          value={draft ?? String(value)}
+        />
+        <Pressable
+          onPress={() => {
+            const parsed = Number(draft ?? value);
+            if (!Number.isSafeInteger(parsed) || parsed < minimum) {
+              onInvalid(`Use a whole number of at least ${minimum}.`);
+              return;
+            }
+            onSave(parsed);
+          }}
+        >
+          <Text style={styles.link}>Save</Text>
+        </Pressable>
+      </View>
+    </View>
+  );
+}
+
 export function SettingsScreen({
   client,
   onBack,
@@ -30,8 +73,6 @@ export function SettingsScreen({
   onPermissions: () => void;
 }) {
   const { data: settings, error } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
-  const [threshold, setThreshold] = useState<string | null>(null);
-  const [briefingLimit, setBriefingLimit] = useState<string | null>(null);
   const [saveError, setSaveError] = useState<string | null>(null);
   const save = (change: Partial<Settings>) => {
     if (settings === null) return;
@@ -84,50 +125,41 @@ export function SettingsScreen({
             />
             <Text style={styles.body}>Show threads opened by agents</Text>
           </View>
-          <Text style={styles.label}>Chatter guard · messages between two threads</Text>
-          <View style={styles.row}>
-            <TextInput
-              accessibilityLabel="Chatter guard threshold"
-              keyboardType="number-pad"
-              onChangeText={setThreshold}
-              style={styles.input}
-              value={threshold ?? String(settings.chatterThreshold)}
+          <NumberSetting
+            label="Chatter guard · messages between two threads"
+            minimum={2}
+            onInvalid={setSaveError}
+            onSave={(chatterThreshold) => save({ chatterThreshold })}
+            value={settings.chatterThreshold}
+          />
+          <NumberSetting
+            label="Briefing limit · tokens a mission's briefing may hold"
+            minimum={1}
+            onInvalid={setSaveError}
+            onSave={(briefingLimit) => save({ briefingLimit })}
+            value={settings.briefingLimit}
+          />
+          <NumberSetting
+            label="Ask about a mission after this many days without activity"
+            minimum={1}
+            onInvalid={setSaveError}
+            onSave={(inactivityDays) => save({ inactivityDays })}
+            value={settings.inactivityDays}
+          />
+          <View style={styles.toggle}>
+            <Switch
+              onValueChange={(shouldAutoArchive) => save({ shouldAutoArchive })}
+              value={settings.shouldAutoArchive}
             />
-            <Pressable
-              onPress={() => {
-                const value = Number(threshold ?? settings.chatterThreshold);
-                if (!Number.isSafeInteger(value) || value < 2) {
-                  setSaveError("Use a whole number of at least 2.");
-                  return;
-                }
-                save({ chatterThreshold: value });
-              }}
-            >
-              <Text style={styles.link}>Save</Text>
-            </Pressable>
+            <Text style={styles.body}>Archive done missions automatically</Text>
           </View>
-          <Text style={styles.label}>Briefing limit · tokens a mission's briefing may hold</Text>
-          <View style={styles.row}>
-            <TextInput
-              accessibilityLabel="Briefing limit"
-              keyboardType="number-pad"
-              onChangeText={setBriefingLimit}
-              style={styles.input}
-              value={briefingLimit ?? String(settings.briefingLimit)}
-            />
-            <Pressable
-              onPress={() => {
-                const value = Number(briefingLimit ?? settings.briefingLimit);
-                if (!Number.isSafeInteger(value) || value < 1) {
-                  setSaveError("Use a whole number of at least 1.");
-                  return;
-                }
-                save({ briefingLimit: value });
-              }}
-            >
-              <Text style={styles.link}>Save</Text>
-            </Pressable>
-          </View>
+          <NumberSetting
+            label="Days after a mission is marked done before it is archived"
+            minimum={1}
+            onInvalid={setSaveError}
+            onSave={(autoArchiveDays) => save({ autoArchiveDays })}
+            value={settings.autoArchiveDays}
+          />
           <View style={styles.toggle}>
             <Switch
               onValueChange={(shouldStreamReplies) => save({ shouldStreamReplies })}

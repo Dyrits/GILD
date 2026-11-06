@@ -5,6 +5,7 @@ import { newRequestId, type ServiceClient } from "./client";
 import { Composer, StateBadge } from "./controls";
 import { effortLabel, modelLabels, usageDetail } from "./formatting";
 import { JournalScreen } from "./journal";
+import { MissionEndingActions, MissionTitle } from "./missionActions";
 import { QuestionCard, QuestionLine } from "./questions";
 import { styles } from "./styles";
 import { ChatterNotices, DeleteThreadAction } from "./threadActions";
@@ -262,12 +263,15 @@ export function Conversation({
         <Pressable onPress={onBack}>
           <Text style={styles.link}>← Missions</Text>
         </Pressable>
-        <Text numberOfLines={1} style={[styles.heading, styles.flex]}>
-          {data?.mission.title ?? ""}
-        </Text>
+        {data ? (
+          <MissionTitle client={client} key={data.mission.title} mission={data.mission} />
+        ) : (
+          <View style={styles.flex} />
+        )}
         <Pressable onPress={() => setIsJournalOpen(true)}>
           <Text style={styles.link}>Journal</Text>
         </Pressable>
+        {data && <MissionEndingActions client={client} mission={data.mission} />}
         {data && <StateBadge state={data.mission.state} />}
       </View>
       {data && <Text style={styles.muted}>{usageDetail(data.mission.usage)}</Text>}

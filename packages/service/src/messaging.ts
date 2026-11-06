@@ -24,8 +24,12 @@ export const insertMessage = (message: NewMessage) =>
       missionId: string;
     }>`SELECT mission_id AS missionId FROM threads WHERE id = ${message.threadId} AND is_deleting = 0`;
     if (thread === undefined) return yield* notFound("No such thread.");
-    if (message.fromThreadId === null) yield* resetOwnerChatter(message.threadId);
-    else if (message.isResult) yield* resetResultChatter(message.fromThreadId, message.threadId);
+    if (message.fromThreadId === null) {
+      yield* resetOwnerChatter(message.threadId);
+      // The owner writing in a Done or archived mission continues it; its threads record what follows
+      // in the journal (mission-tracking, Ending a mission).
+      yield* sql`UPDATE missions SET ending = NULL WHERE id = ${thread.missionId} AND ending IS NOT NULL`;
+    } else if (message.isResult) yield* resetResultChatter(message.fromThreadId, message.threadId);
     const now = yield* Clock.currentTimeMillis;
     const messageId = crypto.randomUUID();
     const [next] = yield* sql<{ sequence: number }>`

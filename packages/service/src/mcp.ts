@@ -9,6 +9,7 @@ import { countChatter } from "./chatter.ts";
 import { nothingToRecord } from "./journal.ts";
 import { journalToolDefinitions, journalToolsOf } from "./journalTools.ts";
 import { insertMessage } from "./messaging.ts";
+import { titleToolDefinitions, titleToolsOf } from "./titles.ts";
 import { isBeneath, isWithinReach, openThreadByAgent, reportResult } from "./tree.ts";
 import { Waker } from "./waker.ts";
 
@@ -38,6 +39,7 @@ export const threadToolNames = [
   "interrupt_thread",
   "read_journal",
   "update_journal",
+  "set_mission_title",
 ].map((name) => `mcp__${toolServerName}__${name}`);
 
 const RequestApprovalArguments = Schema.Struct({
@@ -171,6 +173,7 @@ const tools = [
     name: "interrupt_thread",
   },
   ...journalToolDefinitions,
+  ...titleToolDefinitions,
   {
     description: "Used by Claude Code itself to answer permission prompts. Never call it yourself.",
     inputSchema: {
@@ -274,7 +277,7 @@ export const toolServerLayer = Layer.effect(
         );
       },
       ...Object.fromEntries(
-        Object.entries(journalToolsOf(commit)).map(([name, answer]) => [
+        Object.entries({ ...journalToolsOf(commit), ...titleToolsOf(commit) }).map(([name, answer]) => [
           name,
           (threadId: string, args: unknown) =>
             answer(threadId, args).pipe(Effect.map(({ isError, text }) => textResult(text, isError))),

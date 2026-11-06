@@ -14,6 +14,7 @@ export default function App() {
   const [openMission, setOpenMission] = useState<MissionId | null>(null);
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
+  const [isArchivedOpen, setIsArchivedOpen] = useState(false);
   useAttentionNotice(client);
 
   useEffect(() => {
@@ -38,7 +39,15 @@ export default function App() {
     );
   }
   return openMission === null ? (
-    <Dashboard client={client} onOpen={setOpenMission} onSettings={() => setIsSettingsOpen(true)} />
+    <Dashboard
+      client={client}
+      isArchived={isArchivedOpen}
+      key={isArchivedOpen ? "archived" : "missions"}
+      onArchived={() => setIsArchivedOpen(true)}
+      onBack={() => setIsArchivedOpen(false)}
+      onOpen={setOpenMission}
+      onSettings={() => setIsSettingsOpen(true)}
+    />
   ) : (
     <Conversation client={client} missionId={openMission} onBack={() => setOpenMission(null)} />
   );

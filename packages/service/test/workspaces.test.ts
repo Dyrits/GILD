@@ -197,7 +197,10 @@ describe("starting a mission in a workspace", () => {
         workspacePath: join(outside, "nothing"),
       });
       expect(refused.kind).toBe("InvalidInput");
-      expect(yield* call({ _tag: "ListMissions" })).toHaveLength(0);
+      expect(
+        (yield* call({ _tag: "ListMissions", isArchived: false, search: null, state: null, workspaceId: null }))
+          .missions,
+      ).toHaveLength(0);
     }).pipe(Effect.provide(layer));
   });
 

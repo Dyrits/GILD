@@ -176,6 +176,17 @@ const migrations = {
     yield* sql`INSERT INTO journals (mission_id, briefing, version) SELECT id, '', 0 FROM missions`;
     yield* sql`ALTER TABLE threads ADD COLUMN opener_messages TEXT`;
   }),
+  // Mission tracking (CHG-0045): how and when a mission ended, its title's owner, and the dashboard's questions.
+  "0012_mission_tracking": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE missions ADD COLUMN ending TEXT`;
+    // When the owner last marked it Done, for auto-archive.
+    yield* sql`ALTER TABLE missions ADD COLUMN done_at INTEGER`;
+    yield* sql`ALTER TABLE missions ADD COLUMN is_title_by_user INTEGER NOT NULL DEFAULT 0`;
+    // Set when the top thread reports its result, until the owner ends the mission or answers Not now.
+    yield* sql`ALTER TABLE missions ADD COLUMN is_asking_done INTEGER NOT NULL DEFAULT 0`;
+    yield* sql`ALTER TABLE missions ADD COLUMN inactivity_dismissed_at INTEGER`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

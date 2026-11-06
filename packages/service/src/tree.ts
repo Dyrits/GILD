@@ -164,6 +164,9 @@ export const reportResult = (threadId: string, result: string, journal: string) 
     yield* sql`UPDATE threads SET reported_turn_id = (
         SELECT id FROM turns WHERE thread_id = ${threadId} AND status = 'running' ORDER BY started_at DESC LIMIT 1)
       WHERE id = ${threadId}`;
+    // The top thread's result asks the owner "Mark as done?"; the mission does not end on its own.
+    if (thread.parentId === null)
+      yield* sql`UPDATE missions SET is_asking_done = 1 WHERE id = ${thread.missionId} AND ending IS NULL`;
     if (thread.parentId !== null) {
       yield* insertMessage({
         fromThreadId: threadId,

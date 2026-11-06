@@ -5,6 +5,7 @@ import { Approvals, approvalsLayer } from "./approvals.ts";
 import { Changes, changesLayer } from "./changes.ts";
 import { resolveChatter } from "./chatter.ts";
 import { deleteThread, previewDeletion } from "./deleting.ts";
+import { autoArchiveLayer, dismissPrompt, endMission, previewEnding, reopenMission } from "./ending.ts";
 import { invalid, ServiceFailure } from "./errors.ts";
 import type { Harness } from "./execution.ts";
 import { addBrowsableRoot, browseFolders, createFolder, seedBrowsableRoots } from "./folders.ts";
@@ -15,9 +16,10 @@ import { insertMission, listMissions, readMission } from "./missions.ts";
 import { listPermissions, removePermission, widenPermission } from "./permissions.ts";
 import { listOpenQuestions, listQuestionHistory } from "./questions.ts";
 import { sandboxProblem } from "./sandbox.ts";
-import { readSettings, writeSettings } from "./settings.ts";
+import { readSettings, readStartChoices, writeSettings } from "./settings.ts";
 import { storeLayer } from "./store.ts";
 import { ScratchRoot, Threads, threadsLayer } from "./threads.ts";
+import { renameMission } from "./titles.ts";
 import { openThreadByOwner } from "./tree.ts";
 import { wakerLayer } from "./waker.ts";
 
@@ -105,6 +107,13 @@ const make = Effect.gen(function* () {
             Effect.provideService(ScratchRoot, scratchRoot),
             Effect.provideService(Changes, changes),
           ),
+        DismissMissionPrompt: (given) =>
+          dismissPrompt(given.missionId, given.prompt).pipe(Effect.tap(() => changes.publish)),
+        EndMission: (given) =>
+          endMission(given.missionId, given.ending, given.snapshot).pipe(
+            Effect.provideService(Threads, threads),
+            Effect.provideService(Changes, changes),
+          ),
         InterruptThread: (given) =>
           threads
             .interrupt(given.threadId)
@@ -113,7 +122,7 @@ const make = Effect.gen(function* () {
                 isInterrupted ? Effect.succeed(null) : invalid("This thread is not running."),
               ),
             ),
-        ListMissions: () => listMissions,
+        ListMissions: (filters) => listMissions(filters),
         ListOpenQuestions: () => listOpenQuestions,
         OpenThread: (open) =>
           nonBlank(open.text).pipe(
@@ -123,6 +132,7 @@ const make = Effect.gen(function* () {
             Effect.tap((opened) => threads.wake(opened.threadId)),
           ),
         PreviewDeletion: (given) => previewDeletion(given.threadId),
+        PreviewEnding: (given) => previewEnding(given.missionId, given.ending),
         ReadJournal: (read) => readJournalView(read.missionId),
         ReadMission: (read) => readMission(read.missionId, read.threadId),
         ReadPermissions: (read) =>
@@ -136,7 +146,12 @@ const make = Effect.gen(function* () {
             };
           }),
         ReadSettings: () => readSettings,
+        ReadStartChoices: () => readStartChoices,
         RemovePermission: (remove) => removePermission(remove.permissionId).pipe(Effect.tap(() => changes.publish)),
+        RenameMission: (rename) =>
+          sql.withTransaction(renameMission(rename.missionId, rename.title)).pipe(Effect.tap(() => changes.publish)),
+        ReopenMission: (reopen) =>
+          sql.withTransaction(reopenMission(reopen.missionId)).pipe(Effect.tap(() => changes.publish)),
         ResolveChatter: (given) =>
           resolveChatter(given.id, given.choice).pipe(
             chatterDecisions.withPermit,
@@ -204,5 +219,9 @@ export const serviceLayer = (options: ServiceOptions) => {
     Layer.provideMerge(storeLayer(options.filename)),
   );
   const tools = toolServerLayer.pipe(Layer.provideMerge(approvalsLayer), Layer.provideMerge(foundation));
-  return Layer.effect(Service, make).pipe(Layer.provideMerge(threadsLayer), Layer.provideMerge(tools));
+  return Layer.effect(Service, make).pipe(
+    Layer.provideMerge(autoArchiveLayer),
+    Layer.provideMerge(threadsLayer),
+    Layer.provideMerge(tools),
+  );
 };

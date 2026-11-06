@@ -1,10 +1,10 @@
-import type { ThreadState } from "@openmission/contracts";
+import type { MissionState, ThreadState } from "@openmission/contracts";
 import { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import { stateColors } from "./formatting";
 import { styles } from "./styles";
 
-export function StateBadge({ state }: { state: ThreadState }) {
+export function StateBadge({ state }: { state: ThreadState | MissionState }) {
   return (
     <View style={[styles.badge, { backgroundColor: stateColors[state] }]}>
       <Text style={styles.badgeText}>{state}</Text>

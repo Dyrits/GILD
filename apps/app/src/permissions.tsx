@@ -39,7 +39,12 @@ export function PermissionsScreen({ client, onBack }: { client: ServiceClient; o
     `permissions-${missionFilter ?? "all"}`,
   );
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
-  const { data: missions } = useServiceQuery(client, { _tag: "ListMissions" }, "missions");
+  const { data: list } = useServiceQuery(
+    client,
+    { _tag: "ListMissions", isArchived: false, search: null, state: null, workspaceId: null },
+    "missions:all",
+  );
+  const missions = list?.missions ?? null;
   const [actionError, setActionError] = useState<string | null>(null);
   const act = (work: Promise<unknown>) =>
     work.then(

@@ -81,9 +81,14 @@ describe("loopback WebSocket", () => {
       expect(reply).toMatchObject({ _tag: "Success", value: { missionId: expect.any(String) } });
       yield* until(() => frames.find((f) => (f as { _tag: string })._tag === "Changed"));
 
-      socket.send(JSON.stringify({ id: "2", request: { _tag: "ListMissions" } }));
+      socket.send(
+        JSON.stringify({
+          id: "2",
+          request: { _tag: "ListMissions", isArchived: false, search: null, state: null, workspaceId: null },
+        }),
+      );
       const list = yield* until(() => frames.find((f) => (f as { id?: string }).id === "2"));
-      expect(list).toMatchObject({ _tag: "Success", value: [{ title: "Over the wire" }] });
+      expect(list).toMatchObject({ _tag: "Success", value: { missions: [{ title: "Over the wire" }] } });
       socket.close();
     }).pipe(Effect.provide(fresh())),
   );

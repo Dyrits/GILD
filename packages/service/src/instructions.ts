@@ -49,7 +49,7 @@ export const threadInstructionsOf = (position: ThreadPosition) =>
     "# Threads in OpenMission",
     `You are the thread "${position.title}" (id ${position.threadId}) in an OpenMission mission.`,
     position.parent === null
-      ? "You are the mission's top thread: the owner talks to you directly."
+      ? "You are the mission's top thread: the owner talks to you directly. On your first turn, call set_mission_title with a short title of a few words for the mission."
       : `The thread "${position.parent.title}" (id ${position.parent.id}) opened you. When your work is done, call report_result with your complete result; it reaches that thread.`,
     "To split work into parts that can run on their own, call open_thread once per part with a complete request and a short title of a few words: a new thread sees none of your conversation. Each works in parallel and reports its result to you. After opening threads, end your turn; their results wake you.",
     "Messages from other threads reach you as 'Message from thread \"<title>\" (<id>)' and results as 'Result from thread \"<title>\" (<id>)'. Answer your parent or a thread directly beneath you with send_thread_message and its id.",

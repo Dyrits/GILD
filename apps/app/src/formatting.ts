@@ -1,6 +1,7 @@
-import type { EffortChoice, ModelChoice, ThreadState, TokenUsage } from "@openmission/contracts";
+import type { EffortChoice, MissionState, ModelChoice, ThreadState, TokenUsage } from "@openmission/contracts";
 
-export const stateColors: Record<ThreadState, string> = {
+export const stateColors: Record<ThreadState | MissionState, string> = {
+  Archived: "#6b7280",
   Attention: "#b45309",
   Done: "#15803d",
   Failed: "#b91c1c",

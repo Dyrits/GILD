@@ -60,7 +60,15 @@ describe("deleting threads", () => {
         expect(preview).toMatchObject({ descendantCount: 0, isMission: true, runningCount: 0 });
         yield* call({ _tag: "DeleteThread", confirmation: preview.confirmation, threadId: started.threadId });
         expect(existsSync(scratch)).toBe(false);
-        expect((yield* call({ _tag: "ListMissions" })).map((m) => m.id)).toEqual([other.missionId]);
+        expect(
+          (yield* call({
+            _tag: "ListMissions",
+            isArchived: false,
+            search: null,
+            state: null,
+            workspaceId: null,
+          })).missions.map((m) => m.id),
+        ).toEqual([other.missionId]);
         expect((yield* call({ _tag: "ReadPermissions", missionId: null })).permissions.map((p) => p.id)).toEqual([
           permission.id,
         ]);

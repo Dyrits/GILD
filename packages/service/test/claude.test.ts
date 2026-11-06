@@ -210,7 +210,9 @@ describe("Claude Code adapter", () => {
       expect(starts()).toHaveLength(1);
       expect(detail.messages.at(-1)?.text).toMatch(/^Reply 2 .* to: Two$/);
       expect(detail.mission.usage).toEqual({ cacheCreation: 100, cacheRead: 200, input: 4, output: 20 });
-      const [summary] = yield* call({ _tag: "ListMissions" });
+      const {
+        missions: [summary],
+      } = yield* call({ _tag: "ListMissions", isArchived: false, search: null, state: null, workspaceId: null });
       expect(summary?.usage.output).toBe(20);
     }).pipe(Effect.provide(layer));
   });
@@ -351,11 +353,14 @@ describe("Claude Code adapter", () => {
         _tag: "UpdateSettings",
         settings: {
           approvalLevel: "RiskyOnly",
+          autoArchiveDays: 30,
           briefingLimit: 2000,
           chatterThreshold: 20,
           defaultDelivery: "Steer",
           defaultEffort: "default",
           defaultModel: "default",
+          inactivityDays: 14,
+          shouldAutoArchive: false,
           shouldShowAgentThreads: true,
           shouldStreamReplies: false,
         },
@@ -485,22 +490,28 @@ describe("settings", () => {
       const defaults = yield* call({ _tag: "ReadSettings" }).pipe(Effect.provide(serviceLayer(options)));
       expect(defaults).toEqual({
         approvalLevel: "RiskyOnly",
+        autoArchiveDays: 30,
         briefingLimit: 2000,
         chatterThreshold: 20,
         defaultDelivery: "Steer",
         defaultEffort: "default",
         defaultModel: "default",
+        inactivityDays: 14,
+        shouldAutoArchive: false,
         shouldShowAgentThreads: true,
         shouldStreamReplies: true,
       });
 
       const updated = {
         approvalLevel: "CommandsAndEdits",
+        autoArchiveDays: 10,
         briefingLimit: 500,
         chatterThreshold: 20,
         defaultDelivery: "Queue",
         defaultEffort: "high",
         defaultModel: "sonnet",
+        inactivityDays: 7,
+        shouldAutoArchive: true,
         shouldShowAgentThreads: true,
         shouldStreamReplies: false,
       } as const;
@@ -518,9 +529,12 @@ describe("settings", () => {
         ON CONFLICT (key) DO UPDATE SET value = excluded.value`;
       expect(yield* call({ _tag: "ReadSettings" })).toEqual({
         ...saved,
+        autoArchiveDays: 30,
         briefingLimit: 2000,
         chatterThreshold: 20,
         defaultDelivery: "Steer",
+        inactivityDays: 14,
+        shouldAutoArchive: false,
         shouldShowAgentThreads: true,
         shouldStreamReplies: false,
       });

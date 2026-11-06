@@ -61,7 +61,13 @@ describe("starting a mission", () => {
         workspacePath: null,
       });
 
-      const missions = yield* call({ _tag: "ListMissions" });
+      const { missions } = yield* call({
+        _tag: "ListMissions",
+        isArchived: false,
+        search: null,
+        state: null,
+        workspaceId: null,
+      });
       expect(missions).toHaveLength(1);
       expect(missions[0]).toMatchObject({ id: started.missionId, state: "Running", title: "Plan the trip" });
 
@@ -89,7 +95,9 @@ describe("starting a mission", () => {
         ["user", "Hello"],
         ["agent", "Echo: Hello"],
       ]);
-      const [summary] = yield* call({ _tag: "ListMissions" });
+      const {
+        missions: [summary],
+      } = yield* call({ _tag: "ListMissions", isArchived: false, search: null, state: null, workspaceId: null });
       expect(summary?.state).toBe("Idle");
     }).pipe(Effect.provide(live(databaseFile()))),
   );
@@ -105,7 +113,10 @@ describe("starting a mission", () => {
         workspacePath: null,
       });
       expect(failure.kind).toBe("InvalidInput");
-      expect(yield* call({ _tag: "ListMissions" })).toEqual([]);
+      expect(
+        (yield* call({ _tag: "ListMissions", isArchived: false, search: null, state: null, workspaceId: null }))
+          .missions,
+      ).toEqual([]);
     }).pipe(Effect.provide(live(databaseFile()))),
   );
 
@@ -128,7 +139,10 @@ describe("starting a mission", () => {
         workspacePath: null,
       });
       expect(again).toEqual(first);
-      expect(yield* call({ _tag: "ListMissions" })).toHaveLength(1);
+      expect(
+        (yield* call({ _tag: "ListMissions", isArchived: false, search: null, state: null, workspaceId: null }))
+          .missions,
+      ).toHaveLength(1);
     }).pipe(Effect.provide(live(databaseFile()))),
   );
 });

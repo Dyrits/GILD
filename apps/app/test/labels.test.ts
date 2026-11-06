@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { briefingSizeOf, deletionQuestionOf, foldedLabelOf, journalAuthorOf } from "../src/labels";
+import {
+  briefingSizeOf,
+  deletionQuestionOf,
+  foldedLabelOf,
+  journalAuthorOf,
+  promptQuestionOf,
+  threadCountOf,
+} from "../src/labels";
 
 describe("tree and deletion labels", () => {
   it("names one folded thread in the singular", () => {
@@ -28,5 +35,18 @@ describe("journal labels", () => {
   it("shows the briefing's size against its limit, and when it is over", () => {
     expect(briefingSizeOf(120, 2000)).toBe("About 120 of 2,000 tokens");
     expect(briefingSizeOf(2100, 2000)).toBe("About 2,100 of 2,000 tokens: over the limit");
+  });
+});
+
+describe("dashboard labels", () => {
+  it("counts a mission's threads, naming running ones only when some run", () => {
+    expect(threadCountOf({ runningCount: 0, threadCount: 1 })).toBe("1 thread");
+    expect(threadCountOf({ runningCount: 2, threadCount: 5 })).toBe("5 threads · 2 running");
+  });
+
+  it("asks Mark as done after a result, and about inactivity in days", () => {
+    expect(promptQuestionOf("MarkDone", 14)).toBe("Mark as done?");
+    expect(promptQuestionOf("Inactive", 14)).toBe("No activity for 14 days. Archive it or mark it as done?");
+    expect(promptQuestionOf("Inactive", 1)).toBe("No activity for 1 day. Archive it or mark it as done?");
   });
 });

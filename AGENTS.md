@@ -24,4 +24,4 @@
 
 ## Handoffs
 
-To resume choosing batch 9 (batch 8, the mission journal, delivered), read the [current handoff](.agents/handoffs/2026-11-06-1454-choose-batch-9.md). Handoffs are shared and committed.
+To resume batch 9 verification and delivery, read the [current handoff](.agents/handoffs/2026-11-06-1524-mission-tracking.md). Handoffs are shared and committed.

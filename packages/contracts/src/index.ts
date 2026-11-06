@@ -73,6 +73,8 @@ export type MessageDelivery = typeof MessageDelivery.Type;
 
 export const Settings = Schema.Struct({
   approvalLevel: ApprovalLevel,
+  /** Days after a Done mission was marked Done before it is archived, when auto-archive is on. */
+  autoArchiveDays: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
   /** The most tokens a mission's briefing may hold, estimated at about 4 characters per token (mission-journal, Size). */
   briefingLimit: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
   /** Messages between two threads before the owner decides how they continue. */
@@ -81,6 +83,10 @@ export const Settings = Schema.Struct({
   defaultDelivery: MessageDelivery,
   defaultEffort: EffortChoice,
   defaultModel: ModelChoice,
+  /** Days without activity before the dashboard asks to archive or mark a mission done (mission-tracking). */
+  inactivityDays: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+  /** Whether Done missions are archived automatically, off by default (mission-tracking, Ending a mission). */
+  shouldAutoArchive: Schema.Boolean,
   shouldShowAgentThreads: Schema.Boolean,
   shouldStreamReplies: Schema.Boolean,
 });
@@ -88,17 +94,69 @@ export type Settings = typeof Settings.Type;
 
 const MessageText = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(100_000));
 
+/** How a mission ended: marked Done, or archived (mission-tracking, Ending a mission). */
+export const MissionEnding = Schema.Literals(["Done", "Archived"]);
+export type MissionEnding = typeof MissionEnding.Type;
+
+/**
+ * The most urgent state among a mission's threads while it is not ended, or how it ended
+ * (mission-tracking, Mission state).
+ */
+export const MissionState = Schema.Literals(["Attention", "Failed", "Running", "Waiting", "Idle", "Done", "Archived"]);
+export type MissionState = typeof MissionState.Type;
+
+/** What the dashboard asks of a mission: "Mark as done?" after its result, or the inactivity question. */
+export const MissionPrompt = Schema.Literals(["MarkDone", "Inactive"]);
+export type MissionPrompt = typeof MissionPrompt.Type;
+
 export const MissionSummary = Schema.Struct({
   id: MissionId,
+  /** Whether the owner renamed it, after which `set_mission_title` is refused. */
+  isTitleByUser: Schema.Boolean,
   lastActivityAt: Schema.Number,
-  state: ThreadState,
+  /** The question the dashboard asks of it, or null. */
+  prompt: Schema.NullOr(MissionPrompt),
+  /** Threads Running now. */
+  runningCount: Schema.Number,
+  state: MissionState,
+  threadCount: Schema.Number,
   title: Schema.String,
   topThreadId: ThreadId,
   usage: TokenUsage,
-  /** The top thread's workspace name; null when it runs in the mission's scratch folder. */
+  /** The top thread's workspace; both null when it runs in the mission's scratch folder. */
+  workspaceId: Schema.NullOr(WorkspaceId),
   workspaceName: Schema.NullOr(Schema.String),
 });
 export type MissionSummary = typeof MissionSummary.Type;
+
+/** One workspace the dashboard can filter by. */
+export const WorkspaceChoice = Schema.Struct({ id: WorkspaceId, name: Schema.String });
+export type WorkspaceChoice = typeof WorkspaceChoice.Type;
+
+/** The dashboard's or the Archived view's missions, and the workspaces among that view's missions. */
+export const MissionList = Schema.Struct({
+  missions: Schema.Array(MissionSummary),
+  workspaces: Schema.Array(WorkspaceChoice),
+});
+export type MissionList = typeof MissionList.Type;
+
+/** What ending a mission would stop, for the one confirmation (mission-tracking, Ending a mission). */
+export const EndingPreview = Schema.Struct({
+  /** The question naming the threads still at work, or null when none are. */
+  question: Schema.NullOr(Schema.String),
+  /** Identifies the threads at work when previewed; ending refuses a changed set. */
+  snapshot: Schema.String,
+  workingCount: Schema.Number,
+});
+export type EndingPreview = typeof EndingPreview.Type;
+
+/** A new mission's choices, prefilled from the last mission started (mission-tracking, Starting a mission). */
+export const StartChoices = Schema.Struct({
+  effort: EffortChoice,
+  model: ModelChoice,
+  workspacePath: Schema.NullOr(Schema.String),
+});
+export type StartChoices = typeof StartChoices.Type;
 
 export const Message = Schema.Struct({
   /** The sending thread, for a thread message; null otherwise. */
@@ -302,7 +360,31 @@ export const SendMessage = Schema.TaggedStruct("SendMessage", {
   text: MessageText,
   threadId: ThreadId,
 });
-export const ListMissions = Schema.TaggedStruct("ListMissions", {});
+/** The dashboard (not archived) or the Archived view, filtered by state and workspace and searched. */
+export const ListMissions = Schema.TaggedStruct("ListMissions", {
+  isArchived: Schema.Boolean,
+  /** Matched against titles and briefings, ignoring case; null or blank matches all. */
+  search: Schema.NullOr(Schema.String),
+  state: Schema.NullOr(MissionState),
+  workspaceId: Schema.NullOr(WorkspaceId),
+});
+export const ReadStartChoices = Schema.TaggedStruct("ReadStartChoices", {});
+/** The owner renames a mission; `set_mission_title` is refused afterwards. */
+export const RenameMission = Schema.TaggedStruct("RenameMission", { missionId: MissionId, title: Schema.String });
+export const PreviewEnding = Schema.TaggedStruct("PreviewEnding", { ending: MissionEnding, missionId: MissionId });
+/** Marks Done or archives, stopping the threads the preview named; a changed set asks for a fresh preview. */
+export const EndMission = Schema.TaggedStruct("EndMission", {
+  ending: MissionEnding,
+  missionId: MissionId,
+  snapshot: Schema.String,
+});
+/** Returns a Done or archived mission to the state worked out from its threads. */
+export const ReopenMission = Schema.TaggedStruct("ReopenMission", { missionId: MissionId });
+/** Not now on a dashboard question; the inactivity question comes back after another inactive period. */
+export const DismissMissionPrompt = Schema.TaggedStruct("DismissMissionPrompt", {
+  missionId: MissionId,
+  prompt: MissionPrompt,
+});
 /** Reads a mission with the conversation of one of its threads; null reads the top thread. */
 export const ReadMission = Schema.TaggedStruct("ReadMission", {
   missionId: MissionId,
@@ -395,6 +477,12 @@ export const Request = Schema.Union([
   DeleteThread,
   SendMessage,
   ListMissions,
+  ReadStartChoices,
+  RenameMission,
+  PreviewEnding,
+  EndMission,
+  ReopenMission,
+  DismissMissionPrompt,
   ReadMission,
   ReadSettings,
   UpdateSettings,
@@ -433,16 +521,22 @@ export const Results = {
   BrowseFolders: FolderListing,
   CreateFolder: Folder,
   DeleteThread: Schema.Null,
+  DismissMissionPrompt: Schema.Null,
+  EndMission: Schema.Null,
   InterruptThread: Schema.Null,
-  ListMissions: Schema.Array(MissionSummary),
+  ListMissions: MissionList,
   ListOpenQuestions: Schema.Array(Question),
   OpenThread: OpenThreadResult,
   PreviewDeletion: DeletionPreview,
+  PreviewEnding: EndingPreview,
   ReadJournal: JournalView,
   ReadMission: MissionDetail,
   ReadPermissions: PermissionsView,
   ReadSettings: Settings,
+  ReadStartChoices: StartChoices,
   RemovePermission: Schema.Null,
+  RenameMission: Schema.Null,
+  ReopenMission: Schema.Null,
   ResolveChatter: Schema.Null,
   ResumeThread: Schema.Null,
   RetryThread: Schema.Null,

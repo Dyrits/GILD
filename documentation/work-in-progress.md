@@ -168,6 +168,40 @@ The mission journal, agreed in CHG-0043 and delivered in CHG-0044 after the owne
 - Driven in the window with Claude Code (Haiku): a thread updating the journal, a child opened from it starting with the briefing, and the owner editing the briefing.
 - Owner's look: the Journal view and the Briefing limit setting.
 
+## Batch 9: agreed, in progress
+
+Mission tracking, agreed in CHG-0045, built here test-first. Sources: mission-tracking specifications; mission-journal specifications (When a mission ends).
+
+Resumption status (2026-11-06): implementation is present, including dashboard row ending actions added after recovery. Tests pass (175, five opt-in live checks skipped), typecheck, lint, desktop build, and diff whitespace checks pass. Recovered mutation evidence catches 15/15 mutations. See [verification and remaining checks](verification/2026-11-06-mission-tracking.md). Next: drive the new dashboard actions in the Electron window, plus rename and workspace filtering, from the main chat (desktop control is unavailable in this side thread). Visual polish is deferred by the owner. Changes remain uncommitted on `63d4b15`; no delivery or acceptance recorded.
+
+### Behavior
+
+- **Mission state**: the most urgent of its threads' states (Attention, Failed, Running, Waiting, Idle), or Done or Archived once ended. Done and Archived are set only by ending.
+- **Mark as done?**: when the top thread reports its result, the dashboard asks "Mark as done?" with **Mark as done** and **Not now**. The mission does not end on its own; a later result asks again.
+- **Ending**: **Mark done** and **Archive** in the mission header; an archived mission's header offers **Reopen**. With threads still at work (Running, Waiting, or Attention), one confirmation, for example "2 threads are still running. Stop them and mark as done?", then they are stopped.
+- **Inactivity**: after **Ask after inactive days** (Settings, default 14) without a turn or message, the dashboard asks of a mission not ended "Archive it or mark it as done?" with **Archive**, **Mark as done**, **Not now**. Not now brings it back after another such period without activity.
+- **Auto-archive**: Settings **Archive done missions automatically**, off by default, after **days after done** (default 30).
+- **Archived view**: from the dashboard header; lists archived missions with Reopen. Reopening, or the owner writing in a thread of a Done or archived mission, returns it to the state worked out from its threads.
+- **Journal**: "Marked done by the user", "Archived by the user", "Archived automatically", "Reopened by the user".
+- **Title**: `set_mission_title` from the top thread only, whose instructions ask for a short title on its first turn; refused once the owner renamed the mission from its header. The top thread's title follows the mission's.
+- **Prefilled choices**: model, effort, and workspace of the last mission started; the Settings defaults before any.
+- **Dashboard**: missions in Attention or Failed first, then by latest activity; each row shows title, state, workspace, thread count with running count, usage, last activity. Filters by state and workspace; search over titles and briefings.
+- **Out**: budget rings, the phone web app, `find_missions`.
+
+### Provisional, until decided
+
+- "Still running" in the ending confirmation counts threads Running, Waiting, or in Attention, so no question stays open on an ended mission.
+- "Need the user" in the dashboard order means Attention or Failed; the questions above the list are not counted.
+- The inactivity question is not asked of a Done mission; auto-archive covers those.
+- Auto-archive runs at startup and then hourly.
+
+### Checks
+
+- Automated with the fake harness: state urgency; the top thread's result asking Mark as done without ending, Not now; the inactivity question after the set duration, agent activity resetting it, a dismissed question coming back; the confirmation counting threads at work and stopping them; ending and reopening journal entries; auto-archive off by default and archiving after the set duration when on; writing in a Done or archived mission bringing it back; the Archived view and Reopen; the proposed title, the rename, and `set_mission_title` refused afterwards and from other threads; prefilled choices; dashboard order, state and workspace filters, title and briefing search.
+- `bun run test`, `bun run typecheck`, `bun run check`, desktop build; mutation check.
+- Driven in the window: 3 missions, the one needing the owner first, Mark done, archive, reopen, rename, filters and search.
+- Owner's look: the dashboard questions, filters, Archived view, and the header actions.
+
 ## Open questions, settled when a batch needs them
 
 - Dependency gates and fake-first live launch (first-slice-design, Dependency gates).

@@ -26,3 +26,13 @@ const countOf = (value: number) => value.toLocaleString("en-US");
 /** The briefing's estimated size against its limit, for example "About 120 of 2,000 tokens". */
 export const briefingSizeOf = (tokens: number, limit: number) =>
   `About ${countOf(tokens)} of ${countOf(limit)} tokens${tokens > limit ? ": over the limit" : ""}`;
+
+/** A dashboard row's thread count, for example "5 threads · 2 running". */
+export const threadCountOf = (mission: { readonly runningCount: number; readonly threadCount: number }) =>
+  `${threadsOf(mission.threadCount)}${mission.runningCount === 0 ? "" : ` · ${mission.runningCount} running`}`;
+
+/** What the dashboard asks of a mission (mission-tracking, Ending a mission). */
+export const promptQuestionOf = (prompt: "MarkDone" | "Inactive", inactivityDays: number) =>
+  prompt === "MarkDone"
+    ? "Mark as done?"
+    : `No activity for ${inactivityDays === 1 ? "1 day" : `${inactivityDays} days`}. Archive it or mark it as done?`;

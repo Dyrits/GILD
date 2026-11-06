@@ -2,25 +2,35 @@ import type {
   EffortChoice,
   Message,
   MissionDetail,
+  MissionEnding,
+  MissionList,
+  MissionPrompt,
+  MissionState,
   MissionSummary,
   ModelChoice,
+  Settings,
   StartMissionResult,
   ThreadState,
   ThreadSummary,
+  WorkspaceChoice,
 } from "@openmission/contracts";
 import { Clock, Effect } from "effect";
-import { SqlClient } from "effect/sql";
+import { SqlClient, type Statement } from "effect/sql";
 import { readChatter } from "./chatter.ts";
 import { notFound } from "./errors.ts";
 import { insertJournal } from "./journal.ts";
 import { listThreadQuestions } from "./questions.ts";
+import { readSettings, saveStartChoices } from "./settings.ts";
 import { attachWorkspace, readThreadWorkspace } from "./workspaces.ts";
 
 // Ordered from most to least urgent (mission-tracking specification). Done and
 // Stopped add no urgency; Idle is the provisional fallback until it is settled.
 const urgency: ReadonlyArray<ThreadState> = ["Attention", "Failed", "Running", "Waiting", "Idle"];
-const missionState = (states: ReadonlyArray<string>): ThreadState =>
+const workedOutStateOf = (states: ReadonlyArray<string>): ThreadState =>
   urgency.find((state) => states.includes(state)) ?? "Idle";
+/** States that put a mission first on the dashboard (provisional: CHG-0045, work-in-progress Batch 9). */
+const needsOwner: ReadonlyArray<MissionState> = ["Attention", "Failed"];
+const day = 24 * 60 * 60 * 1000;
 
 export const titleOf = (text: string) => text.trim().split("\n", 1)[0]?.trim().slice(0, 200) ?? "";
 
@@ -43,6 +53,7 @@ export const insertMission = (text: string, model: ModelChoice, effort: EffortCh
     yield* sql`INSERT INTO messages (id, mission_id, thread_id, sender_kind, text, sequence, sent_at)
       VALUES (${messageId}, ${missionId}, ${threadId}, 'user', ${text}, 1, ${now})`;
     yield* insertJournal(missionId);
+    yield* saveStartChoices({ effort, model, workspacePath });
     return { messageId, missionId, threadId } as StartMissionResult;
   });
 
@@ -52,42 +63,110 @@ type MissionRow = {
   topThreadId: string;
   lastActivityAt: number;
   states: string;
+  threadCount: number;
+  ending: MissionEnding | null;
+  isTitleByUser: number;
+  isAskingDone: number;
+  inactivityDismissedAt: number | null;
   input: number;
   output: number;
   cacheRead: number;
   cacheCreation: number;
+  workspaceId: string | null;
   workspaceName: string | null;
 };
 
-const summaryOf = (row: MissionRow): MissionSummary =>
-  ({
+/** What the dashboard asks of a mission not ended: Mark as done after its result, or about its inactivity. */
+const promptOf = (row: MissionRow, now: number, settings: Settings): MissionPrompt | null => {
+  if (row.ending !== null) return null;
+  if (row.isAskingDone === 1) return "MarkDone";
+  const quietSince = Math.max(row.lastActivityAt, row.inactivityDismissedAt ?? 0);
+  return now - quietSince >= settings.inactivityDays * day ? "Inactive" : null;
+};
+
+const summaryOf = (row: MissionRow, now: number, settings: Settings): MissionSummary => {
+  const states = row.states.split(",");
+  return {
     id: row.id,
+    isTitleByUser: row.isTitleByUser === 1,
     lastActivityAt: row.lastActivityAt,
-    state: missionState(row.states.split(",")),
+    prompt: promptOf(row, now, settings),
+    runningCount: states.filter((state) => state === "Running").length,
+    state: row.ending ?? workedOutStateOf(states),
+    threadCount: row.threadCount,
     title: row.title,
     topThreadId: row.topThreadId,
     usage: { cacheCreation: row.cacheCreation, cacheRead: row.cacheRead, input: row.input, output: row.output },
+    workspaceId: row.workspaceId,
     workspaceName: row.workspaceName,
-  }) as MissionSummary;
+  } as MissionSummary;
+};
 
-const missionRows = (sql: SqlClient.SqlClient, missionId?: string) =>
+const missionRows = (sql: SqlClient.SqlClient, where: Statement.Fragment) =>
   sql<MissionRow>`
     SELECT m.id, m.title, m.top_thread_id AS topThreadId, m.last_activity_at AS lastActivityAt,
       (SELECT group_concat(t.state) FROM threads t WHERE t.mission_id = m.id) AS states,
+      (SELECT COUNT(*) FROM threads t WHERE t.mission_id = m.id) AS threadCount,
+      m.ending, m.is_title_by_user AS isTitleByUser, m.is_asking_done AS isAskingDone,
+      m.inactivity_dismissed_at AS inactivityDismissedAt,
       COALESCE(SUM(u.input), 0) AS input, COALESCE(SUM(u.output), 0) AS output,
       COALESCE(SUM(u.cache_read), 0) AS cacheRead, COALESCE(SUM(u.cache_creation), 0) AS cacheCreation,
-      (SELECT w.name FROM threads t JOIN workspaces w ON w.id = t.workspace_id WHERE t.id = m.top_thread_id)
-        AS workspaceName
-    FROM missions m LEFT JOIN usage u ON u.mission_id = m.id
-    WHERE ${missionId === undefined ? sql`1 = 1` : sql`m.id = ${missionId}`}
+      w.id AS workspaceId, w.name AS workspaceName
+    FROM missions m
+      JOIN threads top ON top.id = m.top_thread_id
+      LEFT JOIN workspaces w ON w.id = top.workspace_id
+      LEFT JOIN journals j ON j.mission_id = m.id
+      LEFT JOIN usage u ON u.mission_id = m.id
+    WHERE ${where}
     GROUP BY m.id
     ORDER BY m.last_activity_at DESC`;
 
-export const listMissions = Effect.gen(function* () {
-  const sql = yield* SqlClient.SqlClient;
-  const rows = yield* missionRows(sql);
-  return rows.map(summaryOf);
-});
+/** The dashboard's filters: the Archived view or not, a state, a workspace, and a search text. */
+export interface MissionFilters {
+  readonly isArchived: boolean;
+  readonly search: string | null;
+  readonly state: MissionState | null;
+  readonly workspaceId: string | null;
+}
+
+/**
+ * The view's missions that match the filters, those needing the owner first and then by latest activity,
+ * with the workspaces among all the view's missions.
+ */
+export const listMissions = (filters: MissionFilters) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const now = yield* Clock.currentTimeMillis;
+    const settings = yield* readSettings;
+    const search = filters.search?.trim().toLowerCase() ?? "";
+    const rows = yield* missionRows(
+      sql,
+      filters.isArchived ? sql`m.ending = 'Archived'` : sql`(m.ending IS NULL OR m.ending = 'Done')`,
+    );
+    const workspaces = new Map<string, string>();
+    for (const row of rows) if (row.workspaceId !== null) workspaces.set(row.workspaceId, row.workspaceName ?? "");
+    // instr, not LIKE, so % and _ in the search are plain text.
+    const matching =
+      search === ""
+        ? new Set(rows.map((row) => row.id))
+        : new Set(
+            (yield* sql<{ id: string }>`
+              SELECT m.id FROM missions m LEFT JOIN journals j ON j.mission_id = m.id
+              WHERE instr(lower(m.title), ${search}) > 0 OR instr(lower(COALESCE(j.briefing, '')), ${search}) > 0`).map(
+              (row) => row.id,
+            ),
+          );
+    const missions = rows
+      .filter((row) => matching.has(row.id))
+      .filter((row) => filters.workspaceId === null || row.workspaceId === filters.workspaceId)
+      .map((row) => summaryOf(row, now, settings))
+      .filter((mission) => filters.state === null || mission.state === filters.state);
+    const first = missions.filter((mission) => needsOwner.includes(mission.state));
+    return {
+      missions: [...first, ...missions.filter((mission) => !needsOwner.includes(mission.state))],
+      workspaces: [...workspaces].map(([id, name]) => ({ id, name }) as WorkspaceChoice),
+    } satisfies MissionList;
+  });
 
 type ThreadRow = Omit<ThreadSummary, "isOpenedByAgent"> & { isOpenedByAgent: number };
 
@@ -118,7 +197,7 @@ const listThreads = (missionId: string, topThreadId: string) =>
 export const readMission = (missionId: string, threadId: string | null) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const [row] = yield* missionRows(sql, missionId);
+    const [row] = yield* missionRows(sql, sql`m.id = ${missionId}`);
     if (row === undefined) return yield* notFound("No such mission.");
     const threads = yield* listThreads(missionId, row.topThreadId);
     const selected = threads.find((thread) => thread.id === (threadId ?? row.topThreadId));
@@ -141,7 +220,7 @@ export const readMission = (missionId: string, threadId: string | null) =>
         isQueued: message.isQueued === 1,
         isResult: message.isResult === 1,
       })),
-      mission: summaryOf(row),
+      mission: summaryOf(row, yield* Clock.currentTimeMillis, yield* readSettings),
       questions,
       thread: {
         ...thread,
