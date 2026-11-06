@@ -320,7 +320,7 @@ export const claudeHarnessLayer = (options: ClaudeOptions) =>
             if (turn.interruptTimer !== null) clearTimeout(turn.interruptTimer);
             if (turn.untaken.size > 0) close(request.threadId);
             else session.idleTimer = setTimeout(() => close(request.threadId), idleMillis);
-            return { isInterrupted: turn.isInterrupting, sessionId: session.sessionId, usage };
+            return { cost: null, isInterrupted: turn.isInterrupting, sessionId: session.sessionId, usage };
           };
 
           let draft = "";
@@ -329,7 +329,7 @@ export const claudeHarnessLayer = (options: ClaudeOptions) =>
             const item = yield* Queue.take(session.lines);
             if (item._tag === "Exit" && turn.isInterrupting) {
               close(request.threadId);
-              return { isInterrupted: true, sessionId: session.sessionId, usage: null };
+              return { cost: null, isInterrupted: true, sessionId: session.sessionId, usage: null };
             }
             if (item._tag === "Exit") {
               close(request.threadId);
@@ -339,7 +339,7 @@ export const claudeHarnessLayer = (options: ClaudeOptions) =>
             if (item._tag === "Unconfirmed") {
               if (!turn.isInterrupting) continue;
               close(request.threadId);
-              return { isInterrupted: true, sessionId: session.sessionId, usage: null };
+              return { cost: null, isInterrupted: true, sessionId: session.sessionId, usage: null };
             }
             let event: StreamEvent;
             try {

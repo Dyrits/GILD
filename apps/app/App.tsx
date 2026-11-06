@@ -49,7 +49,13 @@ export default function App() {
       onSettings={() => setIsSettingsOpen(true)}
     />
   ) : (
-    <Conversation client={client} missionId={openMission} onBack={() => setOpenMission(null)} />
+    <Conversation
+      client={client}
+      key={openMission}
+      missionId={openMission}
+      onBack={() => setOpenMission(null)}
+      onOpenMission={setOpenMission}
+    />
   );
 }
 

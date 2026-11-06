@@ -1,6 +1,16 @@
-import type { Message, MessageDelivery, MissionDetail, MissionId, Question, ThreadId } from "@openmission/contracts";
+import type {
+  BudgetEvent,
+  Message,
+  MessageDelivery,
+  MissionDetail,
+  MissionId,
+  Question,
+  Suggestion,
+  ThreadId,
+} from "@openmission/contracts";
 import { useEffect, useRef, useState } from "react";
 import { FlatList, type NativeScrollEvent, type NativeSyntheticEvent, Pressable, Text, View } from "react-native";
+import { BudgetMeters, BudgetScreen, BudgetStopCard } from "./budgets";
 import { newRequestId, type ServiceClient } from "./client";
 import { Composer, StateBadge } from "./controls";
 import { effortLabel, modelLabels, usageDetail } from "./formatting";
@@ -8,6 +18,7 @@ import { JournalScreen } from "./journal";
 import { MissionEndingActions, MissionTitle } from "./missionActions";
 import { QuestionCard, QuestionLine } from "./questions";
 import { styles } from "./styles";
+import { SuggestionCard, SuggestionLine } from "./suggestions";
 import { ChatterNotices, DeleteThreadAction } from "./threadActions";
 import { maxOwnerDepth, OpenThreadForm, ThreadTree } from "./threadTree";
 import { useServiceQuery } from "./useServiceQuery";
@@ -28,16 +39,29 @@ function useDraft(client: ServiceClient, threadId: string | null) {
   return draft;
 }
 
-type Entry = { _tag: "Message"; at: number; message: Message } | { _tag: "Question"; at: number; question: Question };
+type Entry =
+  | { _tag: "Message"; at: number; message: Message }
+  | { _tag: "Question"; at: number; question: Question }
+  | { _tag: "Suggestion"; at: number; suggestion: Suggestion }
+  | { _tag: "BudgetEvent"; at: number; event: BudgetEvent };
 
-/** Messages and questions in the order they happened. */
+/** Messages, questions, and off-topic suggestions in the order they happened. */
 const entriesOf = (detail: MissionDetail): Array<Entry> =>
   [
     ...detail.messages.map((message): Entry => ({ _tag: "Message", at: message.sentAt, message })),
     ...detail.questions.map((question): Entry => ({ _tag: "Question", at: question.askedAt, question })),
+    ...detail.suggestions.map((suggestion): Entry => ({ _tag: "Suggestion", at: suggestion.askedAt, suggestion })),
+    ...detail.budgetEvents.map((event): Entry => ({ _tag: "BudgetEvent", at: event.at, event })),
   ].sort((a, b) => a.at - b.at);
 
-const keyOf = (entry: Entry) => (entry._tag === "Message" ? entry.message.id : entry.question.id);
+const keyOf = (entry: Entry) =>
+  entry._tag === "Message"
+    ? entry.message.id
+    : entry._tag === "Question"
+      ? entry.question.id
+      : entry._tag === "Suggestion"
+        ? entry.suggestion.id
+        : entry.event.id;
 
 /**
  * Keeps the newest entry in view, so a reply or a question is seen as it arrives,
@@ -94,9 +118,13 @@ function ThreadPane({
   detail,
   onSelect,
   onDeleted,
+  onOpenMission,
+  onOpenBudget,
 }: {
   client: ServiceClient;
   onDeleted: () => void;
+  onOpenBudget: () => void;
+  onOpenMission: (missionId: MissionId) => void;
   detail: MissionDetail;
   onSelect: (threadId: ThreadId) => void;
 }) {
@@ -145,6 +173,7 @@ function ThreadPane({
       </View>
       <DeleteThreadAction client={client} onDeleted={onDeleted} threadId={thread.id} />
       <ChatterNotices client={client} notices={detail.chatter} />
+      {detail.budgetStop !== null && <BudgetStopCard client={client} onRaise={onOpenBudget} stop={detail.budgetStop} />}
       {actionError !== null && <Text style={styles.error}>{actionError}</Text>}
       <Text numberOfLines={1} style={styles.muted}>
         {modelLabels[thread.model]} · {effortLabel(thread.effort)} ·{" "}
@@ -183,7 +212,20 @@ function ThreadPane({
           )
         }
         renderItem={({ item }) =>
-          item._tag === "Question" ? (
+          item._tag === "BudgetEvent" ? (
+            <View style={styles.questionLine}>
+              <Text style={styles.muted}>
+                {item.event.text} ·{" "}
+                {new Date(item.event.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+              </Text>
+            </View>
+          ) : item._tag === "Suggestion" ? (
+            item.suggestion.outcome === null ? (
+              <SuggestionCard client={client} suggestion={item.suggestion} />
+            ) : (
+              <SuggestionLine onOpenMission={onOpenMission} onSelectThread={onSelect} suggestion={item.suggestion} />
+            )
+          ) : item._tag === "Question" ? (
             item.question.outcome === null ? (
               <QuestionCard client={client} question={item.question} />
             ) : (
@@ -232,14 +274,18 @@ export function Conversation({
   client,
   missionId,
   onBack,
+  onOpenMission,
 }: {
   client: ServiceClient;
   missionId: MissionId;
   onBack: () => void;
+  /** Opens another mission, such as where an off-topic request went. */
+  onOpenMission: (missionId: MissionId) => void;
 }) {
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
   const [selectedId, setSelectedId] = useState<ThreadId | null>(null);
   const [isJournalOpen, setIsJournalOpen] = useState(false);
+  const [budgetScope, setBudgetScope] = useState<"Mission" | "Global" | null>(null);
   const { data, error } = useServiceQuery(
     client,
     { _tag: "ReadMission", missionId, threadId: selectedId },
@@ -247,6 +293,16 @@ export function Conversation({
   );
   // A query for a newly selected thread answers after the previous one; keep showing what matches.
   const detail = data !== null && (selectedId === null || data.thread.id === selectedId) ? data : null;
+  if (budgetScope !== null) {
+    return (
+      <BudgetScreen
+        client={client}
+        missionId={budgetScope === "Mission" ? missionId : null}
+        onBack={() => setBudgetScope(null)}
+        title={budgetScope === "Mission" ? `Budget · ${data?.mission.title ?? ""}` : "Global budget"}
+      />
+    );
+  }
   if (isJournalOpen) {
     return (
       <JournalScreen
@@ -271,6 +327,10 @@ export function Conversation({
         <Pressable onPress={() => setIsJournalOpen(true)}>
           <Text style={styles.link}>Journal</Text>
         </Pressable>
+        {data && <BudgetMeters onPress={() => setBudgetScope("Mission")} use={data.mission.budget} />}
+        <Pressable onPress={() => setBudgetScope("Mission")}>
+          <Text style={styles.link}>Budget</Text>
+        </Pressable>
         {data && <MissionEndingActions client={client} mission={data.mission} />}
         {data && <StateBadge state={data.mission.state} />}
       </View>
@@ -290,6 +350,8 @@ export function Conversation({
               detail={detail}
               key={detail.thread.id}
               onDeleted={() => (detail.thread.parentId === null ? onBack() : setSelectedId(detail.thread.parentId))}
+              onOpenBudget={() => setBudgetScope(detail.budgetStop?.scope ?? "Mission")}
+              onOpenMission={onOpenMission}
               onSelect={setSelectedId}
             />
           )}

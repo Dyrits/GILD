@@ -41,6 +41,11 @@ export interface TurnRequest {
 }
 
 export interface TurnOutcome {
+  /**
+   * The turn's API-key cost when the harness reports one; null counts the turn's tokens as subscription
+   * spending (budget-control, Budgets; provisional, work-in-progress Batch 11).
+   */
+  readonly cost: number | null;
   /** Whether the turn ended because it was interrupted (thread-messaging, Interruptions). */
   readonly isInterrupted: boolean;
   readonly sessionId: string;
@@ -86,9 +91,18 @@ export const callThreadTool = (mcpUrl: string, name: string, args: unknown) =>
 // The fake's script: a line `ask <json>` calls request_approval, `prompt <tool> <json input>`
 // raises a harness permission prompt, and `call <tool> <json>` calls any thread tool, each
 // answered before the echo; `wait <millis>` keeps the turn running; `cwd` and `context`
-// report the working folder and the starting context.
-const scriptedCall = (request: TurnRequest, line: string) => {
+// report the working folder and the starting context; `spend <tokens> [cost]` reports spending at the turn's end.
+const scriptedCall = (request: TurnRequest, line: string, turn: FakeTurn) => {
   const access = request.access;
+  const spend = /^spend (\d+)(?: (\d+(?:\.\d+)?))?$/.exec(line);
+  if (spend !== null) {
+    return Effect.sync(() => {
+      turn.spent.tokens += Number(spend[1]);
+      if (spend[2] !== undefined) turn.spent.cost = (turn.spent.cost ?? 0) + Number(spend[2]);
+      turn.spent.isReported = true;
+      return `spent ${spend[1]}`;
+    });
+  }
   if (line === "cwd") return Effect.succeed(request.cwd);
   if (line === "context") return Effect.succeed(request.context);
   const wait = /^wait (\d+)$/.exec(line);
@@ -110,6 +124,8 @@ const scriptedCall = (request: TurnRequest, line: string) => {
 interface FakeTurn {
   readonly interrupted: Deferred.Deferred<void>;
   readonly onEvent: TurnRequest["onEvent"];
+  /** What the turn's `spend` lines reported. */
+  readonly spent: { tokens: number; cost: number | null; isReported: boolean };
   readonly steered: Array<string>;
 }
 
@@ -127,7 +143,7 @@ export const fakeHarnessLayer = (replyDelay: Duration.Input) =>
           Effect.gen(function* () {
             const results: Array<string> = [];
             for (const line of text.split("\n")) {
-              const call = scriptedCall(request, line.trim());
+              const call = scriptedCall(request, line.trim(), turn);
               if (call !== null) results.push(yield* call);
             }
             return results.length === 0 ? text : results.join(" | ");
@@ -149,13 +165,24 @@ export const fakeHarnessLayer = (replyDelay: Duration.Input) =>
         }),
       runTurn: (request) =>
         Effect.gen(function* () {
-          const turn: FakeTurn = { interrupted: yield* Deferred.make<void>(), onEvent: request.onEvent, steered: [] };
+          const turn: FakeTurn = {
+            interrupted: yield* Deferred.make<void>(),
+            onEvent: request.onEvent,
+            spent: { cost: null, isReported: false, tokens: 0 },
+            steered: [],
+          };
           running.set(request.threadId, turn);
           const isInterrupted = yield* Effect.raceFirst(
             script(request, turn),
             Deferred.await(turn.interrupted).pipe(Effect.as(true)),
           ).pipe(Effect.ensuring(Effect.sync(() => running.delete(request.threadId))));
-          return { isInterrupted, sessionId: request.sessionId ?? `fake-${request.threadId}`, usage: null };
+          const { cost, isReported, tokens } = turn.spent;
+          return {
+            cost: isReported ? cost : null,
+            isInterrupted,
+            sessionId: request.sessionId ?? `fake-${request.threadId}`,
+            usage: isReported ? { cacheCreation: 0, cacheRead: 0, input: tokens, output: 0 } : null,
+          };
         }),
       steer: (threadId, message) =>
         Effect.suspend(() => {

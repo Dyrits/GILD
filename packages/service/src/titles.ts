@@ -13,6 +13,9 @@ const writeTitle = (missionId: string, title: string, isByUser: boolean) =>
     yield* sql`UPDATE threads SET title = ${title} WHERE id = (SELECT top_thread_id FROM missions WHERE id = ${missionId})`;
   });
 
+/** Names a mission with a thread's proposed title, which the top thread may still change. Callers run it in a transaction. */
+export const proposeTitle = (missionId: string, title: string) => writeTitle(missionId, titleOf(title), false);
+
 /** The owner renames a mission; `set_mission_title` is refused from then on (mission-tracking, Title). */
 export const renameMission = Effect.fn("renameMission")(function* (missionId: string, title: string) {
   const sql = yield* SqlClient.SqlClient;

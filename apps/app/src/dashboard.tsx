@@ -11,6 +11,7 @@ import {
 } from "@openmission/contracts";
 import { useState } from "react";
 import { FlatList, Pressable, Text, TextInput, View } from "react-native";
+import { BudgetMeters, BudgetScreen, BudgetStopCard } from "./budgets";
 import { newRequestId, type ServiceClient } from "./client";
 import { Choice, Composer, StateBadge } from "./controls";
 import { effortLabel, modelLabels, timeOf, usageText } from "./formatting";
@@ -79,6 +80,7 @@ function MissionRow({
         <StateBadge state={mission.state} />
         <Text style={styles.muted}>{threadCountOf(mission)}</Text>
         <Text style={styles.muted}>{usageText(mission.usage)}</Text>
+        <BudgetMeters use={mission.budget} />
         <Text style={styles.muted}>{timeOf(mission.lastActivityAt)}</Text>
       </Pressable>
       <MissionEndingActions client={client} mission={mission} />
@@ -105,6 +107,8 @@ export function Dashboard({
   const [search, setSearch] = useState("");
   const [state, setState] = useState<MissionState | null>(null);
   const [workspaceId, setWorkspaceId] = useState<WorkspaceId | null>(null);
+  const [isGlobalBudgetOpen, setIsGlobalBudgetOpen] = useState(false);
+  const { data: global } = useServiceQuery(client, { _tag: "ReadBudget", missionId: null }, "budget:global");
   const request = { _tag: "ListMissions", isArchived, search, state, workspaceId } as const;
   const { data, error } = useServiceQuery(client, request, `missions:${JSON.stringify(request)}`);
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
@@ -117,6 +121,16 @@ export function Dashboard({
   );
   const asking = isArchived ? [] : (all?.missions.filter((mission) => mission.prompt !== null) ?? []);
   const workspaceNames = new Map((data?.workspaces ?? []).map((w) => [w.id, w.name]));
+  if (isGlobalBudgetOpen) {
+    return (
+      <BudgetScreen
+        client={client}
+        missionId={null}
+        onBack={() => setIsGlobalBudgetOpen(false)}
+        title="Global budget"
+      />
+    );
+  }
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
@@ -126,6 +140,7 @@ export function Dashboard({
           </Pressable>
         )}
         <Text style={[styles.heading, styles.flex]}>{isArchived ? "Archived missions" : "Missions"}</Text>
+        {global !== null && <BudgetMeters onPress={() => setIsGlobalBudgetOpen(true)} use={global} />}
         {!isArchived && (
           <Pressable onPress={onArchived}>
             <Text style={styles.link}>Archived</Text>
@@ -135,6 +150,9 @@ export function Dashboard({
           <Text style={styles.link}>Settings</Text>
         </Pressable>
       </View>
+      {!isArchived && global?.stop != null && (
+        <BudgetStopCard client={client} onRaise={() => setIsGlobalBudgetOpen(true)} stop={global.stop} />
+      )}
       {!isArchived && questions !== null && questions.length > 0 && (
         <View style={styles.section}>
           <Text style={styles.label}>Waiting for your answer</Text>

@@ -72,6 +72,7 @@ export const deleteThread = Effect.fn("deleteThread")(function* (threadId: strin
       yield* sql`DELETE FROM chatter WHERE first_id IN ${sql.in(ids)} OR second_id IN ${sql.in(ids)}`;
       yield* releaseChatter();
       yield* sql`DELETE FROM questions WHERE thread_id IN ${sql.in(ids)}`;
+      yield* sql`DELETE FROM suggestions WHERE thread_id IN ${sql.in(ids)}`;
       yield* sql`DELETE FROM usage WHERE turn_id IN (SELECT id FROM turns WHERE thread_id IN ${sql.in(ids)})`;
       yield* sql`DELETE FROM turns WHERE thread_id IN ${sql.in(ids)}`;
       if (root.parentId === null) {
@@ -82,6 +83,8 @@ export const deleteThread = Effect.fn("deleteThread")(function* (threadId: strin
       for (const row of rows.toReversed()) yield* sql`DELETE FROM threads WHERE id = ${row.id}`;
       if (root.parentId === null) {
         yield* sql`DELETE FROM standing_permissions WHERE mission_id = ${root.missionId}`;
+        yield* sql`DELETE FROM budget_events WHERE mission_id = ${root.missionId}`;
+        yield* sql`DELETE FROM budget_stops WHERE mission_id = ${root.missionId}`;
         yield* sql`DELETE FROM missions WHERE id = ${root.missionId}`;
       }
       yield* sql.afterCommit(changes.publish);

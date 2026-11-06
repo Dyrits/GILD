@@ -1,6 +1,7 @@
 import { Effect, Exit, Schema } from "effect";
 import type { SqlClient } from "effect/sql";
 import { journalTextOf, latestEntryCount, missionOf, readJournalText, updateJournal } from "./journal.ts";
+import { isAside } from "./tree.ts";
 
 /** A thread tool's answer before it is wrapped for MCP. */
 export interface ToolAnswer {
@@ -75,20 +76,29 @@ export const journalToolsOf = (
     const rewrite = briefing === undefined ? null : { basedOn: basedOn ?? null, briefing };
     return commit(
       Effect.gen(function* () {
+        if (yield* isAside(threadId)) return { _tag: "Aside" } as const;
         const missionId = yield* missionOf(threadId);
         return yield* updateJournal(missionId, { kind: "thread", threadId }, entry, rewrite);
       }),
     ).pipe(
       Effect.map((outcome) =>
-        outcome._tag === "Recorded"
-          ? { isError: false, text: `Recorded entry ${outcome.number}. The briefing is at version ${outcome.version}.` }
-          : {
+        outcome._tag === "Aside"
+          ? {
               isError: true,
-              text:
-                outcome.reason === "Stale"
-                  ? `${outcome.text}\n\n${journalTextOf(outcome, [])}`
-                  : `${outcome.text} The current briefing is at version ${outcome.version}.`,
-            },
+              text: "Not recorded: an aside does not update the journal. Send your parent a thread message with what is relevant; it decides what to record.",
+            }
+          : outcome._tag === "Recorded"
+            ? {
+                isError: false,
+                text: `Recorded entry ${outcome.number}. The briefing is at version ${outcome.version}.`,
+              }
+            : {
+                isError: true,
+                text:
+                  outcome.reason === "Stale"
+                    ? `${outcome.text}\n\n${journalTextOf(outcome, [])}`
+                    : `${outcome.text} The current briefing is at version ${outcome.version}.`,
+              },
       ),
     );
   },

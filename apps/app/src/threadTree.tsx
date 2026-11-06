@@ -49,6 +49,7 @@ export function ThreadTree({
             </Text>
             <StateBadge state={thread.state} />
           </View>
+          {thread.isAside && <Text style={styles.treeNote}>Aside</Text>}
           {foldedCount > 0 && <Text style={styles.treeNote}>{foldedLabelOf(foldedCount)}</Text>}
           {thread.waitingCount > 0 && thread.state !== "Running" && (
             <Text style={styles.treeNote}>

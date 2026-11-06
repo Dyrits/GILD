@@ -1,10 +1,14 @@
 import { describe, expect, it } from "vitest";
 import {
   briefingSizeOf,
+  budgetUseTextOf,
   deletionQuestionOf,
   foldedLabelOf,
   journalAuthorOf,
+  meterLevelOf,
   promptQuestionOf,
+  raisedLimitsOf,
+  suggestionLabels,
   threadCountOf,
 } from "../src/labels";
 
@@ -48,5 +52,31 @@ describe("dashboard labels", () => {
     expect(promptQuestionOf("MarkDone", 14)).toBe("Mark as done?");
     expect(promptQuestionOf("Inactive", 14)).toBe("No activity for 14 days. Archive it or mark it as done?");
     expect(promptQuestionOf("Inactive", 1)).toBe("No activity for 1 day. Archive it or mark it as done?");
+  });
+});
+
+describe("off-topic suggestion lines", () => {
+  it("says where the off-topic message went", () => {
+    expect(suggestionLabels.Continued).toBe("Continued in mission");
+    expect(suggestionLabels.MovedToMission).toBe("Moved to mission");
+    expect(suggestionLabels.KeptAsAside).toBe("Kept as aside");
+  });
+});
+
+describe("budget meters", () => {
+  it("turns orange from 80% and red at 100%", () => {
+    expect(meterLevelOf(79, 100)).toBe("normal");
+    expect(meterLevelOf(80, 100)).toBe("warning");
+    expect(meterLevelOf(100, 100)).toBe("reached");
+  });
+
+  it("says a limit's use in its own unit, never pricing tokens", () => {
+    expect(budgetUseTextOf("cost", 1.2, 5)).toBe("$1.20 of $5.00");
+    expect(budgetUseTextOf("tokens", 12000, 50000)).toBe("12,000 of 50,000 tokens");
+  });
+
+  it("raises each set limit by the factor and leaves an empty one empty", () => {
+    expect(raisedLimitsOf({ cost: 2, tokens: null }, 1.5)).toEqual({ cost: 3, tokens: null });
+    expect(raisedLimitsOf({ cost: null, tokens: 1000 }, 1.25)).toEqual({ cost: null, tokens: 1250 });
   });
 });

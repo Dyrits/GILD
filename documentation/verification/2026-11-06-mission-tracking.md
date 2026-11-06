@@ -1,6 +1,6 @@
 # Verification: batch 9, mission tracking
 
-Agreement: CHG-0045. Base revision: `63d4b15`. Changes remain uncommitted.
+Agreement: CHG-0045. Built on `63d4b15`, committed in `8e05eb0`; the window drive below ran on `8e05eb0`.
 
 ## Checked on resumption, 2026-11-06
 
@@ -22,6 +22,29 @@ It also left screenshots in [the evidence folder](2026-11-06-mission-tracking/):
 
 On resumption, dashboard rows were missing the agreed ending actions. They now reuse `MissionEndingActions` beside the row's opening target, including Reopen in Archived. Header and dashboard therefore use the same preview, confirmation, error handling, and service requests. Typechecking and lint were repeated after this change and pass.
 
-The new dashboard buttons still need an interaction check in the Electron window: Mark as done on an active mission, confirm or cancel stopping working threads, Archive, then Reopen from Archived and confirm the row returns to the main dashboard. Verify rename and workspace filtering too; the recovered screenshots alone do not establish those interactions.
+## Window drive, 2026-11-06 (closes the completion gap)
 
-This side thread cannot control desktop applications. Continue the Electron drive in the main chat. No delivery or owner acceptance is claimed yet. The user deferred visual polish; this remaining check concerns behavior.
+- **Environment:** working tree on `8e05eb0`, desktop rebuilt. Fresh Metro on port 8083; Electron run as `env -i HOME PATH USER TMPDIR LANG OPENMISSION_HARNESS=fake OPENMISSION_DATA_DIR=/tmp/om-run/data-b9drive OPENMISSION_APP_URL=http://localhost:8083 electron --inspect=9336 dist/main.js --remote-debugging-port=9335` in `apps/desktop`. Driven with Playwright CLI over CDP (`playwright-cli attach --cdp=http://localhost:9335`) through [drive-run-code.sh](2026-11-06-mission-tracking/drive-run-code.sh) and [drive-start-mission.sh](2026-11-06-mission-tracking/drive-start-mission.sh). The folder dialog handler was replaced through the Node inspector with [main-eval.ts](2026-11-06-batch-4-drive/main-eval.ts), as in the batch 4 drive, to return `/tmp/om-run/ws-alpha` or `/tmp/om-run/ws-beta`. The fake harness's `wait 900000` kept one thread running; `call <tool> <json>` called thread tools. Results were read from the window and from `openmission.sqlite`.
+- **Who:** an agent, at the owner's request ("build what is next").
+
+Five missions: "Scratch probe" (no workspace), "Alpha long task" (ws-alpha, running), "Beta quick task" and "Gamma idle task in alpha" (ws-alpha), "Delta task in beta" (ws-beta).
+
+| Check | Observed | Verdict |
+| --- | --- | --- |
+| Workspace filter | ws-beta listed Delta only; ws-alpha listed Gamma, Beta, Alpha; ws-alpha with Idle listed Gamma and Beta ([screenshot](2026-11-06-mission-tracking/workspace-and-state-filter.png)); All workspaces and All states listed all five | proven |
+| Row Mark as done on a running mission | The row showed "1 thread is still running. Stop it and mark as done?" with Stop and mark as done and Cancel ([screenshot](2026-11-06-mission-tracking/row-ending-confirmation.png)). Cancel closed it; the database still had the thread Running and no ending. Confirming made the mission Done and its thread Stopped; the Running filter then showed none and the Done filter showed Alpha with Archive only | proven |
+| Row Archive | Archive on Alpha (Done) and on Beta (Idle) set both to Archived; both left the dashboard and appeared in the Archived view with Reopen ([screenshot](2026-11-06-mission-tracking/archived-from-rows.png)) | proven |
+| Reopen from Archived | Reopen on Beta removed it from the Archived view; back on the dashboard it was Idle with Mark as done and Archive | proven |
+| Journal entries | Alpha: "Marked done by the user", "Archived by the user"; Beta: "Archived by the user", "Reopened by the user"; all by the user | proven |
+| Rename | Clicking the header title opened a field with Save and Cancel; Save made the mission and its top thread "Gamma renamed", marked as named by the owner. `set_mission_title` from that thread then answered "Not named: the owner named this mission, so its title stays." and the title stayed ([screenshot](2026-11-06-mission-tracking/rename-refuses-agent-title.png)) | proven |
+| Agent title | On Delta, not renamed, `set_mission_title` made the mission and top thread "Delta by agent" | proven |
+| Mark as done? | The top thread's `report_result` raised "Missions to settle: Delta by agent, Mark as done?" ([screenshot](2026-11-06-mission-tracking/mark-as-done-question.png)). Not now removed it without ending; a second result asked again; Mark as done ended the mission as Done | proven |
+| Writing in a Done mission | Scratch probe marked done from its header, then a message sent: the mission returned to Idle with no ending | proven |
+| Search | "gamma" listed Gamma renamed only; "alpha" listed none (Alpha archived, Gamma renamed) | proven |
+| Prefilled workspace | After a mission in ws-beta, the starter showed ws-beta | proven |
+
+Observed, not changed (interface pass): the workspace chips swap order between renders (ws-alpha and ws-beta); a mission whose top thread is Done shows Idle, as the open question on Idle as the mission state already notes.
+
+Drive note: Playwright CLI turned some snapshot refs into loose locators (`div` filtered by text "Send", `nth(4)`) that clicked the wrong element, so Send seemed to do nothing. Exact-text locators through `run-code` work; the helper scripts use them.
+
+No delivery or owner acceptance is claimed yet. The user deferred visual polish.

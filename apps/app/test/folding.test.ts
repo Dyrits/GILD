@@ -4,7 +4,16 @@ import { describe, expect, it } from "vitest";
 import { foldThreads } from "../src/folding";
 
 const thread = (id: string, parentId: string | null, depth: number, isOpenedByAgent = true, state = "Idle") =>
-  Schema.decodeUnknownSync(ThreadSummary)({ depth, id, isOpenedByAgent, parentId, state, title: id, waitingCount: 0 });
+  Schema.decodeUnknownSync(ThreadSummary)({
+    depth,
+    id,
+    isAside: false,
+    isOpenedByAgent,
+    parentId,
+    state,
+    title: id,
+    waitingCount: 0,
+  });
 const tree = [
   thread("top", null, 0, false),
   thread("agent", "top", 1),

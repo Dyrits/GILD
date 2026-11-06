@@ -38,6 +38,8 @@ export const approvalInstructionsOf = (access: ThreadAccess, isSandboxed: boolea
 
 /** A thread's place in its mission's tree, as its starting context names it. */
 export interface ThreadPosition {
+  /** Whether the thread holds an off-topic request the owner kept as an aside. */
+  readonly isAside: boolean;
   readonly parent: { readonly id: string; readonly title: string } | null;
   readonly threadId: string;
   readonly title: string;
@@ -54,4 +56,15 @@ export const threadInstructionsOf = (position: ThreadPosition) =>
     "To split work into parts that can run on their own, call open_thread once per part with a complete request and a short title of a few words: a new thread sees none of your conversation. Each works in parallel and reports its result to you. After opening threads, end your turn; their results wake you.",
     "Messages from other threads reach you as 'Message from thread \"<title>\" (<id>)' and results as 'Result from thread \"<title>\" (<id>)'. Answer your parent or a thread directly beneath you with send_thread_message and its id.",
     "Messages can reach you while you work, after a tool call: read them and take them into account before you go on. To stop a running thread beneath you whose work is no longer needed or must change course, call interrupt_thread with its id, then message it.",
+    ...(position.isAside ? asideInstructions : [offTopicInstructions]),
   ].join("\n");
+
+// thread-tree, Off-topic requests: judged against the briefing; merely unexpected messages do not count.
+const offTopicInstructions =
+  "When a message from the owner clearly shares nothing with this mission, judged against the mission's briefing, do not answer it; a merely unexpected message is not off topic. Call find_missions with the off-topic part, then suggest_mission with that part, a short title for it, and the ids of the missions find_missions gave that fit, best first. suggest_mission waits for the owner's choice and says where the message went. Then carry on as if that message had not been sent to you.";
+
+const asideInstructions = [
+  "You are an aside: the owner's message below went off the mission's topic and was put aside here, beneath your parent. Answer it here.",
+  "Whenever the conversation comes back to the mission, send your parent a thread message saying what is relevant to the mission.",
+  "Do not update the mission's journal: your parent decides what to record.",
+];

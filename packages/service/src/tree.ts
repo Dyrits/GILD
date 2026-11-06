@@ -5,6 +5,7 @@ import { invalid, notFound } from "./errors.ts";
 import { type JournalAuthor, nothingToRecord, openerMessagesOf, updateJournal } from "./journal.ts";
 import { insertMessage } from "./messaging.ts";
 import { titleOf } from "./missions.ts";
+import { budgetRefusalOf } from "./spending.ts";
 
 /** At most this many threads run at once in a mission (thread-tree, Limits; CHG-0037). */
 export const maxRunning = 8;
@@ -39,6 +40,8 @@ export const runningCountOf = (missionId: string) =>
 
 interface Opening {
   readonly effort: EffortChoice | null;
+  /** An off-topic request the owner kept beneath the thread (thread-tree, Off-topic requests). */
+  readonly isAside: boolean;
   readonly isOpenedByAgent: boolean;
   readonly model: ModelChoice | null;
   readonly parentId: string;
@@ -62,11 +65,12 @@ const insertThread = (opening: Opening) =>
     }>`SELECT mission_id AS missionId, model, effort, workspace_id AS workspaceId FROM threads WHERE id = ${opening.parentId} AND is_deleting = 0`;
     if (parent === undefined) return yield* notFound("No such thread.");
     const threadId = crypto.randomUUID();
-    const openerMessages = yield* openerMessagesOf(opening.parentId);
-    yield* sql`INSERT INTO threads (id, mission_id, parent_id, state, model, effort, workspace_id, title, is_opened_by_agent, opener_messages)
+    // An aside starts from the off-topic request alone, without its opener's conversation.
+    const openerMessages = opening.isAside ? null : yield* openerMessagesOf(opening.parentId);
+    yield* sql`INSERT INTO threads (id, mission_id, parent_id, state, model, effort, workspace_id, title, is_opened_by_agent, opener_messages, is_aside)
       VALUES (${threadId}, ${parent.missionId}, ${opening.parentId}, 'Idle', ${opening.model ?? parent.model},
         ${opening.effort ?? parent.effort}, ${parent.workspaceId}, ${titleOf(opening.title ?? opening.text)}, ${opening.isOpenedByAgent ? 1 : 0},
-        ${openerMessages})`;
+        ${openerMessages}, ${opening.isAside ? 1 : 0})`;
     const messageId = yield* insertMessage({
       fromThreadId: opening.isOpenedByAgent ? opening.parentId : null,
       isQueued: false,
@@ -83,7 +87,30 @@ export const openThreadByOwner = (parentId: string, text: string, model: ModelCh
     if ((yield* depthOf(parentId)) + 1 > maxOwnerDepth) {
       return yield* invalid(`Threads you open can go down to ${maxOwnerDepth} levels beneath the top thread.`);
     }
-    return yield* insertThread({ effort, isOpenedByAgent: false, model, parentId, text, title: null });
+    return yield* insertThread({ effort, isAside: false, isOpenedByAgent: false, model, parentId, text, title: null });
+  });
+
+/**
+ * Keeps an off-topic request as an aside beneath the thread: its first message is the owner's request.
+ * Callers run it in a transaction and wake it.
+ */
+export const openAside = (parentId: string, text: string, title: string) =>
+  insertThread({
+    effort: null,
+    isAside: true,
+    isOpenedByAgent: false,
+    model: null,
+    parentId,
+    text,
+    title: title.trim() === "" ? null : title,
+  });
+
+/** Whether the thread is an aside, which leaves the journal to its parent. */
+export const isAside = (threadId: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const rows = yield* sql<{ id: string }>`SELECT id FROM threads WHERE id = ${threadId} AND is_aside = 1`;
+    return rows.length > 0;
   });
 
 /**
@@ -104,6 +131,8 @@ export const openThreadByAgent = (
     }>`SELECT mission_id AS missionId FROM threads WHERE id = ${callerId} AND is_deleting = 0`;
     if (caller === undefined) return { _tag: "Refused", reason: "Unknown thread." } as const;
     if (request.trim() === "") return { _tag: "Refused", reason: "The request is empty." } as const;
+    const overBudget = yield* budgetRefusalOf(caller.missionId);
+    if (overBudget !== null) return { _tag: "Refused", reason: `Not opened: ${overBudget}` } as const;
     if ((yield* runningCountOf(caller.missionId)) >= maxRunning) {
       return {
         _tag: "Refused",
@@ -112,6 +141,7 @@ export const openThreadByAgent = (
     }
     const opened = yield* insertThread({
       effort,
+      isAside: false,
       isOpenedByAgent: true,
       model,
       parentId: callerId,
@@ -155,9 +185,11 @@ export const reportResult = (threadId: string, result: string, journal: string) 
     const [thread] = yield* sql<{
       missionId: string;
       parentId: string | null;
-    }>`SELECT mission_id AS missionId, parent_id AS parentId FROM threads WHERE id = ${threadId}`;
+      isAside: number;
+    }>`SELECT mission_id AS missionId, parent_id AS parentId, is_aside AS isAside FROM threads WHERE id = ${threadId}`;
     if (thread === undefined) return yield* notFound("No such thread.");
-    if (!isNothingToRecord(journal)) {
+    // An aside leaves the journal to its parent (thread-tree, Off-topic requests).
+    if (thread.isAside === 0 && !isNothingToRecord(journal)) {
       const author: JournalAuthor = { kind: "thread", threadId };
       yield* updateJournal(thread.missionId, author, journal, null);
     }

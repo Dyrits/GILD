@@ -1,0 +1,27 @@
+M1 own mission offered: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 185 passed | 5 skipped (191)
+M2 briefing not matched: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 185 passed | 5 skipped (191)
+M3 more than 3 offered: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 185 passed | 5 skipped (191)
+M4 any mission accepted for Continue: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 185 passed | 5 skipped (191)
+M5 continued mission not woken: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  2 failed | 184 passed | 5 skipped (191)
+M6 new mission keeps the proposed title off: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 185 passed | 5 skipped (191)
+M7 new mission changes the prefill: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 185 passed | 5 skipped (191)
+M8 aside updates the journal: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 185 passed | 5 skipped (191)
+M9 aside result recorded: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 185 passed | 5 skipped (191)
+M10 aside has no rules: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 185 passed | 5 skipped (191)
+M11 setting ignored: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 185 passed | 5 skipped (191)
+M12 stop leaves the suggestion open: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 185 passed | 5 skipped (191)
+M13 no Attention while asking: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 2 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  2 failed | 184 passed | 5 skipped (191)
+restored:       Tests  186 passed | 5 skipped (191)

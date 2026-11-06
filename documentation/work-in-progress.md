@@ -172,7 +172,7 @@ The mission journal, agreed in CHG-0043 and delivered in CHG-0044 after the owne
 
 Mission tracking, agreed in CHG-0045, built here test-first. Sources: mission-tracking specifications; mission-journal specifications (When a mission ends).
 
-Resumption status (2026-11-06): implementation is present, including dashboard row ending actions added after recovery. Tests pass (175, five opt-in live checks skipped), typecheck, lint, desktop build, and diff whitespace checks pass. Recovered mutation evidence catches 15/15 mutations. See [verification and remaining checks](verification/2026-11-06-mission-tracking.md). Next: drive the new dashboard actions in the Electron window, plus rename and workspace filtering, from the main chat (desktop control is unavailable in this side thread). Visual polish is deferred by the owner. Changes remain uncommitted on `63d4b15`; no delivery or acceptance recorded.
+Status (2026-11-06): implemented and committed in `8e05eb0`. Tests pass (175, five opt-in live checks skipped), typecheck, lint, desktop build. Recovered mutation evidence catches 15/15 mutations. The window drive on the fake harness proved the dashboard row ending actions (Mark as done with the stop confirmation, Cancel, Archive, Reopen from Archived), rename and the refused `set_mission_title`, workspace and state filters, search, the Mark as done? question with Not now, and writing in a Done mission: [proof](verification/2026-11-06-mission-tracking.md). Visual polish is deferred by the owner. Next: the owner's acceptance, then record delivery; no delivery or acceptance recorded.
 
 ### Behavior
 
@@ -201,6 +201,71 @@ Resumption status (2026-11-06): implementation is present, including dashboard r
 - `bun run test`, `bun run typecheck`, `bun run check`, desktop build; mutation check.
 - Driven in the window: 3 missions, the one needing the owner first, Mark done, archive, reopen, rename, filters and search.
 - Owner's look: the dashboard questions, filters, Archived view, and the header actions.
+
+## Batch 10: proposed, built, awaiting the owner
+
+Status (2026-11-06): built test-first, uncommitted on `8e05eb0`. `bun run test` 186 passed (5 opt-in live skipped), typecheck, lint, desktop build pass; 13/13 mutations caught; driven in the window on the fake harness: [proof](verification/2026-11-06-off-topic.md). Next: the owner agrees the batch and its provisional choices (or changes them), then a live check with Claude Code and acceptance.
+
+Off-topic requests (thread-tree, Off-topic requests; CHG-0045 staged `find_missions`). Chosen by an agent under the owner's instruction of 2026-11-06 ("build what is next", no questions this session); not yet agreed by the owner. Sources: thread-tree specifications (Off-topic requests, External contract, Acceptance).
+
+### Behavior
+
+- **Judging**: every thread's instructions say that a message from the owner that clearly shares nothing with the mission, judged against the briefing, is not answered: the thread calls `find_missions`, then `suggest_mission`, then carries on as if the message had not been sent.
+- **`find_missions`** (the request): up to 3 other missions whose titles or briefings share words with the request, best first, each with its id, title, state, and briefing. Every mission not deleted counts, Done and Archived included; the caller's own mission does not.
+- **`suggest_mission`** (the off-topic part, a proposed title, the matching missions' ids): the thread enters Attention and its conversation shows the suggestion with **Continue in "title" · state** for each match (at most 3), **Open as new mission** with model and effort prefilled from the thread, and **Keep as aside**. The answer tells the thread where the message went.
+- **Continue in**: the off-topic part goes to that mission's top thread as the owner's message, steered or queued by the default delivery, waking it.
+- **Open as new mission**: a mission whose top thread starts with only the off-topic part, the proposed title, no workspace, an empty journal.
+- **Keep as aside**: a thread beneath the current one, marked as an aside, whose first message is the off-topic part from the owner. Its instructions carry the note that the message went off topic and was put aside, and the rule to message its parent with what is relevant when the conversation comes back to the mission. An aside does not update the journal: `update_journal` is refused and its result records no entry.
+- **Link left behind**: the original thread shows a line "Continued in mission: X", "Moved to mission: X", or "Kept as aside: X" that opens it.
+- **Setting**: **Open off-topic requests as new missions without asking when no mission matches**, off by default.
+- **Withdrawal**: Stop, Interrupt, a failed turn, or a restart withdraw an open suggestion, as with questions.
+
+### Provisional, until the owner decides
+
+- Matching is word overlap on titles (counted twice) and briefings; no semantic search.
+- The suggestion shows in its thread only, not in the dashboard's open-questions list; its mission comes first on the dashboard as Attention.
+- An aside starts with the whole journal context (briefing and latest entries), not the briefing alone, and without its opener's messages.
+- A new mission opened from a suggestion does not change the dashboard's prefilled choices.
+- The aside is not folded with agent-opened threads: the owner chose it.
+
+### Checks
+
+- Automated with the fake harness: matches by title and briefing, Done and Archived included, own and deleted missions excluded, at most 3 best first; the suggestion in Attention; Continue in waking the chosen mission; a refused Continue to a mission not offered; the new mission's fresh start; the aside's first message, context, and journal refusal; the link left behind; the setting with and without matches; withdrawal on Stop; the instructions.
+- `bun run test`, `bun run typecheck`, `bun run check`, desktop build.
+- Driven in the window on the fake harness: the three choices and the setting.
+
+## Batch 11: proposed, built, awaiting the owner
+
+Status (2026-11-06): built test-first, uncommitted on `8e05eb0` with batch 10. `bun run test` 200 passed (5 opt-in live skipped), typecheck, lint, desktop build pass; 16/16 mutations caught; driven in the window on the fake harness: [proof](verification/2026-11-06-budgets.md). Next: the owner agrees the batch and its provisional choices, then a live check with Claude Code's usage and acceptance.
+
+Budget control (budget-control specifications), chosen by an agent under the owner's instruction of 2026-11-06 ("Go for next feature", no questions); not yet agreed by the owner. Control and the phone web app do not exist yet, so Control's budget, its event lines, and phone notifications are out.
+
+### Behavior
+
+- **Budgets**: two optional limits, cost (API-key spending) and tokens (subscription spending); empty means none; tokens never priced. Each mission has one, for its whole life; one global budget covers all missions over a period: Day, Week, or Month (default), starting at local midnight, Monday, or the 1st.
+- **Settings**: a default mission budget, empty at first, copied onto each new mission; the global budget and its period, empty at first.
+- **Mission budget**: set, changed, or removed from the mission's budget window; only the owner, no thread tool.
+- **Seeing use**: a mission with a budget shows a meter per limit, orange from 80%, red at 100%; without one, only its spending. The global meters sit at the top of the dashboard. The budget window shows used of limit and the split by thread.
+- **Budget line**: each turn's context carries one line, for example "Budget: 12,000 of 50,000 tokens used (24%); global: 61% of this month's tokens". Left out with no budget at all.
+- **Reaching a limit**: when a turn's spending reaches the mission's limit, every running thread of the mission stops its turn and goes to Attention; the thread that reached it shows **Raise budget** and **Stop**. At the global limit, every running thread stops, with one shared question at the top of the dashboard: **Raise budget** or **Stop all**. Raise budget opens the limit with +25%, +50%, double, and remove; once under the limit, the stopped threads resume on their own, their interrupted messages delivered again. Stop leaves them Stopped. A message to a thread under a reached budget waits in Attention the same way.
+- **Refusals**: at a reached limit `open_thread` is refused with the reason; at the global limit starting a mission is refused with the reason.
+- **Lowering** below what is spent stops running threads the same way.
+- **Record**: each change (set, raised, lowered, removed) and each stop at a limit is a line in the mission's top thread, for example "Budget raised to 75,000 tokens · 14:02".
+
+### Provisional, until the owner decides
+
+- Claude Code counts as subscription spending: its turns count in tokens (input, output, cache writes, and cache reads); a cost is counted only from a harness that reports one (the fake harness). Detecting API-key billing is staged.
+- Spending is counted when a turn ends, as Claude Code reports it then; a turn can go over before it stops.
+- The budget window splits by thread only: Claude Code is the only provider.
+- Global budget events have no line (Control holds them, and Control does not exist yet).
+- A thread released after a raise becomes Idle and runs its kept messages; a thread that had reported its result in the reaching turn is not set Done again.
+- Meters are thin bars, not rings, until the interface pass.
+
+### Checks
+
+- Automated with the fake harness reporting spending (`spend <tokens> [cost]`): limits counted separately; empty limits never stop; every thread drawing on the mission; mission and global counting; the default budget applied; changing a mission's budget; period starts for day, week, month; a reached limit stopping running threads in Attention with the question; Raise (resume) and Stop; the global limit with one question; `open_thread` and starting a mission refused; lowering below spending; the budget line present and absent; the lines recorded.
+- `bun run test`, `bun run typecheck`, `bun run check`, desktop build; mutation check.
+- Driven in the window on the fake harness: a budget set, meters turning orange then red, the stop question, Raise by 50%, threads carrying on.
 
 ## Open questions, settled when a batch needs them
 

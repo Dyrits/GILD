@@ -10,9 +10,13 @@ export const defaultSettings: Settings = {
   chatterThreshold: 20,
   defaultDelivery: "Steer",
   defaultEffort: "default",
+  defaultMissionBudget: { cost: null, tokens: null },
   defaultModel: "default",
+  globalBudget: { cost: null, tokens: null },
+  globalBudgetPeriod: "Month",
   inactivityDays: 14,
   shouldAutoArchive: false,
+  shouldOpenOffTopicMissions: false,
   shouldShowAgentThreads: true,
   shouldStreamReplies: true,
 };
@@ -36,7 +40,7 @@ export const writeSettings = (settings: Settings) =>
     const parsed = yield* Schema.decodeUnknownEffect(Settings)(settings).pipe(
       Effect.catch(() =>
         invalid(
-          "Invalid settings: the chatter threshold must be a whole number of at least 2; the briefing limit and the inactivity and auto-archive days at least 1.",
+          "Invalid settings: the chatter threshold must be a whole number of at least 2; the briefing limit and the inactivity and auto-archive days at least 1; budget limits above 0, tokens in whole numbers.",
         ),
       ),
     );

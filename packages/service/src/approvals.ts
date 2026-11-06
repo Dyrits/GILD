@@ -188,7 +188,8 @@ export const approvalsLayer = Layer.effect(
             WHERE id = ${questionId} AND outcome IS NULL`;
           yield* sql`UPDATE threads SET state = 'Running'
             WHERE id = ${threadId} AND state = 'Attention' AND blocker IS NULL
-              AND NOT EXISTS (SELECT 1 FROM questions WHERE thread_id = ${threadId} AND outcome IS NULL)`;
+              AND NOT EXISTS (SELECT 1 FROM questions WHERE thread_id = ${threadId} AND outcome IS NULL)
+              AND NOT EXISTS (SELECT 1 FROM suggestions WHERE thread_id = ${threadId} AND outcome IS NULL)`;
           yield* sql.afterCommit(changes.publish);
         }),
       );

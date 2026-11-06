@@ -24,4 +24,4 @@
 
 ## Handoffs
 
-To resume batch 9 verification and delivery, read the [current handoff](.agents/handoffs/2026-11-06-1524-mission-tracking.md). Handoffs are shared and committed.
+To resume batch 9 acceptance and the batch 10 and 11 agreements, read the [current handoff](.agents/handoffs/2026-11-06-1850-budget-control.md). Handoffs are shared and committed.

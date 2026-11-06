@@ -187,6 +187,50 @@ const migrations = {
     yield* sql`ALTER TABLE missions ADD COLUMN is_asking_done INTEGER NOT NULL DEFAULT 0`;
     yield* sql`ALTER TABLE missions ADD COLUMN inactivity_dismissed_at INTEGER`;
   }),
+  // Off-topic requests (thread-tree): each suggestion and where its request went, and asides.
+  "0013_off_topic": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    // Targets carry no reference: the link outlives a deleted target, with the title it had.
+    yield* sql`CREATE TABLE suggestions (
+      id TEXT PRIMARY KEY,
+      mission_id TEXT NOT NULL REFERENCES missions(id),
+      thread_id TEXT NOT NULL REFERENCES threads(id),
+      text TEXT NOT NULL,
+      title TEXT NOT NULL,
+      matches TEXT NOT NULL,
+      asked_at INTEGER NOT NULL,
+      outcome TEXT,
+      is_automatic INTEGER NOT NULL DEFAULT 0,
+      target_mission_id TEXT,
+      target_thread_id TEXT,
+      target_title TEXT,
+      resolved_at INTEGER
+    )`;
+    yield* sql`ALTER TABLE threads ADD COLUMN is_aside INTEGER NOT NULL DEFAULT 0`;
+  }),
+  // Budget control: each mission's limits, a turn's API-key cost, reached budgets, and budget lines.
+  "0014_budgets": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE missions ADD COLUMN budget_cost REAL`;
+    yield* sql`ALTER TABLE missions ADD COLUMN budget_tokens INTEGER`;
+    // Null counts the turn's tokens as subscription spending.
+    yield* sql`ALTER TABLE usage ADD COLUMN cost REAL`;
+    // A null mission is the global budget; the holding thread carries no reference so a stop outlives it.
+    yield* sql`CREATE TABLE budget_stops (
+      id TEXT PRIMARY KEY,
+      mission_id TEXT REFERENCES missions(id),
+      thread_id TEXT NOT NULL,
+      reached_at INTEGER NOT NULL,
+      resolution TEXT,
+      resolved_at INTEGER
+    )`;
+    yield* sql`CREATE TABLE budget_events (
+      id TEXT PRIMARY KEY,
+      mission_id TEXT NOT NULL REFERENCES missions(id),
+      text TEXT NOT NULL,
+      at INTEGER NOT NULL
+    )`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

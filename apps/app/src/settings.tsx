@@ -1,4 +1,5 @@
 import {
+  BudgetPeriod,
   EffortChoice as EffortChoices,
   MessageDelivery as MessageDeliveries,
   type MessageDelivery,
@@ -6,7 +7,8 @@ import {
   type Settings,
 } from "@openmission/contracts";
 import { useState } from "react";
-import { Pressable, Switch, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, Switch, Text, TextInput, View } from "react-native";
+import { BudgetEditor } from "./budgets";
 import type { ServiceClient } from "./client";
 import { Choice } from "./controls";
 import { effortLabel, modelLabels } from "./formatting";
@@ -82,7 +84,7 @@ export function SettingsScreen({
     );
   };
   return (
-    <View style={styles.screen}>
+    <ScrollView contentContainerStyle={styles.screen}>
       <View style={styles.header}>
         <Pressable onPress={onBack}>
           <Text style={styles.link}>← Missions</Text>
@@ -153,6 +155,15 @@ export function SettingsScreen({
             />
             <Text style={styles.body}>Archive done missions automatically</Text>
           </View>
+          <View style={styles.toggle}>
+            <Switch
+              onValueChange={(shouldOpenOffTopicMissions) => save({ shouldOpenOffTopicMissions })}
+              value={settings.shouldOpenOffTopicMissions}
+            />
+            <Text style={styles.body}>
+              Open an off-topic message as a new mission without asking when no other mission fits
+            </Text>
+          </View>
           <NumberSetting
             label="Days after a mission is marked done before it is archived"
             minimum={1}
@@ -167,8 +178,32 @@ export function SettingsScreen({
             />
             <Text style={styles.body}>Show replies as they're written</Text>
           </View>
+          <Text style={styles.label}>Default budget for new missions</Text>
+          <BudgetEditor
+            key={`default:${JSON.stringify(settings.defaultMissionBudget)}`}
+            limits={settings.defaultMissionBudget}
+            onSave={(defaultMissionBudget) =>
+              client.request({ _tag: "UpdateSettings", settings: { ...settings, defaultMissionBudget } })
+            }
+            saveLabel="Save default"
+          />
+          <Text style={styles.label}>Global budget, over the period</Text>
+          <Choice
+            label={(period) => period}
+            onChange={(globalBudgetPeriod) => save({ globalBudgetPeriod })}
+            options={BudgetPeriod.literals}
+            value={settings.globalBudgetPeriod}
+          />
+          <BudgetEditor
+            key={`global:${JSON.stringify(settings.globalBudget)}`}
+            limits={settings.globalBudget}
+            onSave={(globalBudget) =>
+              client.request({ _tag: "UpdateSettings", settings: { ...settings, globalBudget } })
+            }
+            saveLabel="Save global budget"
+          />
         </View>
       )}
-    </View>
+    </ScrollView>
   );
 }

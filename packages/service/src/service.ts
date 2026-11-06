@@ -2,6 +2,7 @@ import type { Request } from "@openmission/contracts";
 import { Context, Effect, Layer, Match, Semaphore } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
 import { Approvals, approvalsLayer } from "./approvals.ts";
+import { applyGlobalBudget, readBudgetWindow, setMissionBudget, stopAtBudget } from "./budgets.ts";
 import { Changes, changesLayer } from "./changes.ts";
 import { resolveChatter } from "./chatter.ts";
 import { deleteThread, previewDeletion } from "./deleting.ts";
@@ -18,6 +19,7 @@ import { listOpenQuestions, listQuestionHistory } from "./questions.ts";
 import { sandboxProblem } from "./sandbox.ts";
 import { readSettings, readStartChoices, writeSettings } from "./settings.ts";
 import { storeLayer } from "./store.ts";
+import { Suggestions, suggestionsLayer } from "./suggestions.ts";
 import { ScratchRoot, Threads, threadsLayer } from "./threads.ts";
 import { renameMission } from "./titles.ts";
 import { openThreadByOwner } from "./tree.ts";
@@ -55,6 +57,7 @@ const make = Effect.gen(function* () {
   const scratchRoot = yield* ScratchRoot;
   const changes = yield* Changes;
   const approvals = yield* Approvals;
+  const suggestions = yield* Suggestions;
   const problem = yield* sandboxProblem;
   const chatterDecisions = yield* Semaphore.make(1);
 
@@ -80,6 +83,18 @@ const make = Effect.gen(function* () {
       }),
     );
 
+  /** After a budget change: halted turns end, and released threads carry on with their kept messages. */
+  const applyBudgetOutcome = (outcome: {
+    readonly halted: ReadonlyArray<string>;
+    readonly released: ReadonlyArray<string>;
+  }) =>
+    threads
+      .cancel(outcome.halted)
+      .pipe(
+        Effect.andThen(changes.publish),
+        Effect.andThen(Effect.forEach(outcome.released, (id) => threads.wake(id), { discard: true })),
+      );
+
   const handle = (request: Request): Effect.Effect<unknown, ServiceFailure> => {
     // One handler per request tag; Match.valueTags fails to compile when a tag has none.
     const run: Effect.Effect<unknown, ServiceFailure | SqlError.SqlError, SqlClient.SqlClient> = Match.valueTags(
@@ -99,6 +114,7 @@ const make = Effect.gen(function* () {
             ),
           ),
         AnswerQuestion: (given) => approvals.answer(given.questionId, given.answer, given.message, "desktop"),
+        AnswerSuggestion: (given) => suggestions.answer(given.suggestionId, given.answer),
         BrowseFolders: (browse) => browseFolders(browse.path, browse.shouldIncludeHidden),
         CreateFolder: (create) => createFolder(create.parent, create.name),
         DeleteThread: (given) =>
@@ -133,6 +149,7 @@ const make = Effect.gen(function* () {
           ),
         PreviewDeletion: (given) => previewDeletion(given.threadId),
         PreviewEnding: (given) => previewEnding(given.missionId, given.ending),
+        ReadBudget: (read) => readBudgetWindow(read.missionId),
         ReadJournal: (read) => readJournalView(read.missionId),
         ReadMission: (read) => readMission(read.missionId, read.threadId),
         ReadPermissions: (read) =>
@@ -177,6 +194,12 @@ const make = Effect.gen(function* () {
             const delivery = send.delivery ?? (yield* readSettings).defaultDelivery;
             return yield* once(send.requestId, send._tag, insertUserMessage(send.threadId, text, delivery === "Queue"));
           }).pipe(Effect.tap(() => threads.wake(send.threadId))),
+        SetMissionBudget: (given) =>
+          sql
+            .withTransaction(
+              setMissionBudget(given.missionId, given.limits).pipe(Effect.tap(() => sql.afterCommit(changes.publish))),
+            )
+            .pipe(Effect.tap(applyBudgetOutcome), Effect.as(null)),
         StartMission: (start) =>
           nonBlank(start.text).pipe(
             Effect.andThen((text) =>
@@ -184,8 +207,16 @@ const make = Effect.gen(function* () {
             ),
             Effect.tap((started) => threads.wake(started.threadId)),
           ),
+        StopAtBudget: (given) =>
+          sql.withTransaction(stopAtBudget(given.stopId)).pipe(Effect.tap(() => changes.publish)),
         StopThread: (stop) => threads.stop(stop.threadId).pipe(Effect.as(null)),
-        UpdateSettings: (update) => writeSettings(update.settings).pipe(Effect.tap(() => changes.publish)),
+        UpdateSettings: (update) =>
+          sql
+            .withTransaction(writeSettings(update.settings).pipe(Effect.tap(() => sql.afterCommit(changes.publish))))
+            .pipe(
+              // A changed global budget stops work at its limit or releases the threads it held.
+              Effect.tap(() => sql.withTransaction(applyGlobalBudget).pipe(Effect.tap(applyBudgetOutcome))),
+            ),
         WidenPermission: (widen) => widenPermission(widen.permissionId).pipe(Effect.tap(() => changes.publish)),
       },
     );
@@ -218,7 +249,10 @@ export const serviceLayer = (options: ServiceOptions) => {
     Layer.provideMerge(Layer.effectDiscard(seedBrowsableRoots(options.homeFolder))),
     Layer.provideMerge(storeLayer(options.filename)),
   );
-  const tools = toolServerLayer.pipe(Layer.provideMerge(approvalsLayer), Layer.provideMerge(foundation));
+  const tools = toolServerLayer.pipe(
+    Layer.provideMerge(Layer.mergeAll(approvalsLayer, suggestionsLayer)),
+    Layer.provideMerge(foundation),
+  );
   return Layer.effect(Service, make).pipe(
     Layer.provideMerge(autoArchiveLayer),
     Layer.provideMerge(threadsLayer),

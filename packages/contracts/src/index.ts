@@ -63,6 +63,27 @@ export const TokenUsage = Schema.Struct({
 });
 export type TokenUsage = typeof TokenUsage.Type;
 
+/** A budget's two optional limits; null means no limit (budget-control, Budgets). */
+export const BudgetLimits = Schema.Struct({
+  /** For API-key spending, in the provider's currency. */
+  cost: Schema.NullOr(Schema.Number.check(Schema.isGreaterThan(0))),
+  /** For subscription spending; tokens are never priced. */
+  tokens: Schema.NullOr(Schema.Int.check(Schema.isGreaterThanOrEqualTo(1))),
+});
+export type BudgetLimits = typeof BudgetLimits.Type;
+
+/** The global budget's period; it starts at local midnight, on Monday for a week, on the 1st for a month. */
+export const BudgetPeriod = Schema.Literals(["Day", "Week", "Month"]);
+export type BudgetPeriod = typeof BudgetPeriod.Type;
+
+/** Spending in each unit: API-key cost, and subscription tokens. */
+export const Spending = Schema.Struct({ cost: Schema.Number, tokens: Schema.Number });
+export type Spending = typeof Spending.Type;
+
+/** A budget's limits with what is spent against them. */
+export const BudgetUse = Schema.Struct({ limits: BudgetLimits, spent: Spending });
+export type BudgetUse = typeof BudgetUse.Type;
+
 /** How much asks for approval: sensitive actions only, or also commands and edits (action-approval, Approval level; CHG-0035). */
 export const ApprovalLevel = Schema.Literals(["RiskyOnly", "CommandsAndEdits"]);
 export type ApprovalLevel = typeof ApprovalLevel.Type;
@@ -82,11 +103,18 @@ export const Settings = Schema.Struct({
   /** What Send does while a thread runs; the second button does the other. */
   defaultDelivery: MessageDelivery,
   defaultEffort: EffortChoice,
+  /** Copied onto each new mission; empty at first. */
+  defaultMissionBudget: BudgetLimits,
   defaultModel: ModelChoice,
+  /** Covers all missions over its period; empty at first. */
+  globalBudget: BudgetLimits,
+  globalBudgetPeriod: BudgetPeriod,
   /** Days without activity before the dashboard asks to archive or mark a mission done (mission-tracking). */
   inactivityDays: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
   /** Whether Done missions are archived automatically, off by default (mission-tracking, Ending a mission). */
   shouldAutoArchive: Schema.Boolean,
+  /** Whether an off-topic request opens a new mission without asking when no mission matches (thread-tree). */
+  shouldOpenOffTopicMissions: Schema.Boolean,
   shouldShowAgentThreads: Schema.Boolean,
   shouldStreamReplies: Schema.Boolean,
 });
@@ -110,6 +138,8 @@ export const MissionPrompt = Schema.Literals(["MarkDone", "Inactive"]);
 export type MissionPrompt = typeof MissionPrompt.Type;
 
 export const MissionSummary = Schema.Struct({
+  /** The mission's budget and its spending over the mission's life. */
+  budget: BudgetUse,
   id: MissionId,
   /** Whether the owner renamed it, after which `set_mission_title` is refused. */
   isTitleByUser: Schema.Boolean,
@@ -251,7 +281,7 @@ export const PermissionsView = Schema.Struct({
 export type PermissionsView = typeof PermissionsView.Type;
 
 /** What keeps a thread in Attention besides an open question: its workspace folder is gone (workspace-attachment, Missing folder). */
-export const ThreadBlocker = Schema.Literals(["MissingWorkspace", "Chatter"]);
+export const ThreadBlocker = Schema.Literals(["MissingWorkspace", "Chatter", "Budget"]);
 export type ThreadBlocker = typeof ThreadBlocker.Type;
 
 /** One thread in a mission's tree, as the side tree lists it. */
@@ -259,6 +289,8 @@ export const ThreadSummary = Schema.Struct({
   /** Levels beneath the top thread, which is 0. */
   depth: Schema.Number,
   id: ThreadId,
+  /** Whether it holds an off-topic request the owner kept as an aside (thread-tree, Off-topic requests). */
+  isAside: Schema.Boolean,
   /** Whether a thread opened it with `open_thread`, rather than the owner. */
   isOpenedByAgent: Schema.Boolean,
   parentId: Schema.NullOr(ThreadId),
@@ -299,14 +331,92 @@ export const ChatterNotice = Schema.Struct({
 });
 export type ChatterNotice = typeof ChatterNotice.Type;
 
+export const SuggestionId = Schema.String.pipe(Schema.brand("SuggestionId"));
+export type SuggestionId = typeof SuggestionId.Type;
+
+/** Where an off-topic request went: continued in another mission, a new mission, an aside, or nowhere (withdrawn). */
+export const SuggestionOutcome = Schema.Literals(["Continued", "MovedToMission", "KeptAsAside", "Withdrawn"]);
+export type SuggestionOutcome = typeof SuggestionOutcome.Type;
+
+/** A mission offered for an off-topic request, with its state when read. */
+export const SuggestionMatch = Schema.Struct({ missionId: MissionId, state: MissionState, title: Schema.String });
+export type SuggestionMatch = typeof SuggestionMatch.Type;
+
+/** A thread's suggestion for an off-topic request, open or resolved (thread-tree, Off-topic requests). */
+export const Suggestion = Schema.Struct({
+  askedAt: Schema.Number,
+  /** The suggesting thread's effort, prefilled for Open as new mission. */
+  effort: EffortChoice,
+  id: SuggestionId,
+  /** Whether the setting opened a new mission without asking. */
+  isAutomatic: Schema.Boolean,
+  /** Matching missions, best first, at most 3. */
+  matches: Schema.Array(SuggestionMatch),
+  /** The suggesting thread's model, prefilled for Open as new mission. */
+  model: ModelChoice,
+  outcome: Schema.NullOr(SuggestionOutcome),
+  resolvedAt: Schema.NullOr(Schema.Number),
+  targetMissionId: Schema.NullOr(MissionId),
+  targetThreadId: Schema.NullOr(ThreadId),
+  /** The mission or aside it went to, as titled then. */
+  targetTitle: Schema.NullOr(Schema.String),
+  /** The off-topic part of the owner's message. */
+  text: Schema.String,
+  threadId: ThreadId,
+  /** The thread's proposed title for a new mission or aside. */
+  title: Schema.String,
+});
+export type Suggestion = typeof Suggestion.Type;
+
+/** A budget reached and not yet answered: the mission's, or the global one (budget-control, Reaching a limit). */
+export const BudgetStop = Schema.Struct({
+  id: Schema.String,
+  /** Null for the global budget. */
+  missionId: Schema.NullOr(MissionId),
+  missionTitle: Schema.NullOr(Schema.String),
+  reachedAt: Schema.Number,
+  scope: Schema.Literals(["Mission", "Global"]),
+  /** The thread that holds the question. */
+  threadId: ThreadId,
+});
+export type BudgetStop = typeof BudgetStop.Type;
+
+/** A line recording a budget change or a stop at a limit, shown in the mission's top thread. */
+export const BudgetEvent = Schema.Struct({ at: Schema.Number, id: Schema.String, text: Schema.String });
+export type BudgetEvent = typeof BudgetEvent.Type;
+
+/** What one part spent: a thread of a mission, or a mission under the global budget. */
+export const BudgetPart = Schema.Struct({ id: Schema.String, spent: Spending, title: Schema.String });
+export type BudgetPart = typeof BudgetPart.Type;
+
+/** The budget window: used of limit, the split, and for the global budget its period. */
+export const BudgetWindow = Schema.Struct({
+  limits: BudgetLimits,
+  /** When the global period starts over; null for a mission. */
+  nextStart: Schema.NullOr(Schema.Number),
+  parts: Schema.Array(BudgetPart),
+  period: Schema.NullOr(BudgetPeriod),
+  periodStart: Schema.NullOr(Schema.Number),
+  spent: Spending,
+  /** The open stop in this scope, or null. */
+  stop: Schema.NullOr(BudgetStop),
+});
+export type BudgetWindow = typeof BudgetWindow.Type;
+
 /** A mission with its thread tree and one selected thread's conversation. */
 export const MissionDetail = Schema.Struct({
+  /** Budget lines, shown in the top thread only. */
+  budgetEvents: Schema.Array(BudgetEvent),
+  /** The mission's open budget stop when the selected thread holds its question. */
+  budgetStop: Schema.NullOr(BudgetStop),
   chatter: Schema.Array(ChatterNotice),
   /** The selected thread's messages. */
   messages: Schema.Array(Message),
   mission: MissionSummary,
   /** The selected thread's questions, open and recorded, in the order asked. */
   questions: Schema.Array(Question),
+  /** The selected thread's off-topic suggestions, open and resolved, in the order made. */
+  suggestions: Schema.Array(Suggestion),
   /** The selected thread: the one asked for, or the top thread. */
   thread: ThreadView,
   /** Every thread of the mission, each parent before the threads beneath it. */
@@ -447,6 +557,23 @@ export const AnswerQuestion = Schema.TaggedStruct("AnswerQuestion", {
   questionId: QuestionId,
 });
 export const ListOpenQuestions = Schema.TaggedStruct("ListOpenQuestions", {});
+/** The owner sets, changes, or removes a mission's budget; raising past the spending resumes stopped threads. */
+export const SetMissionBudget = Schema.TaggedStruct("SetMissionBudget", { limits: BudgetLimits, missionId: MissionId });
+/** Reads a mission's budget window, or the global one with null. */
+export const ReadBudget = Schema.TaggedStruct("ReadBudget", { missionId: Schema.NullOr(MissionId) });
+/** The owner answers Stop (or Stop all) to a reached budget: its threads stay stopped. */
+export const StopAtBudget = Schema.TaggedStruct("StopAtBudget", { stopId: Schema.String });
+/** The owner's choice for an off-topic request (thread-tree, Off-topic requests). */
+export const SuggestionAnswer = Schema.Union([
+  Schema.TaggedStruct("Continue", { missionId: MissionId }),
+  Schema.TaggedStruct("NewMission", { effort: EffortChoice, model: ModelChoice }),
+  Schema.TaggedStruct("Aside", {}),
+]);
+export type SuggestionAnswer = typeof SuggestionAnswer.Type;
+export const AnswerSuggestion = Schema.TaggedStruct("AnswerSuggestion", {
+  answer: SuggestionAnswer,
+  suggestionId: SuggestionId,
+});
 /** Ends a running thread's current turn and keeps the thread usable (thread-messaging, Interruptions). */
 export const InterruptThread = Schema.TaggedStruct("InterruptThread", { threadId: ThreadId });
 export const StopThread = Schema.TaggedStruct("StopThread", { threadId: ThreadId });
@@ -490,6 +617,10 @@ export const Request = Schema.Union([
   RewriteBriefing,
   AddJournalEntry,
   AnswerQuestion,
+  AnswerSuggestion,
+  SetMissionBudget,
+  ReadBudget,
+  StopAtBudget,
   ListOpenQuestions,
   StopThread,
   RetryThread,
@@ -518,6 +649,7 @@ export const Results = {
   AddBrowsableRoot: FolderListing,
   AddJournalEntry: JournalView,
   AnswerQuestion: Question,
+  AnswerSuggestion: Suggestion,
   BrowseFolders: FolderListing,
   CreateFolder: Folder,
   DeleteThread: Schema.Null,
@@ -529,6 +661,7 @@ export const Results = {
   OpenThread: OpenThreadResult,
   PreviewDeletion: DeletionPreview,
   PreviewEnding: EndingPreview,
+  ReadBudget: BudgetWindow,
   ReadJournal: JournalView,
   ReadMission: MissionDetail,
   ReadPermissions: PermissionsView,
@@ -542,7 +675,9 @@ export const Results = {
   RetryThread: Schema.Null,
   RewriteBriefing: JournalView,
   SendMessage: SendMessageResult,
+  SetMissionBudget: Schema.Null,
   StartMission: StartMissionResult,
+  StopAtBudget: Schema.Null,
   StopThread: Schema.Null,
   UpdateSettings: Settings,
   WidenPermission: Schema.Null,

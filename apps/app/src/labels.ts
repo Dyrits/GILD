@@ -1,3 +1,5 @@
+import type { BudgetLimits, SuggestionOutcome } from "@openmission/contracts";
+
 const threadsOf = (count: number) => (count === 1 ? "1 thread" : `${count} threads`);
 
 /** The mark on a thread that folds agent-opened threads beneath it, for example "+3 threads". */
@@ -36,3 +38,27 @@ export const promptQuestionOf = (prompt: "MarkDone" | "Inactive", inactivityDays
   prompt === "MarkDone"
     ? "Mark as done?"
     : `No activity for ${inactivityDays === 1 ? "1 day" : `${inactivityDays} days`}. Archive it or mark it as done?`;
+
+/** What the line left behind says about where an off-topic request went (thread-tree, Off-topic requests). */
+export const suggestionLabels = {
+  Continued: "Continued in mission",
+  KeptAsAside: "Kept as aside",
+  MovedToMission: "Moved to mission",
+  Withdrawn: "Off-topic suggestion withdrawn",
+} as const satisfies Record<SuggestionOutcome, string>;
+
+/** How full a budget meter is: orange from 80%, red at 100% (budget-control, Seeing budget use). */
+export const meterLevelOf = (spent: number, limit: number): "normal" | "warning" | "reached" =>
+  spent >= limit ? "reached" : spent >= limit * 0.8 ? "warning" : "normal";
+
+/** A limit's use in short words, for example "$1.20 of $5.00" or "12,000 of 50,000 tokens". */
+export const budgetUseTextOf = (unit: "cost" | "tokens", spent: number, limit: number) =>
+  unit === "cost"
+    ? `$${spent.toFixed(2)} of $${limit.toFixed(2)}`
+    : `${Math.round(spent).toLocaleString("en-US")} of ${Math.round(limit).toLocaleString("en-US")} tokens`;
+
+/** The limits raised by a factor, for the quick raises (+25%, +50%, double); an empty limit stays empty. */
+export const raisedLimitsOf = (limits: BudgetLimits, factor: number): BudgetLimits => ({
+  cost: limits.cost === null ? null : Math.round(limits.cost * factor * 100) / 100,
+  tokens: limits.tokens === null ? null : Math.ceil(limits.tokens * factor),
+});

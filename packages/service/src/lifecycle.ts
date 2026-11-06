@@ -2,12 +2,14 @@ import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import type { Approvals } from "./approvals.ts";
 import type { Changes } from "./changes.ts";
+import type { Suggestions } from "./suggestions.ts";
 import { relaxAncestors } from "./tree.ts";
 
 /** Invalidates active turns before cancellation so late output cannot change a paused or stopped thread. */
 export const haltThreads = Effect.fn("haltThreads")(function* (
   ids: ReadonlyArray<string>,
   state: "Stopped" | "Attention",
+  attentionBlocker: "Chatter" | "Budget" = "Chatter",
 ) {
   const sql = yield* SqlClient.SqlClient;
   if (ids.length === 0) return;
@@ -15,23 +17,25 @@ export const haltThreads = Effect.fn("haltThreads")(function* (
   yield* sql`UPDATE turns SET status = 'stopped', ended_at = ${now}
     WHERE thread_id IN ${sql.in(ids)} AND status = 'running'`;
   yield* sql`UPDATE threads SET state = ${state}, generation = generation + 1,
-    blocker = ${state === "Attention" ? "Chatter" : null} WHERE id IN ${sql.in(ids)}`;
+    blocker = ${state === "Attention" ? attentionBlocker : null} WHERE id IN ${sql.in(ids)}`;
 });
 
 /** Owns cancellation and Stop without holding a database transaction while a harness exits. */
 export const makeLifecycle = (dependencies: {
   readonly sql: SqlClient.SqlClient;
   readonly approvals: Approvals["Service"];
+  readonly suggestions: Suggestions["Service"];
   readonly changes: Changes["Service"];
   readonly cancelTurn: (id: string) => Effect.Effect<void>;
   readonly clearDraft: (id: string) => Effect.Effect<void>;
   readonly wakeWaiting: (missionId: string, exceptId: string) => Effect.Effect<void>;
 }) => {
-  const { sql, approvals, changes, cancelTurn, clearDraft, wakeWaiting } = dependencies;
+  const { sql, approvals, suggestions, changes, cancelTurn, clearDraft, wakeWaiting } = dependencies;
   const cancel = Effect.fn("cancelThreads")(function* (ids: ReadonlyArray<string>) {
     for (const id of ids) {
       yield* cancelTurn(id);
       yield* approvals.withdraw(id);
+      yield* suggestions.withdraw(id);
       yield* clearDraft(id);
     }
   });
