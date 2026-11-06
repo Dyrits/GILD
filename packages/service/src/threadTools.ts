@@ -1,0 +1,200 @@
+import { EffortChoice, ModelChoice } from "@openmission/contracts";
+import { Effect, Exit, Schema } from "effect";
+import { latestEntryCount, nothingToRecord } from "./journal.ts";
+
+// The thread tool catalogue (ADR 0005; thread-tree, thread-messaging, mission-journal, mission-tracking,
+// action-approval External contracts): each tool is defined once, by its name, description, and argument
+// schema. Its MCP listing, its argument decoding, and the list Claude Code runs without asking all come
+// from that one definition; the tool server carries the calls, and domain modules answer them typed.
+
+/** A thread tool's answer before it is wrapped for MCP. */
+export interface ToolAnswer {
+  readonly isError: boolean;
+  readonly text: string;
+}
+
+const text = (description: string) => Schema.String.annotate({ description });
+const optionalText = (description: string) => Schema.optionalKey(text(description));
+const optionalWhole = (description: string) => Schema.optionalKey(Schema.Int.annotate({ description }));
+
+const definitionOf = <S extends Schema.ConstraintDecoder<unknown> & Schema.Top>(definition: {
+  readonly description: string;
+  readonly schema: S;
+  /** The answer to arguments that do not decode. */
+  readonly invalid: ToolAnswer;
+  /** Whether a thread uses it without asking the owner; false for the approval tools themselves. */
+  readonly isUnasked: boolean;
+}) => {
+  return {
+    ...definition,
+    inputSchema: Schema.toJsonSchemaDocument(definition.schema).schema,
+  };
+};
+
+const invalid = (text: string): ToolAnswer => ({ isError: true, text });
+
+/** Every thread tool, by name. */
+export const threadTools = {
+  answer_prompt: definitionOf({
+    description: "Used by Claude Code itself to answer permission prompts. Never call it yourself.",
+    // Claude Code reads the decision from the text, so an invalid prompt is denied, not an error.
+    invalid: { isError: false, text: JSON.stringify({ behavior: "deny", message: "Invalid permission prompt." }) },
+    isUnasked: false,
+    schema: Schema.Struct({
+      input: Schema.Record(Schema.String, Schema.Unknown),
+      tool_name: Schema.String,
+      tool_use_id: Schema.optionalKey(Schema.String),
+    }),
+  }),
+  find_missions: definitionOf({
+    description:
+      "Find other missions that may fit an off-topic request, by their titles and briefings: up to 3, best first, with their ids, states, and briefings.",
+    invalid: invalid("Invalid arguments: give request."),
+    isUnasked: true,
+    schema: Schema.Struct({ request: text("The off-topic part of the owner's message.") }),
+  }),
+  interrupt_thread: definitionOf({
+    description:
+      "Interrupt a running thread directly beneath you, by its id: its current turn ends and it waits for a message. Use it when its work is no longer needed or must change course; then message it with what to do instead.",
+    invalid: invalid("Invalid arguments: give thread."),
+    isUnasked: true,
+    schema: Schema.Struct({ thread: text("The id of the thread beneath you to interrupt.") }),
+  }),
+  open_thread: definitionOf({
+    description:
+      "Open a thread beneath you to work on one request on its own, in parallel with you. It starts with your request, in your working folder, with your model and effort unless you choose others, and reports its result to you as a message. Use it instead of subagents.",
+    invalid: invalid("Invalid arguments: give request."),
+    isUnasked: true,
+    schema: Schema.Struct({
+      effort: Schema.optionalKey(EffortChoice),
+      model: Schema.optionalKey(ModelChoice),
+      request: text("Everything the new thread needs to know: it sees none of your conversation."),
+      title: optionalText("A short title for the new thread, a few words, shown to the owner."),
+    }),
+  }),
+  read_journal: definitionOf({
+    description: `Read the mission's journal: the briefing of where the mission stands, its version, and change log entries. Without arguments it gives the ${latestEntryCount} latest entries.`,
+    invalid: invalid("Invalid arguments: before and count are whole numbers."),
+    isUnasked: true,
+    schema: Schema.Struct({
+      before: optionalWhole("Only entries numbered below this one, to read older entries."),
+      count: Schema.optionalKey(
+        Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)).annotate({
+          description: `How many entries, ${latestEntryCount} by default.`,
+        }),
+      ),
+    }),
+  }),
+  report_result: definitionOf({
+    description:
+      "When your work is done, report your result to the thread that opened you, with an entry for the mission's journal. You become Done; a later message continues you.",
+    invalid: invalid(
+      `Not reported: give result, and journal: an entry for the mission's journal, or exactly "${nothingToRecord}".`,
+    ),
+    isUnasked: true,
+    schema: Schema.Struct({
+      journal: text(
+        `The entry for the mission's journal saying what you did or decided, or exactly "${nothingToRecord}".`,
+      ),
+      result: text("The result, complete enough to use without your conversation."),
+    }),
+  }),
+  request_approval: definitionOf({
+    description:
+      "Ask the owner before one sensitive action (see your instructions). One call per action. Wait for the answer; do the action only if it is Allowed.",
+    invalid: invalid("Invalid arguments: give action and command."),
+    isUnasked: false,
+    schema: Schema.Struct({
+      action: text(
+        "One plain sentence: what you want to do and why, e.g. 'Push today's 3 commits so the release can start'.",
+      ),
+      command: text("The exact command, file path, or recipient and text."),
+      pattern: optionalText("A command pattern covering this kind of action, with * for any text, e.g. 'git push *'."),
+      permission: optionalText("A short sentence naming this kind of action, e.g. 'Push code'."),
+      quote: optionalText(
+        "Only when the owner's latest message already names this action: the owner's exact words naming it, copied verbatim.",
+      ),
+    }),
+  }),
+  send_thread_message: definitionOf({
+    description:
+      "Send a message to your parent thread or to a thread directly beneath you, by its id. It joins that thread's current turn if it is running, and wakes it if it is idle.",
+    invalid: invalid("Invalid arguments: give to and text."),
+    isUnasked: true,
+    schema: Schema.Struct({ text: Schema.String, to: text("The receiving thread's id.") }),
+  }),
+  set_mission_title: definitionOf({
+    description:
+      "Name the mission. Only the mission's top thread uses it, on its first turn, with a short title of a few words.",
+    invalid: invalid("Not named: give a title."),
+    isUnasked: true,
+    schema: Schema.Struct({ title: text("A short title of a few words.") }),
+  }),
+  suggest_mission: definitionOf({
+    description:
+      "Ask the owner where an off-topic message goes: continue in a matching mission, open a new mission, or keep it as an aside beneath you. Wait for the answer, then carry on as if the message had not been sent to you.",
+    invalid: invalid("Invalid arguments: give text, title, and missions."),
+    isUnasked: true,
+    schema: Schema.Struct({
+      missions: Schema.optionalKey(
+        Schema.Array(Schema.String).annotate({
+          description: "The ids of the missions from find_missions that fit, best first, at most 3.",
+        }),
+      ),
+      text: text("The off-topic part of the owner's message, as written."),
+      title: text("A short title of a few words for a new mission or aside."),
+    }),
+  }),
+  update_journal: definitionOf({
+    description:
+      "Record a change in the mission's journal: an entry when you settle a decision, change direction, or finish a piece of work. Rewrite the briefing only when where the mission stands has changed; every rewrite comes with an entry.",
+    invalid: invalid("Invalid arguments: give entry."),
+    isUnasked: true,
+    schema: Schema.Struct({
+      basedOn: optionalWhole("With briefing: the briefing version your rewrite starts from, as read_journal gave it."),
+      briefing: optionalText("The whole new briefing of where the mission stands, short enough for its limit."),
+      entry: text("One entry for the change log: what was decided, changed, or done."),
+    }),
+  }),
+};
+
+/** A thread tool's name. */
+export type ThreadToolName = keyof typeof threadTools;
+
+/** The decoded arguments of a thread tool. */
+export type ArgumentsOf<Name extends ThreadToolName> = (typeof threadTools)[Name]["schema"]["Type"];
+
+/** Answers one thread tool with its decoded arguments. */
+export type ToolHandlers = {
+  readonly [Name in ThreadToolName]: (threadId: string, args: ArgumentsOf<Name>) => Effect.Effect<ToolAnswer>;
+};
+
+/** The tools as MCP's `tools/list` gives them. */
+export const toolListing = Object.entries(threadTools).map(([name, tool]) => ({
+  description: tool.description,
+  inputSchema: tool.inputSchema,
+  name,
+}));
+
+/** Whether a name is one of the thread tools. */
+export const isThreadToolName = (name: string): name is ThreadToolName => Object.hasOwn(threadTools, name);
+
+/** The tool names Claude Code runs without asking, as it prefixes them with the server name. */
+export const unaskedToolNamesOf = (serverName: string) =>
+  Object.entries(threadTools)
+    .filter(([, tool]) => tool.isUnasked)
+    .map(([name]) => `mcp__${serverName}__${name}`);
+
+/** Decodes a call's arguments and answers it, or answers that the arguments are invalid. */
+export const answerToolCall = <Name extends ThreadToolName>(
+  handlers: ToolHandlers,
+  name: Name,
+  threadId: string,
+  args: unknown,
+): Effect.Effect<ToolAnswer> => {
+  const tool = threadTools[name];
+  const decoded = Schema.decodeUnknownExit<(typeof threadTools)[Name]["schema"]>(tool.schema)(args);
+  if (Exit.isFailure(decoded)) return Effect.succeed(tool.invalid);
+  const handler: ToolHandlers[Name] = handlers[name];
+  return handler(threadId, decoded.value);
+};

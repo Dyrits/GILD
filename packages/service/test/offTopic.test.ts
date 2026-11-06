@@ -1,7 +1,9 @@
+import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
 import type { MissionDetail, MissionId, Suggestion, SuggestionAnswer, ThreadId } from "@openmission/contracts";
 import { Effect } from "effect";
 import { afterEach } from "vitest";
+import { fakeHarnessLayer, serviceLayer } from "../src/index.ts";
 import { call, fixture, read, send, settle, start, tool } from "./fixtures/batch7.ts";
 
 const fixtures: ReturnType<typeof fixture>[] = [];
@@ -234,6 +236,68 @@ describe("suggesting where an off-topic request goes", () => {
       const detail = yield* settle(current.missionId, (d) => isIdle(d) && lastAgentText(d) !== "");
       expect(lastAgentText(detail)).toContain("find_missions");
       expect(lastAgentText(detail)).toContain("suggest_mission");
+    }).pipe(Effect.provide(setup().layer)),
+  );
+});
+
+describe("opening off-topic requests without asking", () => {
+  it.live("still asks when a mission matches, even if the thread named none", () =>
+    Effect.gen(function* () {
+      const settings = yield* call({ _tag: "ReadSettings" });
+      yield* call({ _tag: "UpdateSettings", settings: { ...settings, shouldOpenOffTopicMissions: true } });
+      const trip = yield* startIdle("Plan the Lisbon trip");
+      const current = yield* startIdle("Write the report");
+      yield* suggest(current.threadId, { missions: [], text: "Book a Lisbon hotel for the trip", title: "Hotel" });
+      const { detail, suggestion } = yield* openSuggestion(current.missionId);
+      expect(detail.thread.state).toBe("Attention");
+      expect(suggestion.matches.map((m) => m.missionId)).toEqual([trip.missionId]);
+    }).pipe(Effect.provide(setup().layer)),
+  );
+});
+
+describe("withdrawing a suggestion", () => {
+  it.live("withdraws it when the owner interrupts the thread", () =>
+    Effect.gen(function* () {
+      const current = yield* startIdle("Write the report");
+      yield* suggest(current.threadId, { missions: [], text: "Read my emails", title: "Emails" });
+      yield* openSuggestion(current.missionId);
+      yield* call({ _tag: "InterruptThread", threadId: current.threadId });
+      const after = yield* settle(current.missionId, (d) => d.suggestions[0]?.outcome === "Withdrawn");
+      expect(after.thread.state).not.toBe("Attention");
+    }).pipe(Effect.provide(setup().layer)),
+  );
+
+  it.live("withdraws an open suggestion when the service restarts", () => {
+    const value = setup();
+    const again = serviceLayer({
+      filename: join(value.directory, "store.sqlite"),
+      harness: fakeHarnessLayer("10 millis"),
+      homeFolder: value.directory,
+      scratchRoot: join(value.directory, "missions"),
+    });
+    return Effect.gen(function* () {
+      const current = yield* Effect.gen(function* () {
+        const started = yield* startIdle("Write the report");
+        yield* suggest(started.threadId, { missions: [], text: "Read my emails", title: "Emails" });
+        yield* openSuggestion(started.missionId);
+        return started;
+      }).pipe(Effect.provide(value.layer));
+      const after = yield* read(current.missionId).pipe(Effect.provide(again));
+      expect(after.suggestions[0]?.outcome).toBe("Withdrawn");
+      expect(after.thread.state).not.toBe("Attention");
+    });
+  });
+
+  it.live("tells a thread not at work in a turn that its suggestion was not asked, not that it was stopped", () =>
+    Effect.gen(function* () {
+      const current = yield* startIdle("Write the report");
+      const answer = yield* tool(current.threadId, "suggest_mission", {
+        missions: [],
+        text: "Emails",
+        title: "Emails",
+      });
+      expect(answer).not.toContain("stopped");
+      expect(answer).toContain("not at work");
     }).pipe(Effect.provide(setup().layer)),
   );
 });

@@ -11,7 +11,7 @@ import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import type { ServiceClient } from "./client";
 import { Choice } from "./controls";
 import { timeOf } from "./formatting";
-import { budgetUseTextOf, meterLevelOf, raisedLimitsOf } from "./labels";
+import { budgetUseTextOf, meterLevelOf, raisedLimitsOf, tokenCountOf } from "./labels";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
 
@@ -201,8 +201,7 @@ export function BudgetScreen({
         <View style={styles.section}>
           {data.limits.cost === null && data.limits.tokens === null ? (
             <Text style={styles.muted}>
-              No limit. Spent ${data.spent.cost.toFixed(2)} and {Math.round(data.spent.tokens).toLocaleString("en-US")}{" "}
-              tokens.
+              No limit. Spent ${data.spent.cost.toFixed(2)} and {tokenCountOf(data.spent.tokens)} tokens.
             </Text>
           ) : (
             <BudgetMeters use={data} />
@@ -227,7 +226,7 @@ export function BudgetScreen({
                 {part.title}
               </Text>
               <Text style={styles.muted}>
-                {Math.round(part.spent.tokens).toLocaleString("en-US")} tokens
+                {tokenCountOf(part.spent.tokens)} tokens
                 {part.spent.cost > 0 ? ` · $${part.spent.cost.toFixed(2)}` : ""}
               </Text>
             </View>

@@ -186,3 +186,30 @@ describe("guarding against chatter", () => {
     }).pipe(Effect.provide(live())),
   );
 });
+
+describe("stopping both threads of a chatter pause", () => {
+  it.live("returns their parent, left Waiting, to Idle", () =>
+    Effect.gen(function* () {
+      const settings = yield* call({ _tag: "ReadSettings" });
+      yield* call({ _tag: "UpdateSettings", settings: { ...settings, chatterThreshold: 2 } });
+      const opening = (request: string) => `call open_thread ${JSON.stringify({ request })}`;
+      // The top thread's turn ends with a child at work, so it is left Waiting; the child opens a grandchild.
+      const started = yield* start(opening(`${opening("wait 60000")}\nwait 60000`));
+      const waiting = yield* settle(
+        started.missionId,
+        (d) =>
+          d.thread.state === "Waiting" &&
+          d.threads.length === 3 &&
+          d.threads.slice(1).every((t) => t.state === "Running"),
+      );
+      const [first, second] = waiting.threads.slice(1).map((t) => t.id);
+      if (first === undefined || second === undefined) return yield* Effect.die("Missing children");
+      yield* message(first, second);
+      yield* message(second, first);
+      const notice = (yield* read(started.missionId, first)).chatter[0];
+      if (notice === undefined) return yield* Effect.die("Missing pause");
+      yield* call({ _tag: "ResolveChatter", choice: "Stop", id: notice.id });
+      expect((yield* read(started.missionId)).thread.state).toBe("Idle");
+    }).pipe(Effect.provide(live())),
+  );
+});

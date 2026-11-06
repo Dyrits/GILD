@@ -17,6 +17,7 @@ import { Choice, Composer, StateBadge } from "./controls";
 import { effortLabel, modelLabels, timeOf, usageText } from "./formatting";
 import { threadCountOf } from "./labels";
 import { MissionEndingActions, MissionPromptCard } from "./missionActions";
+import { allMissions } from "./queries";
 import { QuestionCard } from "./questions";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
@@ -114,11 +115,7 @@ export function Dashboard({
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
   const { data: questions } = useServiceQuery(client, { _tag: "ListOpenQuestions" }, "open-questions");
   // The questions cover every mission on the dashboard, whatever the filters show.
-  const { data: all } = useServiceQuery(
-    client,
-    { _tag: "ListMissions", isArchived: false, search: null, state: null, workspaceId: null },
-    "missions:all",
-  );
+  const { data: all } = useServiceQuery(client, allMissions.request, allMissions.key);
   const asking = isArchived ? [] : (all?.missions.filter((mission) => mission.prompt !== null) ?? []);
   const workspaceNames = new Map((data?.workspaces ?? []).map((w) => [w.id, w.name]));
   if (isGlobalBudgetOpen) {

@@ -3,12 +3,10 @@ import type { DeletionPreview } from "@openmission/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { Changes } from "./changes.ts";
-import { releaseChatter } from "./chatter.ts";
 import { invalid, notFound, ServiceFailure } from "./errors.ts";
-import { haltThreads } from "./lifecycle.ts";
+import { haltThreads, releaseResolvedChatter } from "./lifecycle.ts";
 import { removeScratch } from "./scratch.ts";
 import { ScratchRoot, Threads } from "./threads.ts";
-import { relaxAncestors } from "./tree.ts";
 
 const readSubtree = Effect.fn("readSubtree")(function* (threadId: string) {
   const sql = yield* SqlClient.SqlClient;
@@ -52,7 +50,6 @@ export const deleteThread = Effect.fn("deleteThread")(function* (threadId: strin
       const ids = rows.map((row) => row.id);
       yield* sql`UPDATE threads SET is_deleting = 1 WHERE id IN ${sql.in(ids)}`;
       yield* haltThreads(ids, "Stopped");
-      yield* relaxAncestors(threadId);
       yield* sql.afterCommit(changes.publish);
       return rows;
     }),
@@ -70,10 +67,10 @@ export const deleteThread = Effect.fn("deleteThread")(function* (threadId: strin
       OR json_extract(outcome, '$.messageId') IN (SELECT id FROM messages WHERE thread_id IN ${sql.in(ids)})`;
       yield* sql`DELETE FROM messages WHERE thread_id IN ${sql.in(ids)}`;
       yield* sql`DELETE FROM chatter WHERE first_id IN ${sql.in(ids)} OR second_id IN ${sql.in(ids)}`;
-      yield* releaseChatter();
+      yield* releaseResolvedChatter;
       yield* sql`DELETE FROM questions WHERE thread_id IN ${sql.in(ids)}`;
       yield* sql`DELETE FROM suggestions WHERE thread_id IN ${sql.in(ids)}`;
-      yield* sql`DELETE FROM usage WHERE turn_id IN (SELECT id FROM turns WHERE thread_id IN ${sql.in(ids)})`;
+      // Usage stays: deleting never gives spending back to a budget (budget-control).
       yield* sql`DELETE FROM turns WHERE thread_id IN ${sql.in(ids)}`;
       if (root.parentId === null) {
         // Before the threads go: the top thread marked as deleting is what lets the entries go (store.ts, 0011).
@@ -90,8 +87,7 @@ export const deleteThread = Effect.fn("deleteThread")(function* (threadId: strin
       yield* sql.afterCommit(changes.publish);
     }),
   );
-  const remaining = yield* sql<{ id: string }>`SELECT id FROM threads WHERE mission_id = ${root.missionId}
-    AND state NOT IN ('Running', 'Attention', 'Stopped')`;
-  for (const thread of remaining) yield* threads.wake(thread.id);
+  // Freed running slots let the mission's waiting threads run.
+  if (root.parentId !== null) yield* threads.wakeMission(root.missionId);
   return null;
 });

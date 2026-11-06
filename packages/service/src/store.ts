@@ -231,6 +231,30 @@ const migrations = {
       at INTEGER NOT NULL
     )`;
   }),
+  // Spending outlives the threads and missions that spent it (budget-control: lowering or deleting never
+  // undoes spending): usage rows carry their own thread and end time, without references that a deletion breaks.
+  "0015_lasting_spending": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE spending (
+      turn_id TEXT PRIMARY KEY,
+      mission_id TEXT NOT NULL,
+      thread_id TEXT NOT NULL,
+      ended_at INTEGER NOT NULL,
+      input INTEGER NOT NULL,
+      output INTEGER NOT NULL,
+      cache_read INTEGER NOT NULL,
+      cache_creation INTEGER NOT NULL,
+      cost REAL
+    )`;
+    yield* sql`INSERT INTO spending (turn_id, mission_id, thread_id, ended_at, input, output, cache_read, cache_creation, cost)
+      SELECT u.turn_id, u.mission_id, t.thread_id, COALESCE(t.ended_at, t.started_at), u.input, u.output, u.cache_read,
+        u.cache_creation, u.cost
+      FROM usage u JOIN turns t ON t.id = u.turn_id`;
+    yield* sql`DROP TABLE usage`;
+    yield* sql`ALTER TABLE spending RENAME TO usage`;
+    yield* sql`CREATE INDEX usage_mission ON usage (mission_id)`;
+    yield* sql`CREATE INDEX usage_ended ON usage (ended_at)`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

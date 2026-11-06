@@ -1,6 +1,7 @@
 import type { JournalEntry, JournalView, MissionId } from "@openmission/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
+import { touchMission } from "./activity.ts";
 import { notFound } from "./errors.ts";
 import { readSettings } from "./settings.ts";
 
@@ -75,7 +76,7 @@ const appendEntry = (missionId: string, author: JournalAuthor, text: string) =>
     yield* sql`INSERT INTO journal_entries (mission_id, number, author_kind, author_thread_id, author_title, text, written_at)
       VALUES (${missionId}, ${number}, ${author.kind}, ${threadId},
         (SELECT title FROM threads WHERE id = ${threadId}), ${text}, ${now})`;
-    yield* sql`UPDATE missions SET last_activity_at = ${now} WHERE id = ${missionId}`;
+    yield* touchMission(missionId, now);
     return number;
   });
 

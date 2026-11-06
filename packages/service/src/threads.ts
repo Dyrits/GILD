@@ -2,23 +2,32 @@ import { join } from "node:path";
 import type { EffortChoice, ModelChoice } from "@openmission/contracts";
 import { Clock, Context, Effect, FiberMap, FiberSet, Layer, Match, PubSub } from "effect";
 import { SqlClient } from "effect/sql";
+import { touchMission } from "./activity.ts";
 import { Approvals } from "./approvals.ts";
 import { enforceBudgets, holdIfReached } from "./budgets.ts";
 import { Changes } from "./changes.ts";
 import { requireChatterDecision } from "./chatter.ts";
+import { Endpoints } from "./endpoints.ts";
 import { invalid, type ServiceFailure } from "./errors.ts";
 import { Harness, type HarnessEvent, type TurnOutcome } from "./execution.ts";
 import { threadInstructionsOf } from "./instructions.ts";
 import { journalContextOf } from "./journal.ts";
-import { makeLifecycle } from "./lifecycle.ts";
-import { ToolServer } from "./mcp.ts";
-import { deliveredTextOf } from "./messaging.ts";
+import {
+  endTurn,
+  failTurn,
+  holdThread,
+  makeLifecycle,
+  recoverThreadStates,
+  releaseThread,
+  resumeStopped,
+  startRunning,
+} from "./lifecycle.ts";
+import { deliverMessages, insertReply, listPending, listThreadsWithPending } from "./messaging.ts";
 import { listThreadPermissions } from "./permissions.ts";
 import { readSettings } from "./settings.ts";
 import { budgetLineOf } from "./spending.ts";
 import { Suggestions } from "./suggestions.ts";
-import { activeStates, maxRunning, relaxAncestors, runningCountOf } from "./tree.ts";
-import { Waker } from "./waker.ts";
+import { maxRunning, runningCountOf } from "./tree.ts";
 import { prepareWorkingFolder, readThreadWorkspace } from "./workspaces.ts";
 
 /** Owns thread state and admits at most one turn per thread. */
@@ -43,6 +52,8 @@ export class Threads extends Context.Service<
      * otherwise they start a turn.
      */
     readonly wake: (threadId: string) => Effect.Effect<void>;
+    /** Once threads stopped outside a turn's end, wakes the mission's threads whose messages wait. */
+    readonly wakeMission: (missionId: string) => Effect.Effect<void>;
   }
 >()("openmission/Threads") {}
 
@@ -76,8 +87,7 @@ export const threadsLayer = Layer.effect(
     /** Withdraws everything the thread waits on the owner for: questions and suggestions. */
     const withdrawAll = (threadId: string) =>
       approvals.withdraw(threadId).pipe(Effect.andThen(suggestions.withdraw(threadId)));
-    const toolServer = yield* ToolServer;
-    const waker = yield* Waker;
+    const endpoints = yield* Endpoints;
     const turns = yield* FiberMap.make<string>();
     // Wakes for other threads run here, outside any turn's fiber, which a later wake may replace.
     const background = yield* FiberSet.make();
@@ -89,10 +99,10 @@ export const threadsLayer = Layer.effect(
     // With nothing running, no thread is left waiting on a thread beneath it.
     const startedAt = yield* Clock.currentTimeMillis;
     yield* sql`UPDATE turns SET status = 'interrupted', ended_at = ${startedAt} WHERE status = 'running'`;
-    yield* sql`UPDATE threads SET state = 'Idle' WHERE state IN ('Running', 'Waiting')`;
+    yield* recoverThreadStates;
 
     const touch = (missionId: string, now: number) =>
-      sql`UPDATE missions SET last_activity_at = ${now} WHERE id = ${missionId}`;
+      touchMission(missionId, now).pipe(Effect.provideService(SqlClient.SqlClient, sql));
 
     /**
      * Starts a turn for the thread's undelivered messages, from the owner and from other threads, unless
@@ -112,17 +122,7 @@ export const threadsLayer = Layer.effect(
           // A thread waiting on a question is still inside its turn; a Stopped one keeps its
           // messages until the owner resumes it (thread-tree, Stopping).
           if (thread === undefined || ["Running", "Attention", "Stopped"].includes(thread.state)) return null;
-          const pending = yield* sql<{
-            id: string;
-            text: string;
-            fromThreadId: string | null;
-            fromTitle: string | null;
-            isResult: number;
-          }>`
-            SELECT m.id, m.text, m.sender_thread_id AS fromThreadId, COALESCE(s.title, m.sender_title) AS fromTitle, m.is_result AS isResult
-            FROM messages m LEFT JOIN threads s ON s.id = m.sender_thread_id
-            WHERE m.thread_id = ${threadId} AND m.sender_kind IN ('user', 'thread') AND m.delivered_turn_id IS NULL
-            ORDER BY m.sequence`;
+          const pending = yield* listPending(threadId, false).pipe(Effect.provideService(SqlClient.SqlClient, sql));
           if (pending.length === 0) return null;
           // Past the mission's limit the messages wait; a turn ending elsewhere wakes the thread.
           const running = yield* runningCountOf(thread.missionId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
@@ -132,7 +132,7 @@ export const threadsLayer = Layer.effect(
           // messages stay undelivered (workspace-attachment, Missing folder; CHG-0034).
           const workspace = yield* readThreadWorkspace(threadId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
           if (workspace?.isMissing === true) {
-            yield* sql`UPDATE threads SET state = 'Attention', blocker = 'MissingWorkspace' WHERE id = ${threadId}`;
+            yield* holdThread(threadId, "MissingWorkspace").pipe(Effect.provideService(SqlClient.SqlClient, sql));
             yield* touch(thread.missionId, now);
             yield* sql.afterCommit(changes.publish);
             return null;
@@ -145,13 +145,16 @@ export const threadsLayer = Layer.effect(
           }
           const turnId = crypto.randomUUID();
           yield* sql`INSERT INTO turns (id, thread_id, status, started_at) VALUES (${turnId}, ${threadId}, 'running', ${now})`;
-          yield* sql`UPDATE messages SET delivered_turn_id = ${turnId} WHERE id IN ${sql.in(pending.map((m) => m.id))}`;
-          yield* sql`UPDATE threads SET state = 'Running', failure = NULL WHERE id = ${threadId}`;
+          yield* deliverMessages(
+            pending.map((m) => m.id),
+            turnId,
+          ).pipe(Effect.provideService(SqlClient.SqlClient, sql));
+          yield* startRunning(threadId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
           yield* touch(thread.missionId, now);
           yield* sql.afterCommit(changes.publish);
           return {
             effort: thread.effort,
-            messages: pending.map((m) => deliveredTextOf({ ...m, isResult: m.isResult === 1 })),
+            messages: pending.map((m) => m.text),
             missionId: thread.missionId,
             model: thread.model,
             sessionId: thread.sessionId,
@@ -169,12 +172,7 @@ export const threadsLayer = Layer.effect(
       sql.withTransaction(
         Effect.gen(function* () {
           if (!(yield* isCurrent(turn.turnId))) return;
-          const now = yield* Clock.currentTimeMillis;
-          const [next] = yield* sql<{ sequence: number }>`
-            SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM messages WHERE thread_id = ${threadId}`;
-          yield* sql`INSERT INTO messages (id, mission_id, thread_id, sender_kind, text, sequence, sent_at)
-            VALUES (${crypto.randomUUID()}, ${turn.missionId}, ${threadId}, 'agent', ${text}, ${next?.sequence ?? 1}, ${now})`;
-          yield* touch(turn.missionId, now);
+          yield* insertReply(turn.missionId, threadId, text).pipe(Effect.provideService(SqlClient.SqlClient, sql));
           yield* sql.afterCommit(changes.publish);
         }),
       );
@@ -187,21 +185,14 @@ export const threadsLayer = Layer.effect(
           const { cost, isInterrupted, sessionId, usage } = outcome;
           const now = yield* Clock.currentTimeMillis;
           if (usage !== null) {
-            yield* sql`INSERT INTO usage (turn_id, mission_id, input, output, cache_read, cache_creation, cost)
-              VALUES (${turn.turnId}, ${turn.missionId}, ${usage.input}, ${usage.output}, ${usage.cacheRead}, ${usage.cacheCreation}, ${cost})`;
+            const endedAt = yield* Clock.currentTimeMillis;
+            yield* sql`INSERT INTO usage (turn_id, mission_id, thread_id, ended_at, input, output, cache_read, cache_creation, cost)
+              VALUES (${turn.turnId}, ${turn.missionId}, ${threadId}, ${endedAt}, ${usage.input}, ${usage.output},
+                ${usage.cacheRead}, ${usage.cacheCreation}, ${cost})`;
           }
           const status = isInterrupted ? "interrupted" : "completed";
           yield* sql`UPDATE turns SET status = ${status}, ended_at = ${now} WHERE id = ${turn.turnId}`;
-          // A thread that reported its result in this turn is Done; one with work still running
-          // beneath it is Waiting; otherwise Idle (thread-tree, Thread states).
-          const [row] = yield* sql<{ reportedTurnId: string | null; active: number }>`
-            SELECT reported_turn_id AS reportedTurnId,
-              (SELECT COUNT(*) FROM threads c WHERE c.parent_id = ${threadId} AND c.state IN ${sql.in(activeStates)})
-                AS active
-            FROM threads WHERE id = ${threadId}`;
-          const state = row?.reportedTurnId === turn.turnId ? "Done" : (row?.active ?? 0) > 0 ? "Waiting" : "Idle";
-          yield* sql`UPDATE threads SET state = ${state}, session_id = ${sessionId}, failure = NULL WHERE id = ${threadId}`;
-          yield* relaxAncestors(threadId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
+          yield* endTurn(threadId, turn.turnId, sessionId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
           yield* touch(turn.missionId, now);
           yield* sql.afterCommit(changes.publish);
           // Spending is known at the turn's end: a reached budget stops the work under it.
@@ -220,8 +211,7 @@ export const threadsLayer = Layer.effect(
             const now = yield* Clock.currentTimeMillis;
             yield* sql`UPDATE turns SET status = 'failed', ended_at = ${now} WHERE id = ${turn.turnId}`;
             yield* sql`UPDATE messages SET delivered_turn_id = NULL WHERE delivered_turn_id = ${turn.turnId}`;
-            yield* sql`UPDATE threads SET state = 'Failed', failure = ${reason} WHERE id = ${threadId}`;
-            yield* relaxAncestors(threadId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
+            yield* failTurn(threadId, reason).pipe(Effect.provideService(SqlClient.SqlClient, sql));
             yield* touch(turn.missionId, now);
             yield* sql.afterCommit(changes.publish);
           }),
@@ -236,8 +226,7 @@ export const threadsLayer = Layer.effect(
         .withTransaction(
           Effect.gen(function* () {
             if (!(yield* isCurrent(turn.turnId))) return;
-            yield* sql`UPDATE messages SET delivered_turn_id = ${turn.turnId}
-              WHERE id = ${messageId} AND delivered_turn_id IS NULL`;
+            yield* deliverMessages([messageId], turn.turnId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
             yield* sql.afterCommit(changes.publish);
           }),
         )
@@ -250,23 +239,12 @@ export const threadsLayer = Layer.effect(
     const steerInto = (threadId: string, turn: ActiveTurn) =>
       Effect.gen(function* () {
         if (!(yield* isCurrent(turn.turnId))) return;
-        const pending = yield* sql<{
-          id: string;
-          text: string;
-          fromThreadId: string | null;
-          fromTitle: string | null;
-          isResult: number;
-        }>`
-          SELECT m.id, m.text, m.sender_thread_id AS fromThreadId, COALESCE(s.title, m.sender_title) AS fromTitle, m.is_result AS isResult
-          FROM messages m LEFT JOIN threads s ON s.id = m.sender_thread_id
-          WHERE m.thread_id = ${threadId} AND m.sender_kind IN ('user', 'thread') AND m.delivered_turn_id IS NULL
-            AND m.is_queued = 0
-          ORDER BY m.sequence`;
+        const pending = yield* listPending(threadId, true).pipe(Effect.provideService(SqlClient.SqlClient, sql));
         for (const message of pending) {
           if (!(yield* isCurrent(turn.turnId))) return;
           if (turn.written.has(message.id)) continue;
           turn.written.add(message.id);
-          const text = deliveredTextOf({ ...message, isResult: message.isResult === 1 });
+          const text = message.text;
           // Not taken: the turn just ended, and the message starts the next one.
           if (!(yield* harness.steer(threadId, { id: message.id, text }))) turn.written.delete(message.id);
         }
@@ -280,11 +258,10 @@ export const threadsLayer = Layer.effect(
       FiberSet.run(
         background,
         Effect.gen(function* () {
-          const waiting = yield* sql<{ threadId: string }>`
-            SELECT DISTINCT m.thread_id AS threadId FROM messages m JOIN threads t ON t.id = m.thread_id
-            WHERE m.mission_id = ${missionId} AND m.sender_kind IN ('user', 'thread') AND m.delivered_turn_id IS NULL
-              AND t.state NOT IN ('Running', 'Attention', 'Stopped') AND t.id != ${exceptThreadId}`;
-          for (const { threadId } of waiting) yield* wake(threadId);
+          const waiting = yield* listThreadsWithPending(missionId, exceptThreadId).pipe(
+            Effect.provideService(SqlClient.SqlClient, sql),
+          );
+          for (const threadId of waiting) yield* wake(threadId);
         }).pipe(Effect.orDie),
       ).pipe(Effect.asVoid);
 
@@ -321,10 +298,10 @@ export const threadsLayer = Layer.effect(
         const { cwd } = prepared;
         const journal = yield* journalContextOf(threadId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
         const budget = yield* budgetLineOf(turn.missionId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
-        const context = [prepared.context, threadInstructionsOf(yield* readPosition(threadId)), journal, budget]
+        const context = [prepared.context, threadInstructionsOf(yield* readPosition(threadId)), journal]
           .filter((part) => part !== null)
           .join("\n\n");
-        const mcpUrl = yield* toolServer.urlFor(threadId);
+        const mcpUrl = yield* endpoints.urlFor(threadId);
         const onEvent = (event: HarnessEvent) =>
           Match.valueTags(event, {
             Delivered: (delivered) => markDelivered(turn, delivered.messageId),
@@ -346,6 +323,7 @@ export const threadsLayer = Layer.effect(
             cwd,
             effort: turn.effort,
             model: turn.model,
+            note: budget,
             onEvent,
             sessionId: turn.sessionId,
             text: turn.messages.join("\n\n"),
@@ -389,13 +367,12 @@ export const threadsLayer = Layer.effect(
       });
 
     const { cancel, stop } = makeLifecycle({
-      approvals,
       cancelTurn: (id) => FiberMap.remove(turns, id),
       changes,
       clearDraft: (id) => draft(id, "").pipe(Effect.asVoid),
       sql,
-      suggestions,
       wakeWaiting,
+      withdraw: withdrawAll,
     });
 
     const resume = (threadId: string) =>
@@ -407,7 +384,7 @@ export const threadsLayer = Layer.effect(
             }>`SELECT state FROM threads WHERE id = ${threadId} AND is_deleting = 0`;
             if (thread?.state !== "Stopped") return false;
             yield* requireChatterDecision(threadId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
-            yield* sql`UPDATE threads SET state = 'Idle' WHERE id = ${threadId}`;
+            yield* resumeStopped(threadId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
             yield* sql.afterCommit(changes.publish);
             return true;
           }),
@@ -422,7 +399,7 @@ export const threadsLayer = Layer.effect(
           Effect.gen(function* () {
             const [thread] = yield* sql<{ blocker: string | null }>`SELECT blocker FROM threads WHERE id = ${threadId}`;
             if (thread?.blocker !== "MissingWorkspace") return false;
-            yield* sql`UPDATE threads SET state = 'Idle', blocker = NULL WHERE id = ${threadId}`;
+            yield* releaseThread(threadId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
             yield* sql.afterCommit(changes.publish);
             return true;
           }),
@@ -432,7 +409,14 @@ export const threadsLayer = Layer.effect(
         yield* wake(threadId);
       }).pipe(Effect.catchTag("SqlError", Effect.die));
 
-    yield* waker.register({ cancel, interrupt, wake });
-    return { cancel, interrupt, resume, retry, stop, wake };
+    return {
+      cancel,
+      interrupt,
+      resume,
+      retry,
+      stop,
+      wake,
+      wakeMission: (missionId: string) => wakeWaiting(missionId, ""),
+    };
   }),
 );

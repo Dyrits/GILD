@@ -168,11 +168,11 @@ The mission journal, agreed in CHG-0043 and delivered in CHG-0044 after the owne
 - Driven in the window with Claude Code (Haiku): a thread updating the journal, a child opened from it starting with the briefing, and the owner editing the briefing.
 - Owner's look: the Journal view and the Briefing limit setting.
 
-## Batch 9: agreed, in progress
+## Batch 9: delivered
 
 Mission tracking, agreed in CHG-0045, built here test-first. Sources: mission-tracking specifications; mission-journal specifications (When a mission ends).
 
-Status (2026-11-06): implemented and committed in `8e05eb0`. Tests pass (175, five opt-in live checks skipped), typecheck, lint, desktop build. Recovered mutation evidence catches 15/15 mutations. The window drive on the fake harness proved the dashboard row ending actions (Mark as done with the stop confirmation, Cancel, Archive, Reopen from Archived), rename and the refused `set_mission_title`, workspace and state filters, search, the Mark as done? question with Not now, and writing in a Done mission: [proof](verification/2026-11-06-mission-tracking.md). Visual polish is deferred by the owner. Next: the owner's acceptance, then record delivery; no delivery or acceptance recorded.
+Status (2026-11-06): implemented and committed in `8e05eb0`. Tests pass (175, five opt-in live checks skipped), typecheck, lint, desktop build. Recovered mutation evidence catches 15/15 mutations. The window drive on the fake harness proved the dashboard row ending actions (Mark as done with the stop confirmation, Cancel, Archive, Reopen from Archived), rename and the refused `set_mission_title`, workspace and state filters, search, the Mark as done? question with Not now, and writing in a Done mission: [proof](verification/2026-11-06-mission-tracking.md). Visual polish is deferred by the owner. Accepted by the owner and delivered in CHG-0046.
 
 ### Behavior
 
@@ -202,9 +202,9 @@ Status (2026-11-06): implemented and committed in `8e05eb0`. Tests pass (175, fi
 - Driven in the window: 3 missions, the one needing the owner first, Mark done, archive, reopen, rename, filters and search.
 - Owner's look: the dashboard questions, filters, Archived view, and the header actions.
 
-## Batch 10: proposed, built, awaiting the owner
+## Batch 10: delivered
 
-Status (2026-11-06): built test-first, uncommitted on `8e05eb0`. `bun run test` 186 passed (5 opt-in live skipped), typecheck, lint, desktop build pass; 13/13 mutations caught; driven in the window on the fake harness: [proof](verification/2026-11-06-off-topic.md). Next: the owner agrees the batch and its provisional choices (or changes them), then a live check with Claude Code and acceptance.
+Status (2026-11-06): committed in `083003f`; 13/13 mutations caught; driven in the window on the fake harness: [proof](verification/2026-11-06-off-topic.md). Agreed as built with its provisional choices, and accepted, in CHG-0047; the owner adjusts after the MVP. Not run: the live check with Claude Code.
 
 Off-topic requests (thread-tree, Off-topic requests; CHG-0045 staged `find_missions`). Chosen by an agent under the owner's instruction of 2026-11-06 ("build what is next", no questions this session); not yet agreed by the owner. Sources: thread-tree specifications (Off-topic requests, External contract, Acceptance).
 
@@ -220,7 +220,7 @@ Off-topic requests (thread-tree, Off-topic requests; CHG-0045 staged `find_missi
 - **Setting**: **Open off-topic requests as new missions without asking when no mission matches**, off by default.
 - **Withdrawal**: Stop, Interrupt, a failed turn, or a restart withdraw an open suggestion, as with questions.
 
-### Provisional, until the owner decides
+### Provisional, kept until after the MVP
 
 - Matching is word overlap on titles (counted twice) and briefings; no semantic search.
 - The suggestion shows in its thread only, not in the dashboard's open-questions list; its mission comes first on the dashboard as Attention.
@@ -234,9 +234,9 @@ Off-topic requests (thread-tree, Off-topic requests; CHG-0045 staged `find_missi
 - `bun run test`, `bun run typecheck`, `bun run check`, desktop build.
 - Driven in the window on the fake harness: the three choices and the setting.
 
-## Batch 11: proposed, built, awaiting the owner
+## Batch 11: delivered
 
-Status (2026-11-06): built test-first, uncommitted on `8e05eb0` with batch 10. `bun run test` 200 passed (5 opt-in live skipped), typecheck, lint, desktop build pass; 16/16 mutations caught; driven in the window on the fake harness: [proof](verification/2026-11-06-budgets.md). Next: the owner agrees the batch and its provisional choices, then a live check with Claude Code's usage and acceptance.
+Status (2026-11-06): committed in `083003f`; 16/16 mutations caught; driven in the window on the fake harness: [proof](verification/2026-11-06-budgets.md). Agreed as built with its provisional choices, and accepted, in CHG-0047; the owner adjusts after the MVP. Not run: the live check with Claude Code's usage.
 
 Budget control (budget-control specifications), chosen by an agent under the owner's instruction of 2026-11-06 ("Go for next feature", no questions); not yet agreed by the owner. Control and the phone web app do not exist yet, so Control's budget, its event lines, and phone notifications are out.
 
@@ -252,7 +252,7 @@ Budget control (budget-control specifications), chosen by an agent under the own
 - **Lowering** below what is spent stops running threads the same way.
 - **Record**: each change (set, raised, lowered, removed) and each stop at a limit is a line in the mission's top thread, for example "Budget raised to 75,000 tokens · 14:02".
 
-### Provisional, until the owner decides
+### Provisional, kept until after the MVP
 
 - Claude Code counts as subscription spending: its turns count in tokens (input, output, cache writes, and cache reads); a cost is counted only from a harness that reports one (the fake harness). Detecting API-key billing is staged.
 - Spending is counted when a turn ends, as Claude Code reports it then; a turn can go over before it stops.
@@ -266,6 +266,35 @@ Budget control (budget-control specifications), chosen by an agent under the own
 - Automated with the fake harness reporting spending (`spend <tokens> [cost]`): limits counted separately; empty limits never stop; every thread drawing on the mission; mission and global counting; the default budget applied; changing a mission's budget; period starts for day, week, month; a reached limit stopping running threads in Attention with the question; Raise (resume) and Stop; the global limit with one question; `open_thread` and starting a mission refused; lowering below spending; the budget line present and absent; the lines recorded.
 - `bun run test`, `bun run typecheck`, `bun run check`, desktop build; mutation check.
 - Driven in the window on the fake harness: a budget set, meters turning orange then red, the stop question, Raise by 50%, threads carrying on.
+
+## Review, fixes, and architecture after batch 11 (2026-11-06)
+
+Fixed point `63d4b15` to `083003f`, reviewed on two axes, then fixed and refactored at the owner's request ("Fix everything"). Uncommitted. Report: [architecture-audit-2026-11-06-1959.html](architecture-audit/architecture-audit-2026-11-06-1959.html); proof: [verification](verification/2026-11-06-review-fixes.md); recorded in CHG-0048.
+
+### Fixed, test-first
+
+- P1 Stop at a budget and Stop both on chatter now return a parent left Waiting to Idle, as every Stop does.
+- P2 Deleting threads or a mission keeps their spending (migration 0015).
+- P3 Threads held at the global limit are released when the period starts over.
+- P4 The budget line is given with each turn's message, not in the system prompt, so it no longer restarts Claude Code.
+- P5 The no-ask off-topic setting matches on the service side.
+- P6 Tests cover withdrawal on Interrupt and on restart; a thread not at work is told it was not asked.
+- P7 Ending a mission refuses Done again and Archived to Done.
+- P8 Holding at a lowered budget leaves another reason, or a failure, in place.
+- R1 (found while checking P8) A message to a Failed thread under a reached budget waits in Attention and runs once the budget is raised.
+
+### Provisional, until the owner decides
+
+- The budget window shows spending of deleted threads as one part "Deleted threads", and of deleted missions as "Deleted missions".
+- The budget line is the first paragraph of the turn's first message to Claude Code.
+- "Archived automatically" keeps the user as its author: the journal's authors are a thread or the user.
+- The global period release checks at each period start and at least hourly.
+
+### Still open
+
+- A failed turn's suggestion withdrawal has no automated test: the fake harness cannot fail during a call.
+- Files over about 250 lines: `claude.ts`, `threads.ts`, `approvals.ts`, `requests.ts`, `conversation.tsx`, `service.ts`, `store.ts`, `records.ts`, `suggestions.ts`. Most of `claude.ts`, `threads.ts`, `approvals.ts`, and `store.ts` predates this work.
+- Not verified live: a Claude Code turn with the budget line in its message.
 
 ## Open questions, settled when a batch needs them
 

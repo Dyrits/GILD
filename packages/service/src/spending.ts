@@ -9,6 +9,10 @@ import { readSettings } from "./settings.ts";
 /** Tokens a usage row counts when it carries no cost. */
 export const tokenSum = "CASE WHEN u.cost IS NULL THEN u.input + u.output + u.cache_read + u.cache_creation ELSE 0 END";
 
+/** The cost and tokens columns summed over usage rows `u`. */
+export const spendingColumns = `COALESCE(SUM(u.cost), 0) AS cost, COALESCE(SUM(${tokenSum}), 0) AS tokens`;
+
+/** A budget with neither limit. */
 export const noLimits: BudgetLimits = { cost: null, tokens: null };
 
 const startShifts = {
@@ -42,13 +46,15 @@ export const nextStartOf = (now: number, period: BudgetPeriod) => {
   return date.getTime();
 };
 
+/** Whether a budget has neither limit. */
 export const isEmpty = (limits: BudgetLimits) => limits.cost === null && limits.tokens === null;
 
 /** Whether spending has reached either limit; an empty limit never is. */
 export const isReached = (limits: BudgetLimits, spent: Spending) =>
   (limits.cost !== null && spent.cost >= limits.cost) || (limits.tokens !== null && spent.tokens >= limits.tokens);
 
-const tokensText = (tokens: number) => `${Math.round(tokens).toLocaleString("en-US")} tokens`;
+const tokenCountText = (tokens: number) => Math.round(tokens).toLocaleString("en-US");
+const tokensText = (tokens: number) => `${tokenCountText(tokens)} tokens`;
 const costText = (cost: number) => `$${cost.toFixed(2)}`;
 
 /** A budget's limits in words, for example "$5.00 and 50,000 tokens". */
@@ -78,7 +84,7 @@ export const reachedTextOf = (limits: BudgetLimits, spent: Spending) =>
   [
     limits.cost !== null && spent.cost >= limits.cost ? `${costText(spent.cost)} of ${costText(limits.cost)}` : null,
     limits.tokens !== null && spent.tokens >= limits.tokens
-      ? `${Math.round(spent.tokens).toLocaleString("en-US")} of ${tokensText(limits.tokens)}`
+      ? `${tokenCountText(spent.tokens)} of ${tokensText(limits.tokens)}`
       : null,
   ]
     .filter((part) => part !== null)
@@ -98,8 +104,7 @@ export const missionSpendingOf = (missionId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const [row] = yield* sql<Spending>`
-      SELECT COALESCE(SUM(u.cost), 0) AS cost, COALESCE(SUM(${sql.literal(tokenSum)}), 0) AS tokens
-      FROM usage u WHERE u.mission_id = ${missionId}`;
+      SELECT ${sql.literal(spendingColumns)} FROM usage u WHERE u.mission_id = ${missionId}`;
     return row ?? { cost: 0, tokens: 0 };
   });
 
@@ -110,8 +115,7 @@ export const readGlobalBudget = Effect.gen(function* () {
   const now = yield* Clock.currentTimeMillis;
   const since = periodStartOf(now, settings.globalBudgetPeriod);
   const [row] = yield* sql<Spending>`
-    SELECT COALESCE(SUM(u.cost), 0) AS cost, COALESCE(SUM(${sql.literal(tokenSum)}), 0) AS tokens
-    FROM usage u JOIN turns t ON t.id = u.turn_id WHERE t.ended_at >= ${since}`;
+    SELECT ${sql.literal(spendingColumns)} FROM usage u WHERE u.ended_at >= ${since}`;
   return {
     limits: settings.globalBudget,
     nextStart: nextStartOf(now, settings.globalBudgetPeriod),
@@ -150,7 +154,7 @@ const usesOf = (limits: BudgetLimits, spent: Spending) =>
       : `${costText(spent.cost)} of ${costText(limits.cost)} used (${percentOf(spent.cost, limits.cost)}%)`,
     limits.tokens === null
       ? null
-      : `${Math.round(spent.tokens).toLocaleString("en-US")} of ${tokensText(limits.tokens)} used (${percentOf(spent.tokens, limits.tokens)}%)`,
+      : `${tokenCountText(spent.tokens)} of ${tokensText(limits.tokens)} used (${percentOf(spent.tokens, limits.tokens)}%)`,
   ].filter((part) => part !== null);
 
 const periodWords = { Day: "today's", Month: "this month's", Week: "this week's" } satisfies Record<

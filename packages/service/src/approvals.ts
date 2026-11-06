@@ -1,8 +1,10 @@
 import type { Answer, Question, QuestionOutcome, QuestionSource } from "@openmission/contracts";
-import { Clock, Context, Deferred, Effect, Layer } from "effect";
+import { Clock, Context, Effect, Layer } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
+import { makeOwnerWaits } from "./attention.ts";
 import { Changes } from "./changes.ts";
 import { invalid, notFound, type ServiceFailure } from "./errors.ts";
+import { resumeInTurn } from "./lifecycle.ts";
 import { plainActionOf, reasonOf, savedPatternOf, sensitivityOf, targetOf } from "./patterns.ts";
 import { findCoveringPermission, insertPermission } from "./permissions.ts";
 import { readQuestion } from "./questions.ts";
@@ -85,7 +87,8 @@ export const approvalsLayer = Layer.effect(
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const changes = yield* Changes;
-    const waiting = new Map<string, Deferred.Deferred<Resolution>>();
+    const waits = makeOwnerWaits<Resolution>(sql, changes);
+    const withdrawn: Resolution = { message: null, outcome: "Withdrawn" };
     // Targets approved through `request_approval` that the next matching harness prompt may run once.
     const allowances = new Map<string, Array<string>>();
 
@@ -93,8 +96,7 @@ export const approvalsLayer = Layer.effect(
     // restart ends the harness process behind an open question, so it is withdrawn.
     const startedAt = yield* Clock.currentTimeMillis;
     yield* sql`UPDATE questions SET outcome = 'Withdrawn', resolved_at = ${startedAt} WHERE outcome IS NULL`;
-    // A thread waiting on its missing workspace folder keeps waiting for Retry.
-    yield* sql`UPDATE threads SET state = 'Idle' WHERE state = 'Attention' AND blocker IS NULL`;
+    // The thread lifecycle returns the threads that waited on them to Idle (lifecycle.ts, recoverThreadStates).
 
     const missionOf = (threadId: string) =>
       sql<{ missionId: string }>`SELECT mission_id AS missionId FROM threads WHERE id = ${threadId}`.pipe(
@@ -142,41 +144,19 @@ export const approvalsLayer = Layer.effect(
      * A thread no longer at work, such as one just stopped whose harness is still exiting, is not asked.
      */
     const ask = (asked: Asked) =>
-      Effect.gen(function* () {
-        const id = crypto.randomUUID();
-        const deferred = yield* Deferred.make<Resolution>();
-        const isAtWork = yield* sql.withTransaction(
-          Effect.gen(function* () {
-            const [thread] = yield* sql<{
-              state: string;
-              blocker: string | null;
-            }>`SELECT state, blocker FROM threads WHERE id = ${asked.threadId}`;
-            if (
-              thread === undefined ||
-              thread.blocker !== null ||
-              (thread.state !== "Running" && thread.state !== "Attention")
-            )
-              return false;
-            waiting.set(id, deferred);
-            const now = yield* Clock.currentTimeMillis;
-            yield* sql`INSERT INTO questions (id, mission_id, thread_id, source, summary, details, pattern, permission,
+      waits
+        .ask({
+          // A caller that gave up, such as Claude Code abandoning the call, leaves nobody to answer.
+          abandon: (id) => resolve(id, asked.threadId, withdrawn, null),
+          missionId: asked.missionId,
+          record: (id, now) =>
+            sql`INSERT INTO questions (id, mission_id, thread_id, source, summary, details, pattern, permission,
                 asked_at)
               VALUES (${id}, ${asked.missionId}, ${asked.threadId}, ${asked.source}, ${asked.summary},
-                ${asked.details}, ${asked.pattern}, ${asked.permission}, ${now})`;
-            yield* sql`UPDATE threads SET state = 'Attention' WHERE id = ${asked.threadId} AND state = 'Running'`;
-            yield* sql`UPDATE missions SET last_activity_at = ${now} WHERE id = ${asked.missionId}`;
-            yield* sql.afterCommit(changes.publish);
-            return true;
-          }),
-        );
-        const withdrawn: Resolution = { message: null, outcome: "Withdrawn" };
-        if (!isAtWork) return withdrawn;
-        return yield* Deferred.await(deferred).pipe(
-          // A caller that gave up, such as Claude Code abandoning the call, leaves nobody to answer.
-          Effect.onInterrupt(() => resolve(id, asked.threadId, withdrawn, null).pipe(Effect.ignore)),
-          Effect.ensuring(Effect.sync(() => waiting.delete(id))),
-        );
-      });
+                ${asked.details}, ${asked.pattern}, ${asked.permission}, ${now})`.pipe(Effect.asVoid),
+          threadId: asked.threadId,
+        })
+        .pipe(Effect.map((resolution) => resolution ?? withdrawn));
 
     /** Ends an open question and returns its thread to Running once no other question is open. */
     const resolve = (questionId: string, threadId: string, resolution: Resolution, device: string | null) =>
@@ -186,10 +166,7 @@ export const approvalsLayer = Layer.effect(
           yield* sql`UPDATE questions SET outcome = ${resolution.outcome}, message = ${resolution.message},
               device = ${device}, resolved_at = ${now}
             WHERE id = ${questionId} AND outcome IS NULL`;
-          yield* sql`UPDATE threads SET state = 'Running'
-            WHERE id = ${threadId} AND state = 'Attention' AND blocker IS NULL
-              AND NOT EXISTS (SELECT 1 FROM questions WHERE thread_id = ${threadId} AND outcome IS NULL)
-              AND NOT EXISTS (SELECT 1 FROM suggestions WHERE thread_id = ${threadId} AND outcome IS NULL)`;
+          yield* resumeInTurn(threadId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
           yield* sql.afterCommit(changes.publish);
         }),
       );
@@ -292,9 +269,7 @@ export const approvalsLayer = Layer.effect(
         const question = yield* readQuestion(questionId);
         if (question === null) return yield* notFound("No such question.");
         if (question.outcome !== null) return yield* invalid("This question was already answered.");
-        const deferred = waiting.get(questionId);
-        // An open row without a waiter belongs to a turn that already ended.
-        if (deferred === undefined) return yield* invalid("This question is no longer waiting.");
+        if (!waits.isWaiting(questionId)) return yield* invalid("This question is no longer waiting.");
         const note = given === "Deny" && message !== null && message.trim() !== "" ? message.trim() : null;
         const resolution: Resolution = { message: note, outcome: outcomeOfAnswer[given] };
         if (given === "AlwaysAllow") {
@@ -307,7 +282,7 @@ export const approvalsLayer = Layer.effect(
           );
         }
         yield* resolve(questionId, question.threadId, resolution, device);
-        yield* Deferred.succeed(deferred, resolution);
+        yield* waits.settle(questionId, resolution);
         const answered = yield* readQuestion(questionId);
         return answered ?? question;
       }).pipe(Effect.provideService(SqlClient.SqlClient, sql));
@@ -317,11 +292,9 @@ export const approvalsLayer = Layer.effect(
         const open = yield* sql<{
           id: string;
         }>`SELECT id FROM questions WHERE thread_id = ${threadId} AND outcome IS NULL`;
-        const resolution: Resolution = { message: null, outcome: "Withdrawn" };
         for (const { id } of open) {
-          yield* resolve(id, threadId, resolution, null);
-          const deferred = waiting.get(id);
-          if (deferred !== undefined) yield* Deferred.succeed(deferred, resolution);
+          yield* resolve(id, threadId, withdrawn, null);
+          yield* waits.settle(id, withdrawn);
         }
         allowances.delete(threadId);
       }).pipe(Effect.orDie);

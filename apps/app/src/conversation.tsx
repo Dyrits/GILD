@@ -1,26 +1,16 @@
-import type {
-  BudgetEvent,
-  Message,
-  MessageDelivery,
-  MissionDetail,
-  MissionId,
-  Question,
-  Suggestion,
-  ThreadId,
-} from "@openmission/contracts";
+import type { BudgetScope, MessageDelivery, MissionDetail, MissionId, ThreadId } from "@openmission/contracts";
 import { useEffect, useRef, useState } from "react";
 import { FlatList, type NativeScrollEvent, type NativeSyntheticEvent, Pressable, Text, View } from "react-native";
 import { BudgetMeters, BudgetScreen, BudgetStopCard } from "./budgets";
 import { newRequestId, type ServiceClient } from "./client";
 import { Composer, StateBadge } from "./controls";
+import { type Entry, EntryView, entriesOf } from "./conversationEntries";
 import { effortLabel, modelLabels, usageDetail } from "./formatting";
 import { JournalScreen } from "./journal";
 import { MissionEndingActions, MissionTitle } from "./missionActions";
-import { QuestionCard, QuestionLine } from "./questions";
 import { styles } from "./styles";
-import { SuggestionCard, SuggestionLine } from "./suggestions";
 import { ChatterNotices, DeleteThreadAction } from "./threadActions";
-import { maxOwnerDepth, OpenThreadForm, ThreadTree } from "./threadTree";
+import { OpenThreadForm, ThreadTree } from "./threadTree";
 import { useServiceQuery } from "./useServiceQuery";
 import { MissingFolderNotice } from "./workspaces";
 
@@ -38,30 +28,6 @@ function useDraft(client: ServiceClient, threadId: string | null) {
   }, [client, threadId]);
   return draft;
 }
-
-type Entry =
-  | { _tag: "Message"; at: number; message: Message }
-  | { _tag: "Question"; at: number; question: Question }
-  | { _tag: "Suggestion"; at: number; suggestion: Suggestion }
-  | { _tag: "BudgetEvent"; at: number; event: BudgetEvent };
-
-/** Messages, questions, and off-topic suggestions in the order they happened. */
-const entriesOf = (detail: MissionDetail): Array<Entry> =>
-  [
-    ...detail.messages.map((message): Entry => ({ _tag: "Message", at: message.sentAt, message })),
-    ...detail.questions.map((question): Entry => ({ _tag: "Question", at: question.askedAt, question })),
-    ...detail.suggestions.map((suggestion): Entry => ({ _tag: "Suggestion", at: suggestion.askedAt, suggestion })),
-    ...detail.budgetEvents.map((event): Entry => ({ _tag: "BudgetEvent", at: event.at, event })),
-  ].sort((a, b) => a.at - b.at);
-
-const keyOf = (entry: Entry) =>
-  entry._tag === "Message"
-    ? entry.message.id
-    : entry._tag === "Question"
-      ? entry.question.id
-      : entry._tag === "Suggestion"
-        ? entry.suggestion.id
-        : entry.event.id;
 
 /**
  * Keeps the newest entry in view, so a reply or a question is seen as it arrives,
@@ -90,28 +56,6 @@ function useFollowNewest() {
 }
 
 /** A thread title cut for a one-line label. */
-const shortened = (title: string) => (title.length > 60 ? `${title.slice(0, 59)}…` : title);
-
-/** One message, labelled by its sender: the owner, the thread's agent, or another thread. */
-function MessageBubble({ message }: { message: Message }) {
-  const sender =
-    message.sender === "user"
-      ? message.isQueued
-        ? "You · Queued for the next turn"
-        : "You"
-      : message.sender === "agent"
-        ? "Agent"
-        : `${message.isResult ? "Result from" : "From"} "${shortened(message.fromTitle ?? "a thread")}"`;
-  const style =
-    message.sender === "user" ? styles.fromUser : message.sender === "agent" ? styles.fromAgent : styles.fromThread;
-  return (
-    <View style={[styles.message, style]}>
-      <Text style={styles.sender}>{sender}</Text>
-      <Text style={styles.body}>{message.text}</Text>
-    </View>
-  );
-}
-
 /** The selected thread: its settings, notices, conversation, and composer. */
 function ThreadPane({
   client,
@@ -134,7 +78,7 @@ function ThreadPane({
   const [isOpening, setIsOpening] = useState(false);
   const followNewest = useFollowNewest();
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
-  const isInTurn = thread.state === "Running" || (thread.state === "Attention" && thread.blocker === null);
+  const { canOpenBeneath, canResume, canStop, isInTurn } = thread.actions;
   const defaultDelivery = settings?.defaultDelivery ?? "Steer";
   const other = ({ Queue: "Steer", Steer: "Queue" } as const satisfies Record<MessageDelivery, MessageDelivery>)[
     defaultDelivery
@@ -155,17 +99,17 @@ function ThreadPane({
           {thread.title}
         </Text>
         <StateBadge state={thread.state} />
-        {(thread.state === "Running" || thread.state === "Attention" || thread.state === "Waiting") && (
+        {canStop && (
           <Pressable onPress={() => act(client.request({ _tag: "StopThread", threadId: thread.id }))}>
             <Text style={styles.link}>Stop</Text>
           </Pressable>
         )}
-        {thread.state === "Stopped" && (
+        {canResume && (
           <Pressable onPress={() => act(client.request({ _tag: "ResumeThread", threadId: thread.id }))}>
             <Text style={styles.link}>Resume</Text>
           </Pressable>
         )}
-        {thread.depth < maxOwnerDepth && !isOpening && (
+        {canOpenBeneath && !isOpening && (
           <Pressable onPress={() => setIsOpening(true)}>
             <Text style={styles.link}>Open thread beneath</Text>
           </Pressable>
@@ -200,7 +144,7 @@ function ThreadPane({
       <FlatList<Entry>
         {...followNewest.listProps}
         data={entriesOf(detail)}
-        keyExtractor={keyOf}
+        keyExtractor={(entry) => entry.key}
         ListFooterComponent={
           draft === "" ? (
             void 0
@@ -211,30 +155,9 @@ function ThreadPane({
             </View>
           )
         }
-        renderItem={({ item }) =>
-          item._tag === "BudgetEvent" ? (
-            <View style={styles.questionLine}>
-              <Text style={styles.muted}>
-                {item.event.text} ·{" "}
-                {new Date(item.event.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
-              </Text>
-            </View>
-          ) : item._tag === "Suggestion" ? (
-            item.suggestion.outcome === null ? (
-              <SuggestionCard client={client} suggestion={item.suggestion} />
-            ) : (
-              <SuggestionLine onOpenMission={onOpenMission} onSelectThread={onSelect} suggestion={item.suggestion} />
-            )
-          ) : item._tag === "Question" ? (
-            item.question.outcome === null ? (
-              <QuestionCard client={client} question={item.question} />
-            ) : (
-              <QuestionLine question={item.question} />
-            )
-          ) : (
-            <MessageBubble message={item.message} />
-          )
-        }
+        renderItem={({ item }) => (
+          <EntryView client={client} entry={item} onOpenMission={onOpenMission} onSelectThread={onSelect} />
+        )}
         style={styles.flex}
       />
       {isOpening ? (
@@ -285,7 +208,7 @@ export function Conversation({
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
   const [selectedId, setSelectedId] = useState<ThreadId | null>(null);
   const [isJournalOpen, setIsJournalOpen] = useState(false);
-  const [budgetScope, setBudgetScope] = useState<"Mission" | "Global" | null>(null);
+  const [budgetScope, setBudgetScope] = useState<BudgetScope | null>(null);
   const { data, error } = useServiceQuery(
     client,
     { _tag: "ReadMission", missionId, threadId: selectedId },

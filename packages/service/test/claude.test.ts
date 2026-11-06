@@ -797,3 +797,66 @@ describe.runIf(process.env.OPENMISSION_LIVE_CLAUDE === "1")("live Claude Code (u
     180_000,
   );
 });
+
+describe("telling a Claude Code thread its budget", () => {
+  it.live("keeps one process as the budget line changes, and gives the line with the turn", () => {
+    const { layer, starts } = withClaude();
+    return Effect.gen(function* () {
+      const started = yield* call({
+        _tag: "StartMission",
+        effort: "default",
+        model: "default",
+        requestId: "b1",
+        text: "One",
+        workspacePath: null,
+      });
+      yield* settle(started.missionId, idleWith(1));
+      yield* call({ _tag: "SetMissionBudget", limits: { cost: null, tokens: 100000 }, missionId: started.missionId });
+      yield* call({ _tag: "SendMessage", delivery: null, requestId: "b2", text: "Two", threadId: started.threadId });
+      yield* settle(started.missionId, idleWith(2));
+      yield* call({ _tag: "SendMessage", delivery: null, requestId: "b3", text: "Three", threadId: started.threadId });
+      const detail = yield* settle(started.missionId, idleWith(3));
+      expect(starts()).toHaveLength(1);
+      expect(detail.messages.at(-1)?.text).toContain("Budget: ");
+    }).pipe(Effect.provide(layer));
+  });
+});
+
+describe("holding a failed thread at a reached budget", () => {
+  it.live(
+    "holds the message to a Failed thread in Attention and runs it once the budget is raised",
+    () => {
+      const { layer } = withClaude({ idleTimeout: "50 millis" });
+      return Effect.gen(function* () {
+        const started = yield* call({
+          _tag: "StartMission",
+          effort: "default",
+          model: "default",
+          requestId: "f1",
+          text: "One",
+          workspacePath: null,
+        });
+        yield* settle(started.missionId, idleWith(1));
+        // The idle process closes, so the next turn starts one that fails.
+        yield* Effect.sleep("200 millis");
+        process.env.STAND_IN_MODE = "fail-start";
+        yield* call({ _tag: "SendMessage", delivery: null, requestId: "f2", text: "Two", threadId: started.threadId });
+        yield* settle(started.missionId, (d) => d.thread.state === "Failed");
+        yield* call({ _tag: "SetMissionBudget", limits: { cost: null, tokens: 100 }, missionId: started.missionId });
+        process.env.STAND_IN_MODE = "ok";
+        yield* call({
+          _tag: "SendMessage",
+          delivery: null,
+          requestId: "f3",
+          text: "Three",
+          threadId: started.threadId,
+        });
+        yield* settle(started.missionId, (d) => d.thread.state === "Attention" && d.thread.blocker === "Budget");
+        yield* call({ _tag: "SetMissionBudget", limits: { cost: null, tokens: 100000 }, missionId: started.missionId });
+        const detail = yield* settle(started.missionId, idleWith(2));
+        expect(detail.messages.at(-1)?.text).toContain("Three");
+      }).pipe(Effect.provide(layer));
+    },
+    20_000,
+  );
+});

@@ -33,6 +33,11 @@ export interface TurnRequest {
   readonly cwd: string;
   readonly effort: EffortChoice;
   readonly model: ModelChoice;
+  /**
+   * What changes from turn to turn, such as the budget line, given with the turn's message rather than
+   * in the starting context, so a change does not restart the harness; null when there is none.
+   */
+  readonly note: string | null;
   readonly onEvent: (event: HarnessEvent) => Effect.Effect<void>;
   /** The harness session to continue, or null for the thread's first turn. */
   readonly sessionId: string | null;
@@ -104,7 +109,8 @@ const scriptedCall = (request: TurnRequest, line: string, turn: FakeTurn) => {
     });
   }
   if (line === "cwd") return Effect.succeed(request.cwd);
-  if (line === "context") return Effect.succeed(request.context);
+  if (line === "context")
+    return Effect.succeed([request.context, request.note].filter((part) => part !== null).join("\n\n"));
   const wait = /^wait (\d+)$/.exec(line);
   if (wait !== null) return Effect.sleep(Number(wait[1])).pipe(Effect.as(`waited ${wait[1]}`));
   const tool = /^call (\S+) (.*)$/.exec(line);

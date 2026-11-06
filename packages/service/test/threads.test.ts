@@ -310,3 +310,21 @@ describe("limits", () => {
     }).pipe(Effect.provide(live())),
   );
 });
+
+describe("offering the owner a thread's actions", () => {
+  it.live("offers Stop and in-turn sending while a thread works, and Resume once it is Stopped", () =>
+    Effect.gen(function* () {
+      const started = yield* start("wait 60000");
+      const running = yield* settle(started.missionId, (d) => d.thread.state === "Running");
+      expect(running.thread.actions).toEqual({ canOpenBeneath: true, canResume: false, canStop: true, isInTurn: true });
+      yield* call({ _tag: "StopThread", threadId: started.threadId });
+      const stopped = yield* read(started.missionId);
+      expect(stopped.thread.actions).toEqual({
+        canOpenBeneath: true,
+        canResume: true,
+        canStop: false,
+        isInTurn: false,
+      });
+    }).pipe(Effect.provide(live())),
+  );
+});

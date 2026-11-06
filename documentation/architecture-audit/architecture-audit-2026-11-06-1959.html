@@ -1,0 +1,255 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Architecture review for OpenMission</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+      mermaid.initialize({ securityLevel: "loose", startOnLoad: true, theme: "neutral" });
+    </script>
+    <style>
+      .seam { border-style: dashed; }
+      .deep { color: #f8fafc; background: linear-gradient(135deg, #0f172a, #1e293b); }
+      .leak { color: #dc2626; }
+      .schem { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; }
+    </style>
+  </head>
+  <body class="bg-stone-50 text-slate-900 font-sans">
+    <main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+      <header class="space-y-3">
+        <h1 class="font-serif text-4xl">OpenMission: architecture review</h1>
+        <p class="text-sm text-slate-500">2026-11-06 · after batch 11 (budget control) · hot spots: <span class="font-mono">threads.ts, service.ts, missions.ts, budgets.ts, approvals.ts, suggestions.ts</span></p>
+        <div class="flex flex-wrap gap-4 text-xs text-slate-600">
+          <span class="flex items-center gap-2"><span class="inline-block w-5 h-4 border border-slate-500 bg-white"></span>module</span>
+          <span class="flex items-center gap-2"><span class="inline-block w-5 h-0 border-t-2 border-dashed border-slate-500"></span>seam</span>
+          <span class="flex items-center gap-2"><span class="leak font-bold">→</span>leakage</span>
+          <span class="flex items-center gap-2"><span class="inline-block w-5 h-4 deep"></span>deep module</span>
+        </div>
+        <p class="text-xs text-slate-500">Sources used: glossary, conventions, architecture.md, ADR 0001–0010. <span class="text-amber-700">architecture.md still says "Nothing is built yet": out of date.</span> AGENTS.md does not name <span class="font-mono">apps/app/AGENTS.md</span>, <span class="font-mono">README.md</span>, or capability <span class="font-mono">draft.md</span> files.</p>
+      </header>
+
+      <section class="space-y-10" id="candidates" >
+        <!-- 1 -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm" id="c1" >
+          <div class="flex flex-wrap items-center gap-2">
+            <h2 class="font-serif text-2xl mr-2">1 · Deepen the thread lifecycle module</h2>
+            <span class="rounded-full bg-emerald-100 text-emerald-800 px-3 py-0.5 text-xs font-semibold">Strong</span>
+            <span class="rounded-full bg-slate-100 text-slate-700 px-3 py-0.5 text-xs">in-process · SQLite local-substitutable</span>
+          </div>
+          <p class="font-mono text-sm text-slate-600">lifecycle.ts · threads.ts · tree.ts · ending.ts · deleting.ts · chatter.ts · budgets.ts · approvals.ts · suggestions.ts</p>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 p-3"><p class="schem text-slate-500 mb-2">Before: 21 state writes in 10 modules</p>
+              <pre class="mermaid">
+flowchart LR
+  ending --> halt[haltThreads]
+  deleting --> halt
+  chatter --> halt
+  budgets --> halt
+  halt --> T[(threads.state)]
+  budgets -- "SET Stopped, no relax" --> T
+  chatter -- "SET Stopped, no relax" --> T
+  approvals -- "SET Attention/Running" --> T
+  suggestions -- "SET Attention/Running" --> T
+  deleting -- "own wake loop" --> wake[wakeWaiting]
+  lifecycle --> relax[relaxAncestors]
+  deleting --> relax
+  linkStyle 4,5,6 stroke:#dc2626,stroke-width:2px;
+              </pre></div>
+            <div class="rounded-lg border border-slate-200 p-3"><p class="schem text-slate-500 mb-2">After: one writer, transitions by name</p>
+              <pre class="mermaid">
+flowchart LR
+  ending --> L
+  deleting --> L
+  chatter --> L
+  budgets --> L
+  approvals --> L
+  suggestions --> L
+  L[[Thread lifecycle]] --> T[(threads.state / blocker)]
+  L --> F[turn fibers]
+  L --> C[Changes]
+  classDef deep fill:#0f172a,color:#f8fafc,stroke:#0f172a,stroke-width:3px;
+  class L deep
+              </pre></div>
+          </div>
+          <p><strong>Problem.</strong> <span class="font-mono text-sm">haltThreads</span> is shallow. Each caller has to remember the follow-up steps (relax ancestors, cancel, wake), and two Stop paths skip them: Stop at a budget, and Stop both on chatter.</p>
+          <p><strong>Solution.</strong> The lifecycle module becomes the only writer of a thread's state and blocker. Callers name a transition (stop, hold for a reason, release, end a turn), and the module runs every follow-up step in a fixed order.</p>
+          <ul class="list-disc pl-6 text-sm space-y-1">
+            <li>Locality: state bugs concentrate in one module</li>
+            <li>Leverage: one call per transition, many callers</li>
+            <li>Fixes the review's finding P1 by construction</li>
+            <li>Tests: one transition table through one interface</li>
+          </ul>
+        </article>
+
+        <!-- 2 -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm" id="c2" >
+          <div class="flex flex-wrap items-center gap-2">
+            <h2 class="font-serif text-2xl mr-2">2 · One Attention module for everything a thread waits on</h2>
+            <span class="rounded-full bg-emerald-100 text-emerald-800 px-3 py-0.5 text-xs font-semibold">Strong</span>
+            <span class="rounded-full bg-slate-100 text-slate-700 px-3 py-0.5 text-xs">in-process</span>
+          </div>
+          <p class="font-mono text-sm text-slate-600">approvals.ts · suggestions.ts · budgets.ts · chatter.ts · threads.ts (retry) · mcp.ts · apps/app conversation.tsx</p>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 p-3 h-80 flex flex-col justify-center gap-2"><p class="schem text-slate-500">Before: five ways in and out of Attention</p>
+              <div class="grid grid-cols-5 gap-1 text-[10px] text-center">
+                <div class="border border-slate-400 p-1">approvals<br/>Deferred map</div>
+                <div class="border border-slate-400 p-1">suggestions<br/>Deferred map</div>
+                <div class="border border-slate-400 p-1">budgets<br/>holdAtBudget</div>
+                <div class="border border-slate-400 p-1">chatter<br/>release</div>
+                <div class="border border-slate-400 p-1">threads<br/>retry</div>
+              </div>
+              <p class="leak text-xs text-center">each re-checks "Attention AND blocker IS NULL" (6 sites, app included)</p>
+              <p class="leak text-xs text-center">approvals' resolve reads the suggestions table, and the reverse</p>
+            </div>
+            <div class="rounded-lg border border-slate-200 p-3 h-80 flex flex-col justify-center gap-3"><p class="schem text-slate-500">After</p>
+              <div class="grid grid-cols-5 gap-1 text-[10px] text-center opacity-70">
+                <div class="border border-slate-300 p-1">approvals policy</div><div class="border border-slate-300 p-1">suggestion choice</div><div class="border border-slate-300 p-1">budgets</div><div class="border border-slate-300 p-1">chatter</div><div class="border border-slate-300 p-1">retry</div>
+              </div>
+              <div class="border-t-2 border-dashed border-slate-500"></div>
+              <div class="deep rounded p-4 text-center"><p class="schem">Attention</p><p class="text-xs opacity-80">hold · resolve · withdraw by cause · recover at startup · isHeld</p></div>
+            </div>
+          </div>
+          <p><strong>Problem.</strong> The glossary defines Attention as one concept, but the code implements it five separate times. Approvals and suggestions copy each other line for line, and the rule for which holds Stop withdraws only shows up in tests.</p>
+          <p><strong>Solution.</strong> One Attention module owns the hold reasons, the waiting Deferreds, withdrawal by cause, and startup recovery. Approvals and suggestions keep only their own policy.</p>
+          <ul class="list-disc pl-6 text-sm space-y-1">
+            <li>Locality: a new hold kind is one edit</li>
+            <li>Absorbs standards finding S7 (deferred)</li>
+            <li>Tests: one "withdrawn or kept on Stop, Interrupt, restart" suite</li>
+          </ul>
+        </article>
+
+        <!-- 3 -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm" id="c3" >
+          <div class="flex flex-wrap items-center gap-2">
+            <h2 class="font-serif text-2xl mr-2">3 · A thread inbox for messages and delivery</h2>
+            <span class="rounded-full bg-amber-100 text-amber-800 px-3 py-0.5 text-xs font-semibold">Worth exploring</span>
+            <span class="rounded-full bg-slate-100 text-slate-700 px-3 py-0.5 text-xs">in-process</span>
+          </div>
+          <p class="font-mono text-sm text-slate-600">messaging.ts · threads.ts · missions.ts · tree.ts · deleting.ts</p>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 p-3"><p class="schem text-slate-500 mb-2">Before</p>
+              <pre class="mermaid">
+flowchart LR
+  insertMission -- "sequence 1, no resets" --> M[(messages)]
+  saveReply -- "own MAX(sequence)+1" --> M
+  insertMessage --> M
+  admit -- "pending query" --> M
+  steerInto -- "same query, pasted" --> M
+  six[6 modules] -- "UPDATE last_activity_at" --> Mi[(missions)]
+  linkStyle 0,1,4,5 stroke:#dc2626,stroke-width:2px;
+              </pre></div>
+            <div class="rounded-lg border border-slate-200 p-3"><p class="schem text-slate-500 mb-2">After</p>
+              <pre class="mermaid">
+flowchart LR
+  missions --> I[[Thread inbox]]
+  threads --> I
+  tree --> I
+  I --> M[(messages)]
+  I --> Mi[(mission activity)]
+  classDef deep fill:#0f172a,color:#f8fafc,stroke-width:3px;
+  class I deep
+              </pre></div>
+          </div>
+          <p><strong>Problem.</strong> Messages are inserted in three places, each with its own sequence rule, and the "pending messages" query is pasted twice. <span class="font-mono text-sm">messaging.ts</span> (61 lines) is shallow, while <span class="font-mono text-sm">threads.ts</span> has grown to 438 lines.</p>
+          <p><strong>Solution.</strong> The messaging module owns appending, pending, steer or queue, delivered or undelivered, and mission activity.</p>
+          <ul class="list-disc pl-6 text-sm space-y-1"><li>Locality: delivery rules (CHG-0039) in one place</li><li>Shrinks threads.ts below the size rule</li><li>Tests: delivery checked without running turns</li></ul>
+        </article>
+
+        <!-- 4 -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm" id="c4" >
+          <div class="flex flex-wrap items-center gap-2">
+            <h2 class="font-serif text-2xl mr-2">4 · Thread tools: one definition per tool, transport apart</h2>
+            <span class="rounded-full bg-amber-100 text-amber-800 px-3 py-0.5 text-xs font-semibold">Worth exploring</span>
+            <span class="rounded-full bg-slate-100 text-slate-700 px-3 py-0.5 text-xs">in-process · loopback HTTP local-substitutable</span>
+          </div>
+          <p class="font-mono text-sm text-slate-600">mcp.ts (484 lines) · journalTools.ts · titles.ts · suggestionTools.ts · approvals.ts</p>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 p-3 h-72 flex flex-col justify-center gap-1"><p class="schem text-slate-500 mb-1">Before: one tool, four places</p>
+              <div class="border-l-4 border-slate-400 pl-2 h-9 flex items-center text-xs">Effect Schema decoder</div>
+              <div class="border-l-4 border-slate-400 pl-2 h-9 flex items-center text-xs">hand-written JSON inputSchema</div>
+              <div class="border-l-4 border-red-500 pl-2 h-9 flex items-center text-xs">threadToolNames (no-approval list, unchecked)</div>
+              <div class="border-l-4 border-slate-400 pl-2 h-9 flex items-center text-xs">handler in mcp.ts</div>
+              <div class="border-l-4 border-slate-400 pl-2 h-9 flex items-center text-xs">JSON-RPC + SSE in the same file</div>
+            </div>
+            <div class="rounded-lg border border-slate-200 p-3 h-72 flex flex-col justify-center gap-3"><p class="schem text-slate-500">After</p>
+              <div class="deep rounded p-4 text-center"><p class="schem">Thread tool catalogue</p><p class="text-xs opacity-80">one schema → listing, decoder, allowed list · typed handlers</p></div>
+              <div class="border-t-2 border-dashed border-slate-500"></div>
+              <div class="border border-slate-400 rounded p-2 text-center text-xs">MCP transport (JSON-RPC, SSE)</div>
+            </div>
+          </div>
+          <p><strong>Problem.</strong> Nothing keeps a tool's four descriptions in sync, and Suggestions takes raw MCP <span class="font-mono text-sm">args: unknown</span>, so the MCP argument shape leaks into a domain module.</p>
+          <p><strong>Solution.</strong> Each tool is one unit generated from one schema, and the transport is a separate module. Keeps ADR 0005.</p>
+          <ul class="list-disc pl-6 text-sm space-y-1"><li>Locality: a new tool is one place</li><li>Tests: tool behavior without HTTP</li></ul>
+        </article>
+
+        <!-- 5 -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm" id="c5" >
+          <div class="flex flex-wrap items-center gap-2">
+            <h2 class="font-serif text-2xl mr-2">5 · The service decides the owner's thread actions</h2>
+            <span class="rounded-full bg-amber-100 text-amber-800 px-3 py-0.5 text-xs font-semibold">Worth exploring</span>
+            <span class="rounded-full bg-slate-100 text-slate-700 px-3 py-0.5 text-xs">in-process · shared contracts</span>
+          </div>
+          <p class="font-mono text-sm text-slate-600">apps/app conversation.tsx · threadTree.tsx · contracts index.ts · tree.ts · threads.ts</p>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 p-3"><p class="schem text-slate-500 mb-2">Before</p>
+              <pre class="mermaid">
+flowchart LR
+  S[service rules] -->|state, blocker| A[app: isInTurn, Stop offered, maxOwnerDepth=4]
+  T[tree.ts maxOwnerDepth=4] -.copy.-> A
+  linkStyle 1 stroke:#dc2626,stroke-width:2px;
+              </pre></div>
+            <div class="rounded-lg border border-slate-200 p-3"><p class="schem text-slate-500 mb-2">After</p>
+              <pre class="mermaid">
+flowchart LR
+  L[[Lifecycle + Attention]] -->|actions now| D[MissionDetail.thread]
+  D --> A[app renders]
+  classDef deep fill:#0f172a,color:#f8fafc,stroke-width:3px;
+  class L deep
+              </pre></div>
+          </div>
+          <p><strong>Problem.</strong> The app works out the service's rules again from raw state and blocker, and those rules are untested in the app. The future phone app would have to copy them a third time.</p>
+          <p><strong>Solution.</strong> The thread detail carries the actions available now and the hold reason, computed by candidates 1 and 2. In line with ADR 0002 and 0009.</p>
+          <ul class="list-disc pl-6 text-sm space-y-1"><li>Leverage: desktop and phone share the rules</li><li>Tests: through ReadMission in the service suite</li></ul>
+        </article>
+
+        <!-- 6 -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-4 shadow-sm" id="c6" >
+          <div class="flex flex-wrap items-center gap-2">
+            <h2 class="font-serif text-2xl mr-2">6 · Remove the Waker indirection</h2>
+            <span class="rounded-full bg-slate-200 text-slate-700 px-3 py-0.5 text-xs font-semibold">Speculative</span>
+            <span class="rounded-full bg-slate-100 text-slate-700 px-3 py-0.5 text-xs">in-process</span>
+          </div>
+          <p class="font-mono text-sm text-slate-600">waker.ts · threads.ts · mcp.ts · suggestions.ts · service.ts</p>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 p-3"><p class="schem text-slate-500 mb-2">Before: cycle broken by a Ref</p>
+              <pre class="mermaid">
+flowchart LR
+  Threads -->|urlFor| ToolServer
+  ToolServer --> Waker
+  Waker -.Ref registered later.-> Threads
+  linkStyle 2 stroke:#dc2626,stroke-width:2px;
+              </pre></div>
+            <div class="rounded-lg border border-slate-200 p-3"><p class="schem text-slate-500 mb-2">After</p>
+              <pre class="mermaid">
+flowchart LR
+  Threads --> Endpoints
+  ToolServer --> Endpoints
+  ToolServer --> Threads
+              </pre></div>
+          </div>
+          <p><strong>Problem.</strong> Waker has only one adapter and exists only to break a dependency cycle. A call made before registration silently does nothing.</p>
+          <p><strong>Solution.</strong> Pull endpoint issuing out into its own small module, so the tool server can depend on Threads directly. Keeps ADR 0010.</p>
+          <ul class="list-disc pl-6 text-sm space-y-1"><li>Honest dependency graph</li><li>One silent failure mode gone</li></ul>
+        </article>
+      </section>
+
+      <section class="deep rounded-xl p-8 space-y-2" id="top-recommendation" >
+        <p class="schem opacity-70">Top recommendation</p>
+        <h2 class="font-serif text-3xl"><a class="underline decoration-dotted" href="#c1" >1 · Deepen the thread lifecycle module</a>, then 2 · Attention</h2>
+        <p class="text-sm opacity-90">The duplication and the real bugs are in state changes: two Stop paths leave a Waiting parent stuck. These are also the most-changed modules, and candidates 2 and 5 build on candidate 1's interface. No ADR is touched.</p>
+      </section>
+    </main>
+  </body>
+</html>

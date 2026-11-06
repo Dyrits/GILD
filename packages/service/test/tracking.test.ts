@@ -292,3 +292,16 @@ describe("continuing an ended mission", () => {
     }).pipe(Effect.provide(live())),
   );
 });
+
+describe("ending an ended mission", () => {
+  it.effect("refuses to mark a Done mission done again, or an archived one done", () =>
+    Effect.gen(function* () {
+      const { missionId } = yield* idle();
+      yield* end(missionId, "Done");
+      expect((yield* Effect.flip(end(missionId, "Done"))).kind).toBe("InvalidInput");
+      yield* end(missionId, "Archived");
+      expect((yield* Effect.flip(end(missionId, "Done"))).kind).toBe("InvalidInput");
+      expect(yield* entriesOf(missionId)).toEqual(["Marked done by the user", "Archived by the user"]);
+    }).pipe(Effect.provide(live())),
+  );
+});

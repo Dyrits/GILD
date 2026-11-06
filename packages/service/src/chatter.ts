@@ -3,9 +3,9 @@ import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { Changes } from "./changes.ts";
 import { invalid } from "./errors.ts";
-import { haltThreads } from "./lifecycle.ts";
+import { haltThreads, releaseResolvedChatter } from "./lifecycle.ts";
 import { readSettings } from "./settings.ts";
-import { Threads } from "./threads.ts";
+import type { Threads } from "./threads.ts";
 
 const pairOf = (a: string, b: string) => (a < b ? ([a, b] as const) : ([b, a] as const));
 
@@ -57,18 +57,13 @@ export const readChatter = Effect.fn("readChatter")(function* (threadId: string)
     WHERE c.pause_id IS NOT NULL AND (c.first_id = ${threadId} OR c.second_id = ${threadId})`;
 });
 
-/** Releases threads held only by resolved chatter exchanges; other blockers and Stop still win. */
-export const releaseChatter = Effect.fn("releaseChatter")(function* () {
-  const sql = yield* SqlClient.SqlClient;
-  yield* sql`UPDATE threads SET state = 'Idle', blocker = NULL
-    WHERE blocker = 'Chatter' AND state = 'Attention' AND NOT EXISTS (
-      SELECT 1 FROM chatter WHERE pause_id IS NOT NULL AND (first_id = threads.id OR second_id = threads.id))`;
-});
-
 /** Applies the owner's decision once to this pause, preserving queued messages in either choice. */
-export const resolveChatter = Effect.fn("resolveChatter")(function* (pauseId: string, choice: "Continue" | "Stop") {
+export const resolveChatter = Effect.fn("resolveChatter")(function* (
+  pauseId: string,
+  choice: "Continue" | "Stop",
+  threads: Threads["Service"],
+) {
   const sql = yield* SqlClient.SqlClient;
-  const threads = yield* Threads;
   const changes = yield* Changes;
   const [paused] = yield* sql<{ firstId: string; secondId: string }>`
     SELECT first_id AS firstId, second_id AS secondId FROM chatter WHERE pause_id = ${pauseId}`;
@@ -83,11 +78,17 @@ export const resolveChatter = Effect.fn("resolveChatter")(function* (pauseId: st
       const ids = [pair.firstId, pair.secondId];
       yield* sql`UPDATE chatter SET count = 0, pause_id = NULL, pause_count = NULL WHERE pause_id = ${pauseId}`;
       if (choice === "Stop") yield* haltThreads(ids, "Stopped");
-      yield* releaseChatter();
+      yield* releaseResolvedChatter;
       yield* sql.afterCommit(changes.publish);
       return ids;
     }),
   );
   if (choice === "Continue") for (const id of ids) yield* threads.wake(id);
+  else {
+    const [mission] = yield* sql<{
+      missionId: string;
+    }>`SELECT mission_id AS missionId FROM threads WHERE id = ${ids[0] ?? ""}`;
+    if (mission !== undefined) yield* threads.wakeMission(mission.missionId);
+  }
   return null;
 });

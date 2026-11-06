@@ -8,6 +8,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import type { ServiceClient } from "./client";
 import { Choice } from "./controls";
+import { allMissions } from "./queries";
 import { QuestionLine } from "./questions";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
@@ -39,11 +40,7 @@ export function PermissionsScreen({ client, onBack }: { client: ServiceClient; o
     `permissions-${missionFilter ?? "all"}`,
   );
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
-  const { data: list } = useServiceQuery(
-    client,
-    { _tag: "ListMissions", isArchived: false, search: null, state: null, workspaceId: null },
-    "missions:all",
-  );
+  const { data: list } = useServiceQuery(client, allMissions.request, allMissions.key);
   const missions = list?.missions ?? null;
   const [actionError, setActionError] = useState<string | null>(null);
   const act = (work: Promise<unknown>) =>

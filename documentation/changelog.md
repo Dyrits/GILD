@@ -613,3 +613,36 @@ Reason: Missions cannot be ended, named, or found again once there are many.
 References: documentation/capabilities/mission-tracking/specifications.md; documentation/capabilities/mission-journal/specifications.md#when-a-mission-ends; documentation/work-in-progress.md (Batch 9)
 Validation: The owner chose the scope and answered two questions on 2026-11-06. Staged: budget rings (budget-control), the phone web app, and `find_missions` (thread-tree, Off-topic requests).
 Evidence: batch, "Mission tracking (Recommended)"; scope, "All of it"; reopen, "From its threads (Recommended)"; actions, "Header + dashboard (Recommended)".
+
+## CHG-0046 · 2026-11-06 · Batch 9 delivered: mission tracking
+
+Type: Code
+Event: Delivery
+Scope: First slice, batch 9; Mission tracking; Mission journal
+
+Summary: Mission tracking as agreed in CHG-0045, with the provisional choices listed in work-in-progress (Batch 9) kept: the most urgent thread state, Mark as done?, ending and reopening with their journal entries, the inactivity question, auto-archive, the Archived view, `set_mission_title` and the rename, prefilled choices, and the dashboard order, filters, and search.
+References: documentation/work-in-progress.md (Batch 9); documentation/verification/2026-11-06-mission-tracking.md; commits 8e05eb0 and 083003f
+Validation: `bun run test` passed 175 with 5 skipped; typecheck, `bun run check`, and the desktop build passed; 15 of 15 mutations caught. Driven in the window on the fake harness. The owner accepted the batch on 2026-11-06 and deferred the visual polish to the interface pass.
+Evidence: The owner's answer "I want to progress fast and adjust when we have a MVP. So, I accept the batches."
+
+## CHG-0047 · 2026-11-06 · Batches 10 and 11 agreed and delivered: off-topic requests, budget control
+
+Type: Code
+Event: Delivery
+Scope: First slice, batches 10 and 11; Thread tree; Budget control
+
+Summary: Off-topic requests (thread-tree, Off-topic requests) and budget control (budget-control specifications, without Control's budget or the phone) as built and listed in work-in-progress (Batches 10 and 11). The owner agreed both batches as built, with every provisional choice listed there, and will adjust them after the MVP: word-overlap matching; the suggestion only in its thread; an aside with the whole journal context; Claude Code counted as subscription spending in tokens, cache reads included; spending counted at a turn's end; the split by thread only; no global budget lines; meters as bars.
+References: documentation/work-in-progress.md (Batches 10 and 11); documentation/verification/2026-11-06-off-topic.md; documentation/verification/2026-11-06-budgets.md; commit 083003f
+Validation: `bun run test` passed 200 with 5 skipped; typecheck, `bun run check`, and the desktop build passed; 13 of 13 and 16 of 16 mutations caught. Driven in the window on the fake harness. Not verified: a live Claude Code thread calling `find_missions` and `suggest_mission`, and a live Claude Code turn reaching a token budget. The owner accepted both batches on 2026-11-06.
+Evidence: The owner's answer "I want to progress fast and adjust when we have a MVP. So, I accept the batches."
+
+## CHG-0048 · 2026-11-06 · Review fixes and thread lifecycle architecture
+
+Type: Code
+Event: Delivery
+Scope: First slice; Budget control; Thread tree; Mission tracking
+
+Summary: Fixes the eight findings of the review of batches 9–11, test-first, and restructures the local service, with no other change of agreed behavior. Behavior: every Stop returns a parent left Waiting to Idle; deleting threads or a mission keeps their spending; held threads are released when the global period starts over; the budget line is given with each turn's message; the no-ask off-topic setting matches on the service side; a thread not at work is told its suggestion was not asked; an ended mission is not marked done again; a budget hold leaves another reason in place, and a message to a Failed thread under a reached budget waits and runs once the budget is raised. Structure: one thread lifecycle module writes every thread state; one module waits on the owner inside a turn; the thread inbox owns messages; one catalogue defines each thread tool, answered by its handlers apart from the MCP transport; endpoints replace the Waker; the service tells the app which thread actions apply; the dashboard listing and the mission view leave `missions.ts`; contracts are split by kind. Provisional choices are listed in work-in-progress.
+References: documentation/work-in-progress.md (Review, fixes, and architecture after batch 11); documentation/verification/2026-11-06-review-fixes.md; documentation/architecture-audit/architecture-audit-2026-11-06-1959.html; documentation/architecture.md (Inside the local service)
+Validation: `bun run test` passed 216 with 5 skipped; typecheck, `bun run check`, the desktop build, and a Metro web export passed; each test file passes alone and the service has no module-load cycle; 10 of 10 mutations caught; the standards and specifications reviewers re-checked the result. Not verified live with Claude Code.
+Evidence: The owner's request "Fix everything." after the review report.

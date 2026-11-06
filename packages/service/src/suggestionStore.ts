@@ -1,5 +1,5 @@
-import type { Suggestion, SuggestionMatch } from "@openmission/contracts";
-import { Effect } from "effect";
+import type { MissionSummary, Suggestion, SuggestionMatch } from "@openmission/contracts";
+import { Effect, Exit, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { listMissionSummaries } from "./missions.ts";
 
@@ -11,15 +11,24 @@ const selectSuggestions = (sql: SqlClient.SqlClient) => sql`
     s.target_title AS targetTitle, s.resolved_at AS resolvedAt, t.model, t.effort
   FROM suggestions s JOIN threads t ON t.id = s.thread_id`;
 
+// Offered mission ids are stored as JSON text; a value that no longer decodes offers none.
+const decodeMatchIds = Schema.decodeUnknownExit(Schema.fromJsonString(Schema.Array(Schema.String)));
+const matchIdsOf = (text: string): ReadonlyArray<string> => {
+  const decoded = decodeMatchIds(text);
+  return Exit.isSuccess(decoded) ? decoded.value : [];
+};
+
 /** Suggestions with their offered missions as they stand now; a mission deleted since is no longer offered. */
 const withMatches = (rows: ReadonlyArray<SuggestionRow>) =>
   Effect.gen(function* () {
-    const ids = [...new Set(rows.flatMap((row) => JSON.parse(row.matches) as Array<string>))];
-    const summaries = new Map((yield* listMissionSummaries(ids)).map((summary) => [summary.id as string, summary]));
+    const ids = [...new Set(rows.flatMap((row) => matchIdsOf(row.matches)))];
+    const summaries = new Map<string, MissionSummary>(
+      (yield* listMissionSummaries(ids)).map((summary) => [summary.id, summary]),
+    );
     return rows.map(({ isAutomatic, matches, ...row }) => ({
       ...row,
       isAutomatic: isAutomatic === 1,
-      matches: (JSON.parse(matches) as Array<string>).flatMap((id): Array<SuggestionMatch> => {
+      matches: matchIdsOf(matches).flatMap((id): Array<SuggestionMatch> => {
         const summary = summaries.get(id);
         return summary === undefined ? [] : [{ missionId: summary.id, state: summary.state, title: summary.title }];
       }),

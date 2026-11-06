@@ -16,9 +16,6 @@ import { effortLabel, modelLabels } from "./formatting";
 import { foldedLabelOf } from "./labels";
 import { styles } from "./styles";
 
-/** The owner opens threads down to this many levels beneath the top thread (thread-tree, Limits). */
-export const maxOwnerDepth = 4;
-
 /** A mission's threads as an indented tree with their states; selecting one shows its conversation. */
 export function ThreadTree({
   onSelect,

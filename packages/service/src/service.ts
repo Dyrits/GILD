@@ -2,18 +2,23 @@ import type { Request } from "@openmission/contracts";
 import { Context, Effect, Layer, Match, Semaphore } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
 import { Approvals, approvalsLayer } from "./approvals.ts";
-import { applyGlobalBudget, readBudgetWindow, setMissionBudget, stopAtBudget } from "./budgets.ts";
+import { budgetPeriodsLayer } from "./budgetPeriods.ts";
+import { applyGlobalBudget, setMissionBudget, stopAtBudget } from "./budgets.ts";
+import { readBudgetWindow } from "./budgetViews.ts";
 import { Changes, changesLayer } from "./changes.ts";
 import { resolveChatter } from "./chatter.ts";
+import { listMissions } from "./dashboard.ts";
 import { deleteThread, previewDeletion } from "./deleting.ts";
 import { autoArchiveLayer, dismissPrompt, endMission, previewEnding, reopenMission } from "./ending.ts";
+import { endpointsLayer } from "./endpoints.ts";
 import { invalid, ServiceFailure } from "./errors.ts";
 import type { Harness } from "./execution.ts";
 import { addBrowsableRoot, browseFolders, createFolder, seedBrowsableRoots } from "./folders.ts";
 import { type JournalOutcome, readJournalView, updateJournal } from "./journal.ts";
 import { toolServerLayer } from "./mcp.ts";
 import { insertUserMessage } from "./messaging.ts";
-import { insertMission, listMissions, readMission } from "./missions.ts";
+import { readMission } from "./missionDetail.ts";
+import { insertMission } from "./missions.ts";
 import { listPermissions, removePermission, widenPermission } from "./permissions.ts";
 import { listOpenQuestions, listQuestionHistory } from "./questions.ts";
 import { sandboxProblem } from "./sandbox.ts";
@@ -23,7 +28,6 @@ import { Suggestions, suggestionsLayer } from "./suggestions.ts";
 import { ScratchRoot, Threads, threadsLayer } from "./threads.ts";
 import { renameMission } from "./titles.ts";
 import { openThreadByOwner } from "./tree.ts";
-import { wakerLayer } from "./waker.ts";
 
 /** The entry point shared by app commands and, later, MCP calls. */
 export class Service extends Context.Service<
@@ -39,17 +43,19 @@ const nonBlank = (text: string): Effect.Effect<string, ServiceFailure> =>
 
 /** The owner's journal change as the app sees it: the updated journal, or the refusal as a service failure. */
 const ownerOutcomeOf = (missionId: string, outcome: JournalOutcome) =>
-  outcome._tag === "Recorded"
-    ? readJournalView(missionId)
-    : Effect.fail(
+  Match.valueTags(outcome, {
+    Recorded: () => readJournalView(missionId),
+    Refused: (refused) =>
+      Effect.fail(
         new ServiceFailure({
-          kind: outcome.reason === "Stale" ? "StaleVersion" : "InvalidInput",
+          kind: refused.reason === "Stale" ? "StaleVersion" : "InvalidInput",
           message:
-            outcome.reason === "Stale"
+            refused.reason === "Stale"
               ? "The briefing changed since you started editing. Review the current briefing and try again."
-              : outcome.text.replace("Not recorded: ", ""),
+              : refused.text.replace("Not recorded: ", ""),
         }),
-      );
+      ),
+  });
 
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
@@ -114,7 +120,14 @@ const make = Effect.gen(function* () {
             ),
           ),
         AnswerQuestion: (given) => approvals.answer(given.questionId, given.answer, given.message, "desktop"),
-        AnswerSuggestion: (given) => suggestions.answer(given.suggestionId, given.answer),
+        AnswerSuggestion: (given) =>
+          suggestions
+            .answer(given.suggestionId, given.answer)
+            .pipe(
+              Effect.tap((answered) =>
+                answered.targetThreadId === null ? Effect.void : threads.wake(answered.targetThreadId),
+              ),
+            ),
         BrowseFolders: (browse) => browseFolders(browse.path, browse.shouldIncludeHidden),
         CreateFolder: (create) => createFolder(create.parent, create.name),
         DeleteThread: (given) =>
@@ -170,7 +183,7 @@ const make = Effect.gen(function* () {
         ReopenMission: (reopen) =>
           sql.withTransaction(reopenMission(reopen.missionId)).pipe(Effect.tap(() => changes.publish)),
         ResolveChatter: (given) =>
-          resolveChatter(given.id, given.choice).pipe(
+          resolveChatter(given.id, given.choice, threads).pipe(
             chatterDecisions.withPermit,
             Effect.provideService(Threads, threads),
             Effect.provideService(Changes, changes),
@@ -208,7 +221,11 @@ const make = Effect.gen(function* () {
             Effect.tap((started) => threads.wake(started.threadId)),
           ),
         StopAtBudget: (given) =>
-          sql.withTransaction(stopAtBudget(given.stopId)).pipe(Effect.tap(() => changes.publish)),
+          sql.withTransaction(stopAtBudget(given.stopId)).pipe(
+            Effect.tap(() => changes.publish),
+            Effect.tap((missions) => Effect.forEach(missions, threads.wakeMission, { discard: true })),
+            Effect.as(null),
+          ),
         StopThread: (stop) => threads.stop(stop.threadId).pipe(Effect.as(null)),
         UpdateSettings: (update) =>
           sql
@@ -238,24 +255,26 @@ export interface ServiceOptions {
   readonly scratchRoot: string;
 }
 
-/** The whole local service over one SQLite file. */
+/**
+ * The whole local service over one SQLite file. Approvals and suggestions come before Threads, which
+ * withdraws them; the tool server comes after Threads, which it calls, and both meet at the endpoints.
+ */
 export const serviceLayer = (options: ServiceOptions) => {
   const foundation = Layer.mergeAll(
     changesLayer,
-    wakerLayer,
+    endpointsLayer,
     options.harness,
     Layer.succeed(ScratchRoot, options.scratchRoot),
   ).pipe(
     Layer.provideMerge(Layer.effectDiscard(seedBrowsableRoots(options.homeFolder))),
     Layer.provideMerge(storeLayer(options.filename)),
   );
-  const tools = toolServerLayer.pipe(
+  const running = threadsLayer.pipe(
     Layer.provideMerge(Layer.mergeAll(approvalsLayer, suggestionsLayer)),
     Layer.provideMerge(foundation),
   );
   return Layer.effect(Service, make).pipe(
-    Layer.provideMerge(autoArchiveLayer),
-    Layer.provideMerge(threadsLayer),
-    Layer.provideMerge(tools),
+    Layer.provideMerge(Layer.mergeAll(autoArchiveLayer, budgetPeriodsLayer, toolServerLayer)),
+    Layer.provideMerge(running),
   );
 };

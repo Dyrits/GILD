@@ -25,6 +25,9 @@ export const journalAuthorOf = (entry: {
 
 const countOf = (value: number) => value.toLocaleString("en-US");
 
+/** A token count rounded, with thousands separators, for example "12,000". */
+export const tokenCountOf = (tokens: number) => countOf(Math.round(tokens));
+
 /** The briefing's estimated size against its limit, for example "About 120 of 2,000 tokens". */
 export const briefingSizeOf = (tokens: number, limit: number) =>
   `About ${countOf(tokens)} of ${countOf(limit)} tokens${tokens > limit ? ": over the limit" : ""}`;
@@ -55,7 +58,7 @@ export const meterLevelOf = (spent: number, limit: number): "normal" | "warning"
 export const budgetUseTextOf = (unit: "cost" | "tokens", spent: number, limit: number) =>
   unit === "cost"
     ? `$${spent.toFixed(2)} of $${limit.toFixed(2)}`
-    : `${Math.round(spent).toLocaleString("en-US")} of ${Math.round(limit).toLocaleString("en-US")} tokens`;
+    : `${tokenCountOf(spent)} of ${tokenCountOf(limit)} tokens`;
 
 /** The limits raised by a factor, for the quick raises (+25%, +50%, double); an empty limit stays empty. */
 export const raisedLimitsOf = (limits: BudgetLimits, factor: number): BudgetLimits => ({

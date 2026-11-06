@@ -1,0 +1,271 @@
+import { Schema } from "effect";
+import { BudgetEvent, BudgetLimits, BudgetPeriod, BudgetStop, BudgetUse } from "./budgets.ts";
+import { MessageId, MissionId, SuggestionId, ThreadId, WorkspaceId } from "./ids.ts";
+import { ApprovalLevel, Question } from "./questions.ts";
+import { Workspace, WorkspaceChoice } from "./workspaces.ts";
+
+// Missions, threads, settings, and off-topic suggestions.
+
+/** A client-chosen identifier; repeating a command with it returns the original outcome. */
+export const RequestId = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(128));
+
+/** A thread's state (thread-tree, Thread states). */
+export const ThreadState = Schema.Literals(["Running", "Waiting", "Attention", "Idle", "Done", "Failed", "Stopped"]);
+export type ThreadState = typeof ThreadState.Type;
+
+/** Who wrote a message: the owner, the thread's own agent, or another thread of the mission (thread-messaging). */
+export const SenderKind = Schema.Literals(["user", "agent", "thread"]);
+export type SenderKind = typeof SenderKind.Type;
+
+/** The model a thread runs with; default is the harness's own. */
+export const ModelChoice = Schema.Literals(["default", "fable", "opus", "sonnet", "haiku"]);
+export type ModelChoice = typeof ModelChoice.Type;
+
+/** The effort a thread runs with; default is the harness's own. */
+export const EffortChoice = Schema.Literals(["default", "low", "medium", "high", "xhigh", "max"]);
+export type EffortChoice = typeof EffortChoice.Type;
+
+/** Token counts in the provider's own unit; never converted to a price. */
+export const TokenUsage = Schema.Struct({
+  cacheCreation: Schema.Number,
+  cacheRead: Schema.Number,
+  input: Schema.Number,
+  output: Schema.Number,
+});
+export type TokenUsage = typeof TokenUsage.Type;
+
+/** How an owner message reaches a running thread: joining its current turn, or waiting for its next (thread-messaging, Delivery; CHG-0039). */
+export const MessageDelivery = Schema.Literals(["Steer", "Queue"]);
+export type MessageDelivery = typeof MessageDelivery.Type;
+
+/** The owner's settings. */
+export const Settings = Schema.Struct({
+  approvalLevel: ApprovalLevel,
+  /** Days after a Done mission was marked Done before it is archived, when auto-archive is on. */
+  autoArchiveDays: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+  /** The most tokens a mission's briefing may hold, estimated at about 4 characters per token (mission-journal, Size). */
+  briefingLimit: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+  /** Messages between two threads before the owner decides how they continue. */
+  chatterThreshold: Schema.Int.check(Schema.isGreaterThanOrEqualTo(2)),
+  /** What Send does while a thread runs; the second button does the other. */
+  defaultDelivery: MessageDelivery,
+  defaultEffort: EffortChoice,
+  /** Copied onto each new mission; empty at first. */
+  defaultMissionBudget: BudgetLimits,
+  defaultModel: ModelChoice,
+  /** Covers all missions over its period; empty at first. */
+  globalBudget: BudgetLimits,
+  globalBudgetPeriod: BudgetPeriod,
+  /** Days without activity before the dashboard asks to archive or mark a mission done (mission-tracking). */
+  inactivityDays: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+  /** Whether Done missions are archived automatically, off by default (mission-tracking, Ending a mission). */
+  shouldAutoArchive: Schema.Boolean,
+  /** Whether an off-topic request opens a new mission without asking when no mission matches (thread-tree). */
+  shouldOpenOffTopicMissions: Schema.Boolean,
+  shouldShowAgentThreads: Schema.Boolean,
+  shouldStreamReplies: Schema.Boolean,
+});
+export type Settings = typeof Settings.Type;
+
+/** How a mission ended: marked Done, or archived (mission-tracking, Ending a mission). */
+export const MissionEnding = Schema.Literals(["Done", "Archived"]);
+export type MissionEnding = typeof MissionEnding.Type;
+
+/**
+ * The most urgent state among a mission's threads while it is not ended, or how it ended
+ * (mission-tracking, Mission state).
+ */
+export const MissionState = Schema.Literals(["Attention", "Failed", "Running", "Waiting", "Idle", "Done", "Archived"]);
+export type MissionState = typeof MissionState.Type;
+
+/** What the dashboard asks of a mission: "Mark as done?" after its result, or the inactivity question. */
+export const MissionPrompt = Schema.Literals(["MarkDone", "Inactive"]);
+export type MissionPrompt = typeof MissionPrompt.Type;
+
+/** One mission as the dashboard lists it. */
+export const MissionSummary = Schema.Struct({
+  /** The mission's budget and its spending over the mission's life. */
+  budget: BudgetUse,
+  id: MissionId,
+  /** Whether the owner renamed it, after which `set_mission_title` is refused. */
+  isTitleByUser: Schema.Boolean,
+  lastActivityAt: Schema.Number,
+  /** The question the dashboard asks of it, or null. */
+  prompt: Schema.NullOr(MissionPrompt),
+  /** Threads Running now. */
+  runningCount: Schema.Number,
+  state: MissionState,
+  threadCount: Schema.Number,
+  title: Schema.String,
+  topThreadId: ThreadId,
+  usage: TokenUsage,
+  /** The top thread's workspace; both null when it runs in the mission's scratch folder. */
+  workspaceId: Schema.NullOr(WorkspaceId),
+  workspaceName: Schema.NullOr(Schema.String),
+});
+export type MissionSummary = typeof MissionSummary.Type;
+
+/** The dashboard's or the Archived view's missions, and the workspaces among that view's missions. */
+export const MissionList = Schema.Struct({
+  missions: Schema.Array(MissionSummary),
+  workspaces: Schema.Array(WorkspaceChoice),
+});
+export type MissionList = typeof MissionList.Type;
+
+/** What ending a mission would stop, for the one confirmation (mission-tracking, Ending a mission). */
+export const EndingPreview = Schema.Struct({
+  /** The question naming the threads still at work, or null when none are. */
+  question: Schema.NullOr(Schema.String),
+  /** Identifies the threads at work when previewed; ending refuses a changed set. */
+  snapshot: Schema.String,
+  workingCount: Schema.Number,
+});
+export type EndingPreview = typeof EndingPreview.Type;
+
+/** A new mission's choices, prefilled from the last mission started (mission-tracking, Starting a mission). */
+export const StartChoices = Schema.Struct({
+  effort: EffortChoice,
+  model: ModelChoice,
+  workspacePath: Schema.NullOr(Schema.String),
+});
+export type StartChoices = typeof StartChoices.Type;
+
+/** One message in a thread's conversation. */
+export const Message = Schema.Struct({
+  /** The sending thread, for a thread message; null otherwise. */
+  fromThreadId: Schema.NullOr(ThreadId),
+  /** The sending thread's title, for a thread message; null otherwise. */
+  fromTitle: Schema.NullOr(Schema.String),
+  id: MessageId,
+  /** Whether it is an owner message sent as Queue that still waits for the thread's next turn. */
+  isQueued: Schema.Boolean,
+  /** Whether it is a result reported by a thread beneath (thread-tree, Results). */
+  isResult: Schema.Boolean,
+  sender: SenderKind,
+  sentAt: Schema.Number,
+  sequence: Schema.Number,
+  text: Schema.String,
+  threadId: ThreadId,
+});
+export type Message = typeof Message.Type;
+
+/** What keeps a thread in Attention besides an open question: its workspace folder is gone (workspace-attachment, Missing folder). */
+export const ThreadBlocker = Schema.Literals(["MissingWorkspace", "Chatter", "Budget"]);
+export type ThreadBlocker = typeof ThreadBlocker.Type;
+
+/** One thread in a mission's tree, as the side tree lists it. */
+export const ThreadSummary = Schema.Struct({
+  /** Levels beneath the top thread, which is 0. */
+  depth: Schema.Number,
+  id: ThreadId,
+  /** Whether it holds an off-topic request the owner kept as an aside (thread-tree, Off-topic requests). */
+  isAside: Schema.Boolean,
+  /** Whether a thread opened it with `open_thread`, rather than the owner. */
+  isOpenedByAgent: Schema.Boolean,
+  parentId: Schema.NullOr(ThreadId),
+  state: ThreadState,
+  title: Schema.String,
+  /** Messages kept for the thread and not yet delivered, such as while it is Stopped. */
+  waitingCount: Schema.Number,
+});
+export type ThreadSummary = typeof ThreadSummary.Type;
+
+/** What the owner can do with a thread now, worked out by the service so every interface offers the same. */
+export const ThreadActions = Schema.Struct({
+  /** Whether the owner may open a thread beneath it (thread-tree, Limits). */
+  canOpenBeneath: Schema.Boolean,
+  /** Whether it is Stopped and continues with Resume (thread-tree, Stopping). */
+  canResume: Schema.Boolean,
+  /** Whether it is at work, so Stop ends its work (thread-tree, Stopping). */
+  canStop: Schema.Boolean,
+  /** Whether it is at work in a turn: a message can join it, and Interrupt ends it (thread-messaging). */
+  isInTurn: Schema.Boolean,
+});
+export type ThreadActions = typeof ThreadActions.Type;
+
+/** The selected thread as its conversation shows it, with the owner's actions on it. */
+export const ThreadView = Schema.Struct({
+  actions: ThreadActions,
+  /** Why the thread waits in Attention for Retry, or null. */
+  blocker: Schema.NullOr(ThreadBlocker),
+  /** Levels beneath the top thread, which is 0. */
+  depth: Schema.Number,
+  effort: EffortChoice,
+  /** Why the last turn failed, while the thread is Failed. */
+  failure: Schema.NullOr(Schema.String),
+  id: ThreadId,
+  model: ModelChoice,
+  parentId: Schema.NullOr(ThreadId),
+  state: ThreadState,
+  title: Schema.String,
+  waitingCount: Schema.Number,
+  /** Null when the thread runs in its mission's scratch folder. */
+  workspace: Schema.NullOr(Workspace),
+});
+export type ThreadView = typeof ThreadView.Type;
+
+/** One paused exchange, identified independently of later pauses of the same pair. */
+export const ChatterNotice = Schema.Struct({
+  count: Schema.Number,
+  firstId: ThreadId,
+  firstTitle: Schema.String,
+  id: Schema.String,
+  secondId: ThreadId,
+  secondTitle: Schema.String,
+});
+export type ChatterNotice = typeof ChatterNotice.Type;
+
+/** Where an off-topic request went: continued in another mission, a new mission, an aside, or nowhere (withdrawn). */
+export const SuggestionOutcome = Schema.Literals(["Continued", "MovedToMission", "KeptAsAside", "Withdrawn"]);
+export type SuggestionOutcome = typeof SuggestionOutcome.Type;
+
+/** A mission offered for an off-topic request, with its state when read. */
+export const SuggestionMatch = Schema.Struct({ missionId: MissionId, state: MissionState, title: Schema.String });
+export type SuggestionMatch = typeof SuggestionMatch.Type;
+
+/** A thread's suggestion for an off-topic request, open or resolved (thread-tree, Off-topic requests). */
+export const Suggestion = Schema.Struct({
+  askedAt: Schema.Number,
+  /** The suggesting thread's effort, prefilled for Open as new mission. */
+  effort: EffortChoice,
+  id: SuggestionId,
+  /** Whether the setting opened a new mission without asking. */
+  isAutomatic: Schema.Boolean,
+  /** Matching missions, best first, at most 3. */
+  matches: Schema.Array(SuggestionMatch),
+  /** The suggesting thread's model, prefilled for Open as new mission. */
+  model: ModelChoice,
+  outcome: Schema.NullOr(SuggestionOutcome),
+  resolvedAt: Schema.NullOr(Schema.Number),
+  targetMissionId: Schema.NullOr(MissionId),
+  targetThreadId: Schema.NullOr(ThreadId),
+  /** The mission or aside it went to, as titled then. */
+  targetTitle: Schema.NullOr(Schema.String),
+  /** The off-topic part of the owner's message. */
+  text: Schema.String,
+  threadId: ThreadId,
+  /** The thread's proposed title for a new mission or aside. */
+  title: Schema.String,
+});
+export type Suggestion = typeof Suggestion.Type;
+
+/** A mission with its thread tree and one selected thread's conversation. */
+export const MissionDetail = Schema.Struct({
+  /** Budget lines, shown in the top thread only. */
+  budgetEvents: Schema.Array(BudgetEvent),
+  /** The mission's open budget stop when the selected thread holds its question. */
+  budgetStop: Schema.NullOr(BudgetStop),
+  chatter: Schema.Array(ChatterNotice),
+  /** The selected thread's messages. */
+  messages: Schema.Array(Message),
+  mission: MissionSummary,
+  /** The selected thread's questions, open and recorded, in the order asked. */
+  questions: Schema.Array(Question),
+  /** The selected thread's off-topic suggestions, open and resolved, in the order made. */
+  suggestions: Schema.Array(Suggestion),
+  /** The selected thread: the one asked for, or the top thread. */
+  thread: ThreadView,
+  /** Every thread of the mission, each parent before the threads beneath it. */
+  threads: Schema.Array(ThreadSummary),
+});
+export type MissionDetail = typeof MissionDetail.Type;

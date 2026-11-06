@@ -13,6 +13,8 @@
 - `documentation/work-in-progress.md`: the current batch, its checks, and open questions. Read first when resuming; work proceeds in batches with the iterate skill.
 - `documentation/changelog.md`: authorized agreements and verified deliveries. Append a record for each.
 - `documentation/verification/`: reproducible proofs that delivered work behaves as claimed, with their scripts and screenshots. Read before re-verifying a batch or trusting its claims.
+- `documentation/architecture-audit/`: architecture audit reports (HTML), one per run. Read before proposing structural refactors.
+- `apps/app/AGENTS.md`: Expo-specific rules for the app. Read before changing `apps/app`.
 - `documentation/conventions.md`: how code is written here (naming, absence, errors, comments, tests). Read before writing or reviewing code.
 - `packages/service/node_modules/effect/AGENTS.md`: Effect's own guide for this installed version. Read completely before writing Effect code; search its `src/` for APIs it does not cover.
 
@@ -24,4 +26,4 @@
 
 ## Handoffs
 
-To resume batch 9 acceptance and the batch 10 and 11 agreements, read the [current handoff](.agents/handoffs/2026-11-06-1850-budget-control.md). Handoffs are shared and committed.
+To resume after the review fixes and choose the next batch, read the [current handoff](.agents/handoffs/2026-11-06-2115-review-fixes.md). Handoffs are shared and committed.

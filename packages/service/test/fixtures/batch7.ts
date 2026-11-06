@@ -3,9 +3,9 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { MissionDetail, MissionId, Request, RequestTag, ResultOf, ThreadId } from "@openmission/contracts";
 import { Effect } from "effect";
+import { Endpoints } from "../../src/endpoints.ts";
 import { callThreadTool } from "../../src/execution.ts";
 import { fakeHarnessLayer, Service, serviceLayer } from "../../src/index.ts";
-import { ToolServer } from "../../src/mcp.ts";
 
 /** An isolated service with the scripted fake harness and real temporary SQLite. */
 export const fixture = () => {
@@ -29,7 +29,7 @@ export const call = <R extends Request>(request: R) =>
 /** Calls a thread's authenticated MCP interface, as its fake harness does. */
 export const tool = (threadId: ThreadId, name: string, args: object) =>
   Effect.gen(function* () {
-    return yield* callThreadTool(yield* (yield* ToolServer).urlFor(threadId), name, args);
+    return yield* callThreadTool(yield* (yield* Endpoints).urlFor(threadId), name, args);
   });
 /** Starts a mission with a unique command identifier. */
 export const start = (text = "Hello", workspacePath: string | null = null) =>

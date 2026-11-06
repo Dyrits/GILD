@@ -1,6 +1,6 @@
 # Architecture
 
-OpenMission is a desktop application whose local service owns all data in one SQLite file and runs every thread through harness adapters. One Expo app is the interface everywhere: its web build runs in the Electron desktop window and as the installable phone web app, and the same code builds native phone apps later. A relay Worker, deployed by each user to their own Cloudflare account, carries the phone's end-to-end encrypted traffic and receives webhook triggers. Nothing is built yet; this is the agreed shape.
+OpenMission is a desktop application whose local service owns all data in one SQLite file and runs every thread through harness adapters. One Expo app is the interface everywhere: its web build runs in the Electron desktop window and as the installable phone web app, and the same code builds native phone apps later. A relay Worker, deployed by each user to their own Cloudflare account, carries the phone's end-to-end encrypted traffic and receives webhook triggers. The first slice is built (batches 1–11 in `documentation/work-in-progress.md`): the local service, the harness adapters for Claude Code and a fake, and the app in the desktop window. The phone web app, the relay Worker, routines, workflows, and intel are not built yet.
 
 ## Future multiplayer: open architecture questions
 
@@ -51,6 +51,16 @@ Mission-state ownership is settled provisionally. Execution, guest discussion be
 - **Desktop app**: the Electron shell that starts the local service and loads the app's web build. It serves device-pairing by showing the pairing code.
 - **Phone web app**: the app's web build, installable from the browser and served by the relay Worker. It holds only its pairing keys. Native iOS and Android builds of the same app come later, through the stores.
 - **Relay Worker**: the user's own Cloudflare Worker. Infrastructure for device-pairing and routine-running: it forwards encrypted traffic between the local service and paired devices without reading it, serves the phone web app, and forwards webhook triggers to the local service. It owns no product data; each pairing's Durable Object holds only the connection state and the messages queued for a device that is offline.
+
+### Inside the local service (as built)
+
+- **Thread lifecycle** (`lifecycle.ts`): the only writer of a thread's state and blocker. Callers name a transition (start or end a turn, fail, hold in a turn or for a reason, release, stop, resume, recover at startup); each keeps the tree's rules, such as a parent left Waiting with nothing at work beneath it becoming Idle. It also works out the actions the owner can take on a thread.
+- **Waiting on the owner** (`attention.ts`): one way for approval questions and off-topic suggestions to ask inside a turn, wait without a time limit, and be answered or withdrawn.
+- **Thread inbox** (`messaging.ts`): a thread's message history, its order, and what waits to be delivered; `activity.ts` records a mission's latest activity.
+- **Thread tool catalogue** (`threadTools.ts`): each thread tool defined once, with its MCP listing, argument decoding, and whether it runs unasked derived from that definition; `threadToolHandlers.ts` answers each through the module that owns it, and `mcp.ts` is the transport.
+- **Endpoints** (`endpoints.ts`): each thread's secret MCP URL, between Threads (which needs a URL to run a turn) and the tool server (which calls Threads).
+- **Missions** (`missions.ts`, `missionDetail.ts`, `dashboard.ts`): starting a mission and its summary, what the owner reads of one mission, and the dashboard's list.
+- **Budgets** (`budgets.ts`, `budgetViews.ts`, `budgetPeriods.ts`, `spending.ts`): stops and releases at limits, what the owner reads, and the release when a global period starts over. Spending rows outlive the threads and missions that spent them.
 
 ## Flows
 

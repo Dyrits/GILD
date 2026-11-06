@@ -308,7 +308,8 @@ export const claudeHarnessLayer = (options: ClaudeOptions) =>
             untaken: new Set(),
           };
           session.turn = turn;
-          write(session, { message: { content: request.text, role: "user" }, type: "user" });
+          const content = request.note === null ? request.text : `${request.note}\n\n${request.text}`;
+          write(session, { message: { content, role: "user" }, type: "user" });
 
           /**
            * The turn's end. A steered message not yet taken in would start a turn of its own in this

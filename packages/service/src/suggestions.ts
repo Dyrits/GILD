@@ -1,17 +1,18 @@
 import type { Suggestion, SuggestionAnswer, SuggestionOutcome } from "@openmission/contracts";
-import { Clock, Context, Deferred, Effect, Exit, Layer, Match, Schema } from "effect";
+import { Clock, Context, Effect, Layer, Match } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
+import { makeOwnerWaits } from "./attention.ts";
 import { Changes } from "./changes.ts";
 import { invalid, notFound, type ServiceFailure } from "./errors.ts";
-import type { ToolAnswer } from "./journalTools.ts";
+import { resumeInTurn } from "./lifecycle.ts";
 import { findMissions, findMissionsTextOf, maxMatches } from "./matching.ts";
 import { insertUserMessage } from "./messaging.ts";
-import { insertMission, titleOf } from "./missions.ts";
+import { insertMission } from "./missions.ts";
 import { readSettings } from "./settings.ts";
 import { readSuggestion } from "./suggestionStore.ts";
-import { proposeTitle } from "./titles.ts";
+import { type ArgumentsOf, type ToolAnswer, type ToolHandlers, threadTools } from "./threadTools.ts";
+import { proposeTitle, titleOf } from "./titles.ts";
 import { openAside } from "./tree.ts";
-import { Waker } from "./waker.ts";
 
 /** Where an off-topic request went, as the suggesting thread is told and its conversation links to. */
 interface Resolution {
@@ -31,7 +32,7 @@ const textOf = (resolution: Resolution) =>
     Continued: `The owner continued it in mission "${resolution.targetTitle}" (id ${resolution.targetMissionId}). ${carryOn}`,
     KeptAsAside: `The owner kept it as an aside beneath you: thread "${resolution.targetTitle}" (id ${resolution.targetThreadId}). It will message you what is relevant to the mission. ${carryOn}`,
     MovedToMission: `The owner opened it as a new mission "${resolution.targetTitle}" (id ${resolution.targetMissionId}). ${carryOn}`,
-    Withdrawn: "Withdrawn: the owner stopped this thread.",
+    Withdrawn: "Withdrawn: the turn that asked ended before the owner answered.",
   }) satisfies Record<SuggestionOutcome, string>;
 
 /** Owns off-topic suggestions: asking the owner, carrying out the choice, and withdrawal (thread-tree). */
@@ -42,62 +43,26 @@ export class Suggestions extends Context.Service<
       suggestionId: string,
       given: SuggestionAnswer,
     ) => Effect.Effect<Suggestion, ServiceFailure | SqlError.SqlError>;
-    readonly findMissions: (threadId: string, args: unknown) => Effect.Effect<ToolAnswer>;
-    readonly suggest: (threadId: string, args: unknown) => Effect.Effect<ToolAnswer>;
+    readonly findMissions: ToolHandlers["find_missions"];
+    /** Answers `suggest_mission`, with the thread to wake when a mission opened without asking. */
+    readonly suggest: (
+      threadId: string,
+      args: ArgumentsOf<"suggest_mission">,
+    ) => Effect.Effect<{ readonly answer: ToolAnswer; readonly threadToWake: string | null }>;
     readonly withdraw: (threadId: string) => Effect.Effect<void>;
   }
 >()("openmission/Suggestions") {}
 
-const FindMissionsArguments = Schema.Struct({ request: Schema.String });
-const SuggestMissionArguments = Schema.Struct({
-  missions: Schema.optional(Schema.Array(Schema.String)),
-  text: Schema.String,
-  title: Schema.String,
-});
-const decodeFindMissions = Schema.decodeUnknownExit(FindMissionsArguments);
-const decodeSuggestMission = Schema.decodeUnknownExit(SuggestMissionArguments);
-
-/** The off-topic thread tools as MCP lists them (thread-tree, External contract). */
-export const offTopicToolDefinitions = [
-  {
-    description:
-      "Find other missions that may fit an off-topic request, by their titles and briefings: up to 3, best first, with their ids, states, and briefings.",
-    inputSchema: {
-      properties: { request: { description: "The off-topic part of the owner's message.", type: "string" } },
-      required: ["request"],
-      type: "object",
-    },
-    name: "find_missions",
-  },
-  {
-    description:
-      "Ask the owner where an off-topic message goes: continue in a matching mission, open a new mission, or keep it as an aside beneath you. Wait for the answer, then carry on as if the message had not been sent to you.",
-    inputSchema: {
-      properties: {
-        missions: {
-          description: "The ids of the missions from find_missions that fit, best first, at most 3.",
-          items: { type: "string" },
-          type: "array",
-        },
-        text: { description: "The off-topic part of the owner's message, as written.", type: "string" },
-        title: { description: "A short title of a few words for a new mission or aside.", type: "string" },
-      },
-      required: ["text", "title"],
-      type: "object",
-    },
-    name: "suggest_mission",
-  },
-];
-
+/** Owns off-topic suggestions; a restart withdraws those left open. */
 export const suggestionsLayer = Layer.effect(
   Suggestions,
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const changes = yield* Changes;
-    const waker = yield* Waker;
-    const waiting = new Map<string, Deferred.Deferred<Resolution>>();
+    const waits = makeOwnerWaits<Resolution>(sql, changes);
 
-    // Provisional until recovery is settled, as for questions: a restart ends the turn that was waiting.
+    // Provisional until recovery is settled (work-in-progress, Open questions: recovery of interrupted turns),
+    // as for questions: a restart ends the turn that was waiting.
     const startedAt = yield* Clock.currentTimeMillis;
     yield* sql`UPDATE suggestions SET outcome = 'Withdrawn', resolved_at = ${startedAt} WHERE outcome IS NULL`;
 
@@ -108,10 +73,7 @@ export const suggestionsLayer = Layer.effect(
         yield* sql`UPDATE suggestions SET outcome = ${resolution.outcome}, target_mission_id = ${resolution.targetMissionId},
             target_thread_id = ${resolution.targetThreadId}, target_title = ${resolution.targetTitle}, resolved_at = ${now}
           WHERE id = ${suggestionId} AND outcome IS NULL`;
-        yield* sql`UPDATE threads SET state = 'Running'
-          WHERE id = ${threadId} AND state = 'Attention' AND blocker IS NULL
-            AND NOT EXISTS (SELECT 1 FROM questions WHERE thread_id = ${threadId} AND outcome IS NULL)
-            AND NOT EXISTS (SELECT 1 FROM suggestions WHERE thread_id = ${threadId} AND outcome IS NULL)`;
+        yield* resumeInTurn(threadId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
         yield* sql.afterCommit(changes.publish);
       });
 
@@ -171,44 +133,29 @@ export const suggestionsLayer = Layer.effect(
         const suggestion = yield* readSuggestion(suggestionId);
         if (suggestion === null) return yield* notFound("No such suggestion.");
         if (suggestion.outcome !== null) return yield* invalid("This suggestion was already answered.");
-        const deferred = waiting.get(suggestionId);
-        // An open row without a waiter belongs to a turn that already ended.
-        if (deferred === undefined) return yield* invalid("This suggestion is no longer waiting.");
+        if (!waits.isWaiting(suggestionId)) return yield* invalid("This suggestion is no longer waiting.");
         const resolution = yield* sql.withTransaction(
           carryOut(suggestion, given).pipe(Effect.tap((done) => resolve(suggestionId, suggestion.threadId, done))),
         );
-        yield* Deferred.succeed(deferred, resolution);
-        if (resolution.targetThreadId !== null) yield* waker.wake(resolution.targetThreadId);
+        yield* waits.settle(suggestionId, resolution);
         return (yield* readSuggestion(suggestionId)) ?? suggestion;
       }).pipe(Effect.provideService(SqlClient.SqlClient, sql));
 
-    /** Opens the suggestion, puts the thread in Attention, and waits with no time limit for the owner. */
+    /**
+     * Opens the suggestion, puts the thread in Attention, and waits with no time limit for the owner; null
+     * when the thread is not at work in a turn, so nobody is asked.
+     */
     const ask = (threadId: string, missionId: string, text: string, title: string, matches: ReadonlyArray<string>) =>
-      Effect.gen(function* () {
-        const id = crypto.randomUUID();
-        const deferred = yield* Deferred.make<Resolution>();
-        const isAtWork = yield* sql.withTransaction(
-          Effect.gen(function* () {
-            const [thread] = yield* sql<{ state: string; blocker: string | null }>`
-              SELECT state, blocker FROM threads WHERE id = ${threadId}`;
-            if (thread === undefined || thread.blocker !== null || !["Running", "Attention"].includes(thread.state))
-              return false;
-            waiting.set(id, deferred);
-            const now = yield* Clock.currentTimeMillis;
-            yield* sql`INSERT INTO suggestions (id, mission_id, thread_id, text, title, matches, asked_at)
-              VALUES (${id}, ${missionId}, ${threadId}, ${text}, ${title}, ${JSON.stringify(matches)}, ${now})`;
-            yield* sql`UPDATE threads SET state = 'Attention' WHERE id = ${threadId} AND state = 'Running'`;
-            yield* sql`UPDATE missions SET last_activity_at = ${now} WHERE id = ${missionId}`;
-            yield* sql.afterCommit(changes.publish);
-            return true;
-          }),
-        );
-        if (!isAtWork) return withdrawn;
-        return yield* Deferred.await(deferred).pipe(
-          // A caller that gave up leaves nobody to carry on: the suggestion is withdrawn.
-          Effect.onInterrupt(() => sql.withTransaction(resolve(id, threadId, withdrawn)).pipe(Effect.ignore)),
-          Effect.ensuring(Effect.sync(() => waiting.delete(id))),
-        );
+      waits.ask({
+        // A caller that gave up leaves nobody to carry on: the suggestion is withdrawn.
+        abandon: (id) => sql.withTransaction(resolve(id, threadId, withdrawn)),
+        missionId,
+        record: (id, now) =>
+          sql`INSERT INTO suggestions (id, mission_id, thread_id, text, title, matches, asked_at)
+            VALUES (${id}, ${missionId}, ${threadId}, ${text}, ${title}, ${JSON.stringify(matches)}, ${now})`.pipe(
+            Effect.asVoid,
+          ),
+        threadId,
       });
 
     /** With the setting on and nothing matching, the new mission opens without asking. */
@@ -228,20 +175,17 @@ export const suggestionsLayer = Layer.effect(
             return opened;
           }),
         );
-        if (resolution.targetThreadId !== null) yield* waker.wake(resolution.targetThreadId);
         return resolution;
       });
 
-    const suggest = (threadId: string, args: unknown) =>
+    const suggestAnswer = (threadId: string, args: ArgumentsOf<"suggest_mission">) =>
       Effect.gen(function* () {
-        const decoded = decodeSuggestMission(args);
-        if (Exit.isFailure(decoded) || decoded.value.text.trim() === "")
-          return { isError: true, text: "Invalid arguments: give text, title, and missions." } satisfies ToolAnswer;
-        const { missions = [], text, title } = decoded.value;
+        if (args.text.trim() === "") return { answer: threadTools.suggest_mission.invalid, threadToWake: null };
+        const { missions = [], text, title } = args;
         const [caller] = yield* sql<{
           missionId: string;
         }>`SELECT mission_id AS missionId FROM threads WHERE id = ${threadId}`;
-        if (caller === undefined) return { isError: true, text: "Unknown thread." } satisfies ToolAnswer;
+        if (caller === undefined) return { answer: { isError: true, text: "Unknown thread." }, threadToWake: null };
         const existing = new Set(
           (missions.length === 0
             ? []
@@ -249,10 +193,15 @@ export const suggestionsLayer = Layer.effect(
                 WHERE m.id IN ${sql.in([...missions])} AND top.is_deleting = 0`
           ).map((row) => row.id),
         );
-        const matches = [...new Set(missions)]
+        const named = [...new Set(missions)]
           .filter((id) => existing.has(id) && id !== caller.missionId)
           .slice(0, maxMatches);
         const { shouldOpenOffTopicMissions } = yield* readSettings;
+        // Opening without asking needs no mission to match, so it is checked here, not taken from the thread.
+        const matches =
+          shouldOpenOffTopicMissions && named.length === 0
+            ? (yield* findMissions(threadId, text)).map((match) => match.id)
+            : named;
         // A mission that cannot open, such as at a reached global budget, is left to the owner's choice.
         const opened =
           shouldOpenOffTopicMissions && matches.length === 0
@@ -262,19 +211,31 @@ export const suggestionsLayer = Layer.effect(
             : null;
         if (opened !== null) {
           return {
-            isError: false,
-            text: `No mission fits, so OpenMission opened it as a new mission "${opened.targetTitle}" (id ${opened.targetMissionId}), as the owner's settings ask. ${carryOn}`,
+            answer: {
+              isError: false,
+              text: `No mission fits, so OpenMission opened it as a new mission "${opened.targetTitle}" (id ${opened.targetMissionId}), as the owner's settings ask. ${carryOn}`,
+            },
+            threadToWake: opened.targetThreadId,
           };
         }
         const resolution = yield* ask(threadId, caller.missionId, text, title, matches);
-        return { isError: resolution.outcome === "Withdrawn", text: textOf(resolution)[resolution.outcome] };
+        if (resolution === null)
+          return {
+            answer: {
+              isError: true,
+              text: "Not asked: this thread is not at work in a turn, so the owner was not asked.",
+            },
+            threadToWake: null,
+          };
+        return {
+          answer: { isError: resolution.outcome === "Withdrawn", text: textOf(resolution)[resolution.outcome] },
+          threadToWake: null,
+        };
       }).pipe(Effect.provideService(SqlClient.SqlClient, sql), Effect.orDie);
 
-    const findMissionsAnswer = (threadId: string, args: unknown) =>
+    const findMissionsAnswer = (threadId: string, args: ArgumentsOf<"find_missions">) =>
       Effect.gen(function* () {
-        const decoded = decodeFindMissions(args);
-        if (Exit.isFailure(decoded)) return { isError: true, text: "Invalid arguments: give request." };
-        return { isError: false, text: findMissionsTextOf(yield* findMissions(threadId, decoded.value.request)) };
+        return { isError: false, text: findMissionsTextOf(yield* findMissions(threadId, args.request)) };
       }).pipe(Effect.provideService(SqlClient.SqlClient, sql), Effect.orDie);
 
     const withdraw = (threadId: string) =>
@@ -284,11 +245,10 @@ export const suggestionsLayer = Layer.effect(
         }>`SELECT id FROM suggestions WHERE thread_id = ${threadId} AND outcome IS NULL`;
         for (const { id } of open) {
           yield* sql.withTransaction(resolve(id, threadId, withdrawn));
-          const deferred = waiting.get(id);
-          if (deferred !== undefined) yield* Deferred.succeed(deferred, withdrawn);
+          yield* waits.settle(id, withdrawn);
         }
       }).pipe(Effect.orDie);
 
-    return { answer, findMissions: findMissionsAnswer, suggest, withdraw };
+    return { answer, findMissions: findMissionsAnswer, suggest: suggestAnswer, withdraw };
   }),
 );

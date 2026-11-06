@@ -1,9 +1,14 @@
+import { mkdirSync, rmSync } from "node:fs";
+import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
 import type { BudgetLimits, MissionDetail, MissionId, Settings, ThreadId } from "@openmission/contracts";
 import { Effect } from "effect";
+import { TestClock } from "effect/testing";
 import { afterEach } from "vitest";
 import { periodStartOf } from "../src/spending.ts";
 import { call, fixture, open, read, send, settle, start, tool } from "./fixtures/batch7.ts";
+
+const openLine = (request: string) => `call open_thread ${JSON.stringify({ request })}`;
 
 const fixtures: ReturnType<typeof fixture>[] = [];
 const setup = () => {
@@ -214,4 +219,87 @@ describe("telling threads their budget", () => {
       expect(lastAgentText(detail)).toContain("Budget: 200 of 1,000 tokens used (20%)");
     }).pipe(Effect.provide(setup().layer)),
   );
+});
+
+describe("answering Stop at a reached budget", () => {
+  it.live("returns a parent left Waiting to Idle once nothing beneath it is at work", () =>
+    Effect.gen(function* () {
+      const started = yield* start(openLine("wait 60000"));
+      yield* settle(started.missionId, (d) => d.thread.state === "Waiting");
+      yield* setBudget(started.missionId, { cost: null, tokens: 100 });
+      const spender = yield* open(started.threadId, "spend 100");
+      const held = yield* settle(started.missionId, isHeldByBudget, spender.threadId);
+      const stopId = held.budgetStop?.id;
+      if (stopId === undefined) return yield* Effect.die("Missing stop");
+      yield* call({ _tag: "StopAtBudget", stopId });
+      const after = yield* settle(started.missionId, (d) => d.threads.slice(1).every((t) => t.state === "Stopped"));
+      expect(after.thread.state).toBe("Idle");
+    }).pipe(Effect.provide(setup().layer)),
+  );
+});
+
+describe("keeping spending when threads are deleted", () => {
+  it.live("keeps a deleted thread's spending on its mission and the global budget", () =>
+    Effect.gen(function* () {
+      const started = yield* startWithBudget({ cost: null, tokens: 1000 });
+      const child = yield* open(started.threadId, "spend 300");
+      yield* settle(started.missionId, (d) => d.mission.budget.spent.tokens === 300);
+      const preview = yield* call({ _tag: "PreviewDeletion", threadId: child.threadId });
+      yield* call({ _tag: "DeleteThread", confirmation: preview.confirmation, threadId: child.threadId });
+      const window = yield* call({ _tag: "ReadBudget", missionId: started.missionId });
+      expect(window.spent.tokens).toBe(300);
+      expect(window.parts.map((p) => p.spent.tokens)).toEqual([300]);
+      expect((yield* call({ _tag: "ReadBudget", missionId: null })).spent.tokens).toBe(300);
+    }).pipe(Effect.provide(setup().layer)),
+  );
+
+  it.live("keeps a deleted mission's spending on the global budget", () =>
+    Effect.gen(function* () {
+      const started = yield* start("spend 400");
+      yield* settle(started.missionId, (d) => isIdle(d) && d.mission.budget.spent.tokens === 400);
+      const preview = yield* call({ _tag: "PreviewDeletion", threadId: started.threadId });
+      yield* call({ _tag: "DeleteThread", confirmation: preview.confirmation, threadId: started.threadId });
+      expect((yield* call({ _tag: "ReadBudget", missionId: null })).spent.tokens).toBe(400);
+    }).pipe(Effect.provide(setup().layer)),
+  );
+});
+
+describe("starting a new global period", () => {
+  const advance = (millis: number) =>
+    Effect.gen(function* () {
+      yield* TestClock.adjust(millis);
+      for (let i = 0; i < 40; i++) yield* Effect.yieldNow;
+    });
+
+  it.effect("releases threads held at the global limit when the period starts over", () =>
+    Effect.gen(function* () {
+      yield* updateSettings({ globalBudget: { cost: null, tokens: 100 }, globalBudgetPeriod: "Day" });
+      const started = yield* start("spend 100");
+      for (let i = 0; i < 5; i++) yield* advance(20);
+      expect(isHeldByBudget(yield* read(started.missionId))).toBe(true);
+      yield* advance(25 * 60 * 60 * 1000);
+      const released = yield* read(started.missionId);
+      expect(released.thread.state).toBe("Idle");
+      expect(released.budgetStop).toBeNull();
+    }).pipe(Effect.provide(setup().layer)),
+  );
+});
+
+describe("holding at a lowered budget", () => {
+  it.live("leaves another reason the top thread waits on the owner in place", () => {
+    const value = setup();
+    const folder = join(value.directory, "work");
+    mkdirSync(folder);
+    return Effect.gen(function* () {
+      const started = yield* start("spend 100", folder);
+      yield* settle(started.missionId, (d) => isIdle(d) && d.mission.budget.spent.tokens === 100);
+      const child = yield* openRunning(started.missionId, started.threadId);
+      rmSync(folder, { recursive: true });
+      yield* send(started.threadId, "Again");
+      yield* settle(started.missionId, (d) => d.thread.blocker === "MissingWorkspace");
+      yield* setBudget(started.missionId, { cost: null, tokens: 50 });
+      yield* settle(started.missionId, isHeldByBudget, child.threadId);
+      expect((yield* read(started.missionId)).thread.blocker).toBe("MissingWorkspace");
+    }).pipe(Effect.provide(value.layer));
+  });
 });

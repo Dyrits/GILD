@@ -1,7 +1,10 @@
 import { Settings, StartChoices } from "@openmission/contracts";
-import { Effect, Schema } from "effect";
+import { Effect, Exit, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid } from "./errors.ts";
+
+/** A day in milliseconds, the unit of the Settings durations. */
+export const dayMillis = 24 * 60 * 60 * 1000;
 
 export const defaultSettings: Settings = {
   approvalLevel: "RiskyOnly",
@@ -50,19 +53,15 @@ export const writeSettings = (settings: Settings) =>
     return settings;
   });
 
-const decodeChoices = Schema.decodeUnknownSync(StartChoices);
+const decodeChoices = Schema.decodeUnknownExit(Schema.fromJsonString(StartChoices));
 
 /** The last mission's choices, or the Settings defaults with no workspace before any (mission-tracking). */
 export const readStartChoices = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const [row] = yield* sql<{ value: string }>`SELECT value FROM settings WHERE key = 'start_choices'`;
-  if (row !== undefined) {
-    try {
-      return decodeChoices(JSON.parse(row.value));
-    } catch {
-      // A value no longer valid falls back to the defaults below.
-    }
-  }
+  // A value no longer valid falls back to the defaults below.
+  const decoded = row === undefined ? null : decodeChoices(row.value);
+  if (decoded !== null && Exit.isSuccess(decoded)) return decoded.value;
   const settings = yield* readSettings;
   return { effort: settings.defaultEffort, model: settings.defaultModel, workspacePath: null } satisfies StartChoices;
 });

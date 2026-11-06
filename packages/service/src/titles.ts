@@ -1,8 +1,10 @@
-import { Effect, Exit, Schema } from "effect";
+import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, notFound } from "./errors.ts";
-import type { ToolAnswer } from "./journalTools.ts";
-import { titleOf } from "./missions.ts";
+import type { ToolHandlers } from "./threadTools.ts";
+
+/** A title from a text: its first line, trimmed, at most 200 characters. */
+export const titleOf = (text: string) => text.trim().split("\n", 1)[0]?.trim().slice(0, 200) ?? "";
 
 /** Sets the mission's title and its top thread's, which follows it. Callers run it in a transaction. */
 const writeTitle = (missionId: string, title: string, isByUser: boolean) =>
@@ -27,30 +29,12 @@ export const renameMission = Effect.fn("renameMission")(function* (missionId: st
   return null;
 });
 
-const SetMissionTitleArguments = Schema.Struct({ title: Schema.String });
-const decodeSetMissionTitle = Schema.decodeUnknownExit(SetMissionTitleArguments);
-
-/** The mission-tracking thread tool as MCP lists it (mission-tracking, External contract). */
-export const titleToolDefinitions = [
-  {
-    description:
-      "Name the mission. Only the mission's top thread uses it, on its first turn, with a short title of a few words.",
-    inputSchema: {
-      properties: { title: { description: "A short title of a few words.", type: "string" } },
-      required: ["title"],
-      type: "object",
-    },
-    name: "set_mission_title",
-  },
-];
-
 /** Answers `set_mission_title`; `commit` runs a change in one transaction and announces it. */
 export const titleToolsOf = (
   commit: <A, E>(work: Effect.Effect<A, E, SqlClient.SqlClient>) => Effect.Effect<A>,
-): Record<string, (threadId: string, args: unknown) => Effect.Effect<ToolAnswer>> => ({
+): Pick<ToolHandlers, "set_mission_title"> => ({
   set_mission_title: (threadId, args) => {
-    const decoded = decodeSetMissionTitle(args);
-    const title = Exit.isSuccess(decoded) ? titleOf(decoded.value.title) : "";
+    const title = titleOf(args.title);
     if (title === "") return Effect.succeed({ isError: true, text: "Not named: give a title." });
     return commit(
       Effect.gen(function* () {

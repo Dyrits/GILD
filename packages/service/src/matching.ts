@@ -1,3 +1,4 @@
+import type { MissionSummary } from "@openmission/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { listMissionSummaries } from "./missions.ts";
@@ -46,8 +47,8 @@ export const findMissions = (callerId: string, request: string) =>
       .filter((row) => row.score > 0)
       .sort((a, b) => b.score - a.score || b.lastActivityAt - a.lastActivityAt)
       .slice(0, maxMatches);
-    const summaries = new Map(
-      (yield* listMissionSummaries(scored.map((row) => row.id))).map((s) => [s.id as string, s]),
+    const summaries = new Map<string, MissionSummary>(
+      (yield* listMissionSummaries(scored.map((row) => row.id))).map((summary) => [summary.id, summary]),
     );
     return scored.map((row) => ({
       briefing: row.briefing ?? "",

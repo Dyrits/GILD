@@ -3,17 +3,13 @@ import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, notFound } from "./errors.ts";
 import { type JournalAuthor, nothingToRecord, openerMessagesOf, updateJournal } from "./journal.ts";
+import { maxOwnerDepth } from "./lifecycle.ts";
 import { insertMessage } from "./messaging.ts";
-import { titleOf } from "./missions.ts";
 import { budgetRefusalOf } from "./spending.ts";
+import { titleOf } from "./titles.ts";
 
 /** At most this many threads run at once in a mission (thread-tree, Limits; CHG-0037). */
 export const maxRunning = 8;
-/** The owner opens threads down to this many levels beneath the top thread; agents have no depth limit. */
-export const maxOwnerDepth = 4;
-
-/** States in which a thread beneath keeps its parent Waiting. */
-export const activeStates = ["Running", "Waiting", "Attention"];
 
 /** How many levels a thread is beneath its mission's top thread, which is 0. */
 export const depthOf = (threadId: string) =>
@@ -199,7 +195,7 @@ export const reportResult = (threadId: string, result: string, journal: string) 
     // The top thread's result asks the owner "Mark as done?"; the mission does not end on its own.
     if (thread.parentId === null)
       yield* sql`UPDATE missions SET is_asking_done = 1 WHERE id = ${thread.missionId} AND ending IS NULL`;
-    if (thread.parentId !== null) {
+    else {
       yield* insertMessage({
         fromThreadId: threadId,
         isQueued: false,
@@ -209,28 +205,4 @@ export const reportResult = (threadId: string, result: string, journal: string) 
       });
     }
     return thread.parentId;
-  });
-
-/**
- * Parents left Waiting with nothing active beneath them become Idle, up the tree from the given thread.
- * Callers run it in a transaction.
- */
-export const relaxAncestors = (threadId: string) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    let current: string | null = threadId;
-    while (current !== null) {
-      const [row]: ReadonlyArray<{ parentId: string | null }> = yield* sql<{
-        parentId: string | null;
-      }>`SELECT parent_id AS parentId FROM threads WHERE id = ${current}`;
-      const parentId: string | null = row?.parentId ?? null;
-      if (parentId === null) return;
-      const [parent] = yield* sql<{ state: string; active: number }>`
-        SELECT state, (SELECT COUNT(*) FROM threads c WHERE c.parent_id = ${parentId}
-          AND c.state IN ${sql.in(activeStates)}) AS active
-        FROM threads WHERE id = ${parentId}`;
-      if (parent?.state !== "Waiting" || parent.active > 0) return;
-      yield* sql`UPDATE threads SET state = 'Idle' WHERE id = ${parentId}`;
-      current = parentId;
-    }
   });
