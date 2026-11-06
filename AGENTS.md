@@ -24,4 +24,4 @@
 
 ## Handoffs
 
-Batch 7 is delivered (CHG-0042); to resume, read the [current handoff](.agents/handoffs/2026-11-06-1105-batch-7-built.md). Handoffs are shared and committed.
+To resume choosing batch 8 (batches 6 and 7 delivered), read the [current handoff](.agents/handoffs/2026-11-06-1437-choose-batch-8.md). Handoffs are shared and committed.
