@@ -28,7 +28,7 @@ Subagents in today's harnesses report once at the end and cannot be asked or red
 
 - The user can interrupt any thread.
 - A thread can interrupt the threads directly beneath it.
-- An interrupted thread ends its current turn and becomes Idle.
+- An interrupted thread ends its current turn and becomes Idle, or Waiting while threads beneath it are Running or Waiting (CHG-0039). Messages that had not yet reached the turn stay undelivered and start its next turn.
 
 ### Chatter guard
 
@@ -43,7 +43,7 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
 | --- | --- | --- | --- |
 | `send_thread_message` | Send a message | Receiving thread (a parent, a thread directly beneath, a referenced thread or mission, or Control), text, whether a reply is wanted | The message's identifier, queued until explicit resume when the receiver is Stopped; or a refusal and its reason when the target is outside its reach |
 | `report_result` | Report the thread's result to its parent | The result | — |
-| `interrupt_thread` | Interrupt a thread directly beneath the caller | — | — |
+| `interrupt_thread` | Interrupt a thread directly beneath the caller | The thread | Done, or a refusal and its reason when the thread is not directly beneath the caller or is not running |
 
 ## Acceptance and validation
 

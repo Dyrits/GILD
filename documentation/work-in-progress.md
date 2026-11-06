@@ -75,9 +75,9 @@ Delivered in CHG-0036 after an agent's run-through in the window at the owner's 
 - In a fresh clone, `bun install`'s `prepare` step cannot set `core.hooksPath` inside the sandbox, so commits skip the pre-commit hook until something sets it. A thread asked to set it does so with no question.
 - Whether a workspace should also load its own Claude Code settings and skills (`--setting-sources project`), which would also let project hooks run.
 
-## Batch 5: built and checked, awaiting the owner's look
+## Batch 5: delivered
 
-Thread tree core, agreed in CHG-0037. Built test-first and driven in the window: [proof](verification/2026-11-06-thread-tree.md). Pending: the owner's judgment of the side tree, then the Delivery record. Sources: thread-tree and thread-messaging specifications and blueprints.
+Thread tree core, agreed in CHG-0037 and delivered in CHG-0038 after the owner accepted the side tree. Built test-first and driven in the window: [proof](verification/2026-11-06-thread-tree.md). Sources: thread-tree and thread-messaging specifications and blueprints.
 
 ### Behavior
 
@@ -103,6 +103,29 @@ Thread tree core, agreed in CHG-0037. Built test-first and driven in the window:
 - Automated with the fake harness: opening by owner and thread with copied settings and overrides; depth and running limits; results to the parent and Done; message reach and refusal; delivery and waking; Waiting; Stop without cascade, kept messages, and Resume.
 - Live: one Claude Code mission that opens a thread, gets its result, and reports.
 - Driven in the window: the side tree, selecting threads, writing to a child, Stop and Resume.
+
+## Batch 6: delivered
+
+Interrupts and steering, agreed in CHG-0039 and delivered in CHG-0040 after the owner accepted the composer. Built test-first and driven in the window on the fake harness (Claude Code's session limit stopped the live drive): [proof](verification/2026-11-06-steering.md). Sources: thread-messaging specifications (Delivery, Interruptions, Thread tools) and the Claude Code probe recorded in CHG-0039.
+
+### Behavior
+
+- **Steering**: a message to a running thread joins its current turn after the current tool call: thread messages and results always, the owner's when steered. A message counts as delivered when the harness takes it in; one written but not taken in before the turn ends starts the next turn.
+- **Queuing**: an owner message sent as Queue waits for the thread's next turn; the conversation marks it Queued until then.
+- **Composer**: while a thread runs, Send uses the owner's default (Steer unless changed in Settings) and a smaller second button does the other; an Interrupt button sits next to them.
+- **Interrupt**: by the owner (any running thread) or by a thread (`interrupt_thread`, a running thread directly beneath it; others refused with the reason). The turn ends, its open questions are withdrawn, and the thread becomes Done if it reported its result in that turn, Waiting while threads beneath it are Running or Waiting, otherwise Idle. Undelivered messages start its next turn. Stop is unchanged.
+
+### Provisional, until decided
+
+- A message written to Claude Code but not taken in before the turn's result closes the process, so Claude Code does not run it on its own; the next turn resumes the session and sends it again. If the process had already taken it in when closed, the model may see it twice.
+- An interrupt that Claude Code does not confirm within 10 seconds closes the process.
+
+### Checks
+
+- Automated with the fake harness: steering owner and thread messages, queuing, the default setting, interrupts by the owner and by a parent with refusals, the state after an interrupt, and undelivered messages starting the next turn.
+- Automated with the Claude Code stand-in: the stream-json steering message with its identifier, delivery on echo, closing on an untaken message, and the interrupt control request.
+- Live: one Claude Code thread steered mid-turn and one interrupted.
+- Driven in the window: Send and Queue while running, the Queued mark, Interrupt, and the default setting.
 
 ## Open questions, settled when a batch needs them
 

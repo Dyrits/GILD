@@ -41,16 +41,29 @@ function Choice<T extends string | null>({
   );
 }
 
-export /** A message box that keeps the text until the service accepts it. */
-function Composer({ placeholder, onSend }: { placeholder: string; onSend: (text: string) => Promise<unknown> }) {
+export /**
+ * A message box that keeps the text until the service accepts it. While a thread runs, a smaller second
+ * button sends the other way (Steer or Queue) and Interrupt ends the thread's current turn (CHG-0039).
+ */
+function Composer({
+  placeholder,
+  onSend,
+  alternative,
+  onInterrupt,
+}: {
+  placeholder: string;
+  onSend: (text: string) => Promise<unknown>;
+  alternative?: { readonly label: string; readonly onSend: (text: string) => Promise<unknown> };
+  onInterrupt?: () => Promise<unknown>;
+}) {
   const [text, setText] = useState("");
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const send = async () => {
+  const send = async (handler: (text: string) => Promise<unknown>) => {
     if (text.trim() === "" || isSending) return;
     setIsSending(true);
     try {
-      await onSend(text);
+      await handler(text);
       setText("");
       setError(null);
     } catch (reason) {
@@ -59,6 +72,11 @@ function Composer({ placeholder, onSend }: { placeholder: string; onSend: (text:
       setIsSending(false);
     }
   };
+  const interrupt = (handler: () => Promise<unknown>) =>
+    handler().then(
+      () => setError(null),
+      (reason: Error) => setError(reason.message),
+    );
   return (
     <View style={styles.composer}>
       <TextInput
@@ -68,16 +86,36 @@ function Composer({ placeholder, onSend }: { placeholder: string; onSend: (text:
           const native = event.nativeEvent as { key: string; shiftKey?: boolean };
           if (native.key === "Enter" && !native.shiftKey) {
             event.preventDefault();
-            void send();
+            void send(onSend);
           }
         }}
         placeholder={placeholder}
         style={styles.input}
         value={text}
       />
-      <Pressable disabled={isSending} onPress={send} style={[styles.button, isSending && styles.buttonDisabled]}>
-        <Text style={styles.buttonText}>Send</Text>
-      </Pressable>
+      <View style={styles.composerActions}>
+        {onInterrupt !== undefined && (
+          <Pressable onPress={() => interrupt(onInterrupt)} style={styles.buttonSecondary}>
+            <Text style={styles.buttonSecondaryText}>Interrupt</Text>
+          </Pressable>
+        )}
+        {alternative !== undefined && (
+          <Pressable
+            disabled={isSending}
+            onPress={() => send(alternative.onSend)}
+            style={[styles.buttonSecondary, isSending && styles.buttonDisabled]}
+          >
+            <Text style={styles.buttonSecondaryText}>{alternative.label}</Text>
+          </Pressable>
+        )}
+        <Pressable
+          disabled={isSending}
+          onPress={() => send(onSend)}
+          style={[styles.button, isSending && styles.buttonDisabled]}
+        >
+          <Text style={styles.buttonText}>Send</Text>
+        </Pressable>
+      </View>
       {error !== null && <Text style={styles.error}>{error}</Text>}
     </View>
   );

@@ -67,8 +67,14 @@ export type TokenUsage = typeof TokenUsage.Type;
 export const ApprovalLevel = Schema.Literals(["RiskyOnly", "CommandsAndEdits"]);
 export type ApprovalLevel = typeof ApprovalLevel.Type;
 
+/** How an owner message reaches a running thread: joining its current turn, or waiting for its next (thread-messaging, Delivery; CHG-0039). */
+export const MessageDelivery = Schema.Literals(["Steer", "Queue"]);
+export type MessageDelivery = typeof MessageDelivery.Type;
+
 export const Settings = Schema.Struct({
   approvalLevel: ApprovalLevel,
+  /** What Send does while a thread runs; the second button does the other. */
+  defaultDelivery: MessageDelivery,
   defaultEffort: EffortChoice,
   defaultModel: ModelChoice,
   shouldStreamReplies: Schema.Boolean,
@@ -95,6 +101,8 @@ export const Message = Schema.Struct({
   /** The sending thread's title, for a thread message; null otherwise. */
   fromTitle: Schema.NullOr(Schema.String),
   id: MessageId,
+  /** Whether it is an owner message sent as Queue that still waits for the thread's next turn. */
+  isQueued: Schema.Boolean,
   /** Whether it is a result reported by a thread beneath (thread-tree, Results). */
   isResult: Schema.Boolean,
   sender: SenderKind,
@@ -242,6 +250,8 @@ export const StartMission = Schema.TaggedStruct("StartMission", {
   workspacePath: Schema.NullOr(Schema.String),
 });
 export const SendMessage = Schema.TaggedStruct("SendMessage", {
+  /** Steer or Queue while the thread runs; null uses the owner's default. */
+  delivery: Schema.NullOr(MessageDelivery),
   requestId: RequestId,
   text: MessageText,
   threadId: ThreadId,
@@ -273,6 +283,8 @@ export const AnswerQuestion = Schema.TaggedStruct("AnswerQuestion", {
   questionId: QuestionId,
 });
 export const ListOpenQuestions = Schema.TaggedStruct("ListOpenQuestions", {});
+/** Ends a running thread's current turn and keeps the thread usable (thread-messaging, Interruptions). */
+export const InterruptThread = Schema.TaggedStruct("InterruptThread", { threadId: ThreadId });
 export const StopThread = Schema.TaggedStruct("StopThread", { threadId: ThreadId });
 /** Continues a Stopped thread with the messages kept for it (thread-tree, Stopping). */
 export const ResumeThread = Schema.TaggedStruct("ResumeThread", { threadId: ThreadId });
@@ -305,6 +317,7 @@ export const Request = Schema.Union([
   ListOpenQuestions,
   StopThread,
   RetryThread,
+  InterruptThread,
   OpenThread,
   ResumeThread,
   ReadPermissions,
@@ -330,6 +343,7 @@ export const Results = {
   AnswerQuestion: Question,
   BrowseFolders: FolderListing,
   CreateFolder: Folder,
+  InterruptThread: Schema.Null,
   ListMissions: Schema.Array(MissionSummary),
   ListOpenQuestions: Schema.Array(Question),
   OpenThread: OpenThreadResult,

@@ -125,6 +125,11 @@ const migrations = {
     yield* sql`ALTER TABLE messages ADD COLUMN is_result INTEGER NOT NULL DEFAULT 0`;
     yield* sql`CREATE INDEX threads_by_parent ON threads (parent_id)`;
   }),
+  // Interrupts and steering (CHG-0039): an owner message sent as Queue waits for the thread's next turn.
+  "0008_message_delivery": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE messages ADD COLUMN is_queued INTEGER NOT NULL DEFAULT 0`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

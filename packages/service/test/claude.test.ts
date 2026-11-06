@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
 import type { MissionDetail, MissionId, Request, RequestTag, ResultOf } from "@openmission/contracts";
 import { type Duration, Effect, PubSub } from "effect";
+import { SqlClient } from "effect/sql";
 import { afterEach } from "vitest";
 import { Changes, claudeHarnessLayer, Service, serviceLayer } from "../src/index.ts";
 
@@ -17,6 +18,7 @@ const temporary = () => {
 };
 afterEach(() => {
   delete process.env.STAND_IN_MODE;
+  delete process.env.STAND_IN_INPUT;
   for (const directory of directories.splice(0)) rmSync(directory, { force: true, recursive: true });
 });
 
@@ -202,7 +204,7 @@ describe("Claude Code adapter", () => {
         workspacePath: null,
       });
       yield* settle(started.missionId, idleWith(1));
-      yield* call({ _tag: "SendMessage", requestId: "r2", text: "Two", threadId: started.threadId });
+      yield* call({ _tag: "SendMessage", delivery: null, requestId: "r2", text: "Two", threadId: started.threadId });
       const detail = yield* settle(started.missionId, idleWith(2));
 
       expect(starts()).toHaveLength(1);
@@ -227,7 +229,7 @@ describe("Claude Code adapter", () => {
       yield* settle(started.missionId, idleWith(1));
       const settings = yield* call({ _tag: "ReadSettings" });
       yield* call({ _tag: "UpdateSettings", settings: { ...settings, approvalLevel: "CommandsAndEdits" } });
-      yield* call({ _tag: "SendMessage", requestId: "r2", text: "Two", threadId: started.threadId });
+      yield* call({ _tag: "SendMessage", delivery: null, requestId: "r2", text: "Two", threadId: started.threadId });
       yield* settle(started.missionId, idleWith(2));
 
       const [first, second] = starts();
@@ -274,7 +276,7 @@ describe("Claude Code adapter", () => {
       });
       yield* settle(started.missionId, idleWith(1));
       yield* Effect.sleep("400 millis");
-      yield* call({ _tag: "SendMessage", requestId: "r2", text: "Two", threadId: started.threadId });
+      yield* call({ _tag: "SendMessage", delivery: null, requestId: "r2", text: "Two", threadId: started.threadId });
       const detail = yield* settle(started.missionId, idleWith(2));
 
       const [first, second] = starts();
@@ -301,7 +303,7 @@ describe("Claude Code adapter", () => {
       expect(failed.mission.state).toBe("Failed");
 
       process.env.STAND_IN_MODE = "ok";
-      yield* call({ _tag: "SendMessage", requestId: "r2", text: "Second", threadId: started.threadId });
+      yield* call({ _tag: "SendMessage", delivery: null, requestId: "r2", text: "Second", threadId: started.threadId });
       const detail = yield* settle(started.missionId, idleWith(1));
       expect(detail.messages.at(-1)?.text).toMatch(/to: First\n\nSecond$/);
       expect(detail.thread.failure).toBeNull();
@@ -349,6 +351,7 @@ describe("Claude Code adapter", () => {
         _tag: "UpdateSettings",
         settings: {
           approvalLevel: "RiskyOnly",
+          defaultDelivery: "Steer",
           defaultEffort: "default",
           defaultModel: "default",
           shouldStreamReplies: false,
@@ -364,6 +367,99 @@ describe("Claude Code adapter", () => {
       });
       yield* settle(off.missionId, idleWith(1));
       expect((yield* PubSub.takeAll(drafts)).filter((d) => d.text !== "")).toEqual([]);
+    }).pipe(Effect.provide(layer));
+  });
+});
+
+describe("steering and interrupting Claude Code", () => {
+  const inputLines = (directory: string): Array<Record<string, unknown>> => {
+    try {
+      return readFileSync(join(directory, "input.jsonl"), "utf8")
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line));
+    } catch {
+      return [];
+    }
+  };
+  const startSlow = (text: string) =>
+    call({ _tag: "StartMission", effort: "low", model: "haiku", requestId: "r1", text, workspacePath: null });
+  const isRunning = (detail: MissionDetail) => detail.thread.state === "Running";
+
+  it.live("writes a steered message with its identifier into the running turn and marks it delivered", () => {
+    const { directory, layer, starts } = withClaude();
+    process.env.STAND_IN_INPUT = join(directory, "input.jsonl");
+    return Effect.gen(function* () {
+      const started = yield* startSlow("slow 600");
+      yield* settle(started.missionId, isRunning);
+      const sent = yield* call({
+        _tag: "SendMessage",
+        delivery: "Steer",
+        requestId: "r2",
+        text: "Also this",
+        threadId: started.threadId,
+      });
+      const detail = yield* settle(started.missionId, idleWith(1));
+
+      expect(detail.messages.at(-1)?.text).toMatch(/^Reply 1 .* to: slow 600 \+ Also this$/);
+      expect(starts()).toHaveLength(1);
+      expect(starts()[0]?.args).toContain("--replay-user-messages");
+      expect(inputLines(directory).at(-1)).toEqual({
+        message: { content: "Also this", role: "user" },
+        type: "user",
+        uuid: sent.messageId,
+      });
+      expect(detail.messages.find((message) => message.id === sent.messageId)?.isQueued).toBe(false);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live(
+    "closes the process when a steered message was not taken in by the turn's end, then sends it next turn",
+    () => {
+      const { layer, starts } = withClaude();
+      return Effect.gen(function* () {
+        const started = yield* startSlow("slow 400");
+        yield* settle(started.missionId, isRunning);
+        yield* call({
+          _tag: "SendMessage",
+          delivery: "Steer",
+          requestId: "r2",
+          text: "unseen",
+          threadId: started.threadId,
+        });
+        const detail = yield* settle(started.missionId, idleWith(2));
+        yield* Effect.sleep("400 millis");
+
+        const replies = (yield* read(started.missionId)).messages.filter((message) => message.sender === "agent");
+        expect(replies.map((message) => message.text.replace(/ \(pid \d+\)/, ""))).toEqual([
+          "Reply 1 to: slow 400",
+          "Reply 1 to: unseen",
+        ]);
+        expect(starts()).toHaveLength(2);
+        expect(starts()[1]?.args.join(" ")).toContain("--resume");
+        expect(detail.thread.failure).toBeNull();
+      }).pipe(Effect.provide(layer));
+    },
+  );
+
+  it.live("interrupts the turn with a control request and keeps the process for the next turn", () => {
+    const { directory, layer, starts } = withClaude();
+    process.env.STAND_IN_INPUT = join(directory, "input.jsonl");
+    return Effect.gen(function* () {
+      const started = yield* startSlow("slow 5000");
+      yield* settle(started.missionId, isRunning);
+      yield* call({ _tag: "InterruptThread", threadId: started.threadId });
+      const interrupted = yield* settle(started.missionId, (detail) => detail.thread.state === "Idle");
+      expect(interrupted.thread.failure).toBeNull();
+      expect(interrupted.messages.filter((message) => message.sender === "agent")).toEqual([]);
+      expect(inputLines(directory).find((line) => line.type === "control_request")).toMatchObject({
+        request: { subtype: "interrupt" },
+      });
+
+      yield* call({ _tag: "SendMessage", delivery: null, requestId: "r2", text: "Again", threadId: started.threadId });
+      const detail = yield* settle(started.missionId, idleWith(1));
+      expect(detail.messages.at(-1)?.text).toMatch(/^Reply 2 .* to: Again$/);
+      expect(starts()).toHaveLength(1);
     }).pipe(Effect.provide(layer));
   });
 });
@@ -386,6 +482,7 @@ describe("settings", () => {
       const defaults = yield* call({ _tag: "ReadSettings" }).pipe(Effect.provide(serviceLayer(options)));
       expect(defaults).toEqual({
         approvalLevel: "RiskyOnly",
+        defaultDelivery: "Steer",
         defaultEffort: "default",
         defaultModel: "default",
         shouldStreamReplies: true,
@@ -393,6 +490,7 @@ describe("settings", () => {
 
       const updated = {
         approvalLevel: "CommandsAndEdits",
+        defaultDelivery: "Queue",
         defaultEffort: "high",
         defaultModel: "sonnet",
         shouldStreamReplies: false,
@@ -400,6 +498,21 @@ describe("settings", () => {
       yield* call({ _tag: "UpdateSettings", settings: updated }).pipe(Effect.provide(serviceLayer(options)));
       expect(yield* call({ _tag: "ReadSettings" }).pipe(Effect.provide(serviceLayer(options)))).toEqual(updated);
     });
+  });
+
+  it.live("keep the owner's saved choices when a setting added later is missing", () => {
+    const { layer } = withClaude();
+    return Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      const saved = { approvalLevel: "CommandsAndEdits", defaultEffort: "high", defaultModel: "sonnet" };
+      yield* sql`INSERT INTO settings (key, value) VALUES ('settings', ${JSON.stringify({ ...saved, shouldStreamReplies: false })})
+        ON CONFLICT (key) DO UPDATE SET value = excluded.value`;
+      expect(yield* call({ _tag: "ReadSettings" })).toEqual({
+        ...saved,
+        defaultDelivery: "Steer",
+        shouldStreamReplies: false,
+      });
+    }).pipe(Effect.provide(layer));
   });
 });
 
@@ -541,6 +654,103 @@ describe.runIf(process.env.OPENMISSION_LIVE_CLAUDE === "1")("live Claude Code (u
           }),
         ),
       );
+    },
+    180_000,
+  );
+
+  const liveLayer = (directory: string) =>
+    serviceLayer({
+      filename: join(directory, "openmission.sqlite"),
+      harness: claudeHarnessLayer({
+        command: process.env.OPENMISSION_CLAUDE_PATH ?? "claude",
+        idleTimeout: "1 minute",
+        sandboxProblem: null,
+      }),
+      homeFolder: directory,
+      scratchRoot: join(directory, "missions"),
+    });
+  const settleLive = (missionId: MissionId, check: (detail: MissionDetail) => boolean) =>
+    Effect.gen(function* () {
+      for (let i = 0; i < 1200; i++) {
+        const detail = yield* read(missionId);
+        if (check(detail)) return detail;
+        yield* Effect.sleep("100 millis");
+      }
+      return yield* Effect.die(new Error(`did not settle: ${JSON.stringify(yield* read(missionId))}`));
+    });
+
+  it.live(
+    "takes a steered message into the running turn",
+    () => {
+      const directory = temporary();
+      return Effect.gen(function* () {
+        const started = yield* call({
+          _tag: "StartMission",
+          effort: "low",
+          model: "haiku",
+          requestId: "r1",
+          text: "Run the bash command `sleep 8` exactly once, then reply with one short sentence.",
+          workspacePath: null,
+        });
+        yield* settleLive(started.missionId, (detail) => detail.thread.state === "Running");
+        yield* Effect.sleep("4 seconds");
+        const steered = yield* call({
+          _tag: "SendMessage",
+          delivery: "Steer",
+          requestId: "r2",
+          text: "Also end your final answer with the word PINEAPPLE.",
+          threadId: started.threadId,
+        });
+        const detail = yield* settleLive(
+          started.missionId,
+          (d) => d.thread.state === "Idle" || d.thread.state === "Failed",
+        );
+        expect(detail.thread.failure).toBeNull();
+        expect(detail.messages.at(-1)?.text).toContain("PINEAPPLE");
+        expect(detail.messages.find((message) => message.id === steered.messageId)?.isQueued).toBe(false);
+        // Taken in by the first turn: the steered message comes before the turn's last reply.
+        const replies = detail.messages.filter((message) => message.sender === "agent");
+        expect(replies.length).toBeGreaterThan(0);
+      }).pipe(Effect.provide(liveLayer(directory)));
+    },
+    180_000,
+  );
+
+  it.live(
+    "interrupts a running turn and keeps the thread usable",
+    () => {
+      const directory = temporary();
+      return Effect.gen(function* () {
+        const started = yield* call({
+          _tag: "StartMission",
+          effort: "low",
+          model: "haiku",
+          requestId: "r1",
+          text: "Run this bash command exactly once in the foreground and wait for it: `for i in $(seq 1 60); do echo tick $i; sleep 1; done`. Then reply with: done.",
+          workspacePath: null,
+        });
+        yield* settleLive(started.missionId, (detail) => detail.thread.state === "Running");
+        yield* Effect.sleep("5 seconds");
+        const before = Date.now();
+        yield* call({ _tag: "InterruptThread", threadId: started.threadId });
+        const interrupted = yield* settleLive(started.missionId, (detail) => detail.thread.state !== "Running");
+        expect(Date.now() - before).toBeLessThan(15_000);
+        expect(interrupted.thread).toMatchObject({ failure: null, state: "Idle" });
+
+        yield* call({
+          _tag: "SendMessage",
+          delivery: null,
+          requestId: "r2",
+          text: "Reply with exactly: ok",
+          threadId: started.threadId,
+        });
+        const detail = yield* settleLive(
+          started.missionId,
+          (d) => d.thread.state === "Idle" && d.messages.at(-1)?.sender === "agent",
+        );
+        expect(detail.thread.failure).toBeNull();
+        expect(detail.messages.at(-1)?.text.toLowerCase()).toContain("ok");
+      }).pipe(Effect.provide(liveLayer(directory)));
     },
     180_000,
   );

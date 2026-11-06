@@ -1,0 +1,17 @@
+M1 never steered: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  5 failed | 97 passed | 5 skipped (107)
+M2 Queue ignored: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 5 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  5 failed | 97 passed | 5 skipped (107)
+M3 default setting ignored: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 101 passed | 5 skipped (107)
+M4 untaken message kept in the process: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 101 passed | 5 skipped (107)
+M5 interrupt_thread reach unchecked: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 101 passed | 5 skipped (107)
+M6 interrupted turn is a failure: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 101 passed | 5 skipped (107)
+M7 delivery never recorded: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 4 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  4 failed | 98 passed | 5 skipped (107)
+M8 interrupted thread always Idle: ⎯⎯⎯⎯⎯⎯⎯ Failed Tests 1 ⎯⎯⎯⎯⎯⎯⎯
+      Tests  1 failed | 101 passed | 5 skipped (107)
+restored:       Tests  102 passed | 5 skipped (107)

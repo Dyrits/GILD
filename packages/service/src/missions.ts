@@ -124,14 +124,19 @@ export const readMission = (missionId: string, threadId: string | null) =>
       SELECT id, model, effort, failure, blocker FROM threads WHERE id = ${selected.id}`;
     if (thread === undefined) return yield* notFound("No such thread in this mission.");
     const workspace = yield* readThreadWorkspace(selected.id);
-    const messages = yield* sql<Omit<Message, "isResult"> & { isResult: number }>`
+    const messages = yield* sql<Omit<Message, "isResult" | "isQueued"> & { isResult: number; isQueued: number }>`
       SELECT m.id, m.thread_id AS threadId, m.sender_kind AS sender, m.text, m.sequence, m.sent_at AS sentAt,
-        m.sender_thread_id AS fromThreadId, s.title AS fromTitle, m.is_result AS isResult
+        m.sender_thread_id AS fromThreadId, s.title AS fromTitle, m.is_result AS isResult,
+        (m.is_queued = 1 AND m.delivered_turn_id IS NULL) AS isQueued
       FROM messages m LEFT JOIN threads s ON s.id = m.sender_thread_id
       WHERE m.thread_id = ${selected.id} ORDER BY m.sequence`;
     const questions = yield* listThreadQuestions(selected.id);
     return {
-      messages: messages.map((message) => ({ ...message, isResult: message.isResult === 1 })),
+      messages: messages.map((message) => ({
+        ...message,
+        isQueued: message.isQueued === 1,
+        isResult: message.isResult === 1,
+      })),
       mission: summaryOf(row),
       questions,
       thread: {

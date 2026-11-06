@@ -1,4 +1,10 @@
-import { EffortChoice as EffortChoices, ModelChoice as ModelChoices, type Settings } from "@openmission/contracts";
+import {
+  EffortChoice as EffortChoices,
+  MessageDelivery as MessageDeliveries,
+  type MessageDelivery,
+  ModelChoice as ModelChoices,
+  type Settings,
+} from "@openmission/contracts";
 import { useState } from "react";
 import { Pressable, Switch, Text, View } from "react-native";
 import type { ServiceClient } from "./client";
@@ -7,6 +13,12 @@ import { effortLabel, modelLabels } from "./formatting";
 import { levelLabels } from "./permissions";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
+
+/** What each delivery does to a running thread, as the Settings choice names it. */
+const deliveryLabels = {
+  Queue: "Queue for its next turn",
+  Steer: "Steer its current turn",
+} as const satisfies Record<MessageDelivery, string>;
 
 export function SettingsScreen({
   client,
@@ -55,6 +67,13 @@ export function SettingsScreen({
             onChange={(defaultEffort) => save({ defaultEffort })}
             options={EffortChoices.literals}
             value={settings.defaultEffort}
+          />
+          <Text style={styles.label}>Send, while a thread is running</Text>
+          <Choice
+            label={(delivery) => deliveryLabels[delivery]}
+            onChange={(defaultDelivery) => save({ defaultDelivery })}
+            options={MessageDeliveries.literals}
+            value={settings.defaultDelivery}
           />
           <View style={styles.toggle}>
             <Switch

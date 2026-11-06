@@ -78,7 +78,7 @@ const start = (text: string) =>
     workspacePath: null,
   });
 const send = (threadId: ResultOf<"StartMission">["threadId"], text: string) =>
-  call({ _tag: "SendMessage", requestId: `send-${++requestCount}`, text, threadId });
+  call({ _tag: "SendMessage", delivery: null, requestId: `send-${++requestCount}`, text, threadId });
 
 const answer = (question: Question, given: "Allow" | "AlwaysAllow" | "Deny", message: string | null = null) =>
   call({ _tag: "AnswerQuestion", answer: given, message, questionId: question.id });

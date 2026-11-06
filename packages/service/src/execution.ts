@@ -1,11 +1,19 @@
 import type { ApprovalLevel, EffortChoice, ModelChoice, TokenUsage } from "@openmission/contracts";
-import { Context, type Duration, Effect, Layer, Schema } from "effect";
+import { Context, Deferred, type Duration, Effect, Layer, Schema } from "effect";
 
 export type HarnessEvent =
   /** A complete assistant message, to be saved. */
   | { readonly _tag: "Reply"; readonly text: string }
   /** The assistant message written so far, never saved. */
-  | { readonly _tag: "Draft"; readonly text: string };
+  | { readonly _tag: "Draft"; readonly text: string }
+  /** A message steered into the running turn was taken in by it (CHG-0039). */
+  | { readonly _tag: "Delivered"; readonly messageId: string };
+
+/** A message to steer into a thread's running turn, by its identifier. */
+export interface SteeredMessage {
+  readonly id: string;
+  readonly text: string;
+}
 
 /** What a thread may use in a turn, and how its actions are approved (CHG-0031). */
 export interface ThreadAccess {
@@ -33,6 +41,8 @@ export interface TurnRequest {
 }
 
 export interface TurnOutcome {
+  /** Whether the turn ended because it was interrupted (thread-messaging, Interruptions). */
+  readonly isInterrupted: boolean;
   readonly sessionId: string;
   /** Null when the harness reported no usage; shown as unknown, never guessed. */
   readonly usage: TokenUsage | null;
@@ -40,10 +50,19 @@ export interface TurnOutcome {
 
 export class HarnessFailure extends Schema.TaggedError<HarnessFailure>()("HarnessFailure", { reason: Schema.String }) {}
 
-/** The harness seam: runs one turn of a thread and reports its events. */
+/** The harness seam: runs one turn of a thread, reports its events, and lets it be steered and interrupted. */
 export class Harness extends Context.Service<
   Harness,
-  { readonly runTurn: (request: TurnRequest) => Effect.Effect<TurnOutcome, HarnessFailure> }
+  {
+    readonly runTurn: (request: TurnRequest) => Effect.Effect<TurnOutcome, HarnessFailure>;
+    /**
+     * Writes a message into the thread's running turn; false when no turn runs. Its `Delivered` event
+     * follows once the turn takes it in; one not taken in by the turn's end is left for the next turn.
+     */
+    readonly steer: (threadId: string, message: SteeredMessage) => Effect.Effect<boolean>;
+    /** Ends the thread's running turn, whose `runTurn` then returns as interrupted; false when none runs. */
+    readonly interrupt: (threadId: string) => Effect.Effect<boolean>;
+  }
 >()("openmission/Harness") {}
 
 /** Calls one tool on a thread's MCP endpoint and returns its text, as Claude Code would. */
@@ -87,19 +106,63 @@ const scriptedCall = (request: TurnRequest, line: string) => {
   return null;
 };
 
-/** A deterministic harness for checks: it runs scripted tool calls, then echoes after a delay. */
+/** A fake turn in progress: the messages steered into it, and its interrupt signal. */
+interface FakeTurn {
+  readonly interrupted: Deferred.Deferred<void>;
+  readonly onEvent: TurnRequest["onEvent"];
+  readonly steered: Array<string>;
+}
+
+/**
+ * A deterministic harness for checks: it runs scripted tool calls, then echoes after a delay. Messages
+ * steered in while it runs are taken in at once, run the same way, and appended to the echo after " + ".
+ */
 export const fakeHarnessLayer = (replyDelay: Duration.Input) =>
-  Layer.succeed(Harness, {
-    runTurn: (request) =>
+  Layer.sync(Harness, () => {
+    const running = new Map<string, FakeTurn>();
+    const script = (request: TurnRequest, turn: FakeTurn) =>
       Effect.gen(function* () {
         yield* Effect.sleep(replyDelay);
-        const results: Array<string> = [];
-        for (const line of request.text.split("\n")) {
-          const call = scriptedCall(request, line.trim());
-          if (call !== null) results.push(yield* call);
+        const echoOf = (text: string) =>
+          Effect.gen(function* () {
+            const results: Array<string> = [];
+            for (const line of text.split("\n")) {
+              const call = scriptedCall(request, line.trim());
+              if (call !== null) results.push(yield* call);
+            }
+            return results.length === 0 ? text : results.join(" | ");
+          });
+        let echo = yield* echoOf(request.text);
+        // Steered messages are acted on too, including those steered in while one is acted on.
+        for (let index = 0; index < turn.steered.length; index++) {
+          echo += ` + ${yield* echoOf(turn.steered[index] ?? "")}`;
         }
-        const text = results.length === 0 ? `Echo: ${request.text}` : `Echo: ${results.join(" | ")}`;
-        yield* request.onEvent({ _tag: "Reply", text });
-        return { sessionId: request.sessionId ?? `fake-${request.threadId}`, usage: null };
-      }),
+        running.delete(request.threadId);
+        yield* request.onEvent({ _tag: "Reply", text: `Echo: ${echo}` });
+        return false;
+      });
+    return {
+      interrupt: (threadId) =>
+        Effect.suspend(() => {
+          const turn = running.get(threadId);
+          return turn === undefined ? Effect.succeed(false) : Deferred.succeed(turn.interrupted, void 0);
+        }),
+      runTurn: (request) =>
+        Effect.gen(function* () {
+          const turn: FakeTurn = { interrupted: yield* Deferred.make<void>(), onEvent: request.onEvent, steered: [] };
+          running.set(request.threadId, turn);
+          const isInterrupted = yield* Effect.raceFirst(
+            script(request, turn),
+            Deferred.await(turn.interrupted).pipe(Effect.as(true)),
+          ).pipe(Effect.ensuring(Effect.sync(() => running.delete(request.threadId))));
+          return { isInterrupted, sessionId: request.sessionId ?? `fake-${request.threadId}`, usage: null };
+        }),
+      steer: (threadId, message) =>
+        Effect.suspend(() => {
+          const turn = running.get(threadId);
+          if (turn === undefined) return Effect.succeed(false);
+          turn.steered.push(message.text);
+          return turn.onEvent({ _tag: "Delivered", messageId: message.id }).pipe(Effect.as(true));
+        }),
+    };
   });

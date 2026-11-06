@@ -1,4 +1,4 @@
-import type { Message, MissionDetail, MissionId, Question, ThreadId } from "@openmission/contracts";
+import type { Message, MessageDelivery, MissionDetail, MissionId, Question, ThreadId } from "@openmission/contracts";
 import { useEffect, useRef, useState } from "react";
 import { FlatList, type NativeScrollEvent, type NativeSyntheticEvent, Pressable, Text, View } from "react-native";
 import { newRequestId, type ServiceClient } from "./client";
@@ -69,7 +69,9 @@ const shortened = (title: string) => (title.length > 60 ? `${title.slice(0, 59)}
 function MessageBubble({ message }: { message: Message }) {
   const sender =
     message.sender === "user"
-      ? "You"
+      ? message.isQueued
+        ? "You · Queued for the next turn"
+        : "You"
       : message.sender === "agent"
         ? "Agent"
         : `${message.isResult ? "Result from" : "From"} "${shortened(message.fromTitle ?? "a thread")}"`;
@@ -98,6 +100,16 @@ function ThreadPane({
   const [actionError, setActionError] = useState<string | null>(null);
   const [isOpening, setIsOpening] = useState(false);
   const followNewest = useFollowNewest();
+  const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
+  const isInTurn = thread.state === "Running" || thread.state === "Attention";
+  const defaultDelivery = settings?.defaultDelivery ?? "Steer";
+  const other = ({ Queue: "Steer", Steer: "Queue" } as const satisfies Record<MessageDelivery, MessageDelivery>)[
+    defaultDelivery
+  ];
+  const sendAs = (delivery: MessageDelivery | null) => (text: string) => {
+    followNewest.follow();
+    return client.request({ _tag: "SendMessage", delivery, requestId: newRequestId(), text, threadId: thread.id });
+  };
   const act = (request: Promise<unknown>) =>
     request.then(
       () => setActionError(null),
@@ -188,12 +200,19 @@ function ThreadPane({
         />
       ) : (
         <Composer
-          onSend={(text) => {
-            followNewest.follow();
-            return client.request({ _tag: "SendMessage", requestId: newRequestId(), text, threadId: thread.id });
-          }}
+          {...(isInTurn
+            ? {
+                alternative: { label: other, onSend: sendAs(other) },
+                onInterrupt: () => client.request({ _tag: "InterruptThread", threadId: thread.id }),
+              }
+            : {})}
+          onSend={sendAs(isInTurn ? defaultDelivery : null)}
           placeholder={
-            thread.state === "Stopped" ? "Write to this thread; it waits until you resume it…" : "Write to this thread…"
+            thread.state === "Stopped"
+              ? "Write to this thread; it waits until you resume it…"
+              : isInTurn
+                ? `Write to this thread; Send ${defaultDelivery === "Steer" ? "joins its current turn" : "waits for its next turn"}…`
+                : "Write to this thread…"
           }
         />
       )}

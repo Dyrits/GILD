@@ -6,7 +6,7 @@ import { SqlClient } from "effect/sql";
 import { Approvals } from "./approvals.ts";
 import { Changes } from "./changes.ts";
 import { insertMessage } from "./messaging.ts";
-import { isWithinReach, openThreadByAgent, reportResult } from "./tree.ts";
+import { isBeneath, isWithinReach, openThreadByAgent, reportResult } from "./tree.ts";
 import { Waker } from "./waker.ts";
 
 /**
@@ -27,8 +27,8 @@ export const toolServerName = "openmission";
 /** The tool name Claude Code's `--permission-prompt-tool` takes. */
 export const promptToolName = `mcp__${toolServerName}__answer_prompt`;
 export const approvalToolName = `mcp__${toolServerName}__request_approval`;
-/** The thread tools a thread uses without asking (thread-tree and thread-messaging; CHG-0037). */
-export const threadToolNames = ["open_thread", "send_thread_message", "report_result"].map(
+/** The thread tools a thread uses without asking (thread-tree and thread-messaging; CHG-0037, CHG-0039). */
+export const threadToolNames = ["open_thread", "send_thread_message", "report_result", "interrupt_thread"].map(
   (name) => `mcp__${toolServerName}__${name}`,
 );
 
@@ -50,6 +50,8 @@ const OpenThreadArguments = Schema.Struct({
 const SendThreadMessageArguments = Schema.Struct({ text: Schema.String, to: Schema.String });
 
 const ReportResultArguments = Schema.Struct({ result: Schema.String });
+
+const InterruptThreadArguments = Schema.Struct({ thread: Schema.String });
 
 const AnswerPromptArguments = Schema.Struct({
   input: Schema.Unknown,
@@ -73,6 +75,7 @@ const decodePrompt = Schema.decodeUnknownExit(AnswerPromptArguments);
 const decodeOpenThread = Schema.decodeUnknownExit(OpenThreadArguments);
 const decodeSendThreadMessage = Schema.decodeUnknownExit(SendThreadMessageArguments);
 const decodeReportResult = Schema.decodeUnknownExit(ReportResultArguments);
+const decodeInterruptThread = Schema.decodeUnknownExit(InterruptThreadArguments);
 
 const tools = [
   {
@@ -125,7 +128,7 @@ const tools = [
   },
   {
     description:
-      "Send a message to your parent thread or to a thread directly beneath you, by its id. It reaches that thread at its next turn and wakes it if it is idle.",
+      "Send a message to your parent thread or to a thread directly beneath you, by its id. It joins that thread's current turn if it is running, and wakes it if it is idle.",
     inputSchema: {
       properties: { text: { type: "string" }, to: { description: "The receiving thread's id.", type: "string" } },
       required: ["to", "text"],
@@ -144,6 +147,16 @@ const tools = [
       type: "object",
     },
     name: "report_result",
+  },
+  {
+    description:
+      "Interrupt a running thread directly beneath you, by its id: its current turn ends and it waits for a message. Use it when its work is no longer needed or must change course; then message it with what to do instead.",
+    inputSchema: {
+      properties: { thread: { description: "The id of the thread beneath you to interrupt.", type: "string" } },
+      required: ["thread"],
+      type: "object",
+    },
+    name: "interrupt_thread",
   },
   {
     description: "Used by Claude Code itself to answer permission prompts. Never call it yourself.",
@@ -191,6 +204,24 @@ export const toolServerLayer = Layer.effect(
       string,
       (threadId: string, args: unknown) => Effect.Effect<ReturnType<typeof textResult>>
     > = {
+      interrupt_thread: (threadId, args) => {
+        const decoded = decodeInterruptThread(args);
+        if (Exit.isFailure(decoded)) return Effect.succeed(textResult("Invalid arguments: give thread.", true));
+        const target = decoded.value.thread;
+        return commit(isBeneath(threadId, target)).pipe(
+          Effect.flatMap((isChild) =>
+            isChild
+              ? waker.interrupt(target)
+              : Effect.fail("Not interrupted: you can only interrupt a thread directly beneath you, by its id."),
+          ),
+          Effect.flatMap((isInterrupted) =>
+            isInterrupted
+              ? Effect.succeed(textResult("Interrupted."))
+              : Effect.fail("Not interrupted: that thread is not running."),
+          ),
+          Effect.catch((reason: string) => Effect.succeed(textResult(reason, true))),
+        );
+      },
       open_thread: (threadId, args) => {
         const decoded = decodeOpenThread(args);
         if (Exit.isFailure(decoded)) return Effect.succeed(textResult("Invalid arguments: give request.", true));
@@ -229,7 +260,7 @@ export const toolServerLayer = Layer.effect(
         return commit(
           Effect.gen(function* () {
             if (!(yield* isWithinReach(threadId, to))) return false;
-            yield* insertMessage({ fromThreadId: threadId, isResult: false, text, threadId: to });
+            yield* insertMessage({ fromThreadId: threadId, isQueued: false, isResult: false, text, threadId: to });
             return true;
           }),
         ).pipe(

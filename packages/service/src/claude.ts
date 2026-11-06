@@ -5,7 +5,14 @@ import { join } from "node:path";
 import { createInterface } from "node:readline";
 import type { TokenUsage } from "@openmission/contracts";
 import { Duration, Effect, Exit, Layer, Queue, Schema } from "effect";
-import { Harness, HarnessFailure, type ThreadAccess, type TurnRequest } from "./execution.ts";
+import {
+  Harness,
+  type HarnessEvent,
+  HarnessFailure,
+  type SteeredMessage,
+  type ThreadAccess,
+  type TurnRequest,
+} from "./execution.ts";
 import { approvalInstructionsOf } from "./instructions.ts";
 import { approvalToolName, promptToolName, threadToolNames, toolServerName } from "./mcp.ts";
 
@@ -33,9 +40,22 @@ interface StreamEvent {
   readonly subtype?: string;
   readonly type?: string;
   readonly usage?: Record<string, unknown>;
+  readonly uuid?: string;
 }
 
-type Line = { readonly _tag: "Line"; readonly line: string } | { readonly _tag: "Exit"; readonly reason: string };
+type Line =
+  | { readonly _tag: "Line"; readonly line: string }
+  | { readonly _tag: "Exit"; readonly reason: string }
+  /** An interrupt Claude Code did not confirm in time. */
+  | { readonly _tag: "Unconfirmed" };
+
+/** The turn a session is running: where its events go, and the steered messages not yet taken in. */
+interface RunningTurn {
+  interruptTimer: ReturnType<typeof setTimeout> | null;
+  isInterrupting: boolean;
+  readonly onEvent: (event: HarnessEvent) => Effect.Effect<void>;
+  readonly untaken: Set<string>;
+}
 
 interface Session {
   readonly child: ChildProcess;
@@ -45,6 +65,8 @@ interface Session {
   readonly sessionId: string;
   /** The access arguments the process started with; a change restarts it on the next turn. */
   readonly signature: string;
+  /** The turn being read, or null between turns. */
+  turn: RunningTurn | null;
 }
 
 // Tools behind approval (CHG-0031): built-in tools only, none of the owner's MCP
@@ -57,6 +79,9 @@ const baseArgs = [
   "stream-json",
   "--verbose",
   "--include-partial-messages",
+  // Echoes each user message, with its uuid, when the turn takes it in: how steering knows a
+  // message was delivered (CHG-0039).
+  "--replay-user-messages",
   "--tools",
   "default",
   // One thread is one Claude Code conversation; native subagents stay off, and threads open
@@ -100,6 +125,9 @@ const ownerRulesOf = (path: string) => {
   const { allow, deny } = decoded.value.permissions ?? {};
   return { ...(allow === undefined ? {} : { allow }), ...(deny === undefined ? {} : { deny }) };
 };
+
+/** How long Claude Code has to end an interrupted turn before its process is closed (CHG-0039, provisional). */
+const interruptGraceMillis = 10_000;
 
 /** The longest timer Node allows, in milliseconds: about 24.8 days. */
 const noTimeLimit = 2147483647;
@@ -198,8 +226,11 @@ export const claudeHarnessLayer = (options: ClaudeOptions) =>
         if (session === undefined) return;
         sessions.delete(threadId);
         if (session.idleTimer !== null) clearTimeout(session.idleTimer);
+        if (session.turn?.interruptTimer != null) clearTimeout(session.turn.interruptTimer);
         if (!session.hasExited) session.child.kill();
       };
+
+      const write = (session: Session, input: object) => session.child.stdin?.write(`${JSON.stringify(input)}\n`);
       yield* Effect.addFinalizer(() => Effect.sync(() => [...sessions.keys()].forEach(close)));
 
       const start = (request: TurnRequest, signature: string, accessArgs: ReadonlyArray<string>) =>
@@ -220,7 +251,15 @@ export const claudeHarnessLayer = (options: ClaudeOptions) =>
             env: childEnvironment(),
             stdio: ["pipe", "pipe", "pipe"],
           });
-          const session: Session = { child, hasExited: false, idleTimer: null, lines, sessionId, signature };
+          const session: Session = {
+            child,
+            hasExited: false,
+            idleTimer: null,
+            lines,
+            sessionId,
+            signature,
+            turn: null,
+          };
           let stderr = "";
           child.stderr?.on("data", (chunk: Buffer) => {
             stderr = (stderr + chunk.toString()).slice(-2000);
@@ -262,17 +301,45 @@ export const claudeHarnessLayer = (options: ClaudeOptions) =>
           const session =
             current !== undefined && !current.hasExited ? current : yield* start(request, signature, accessArgs);
           if (session.idleTimer !== null) clearTimeout(session.idleTimer);
-          session.child.stdin?.write(
-            `${JSON.stringify({ message: { content: request.text, role: "user" }, type: "user" })}\n`,
-          );
+          const turn: RunningTurn = {
+            interruptTimer: null,
+            isInterrupting: false,
+            onEvent: request.onEvent,
+            untaken: new Set(),
+          };
+          session.turn = turn;
+          write(session, { message: { content: request.text, role: "user" }, type: "user" });
+
+          /**
+           * The turn's end. A steered message not yet taken in would start a turn of its own in this
+           * process, which nothing reads: the process closes instead, and the message, still
+           * undelivered, starts the next turn (CHG-0039, provisional).
+           */
+          const end = (usage: TokenUsage | null) => {
+            session.turn = null;
+            if (turn.interruptTimer !== null) clearTimeout(turn.interruptTimer);
+            if (turn.untaken.size > 0) close(request.threadId);
+            else session.idleTimer = setTimeout(() => close(request.threadId), idleMillis);
+            return { isInterrupted: turn.isInterrupting, sessionId: session.sessionId, usage };
+          };
 
           let draft = "";
           let reportedError: string | null = null;
           for (;;) {
             const item = yield* Queue.take(session.lines);
+            if (item._tag === "Exit" && turn.isInterrupting) {
+              close(request.threadId);
+              return { isInterrupted: true, sessionId: session.sessionId, usage: null };
+            }
             if (item._tag === "Exit") {
               close(request.threadId);
               return yield* new HarnessFailure({ reason: item.reason });
+            }
+            // A late timer from an earlier turn of this process is ignored.
+            if (item._tag === "Unconfirmed") {
+              if (!turn.isInterrupting) continue;
+              close(request.threadId);
+              return { isInterrupted: true, sessionId: session.sessionId, usage: null };
             }
             let event: StreamEvent;
             try {
@@ -280,7 +347,12 @@ export const claudeHarnessLayer = (options: ClaudeOptions) =>
             } catch {
               continue;
             }
-            if (event.type === "stream_event") {
+            if (event.type === "user") {
+              // Only steered messages are tracked; the turn's own message and tool results are not.
+              if (event.uuid !== undefined && turn.untaken.delete(event.uuid)) {
+                yield* request.onEvent({ _tag: "Delivered", messageId: event.uuid });
+              }
+            } else if (event.type === "stream_event") {
               const inner = event.event ?? {};
               if (inner.type === "message_start") draft = "";
               if (inner.type === "content_block_delta" && inner.delta?.type === "text_delta") {
@@ -294,6 +366,8 @@ export const claudeHarnessLayer = (options: ClaudeOptions) =>
               if (event.error !== undefined && event.error !== null) reportedError = text || String(event.error);
               else if (text.trim() !== "") yield* request.onEvent({ _tag: "Reply", text });
             } else if (event.type === "result") {
+              // An interrupted turn ends with an error result, which is no failure (probe of 2026-11-06).
+              if (turn.isInterrupting) return end(usageOf(event.usage));
               if (event.is_error === true || reportedError !== null) {
                 const reason =
                   reportedError ??
@@ -303,12 +377,47 @@ export const claudeHarnessLayer = (options: ClaudeOptions) =>
                 close(request.threadId);
                 return yield* new HarnessFailure({ reason });
               }
-              session.idleTimer = setTimeout(() => close(request.threadId), idleMillis);
-              return { sessionId: session.sessionId, usage: usageOf(event.usage) };
+              return end(usageOf(event.usage));
             }
           }
         }).pipe(Effect.onInterrupt(() => Effect.sync(() => close(request.threadId))));
 
-      return { runTurn };
+      /** The session whose turn is running for the thread, if any. */
+      const runningSessionOf = (threadId: string) => {
+        const session = sessions.get(threadId);
+        return session === undefined || session.hasExited || session.turn === null ? null : session;
+      };
+
+      // A user message written mid-turn joins it after the current tool call; its uuid comes back
+      // in the echo once taken in (probe of 2026-11-06, Claude Code 2.1.302).
+      const steer = (threadId: string, message: SteeredMessage) =>
+        Effect.sync(() => {
+          const session = runningSessionOf(threadId);
+          if (session === null || session.turn === null || session.turn.isInterrupting) return false;
+          session.turn.untaken.add(message.id);
+          write(session, { message: { content: message.text, role: "user" }, type: "user", uuid: message.id });
+          return true;
+        });
+
+      const interrupt = (threadId: string) =>
+        Effect.sync(() => {
+          const session = runningSessionOf(threadId);
+          const turn = session?.turn ?? null;
+          if (session === null || turn === null) return false;
+          if (turn.isInterrupting) return true;
+          turn.isInterrupting = true;
+          write(session, {
+            request: { subtype: "interrupt" },
+            request_id: crypto.randomUUID(),
+            type: "control_request",
+          });
+          turn.interruptTimer = setTimeout(
+            () => Queue.offerUnsafe(session.lines, { _tag: "Unconfirmed" }),
+            interruptGraceMillis,
+          );
+          return true;
+        });
+
+      return { interrupt, runTurn, steer };
     }),
   );

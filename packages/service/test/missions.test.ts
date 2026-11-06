@@ -134,7 +134,7 @@ describe("starting a mission", () => {
 });
 
 describe("follow-up messages", () => {
-  it.effect("keep their order and are answered after the running turn", () =>
+  it.effect("keep their order and, when queued, are answered together after the running turn", () =>
     Effect.gen(function* () {
       const started = yield* call({
         _tag: "StartMission",
@@ -144,8 +144,20 @@ describe("follow-up messages", () => {
         text: "First",
         workspacePath: null,
       });
-      yield* call({ _tag: "SendMessage", requestId: "r2", text: "Second", threadId: started.threadId });
-      yield* call({ _tag: "SendMessage", requestId: "r3", text: "Third", threadId: started.threadId });
+      yield* call({
+        _tag: "SendMessage",
+        delivery: "Queue",
+        requestId: "r2",
+        text: "Second",
+        threadId: started.threadId,
+      });
+      yield* call({
+        _tag: "SendMessage",
+        delivery: "Queue",
+        requestId: "r3",
+        text: "Third",
+        threadId: started.threadId,
+      });
 
       yield* advance(REPLY_DELAY);
       yield* advance(REPLY_DELAY);
@@ -174,7 +186,7 @@ describe("follow-up messages", () => {
         workspacePath: null,
       });
       yield* advance(REPLY_DELAY);
-      yield* call({ _tag: "SendMessage", requestId: "r2", text: "Two", threadId: started.threadId });
+      yield* call({ _tag: "SendMessage", delivery: null, requestId: "r2", text: "Two", threadId: started.threadId });
       expect((yield* read(started.missionId)).thread.state).toBe("Running");
       yield* advance(REPLY_DELAY);
       const detail = yield* read(started.missionId);
@@ -187,6 +199,7 @@ describe("follow-up messages", () => {
     Effect.gen(function* () {
       const failure = yield* failureOf({
         _tag: "SendMessage",
+        delivery: null,
         requestId: "r1",
         text: "Hi",
         threadId: "missing" as never,

@@ -68,6 +68,14 @@ const make = Effect.gen(function* () {
         AnswerQuestion: (given) => approvals.answer(given.questionId, given.answer, given.message, "desktop"),
         BrowseFolders: (browse) => browseFolders(browse.path, browse.shouldIncludeHidden),
         CreateFolder: (create) => createFolder(create.parent, create.name),
+        InterruptThread: (given) =>
+          threads
+            .interrupt(given.threadId)
+            .pipe(
+              Effect.flatMap((isInterrupted) =>
+                isInterrupted ? Effect.succeed(null) : invalid("This thread is not running."),
+              ),
+            ),
         ListMissions: () => listMissions,
         ListOpenQuestions: () => listOpenQuestions,
         OpenThread: (open) =>
@@ -93,10 +101,11 @@ const make = Effect.gen(function* () {
         ResumeThread: (resume) => threads.resume(resume.threadId).pipe(Effect.as(null)),
         RetryThread: (retry) => threads.retry(retry.threadId).pipe(Effect.as(null)),
         SendMessage: (send) =>
-          nonBlank(send.text).pipe(
-            Effect.andThen((text) => once(send.requestId, send._tag, insertUserMessage(send.threadId, text))),
-            Effect.tap(() => threads.wake(send.threadId)),
-          ),
+          Effect.gen(function* () {
+            const text = yield* nonBlank(send.text);
+            const delivery = send.delivery ?? (yield* readSettings).defaultDelivery;
+            return yield* once(send.requestId, send._tag, insertUserMessage(send.threadId, text, delivery === "Queue"));
+          }).pipe(Effect.tap(() => threads.wake(send.threadId))),
         StartMission: (start) =>
           nonBlank(start.text).pipe(
             Effect.andThen((text) =>

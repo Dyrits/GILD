@@ -7,6 +7,8 @@ import { notFound } from "./errors.ts";
 interface NewMessage {
   /** The sending thread, for a thread message. */
   readonly fromThreadId: string | null;
+  /** Whether it waits for the receiver's next turn instead of joining a running one (CHG-0039). */
+  readonly isQueued: boolean;
   /** Whether it is a result reported by a thread beneath (thread-tree, Results). */
   readonly isResult: boolean;
   readonly text: string;
@@ -26,17 +28,17 @@ export const insertMessage = (message: NewMessage) =>
     const [next] = yield* sql<{ sequence: number }>`
       SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM messages WHERE thread_id = ${message.threadId}`;
     yield* sql`INSERT INTO messages
-        (id, mission_id, thread_id, sender_kind, sender_thread_id, is_result, text, sequence, sent_at)
+        (id, mission_id, thread_id, sender_kind, sender_thread_id, is_result, is_queued, text, sequence, sent_at)
       VALUES (${messageId}, ${thread.missionId}, ${message.threadId},
         ${message.fromThreadId === null ? "user" : "thread"}, ${message.fromThreadId}, ${message.isResult ? 1 : 0},
-        ${message.text}, ${next?.sequence ?? 1}, ${now})`;
+        ${message.isQueued ? 1 : 0}, ${message.text}, ${next?.sequence ?? 1}, ${now})`;
     yield* sql`UPDATE missions SET last_activity_at = ${now} WHERE id = ${thread.missionId}`;
     return messageId as MessageId;
   });
 
-/** Records an owner message for a thread. Callers run it in a transaction. */
-export const insertUserMessage = (threadId: string, text: string) =>
-  insertMessage({ fromThreadId: null, isResult: false, text, threadId }).pipe(
+/** Records an owner message for a thread, queued or to steer a running turn. Callers run it in a transaction. */
+export const insertUserMessage = (threadId: string, text: string, isQueued: boolean) =>
+  insertMessage({ fromThreadId: null, isQueued, isResult: false, text, threadId }).pipe(
     Effect.map((messageId) => ({ messageId }) satisfies SendMessageResult),
   );
 

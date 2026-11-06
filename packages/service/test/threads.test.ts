@@ -59,7 +59,7 @@ const start = (text: string, model: ModelChoice = "default") =>
     workspacePath: null,
   });
 const send = (threadId: ThreadId, text: string) =>
-  call({ _tag: "SendMessage", requestId: `send-${++requestCount}`, text, threadId });
+  call({ _tag: "SendMessage", delivery: null, requestId: `send-${++requestCount}`, text, threadId });
 const open = (parentThreadId: ThreadId, text: string, model: ModelChoice = "default") =>
   call({ _tag: "OpenThread", effort: "default", model, parentThreadId, requestId: `open-${++requestCount}`, text });
 

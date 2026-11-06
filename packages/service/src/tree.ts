@@ -66,6 +66,7 @@ const insertThread = (opening: Opening) =>
         ${opening.effort ?? parent.effort}, ${parent.workspaceId}, ${titleOf(opening.title ?? opening.text)}, ${opening.isOpenedByAgent ? 1 : 0})`;
     const messageId = yield* insertMessage({
       fromThreadId: opening.isOpenedByAgent ? opening.parentId : null,
+      isQueued: false,
       isResult: false,
       text: opening.text,
       threadId,
@@ -128,6 +129,14 @@ export const isWithinReach = (fromId: string, toId: string) =>
     return rows.length > 0;
   });
 
+/** Whether a thread is directly beneath another, the only threads it may interrupt (thread-messaging). */
+export const isBeneath = (parentId: string, childId: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const rows = yield* sql<{ id: string }>`SELECT id FROM threads WHERE id = ${childId} AND parent_id = ${parentId}`;
+    return rows.length > 0;
+  });
+
 /**
  * Records the caller's result: it goes to the parent as a thread message, and the turn now running ends
  * the caller Done. Returns the parent, or null for a top thread. Callers run it in a transaction.
@@ -143,7 +152,13 @@ export const reportResult = (threadId: string, result: string) =>
         SELECT id FROM turns WHERE thread_id = ${threadId} AND status = 'running' ORDER BY started_at DESC LIMIT 1)
       WHERE id = ${threadId}`;
     if (thread.parentId !== null) {
-      yield* insertMessage({ fromThreadId: threadId, isResult: true, text: result, threadId: thread.parentId });
+      yield* insertMessage({
+        fromThreadId: threadId,
+        isQueued: false,
+        isResult: true,
+        text: result,
+        threadId: thread.parentId,
+      });
     }
     return thread.parentId;
   });

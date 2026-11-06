@@ -17,6 +17,14 @@ export const styles = StyleSheet.create({
     paddingVertical: 8,
   },
   buttonDisabled: { opacity: 0.5 },
+  buttonSecondary: {
+    borderColor: "#111827",
+    borderRadius: 6,
+    borderWidth: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+  },
+  buttonSecondaryText: { color: "#111827", fontSize: 13, fontWeight: "600" },
   buttonText: { color: "#fff", fontWeight: "600" },
   chip: {
     borderColor: "#d1d5db",
@@ -32,6 +40,7 @@ export const styles = StyleSheet.create({
   chipTextSelected: { color: "#fff" },
   code: { fontFamily: "monospace", fontSize: 13 },
   composer: { gap: 8 },
+  composerActions: { alignItems: "center", flexDirection: "row", gap: 8, justifyContent: "flex-end" },
   details: { backgroundColor: "#fff", borderRadius: 6, gap: 4, padding: 8 },
   draft: { borderStyle: "dashed", opacity: 0.7 },
   error: { color: "#b91c1c" },

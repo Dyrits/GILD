@@ -521,3 +521,37 @@ Reason: The first slice's boundary is a mission with threads beneath it that rep
 References: documentation/work-in-progress.md (Batch 5), documentation/capabilities/thread-tree/specifications.md, documentation/capabilities/thread-messaging/specifications.md, documentation/first-slice-design.md
 Validation: The owner answered three questions on 2026-11-06.
 Evidence: scope, "Tree core (Recommended)"; view, "Side tree + chat (Recommended)"; hooks, "Tell threads (Recommended)".
+
+## CHG-0038 · 2026-11-06 · Batch 5 delivered: thread tree core
+
+Type: Code
+Event: Delivery
+Scope: First slice, batch 5; Thread tree; Thread messaging
+
+Summary: Threads open threads beneath themselves (`open_thread`, with an optional short title), report results to their parent and become Done (`report_result`), and message their parent and the threads directly beneath them (`send_thread_message`), delivered at the receiver's next turn (CHG-0037). Waiting, the running limit of 8, the owner's depth limit of 4, Stop without cascade with kept messages, and Resume are in place. The conversation screen shows the side tree of the mission's threads. Provisional until decided: Waiting threads become Idle on startup; the top thread's result only marks it Done; no mid-turn delivery; no phone layout for the tree.
+References: documentation/work-in-progress.md (Batch 5); documentation/verification/2026-11-06-thread-tree.md; packages/service/src/tree.ts, waker.ts, threads.ts, mcp.ts, store.ts; apps/app/src/threadTree.tsx, conversation.tsx
+Validation: `OPENMISSION_LIVE_CLAUDE=1 bun run test` passed 89 of 89; typecheck, Biome, and the desktop build passed; eight mutations each failed at least one check. The owner looked at the side tree in the desktop window and accepted it on 2026-11-06. Not verified: the Finder dialog itself and the desktop notification.
+Evidence: The owner's answer "Accept" to the batch 5 acceptance question.
+
+## CHG-0039 · 2026-11-06 · Batch 6 agreed: interrupts and steering
+
+Type: Documentation
+Event: Agreement
+Scope: First slice, batch 6; Thread messaging
+
+Summary: A message to a running thread, from the owner or from another thread, joins its current turn (steering) instead of waiting for the next one. While a thread runs, the composer's Send uses the owner's default (Steer unless changed in Settings) and a smaller second button does the other one, Queue or Steer, for that message. A queued message starts the thread's next turn. The owner can interrupt any running thread with an Interrupt button next to Send; a thread can interrupt a running thread directly beneath it with `interrupt_thread`, which takes the thread and refuses others with the reason. An interrupted thread's turn ends, its open questions are withdrawn, and it becomes Idle, or Waiting while threads beneath it are Running or Waiting; this amends the specification's "becomes Idle". Messages that had not yet reached the turn stay undelivered and start the next turn. Stop is unchanged. Mechanism, probed on Claude Code 2.1.302: a user message written to a running `-p` stream-json process joins the turn after the current tool call; `--replay-user-messages` echoes each message when the turn takes it in, so OpenMission knows which ones were delivered; a message that arrives after the turn's result starts a new turn in the same process; the `interrupt` control request ends the turn with `error_during_execution` and keeps the process usable.
+Reason: Today a parent cannot redirect a busy child, and the owner can only wait or Stop.
+References: documentation/capabilities/thread-messaging/specifications.md#delivery, documentation/capabilities/thread-messaging/specifications.md#interruptions, documentation/work-in-progress.md (Batch 6)
+Validation: The owner chose batch 6 and answered three questions on 2026-11-06.
+Evidence: batch, "Interrupts + steering (Recommended)"; composer, "Send + Queue button (Recommended)"; interrupt, "Composer button (Recommended)"; state, "Waiting (Recommended)".
+
+## CHG-0040 · 2026-11-06 · Batch 6 delivered: interrupts and steering
+
+Type: Code
+Event: Delivery
+Scope: First slice, batch 6; Thread messaging
+
+Summary: Messages to a running thread join its current turn: thread messages and results always, the owner's when steered; Claude Code takes them in after the current tool call and echoes their identifier, which records them as delivered (CHG-0039). An owner message sent as Queue waits for the next turn and shows "Queued for the next turn". While a thread runs, the composer shows Interrupt, the other delivery, and Send, which follows the owner's default in Settings (Steer unless changed). The owner interrupts any running thread, and a thread interrupts a running thread directly beneath it with `interrupt_thread`; the turn ends, open questions are withdrawn, the thread becomes Done, Waiting, or Idle, and undelivered messages start its next turn. Provisional until decided: a message not taken in by a turn's end closes the Claude Code process and is sent again at the next turn; an unconfirmed interrupt closes the process after 10 seconds.
+References: documentation/work-in-progress.md (Batch 6); documentation/verification/2026-11-06-steering.md; packages/service/src/claude.ts, execution.ts, threads.ts, mcp.ts, tree.ts, waker.ts, settings.ts, store.ts; apps/app/src/controls.tsx, conversation.tsx, settings.tsx
+Validation: `OPENMISSION_LIVE_CLAUDE=1 bun run test` passed 107 of 107; typecheck, Biome, and the desktop build passed; eight mutations each failed at least one check. Driven in the window on the fake harness after Claude Code's session limit stopped the live drive. The owner accepted the composer on 2026-11-06. Not verified: a real Claude Code turn steered or interrupted in the window.
+Evidence: The owner's answer "Accept, hand-off (skill), commit and push." to the batch 6 acceptance question.

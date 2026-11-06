@@ -249,7 +249,13 @@ describe("starting a mission in a workspace", () => {
       const started = yield* start("Hello", gone);
       yield* settle(started.missionId, repliedWith(1));
       rmSync(gone, { recursive: true });
-      yield* call({ _tag: "SendMessage", requestId: "again", text: "Again", threadId: started.threadId });
+      yield* call({
+        _tag: "SendMessage",
+        delivery: null,
+        requestId: "again",
+        text: "Again",
+        threadId: started.threadId,
+      });
       const detail = yield* settle(started.missionId, (current) => current.thread.state === "Attention");
       expect(detail.thread.blocker).toBe("MissingWorkspace");
       expect(detail.thread.workspace?.isMissing).toBe(true);
@@ -267,8 +273,14 @@ describe("starting a mission in a workspace", () => {
       const started = yield* start("Hello", gone);
       yield* settle(started.missionId, repliedWith(1));
       rmSync(gone, { recursive: true });
-      yield* call({ _tag: "SendMessage", requestId: "again", text: "Again", threadId: started.threadId });
-      yield* call({ _tag: "SendMessage", requestId: "more", text: "More", threadId: started.threadId });
+      yield* call({
+        _tag: "SendMessage",
+        delivery: null,
+        requestId: "again",
+        text: "Again",
+        threadId: started.threadId,
+      });
+      yield* call({ _tag: "SendMessage", delivery: null, requestId: "more", text: "More", threadId: started.threadId });
       yield* settle(started.missionId, (current) => current.thread.state === "Attention");
       mkdirSync(gone);
       yield* call({ _tag: "RetryThread", threadId: started.threadId });
@@ -286,7 +298,13 @@ describe("starting a mission in a workspace", () => {
       const started = yield* start("Hello", gone);
       yield* settle(started.missionId, repliedWith(1));
       rmSync(gone, { recursive: true });
-      yield* call({ _tag: "SendMessage", requestId: "again", text: "Again", threadId: started.threadId });
+      yield* call({
+        _tag: "SendMessage",
+        delivery: null,
+        requestId: "again",
+        text: "Again",
+        threadId: started.threadId,
+      });
       yield* settle(started.missionId, (current) => current.thread.state === "Attention");
       yield* call({ _tag: "RetryThread", threadId: started.threadId });
       const detail = yield* settle(started.missionId, (current) => current.thread.state === "Attention");
@@ -313,7 +331,13 @@ describe("starting a mission in a workspace", () => {
       const started = yield* start("Hello", gone);
       yield* settle(started.missionId, repliedWith(1));
       rmSync(gone, { recursive: true });
-      yield* call({ _tag: "SendMessage", requestId: "again", text: "Again", threadId: started.threadId });
+      yield* call({
+        _tag: "SendMessage",
+        delivery: null,
+        requestId: "again",
+        text: "Again",
+        threadId: started.threadId,
+      });
       yield* settle(started.missionId, (current) => current.thread.state === "Attention");
       return started;
     }).pipe(Effect.provide(layer));
@@ -332,7 +356,13 @@ describe("starting a mission in a workspace", () => {
       const started = yield* start("Hello", gone);
       yield* settle(started.missionId, repliedWith(1));
       rmSync(gone, { recursive: true });
-      yield* call({ _tag: "SendMessage", requestId: "again", text: "Again", threadId: started.threadId });
+      yield* call({
+        _tag: "SendMessage",
+        delivery: null,
+        requestId: "again",
+        text: "Again",
+        threadId: started.threadId,
+      });
       yield* settle(started.missionId, (current) => current.thread.state === "Attention");
       yield* call({ _tag: "StopThread", threadId: started.threadId });
       const detail = yield* read(started.missionId);
