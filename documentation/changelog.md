@@ -567,3 +567,14 @@ Reason: Agent-opened threads crowd the tree, threads cannot be removed, and two 
 References: documentation/capabilities/thread-tree/specifications.md#threads-opened-by-agents, documentation/capabilities/thread-tree/specifications.md#deleting, documentation/capabilities/thread-messaging/specifications.md#chatter-guard, documentation/work-in-progress.md (Batch 7)
 Validation: The owner chose batch 7 and answered three questions on 2026-11-06. The journal in a new thread's starting context (needs mission-journal) and `@` references (need mission-coordination's reference resolver) stay staged.
 Evidence: scope, "Pliage+suppr.+chatter (Recommandé)"; chatter, "Continuer / Arrêter (Recommandé)"; deletion, "Effacement définitif (Recommandé)".
+
+## CHG-0042 · 2026-11-06 · Batch 7 delivered: folding, deleting, chatter guard
+
+Type: Code
+Event: Delivery
+Scope: First slice, batch 7; Thread tree; Thread messaging
+
+Summary: Folding, deleting, and the chatter guard as agreed in CHG-0041. With **Show threads opened by agents** off, agent-opened threads fold into their opener, which shows "+N threads" and unfolds on selection; Attention and Failed threads stay visible. Deleting a thread deletes its subtree after one confirmation naming the count and the running ones, stopping running threads first; deleting the top thread deletes the mission with its scratch folder and mission-scoped standing permissions, never a workspace folder. Two threads that exchange the threshold's number of messages (default 20) without the owner or a result between them both enter Attention; further messages between them are kept; **Let them continue** resets the count and delivers them, **Stop both** stops both. The owner kept the pause ending both threads' running turns. Codex's implementation choices beyond the agreement are listed in the proof.
+References: documentation/work-in-progress.md (Batch 7); documentation/verification/2026-11-06-batch-7.md; packages/service/src/chatter.ts, deleting.ts, lifecycle.ts, scratch.ts, store.ts, threads.ts; apps/app/src/labels.ts
+Validation: `bun run test` passed 122 with 5 skipped; typecheck, `bun run check`, and the desktop build passed; 11 of 11 mutations caught. Driven in the window on the fake harness. The owner accepted the look on 2026-11-06; the interface gets a later pass, including shortening titles in notices by available width (backlog, Interface pass).
+Evidence: The owner's answers: look, "Yes, it is okay. And the UI part will be taking care later."; chatter pause, "Keep ending turns"; notice titles, "It doesn't matter much for now, but shorten it depending of the UI size."

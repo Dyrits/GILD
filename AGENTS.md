@@ -24,4 +24,4 @@
 
 ## Handoffs
 
-To resume batch 7 (folding, deleting, chatter guard; built, owner's look pending), read the [current handoff](.agents/handoffs/2026-11-06-1105-batch-7-built.md). Handoffs are shared and committed.
+Batch 7 is delivered (CHG-0042); to resume, read the [current handoff](.agents/handoffs/2026-11-06-1105-batch-7-built.md). Handoffs are shared and committed.
