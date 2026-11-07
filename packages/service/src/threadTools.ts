@@ -262,6 +262,13 @@ export const toolListing = Object.entries(threadTools).map(([name, tool]) => ({
   name,
 }));
 
+/**
+ * The tools a thread's harness lists: `answer_prompt` only for a harness that asks its permission prompts
+ * through it, Claude Code; the others ask the owner in-process.
+ */
+export const toolListingOf = (hasPromptTool: boolean) =>
+  hasPromptTool ? toolListing : toolListing.filter((tool) => tool.name !== "answer_prompt");
+
 /** Whether a name is one of the thread tools. */
 export const isThreadToolName = (name: string): name is ThreadToolName => Object.hasOwn(threadTools, name);
 

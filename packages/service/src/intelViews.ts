@@ -1,5 +1,5 @@
 import type { IntelChange, IntelScope, IntelStateFilter, IntelView } from "@canopy/contracts";
-import { Clock, Effect } from "effect";
+import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import {
   type IntelRow,
@@ -13,9 +13,9 @@ import {
 } from "./intel.ts";
 import type { ToolScope } from "./intelChanges.ts";
 import { readFading, stateOfIntel } from "./intelFading.ts";
-import { recordFadingStepsOf } from "./intelHistory.ts";
 import { listDeletedIntel } from "./intelHistoryViews.ts";
 import { listIntelProposals } from "./intelProposals.ts";
+import { countUses } from "./intelStore.ts";
 import { wordsOf } from "./matching.ts";
 
 // What the owner and threads read of intel: the panel, a thread's changes, and search_intel.
@@ -53,7 +53,7 @@ const changeOf = ({ scopeThreadTitle, missionTitle, isTopThread, workspaceName, 
   }) as IntelChange;
 
 /** Every change awaiting the owner's approval, oldest first. */
-export const listAwaitingChanges = Effect.gen(function* () {
+const listAwaitingChanges = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const rows = yield* sql<ChangeRow>`${selectChanges(sql)} WHERE c.status = 'Awaiting' ORDER BY c.at`;
   return rows.map(changeOf);
@@ -121,21 +121,6 @@ const rankByWords = (rows: ReadonlyArray<IntelRow>, query: string) => {
     .toSorted((a, b) => b.score - a.score)
     .map(({ row }) => row);
 };
-
-/** Counts one use of each intel: it fades slower, and a dormant one is active again (scoped-intel, Fading). */
-const countUses = (threadId: string, intelIds: ReadonlyArray<string>) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    const now = yield* Clock.currentTimeMillis;
-    // A use resets fading, so the steps it took so far are stored first (scoped-intel, History and undo).
-    yield* recordFadingStepsOf(intelIds);
-    yield* sql`UPDATE intels SET uses = uses + 1, last_used_at = ${now} WHERE id IN ${sql.in(intelIds)}`;
-    // Where each use happened is the evidence for narrowing (scoped-intel, Widening and narrowing).
-    for (const intelId of intelIds) {
-      yield* sql`INSERT INTO intel_uses (intel_id, at, workspace_id)
-        SELECT ${intelId}, ${now}, workspace_id FROM threads WHERE id = ${threadId}`;
-    }
-  });
 
 /** The thread's intel that search reads: in its scope and not archived. */
 const searchableOf = (threadId: string) =>

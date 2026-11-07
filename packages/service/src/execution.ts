@@ -1,6 +1,7 @@
 import type { ApprovalLevel, EffortChoice, HarnessName, ModelChoice, TokenUsage } from "@canopy/contracts";
-import { Context, Deferred, type Duration, Effect, Layer, Schema } from "effect";
+import { Context, Effect, Schema } from "effect";
 
+/** What a harness reports while a turn runs. */
 export type HarnessEvent =
   /** A complete assistant message, to be saved. */
   | { readonly _tag: "Reply"; readonly text: string }
@@ -20,14 +21,32 @@ export interface ThreadAccess {
   readonly approvalLevel: ApprovalLevel;
   /** Whether the thread works in a workspace, whose sandbox may fetch dependencies (CHG-0034). */
   readonly isInWorkspace: boolean;
-  /** The thread's own MCP endpoint serving `request_approval` and the permission prompt tool. */
+  /** The thread's own MCP endpoint serving the thread tools, and Claude Code's permission prompt tool (ADR 0005). */
   readonly mcpUrl: string;
   /** The sentences of the standing permissions that apply to the thread. */
   readonly permissions: ReadonlyArray<string>;
 }
 
+/** One action a harness asks permission for, named as Claude Code names its tools (`Bash`, `Edit`, …). */
+export interface HarnessPrompt {
+  readonly input: unknown;
+  readonly toolName: string;
+}
+
+/** The owner's answer to a harness prompt: whether the action may run, and what to tell the harness otherwise. */
+export interface PromptAnswer {
+  readonly isAllowed: boolean;
+  readonly text: string;
+}
+
+/** Everything one turn of a thread needs from Canopy. */
 export interface TurnRequest {
   readonly access: ThreadAccess;
+  /**
+   * Asks the owner, through Approvals, about one action the harness wants to run, waiting with no time limit
+   * (action-approval). A failure to answer ends the turn.
+   */
+  readonly askOwner: (prompt: HarnessPrompt) => Effect.Effect<PromptAnswer, HarnessFailure>;
   /**
    * The provider account's own folder, where the harness keeps its sign-in and sessions, or null for the
    * harness's own sign-in on this computer (provider-accounts).
@@ -51,6 +70,7 @@ export interface TurnRequest {
   readonly threadId: string;
 }
 
+/** How a turn ended, with what it cost. */
 export interface TurnOutcome {
   /**
    * The turn's API-key cost when the harness reports one; null counts the turn's tokens as subscription
@@ -64,6 +84,18 @@ export interface TurnOutcome {
   readonly usage: TokenUsage | null;
 }
 
+/** How long a harness has to end an interrupted turn before its process is closed (CHG-0039, provisional). */
+export const interruptGraceMillis = 10_000;
+
+/** The outcome of an interrupted turn: its usage when the harness reported any, and never a cost. */
+export const interruptedOutcomeOf = (sessionId: string, usage: TokenUsage | null = null): TurnOutcome => ({
+  cost: null,
+  isInterrupted: true,
+  sessionId,
+  usage,
+});
+
+/** A turn the harness could not run, with the reason the owner reads. */
 export class HarnessFailure extends Schema.TaggedError<HarnessFailure>()("HarnessFailure", { reason: Schema.String }) {}
 
 /** What one harness adapter offers: one turn of a thread at a time, which can be steered and interrupted. */
@@ -100,127 +132,6 @@ export const routeHarnesses = (adapters: Record<HarnessName, HarnessAdapter>): H
   };
 };
 
-/** Calls one tool on a thread's MCP endpoint and returns its text, as Claude Code would. */
-export const callThreadTool = (mcpUrl: string, name: string, args: unknown) =>
-  Effect.promise(async () => {
-    const response = await fetch(mcpUrl, {
-      body: JSON.stringify({ id: 1, jsonrpc: "2.0", method: "tools/call", params: { arguments: args, name } }),
-      headers: { accept: "application/json, text/event-stream", "content-type": "application/json" },
-      method: "POST",
-    });
-    const body = await response.text();
-    const data = body
-      .split("\n")
-      .filter((line) => line.startsWith("data: "))
-      .map((line) => line.slice("data: ".length))
-      .join("");
-    const parsed = JSON.parse(data) as { result: { content: Array<{ text: string }> } };
-    return parsed.result.content.map((block) => block.text).join("");
-  });
-
-// The fake's script: a line `ask <json>` calls request_approval, `prompt <tool> <json input>`
-// raises a harness permission prompt, and `call <tool> <json>` calls any thread tool, each
-// answered before the echo; `wait <millis>` keeps the turn running; `cwd` and `context`
-// report the working folder and the starting context; `spend <tokens> [cost]` reports spending at the turn's end.
-const scriptedCall = (request: TurnRequest, line: string, turn: FakeTurn) => {
-  const access = request.access;
-  const spend = /^spend (\d+)(?: (\d+(?:\.\d+)?))?$/.exec(line);
-  if (spend !== null) {
-    return Effect.sync(() => {
-      turn.spent.tokens += Number(spend[1]);
-      if (spend[2] !== undefined) turn.spent.cost = (turn.spent.cost ?? 0) + Number(spend[2]);
-      turn.spent.isReported = true;
-      return `spent ${spend[1]}`;
-    });
-  }
-  if (line === "cwd") return Effect.succeed(request.cwd);
-  if (line === "context")
-    return Effect.succeed([request.context, request.note].filter((part) => part !== null).join("\n\n"));
-  const wait = /^wait (\d+)$/.exec(line);
-  if (wait !== null) return Effect.sleep(Number(wait[1])).pipe(Effect.as(`waited ${wait[1]}`));
-  const tool = /^call (\S+) (.*)$/.exec(line);
-  if (tool !== null) return callThreadTool(access.mcpUrl, tool[1] ?? "", JSON.parse(tool[2] ?? "{}"));
-  if (line.startsWith("ask ")) return callThreadTool(access.mcpUrl, "request_approval", JSON.parse(line.slice(4)));
-  const prompt = /^prompt (\S+) (.*)$/.exec(line);
-  if (prompt !== null) {
-    return callThreadTool(access.mcpUrl, "answer_prompt", {
-      input: JSON.parse(prompt[2] ?? "{}"),
-      tool_name: prompt[1] ?? "",
-    });
-  }
-  return null;
-};
-
-/** A fake turn in progress: the messages steered into it, and its interrupt signal. */
-interface FakeTurn {
-  readonly interrupted: Deferred.Deferred<void>;
-  readonly onEvent: TurnRequest["onEvent"];
-  /** What the turn's `spend` lines reported. */
-  readonly spent: { tokens: number; cost: number | null; isReported: boolean };
-  readonly steered: Array<string>;
-}
-
-/**
- * A deterministic harness for checks: it runs scripted tool calls, then echoes after a delay. Messages
- * steered in while it runs are taken in at once, run the same way, and appended to the echo after " + ".
- */
-export const fakeHarnessLayer = (replyDelay: Duration.Input) =>
-  Layer.sync(Harness, () => {
-    const running = new Map<string, FakeTurn>();
-    const script = (request: TurnRequest, turn: FakeTurn) =>
-      Effect.gen(function* () {
-        yield* Effect.sleep(replyDelay);
-        const echoOf = (text: string) =>
-          Effect.gen(function* () {
-            const results: Array<string> = [];
-            for (const line of text.split("\n")) {
-              const call = scriptedCall(request, line.trim(), turn);
-              if (call !== null) results.push(yield* call);
-            }
-            return results.length === 0 ? text : results.join(" | ");
-          });
-        let echo = yield* echoOf(request.text);
-        // Steered messages are acted on too, including those steered in while one is acted on.
-        for (let index = 0; index < turn.steered.length; index++) {
-          echo += ` + ${yield* echoOf(turn.steered[index] ?? "")}`;
-        }
-        running.delete(request.threadId);
-        yield* request.onEvent({ _tag: "Reply", text: `Echo: ${echo}` });
-        return false;
-      });
-    return {
-      interrupt: (threadId) =>
-        Effect.suspend(() => {
-          const turn = running.get(threadId);
-          return turn === undefined ? Effect.succeed(false) : Deferred.succeed(turn.interrupted, void 0);
-        }),
-      runTurn: (request) =>
-        Effect.gen(function* () {
-          const turn: FakeTurn = {
-            interrupted: yield* Deferred.make<void>(),
-            onEvent: request.onEvent,
-            spent: { cost: null, isReported: false, tokens: 0 },
-            steered: [],
-          };
-          running.set(request.threadId, turn);
-          const isInterrupted = yield* Effect.raceFirst(
-            script(request, turn),
-            Deferred.await(turn.interrupted).pipe(Effect.as(true)),
-          ).pipe(Effect.ensuring(Effect.sync(() => running.delete(request.threadId))));
-          const { cost, isReported, tokens } = turn.spent;
-          return {
-            cost: isReported ? cost : null,
-            isInterrupted,
-            sessionId: request.sessionId ?? `fake-${request.threadId}`,
-            usage: isReported ? { cacheCreation: 0, cacheRead: 0, input: tokens, output: 0 } : null,
-          };
-        }),
-      steer: (threadId, message) =>
-        Effect.suspend(() => {
-          const turn = running.get(threadId);
-          if (turn === undefined) return Effect.succeed(false);
-          turn.steered.push(message.text);
-          return turn.onEvent({ _tag: "Delivered", messageId: message.id }).pipe(Effect.as(true));
-        }),
-    };
-  });
+/** The turn's message as the harness receives it: the note (journal, intel, budget) first, set off from the messages. */
+export const turnMessageOf = (request: TurnRequest) =>
+  request.note === null ? request.text : `${request.note}\n\n---\n\n${request.text}`;

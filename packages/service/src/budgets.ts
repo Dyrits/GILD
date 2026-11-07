@@ -1,6 +1,7 @@
 import type { BudgetLimits } from "@canopy/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
+import { changed } from "./commands.ts";
 import { invalid, notFound } from "./errors.ts";
 import { haltThreads, holdQuestionHolder, holdThread, releaseThread, waitsInTurn } from "./lifecycle.ts";
 import {
@@ -82,8 +83,8 @@ const holdThreads = (ids: ReadonlyArray<string>) =>
 
 /**
  * Stops work under every reached budget over the mission: running threads go to Attention and the
- * scope's question opens, held by `holderId` unless one is open. Returns the threads whose turns must
- * be cancelled. Callers run it in a transaction.
+ * scope's question opens, held by `holderId` unless one is open. Returns the threads whose turns the
+ * command must cancel. Callers run it in a transaction.
  */
 export const enforceBudgets = (missionId: string, holderId: string | null) =>
   Effect.gen(function* () {
@@ -119,7 +120,7 @@ export const holdIfReached = (threadId: string, missionId: string) =>
 
 /**
  * Ends stops whose budget is no longer reached and releases the threads they held, which become Idle.
- * Returns the released threads to wake. Callers run it in a transaction.
+ * Returns the released threads, for the command that releases them to wake. Callers run it in a transaction.
  */
 export const releaseBudgets = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
@@ -152,8 +153,8 @@ export const releaseBudgets = Effect.gen(function* () {
 });
 
 /**
- * The owner answers Stop: the stop's held threads become Stopped and keep their messages. Returns the
- * missions whose threads stopped, to wake. Callers run it in a transaction.
+ * The owner answers Stop: the stop's held threads become Stopped and keep their messages, and the missions
+ * whose threads stopped are woken.
  */
 export const stopAtBudget = (stopId: string) =>
   Effect.gen(function* () {
@@ -171,13 +172,13 @@ export const stopAtBudget = (stopId: string) =>
       held.map((thread) => thread.id),
       "Stopped",
     );
-    return [...new Set(held.map((thread) => thread.missionId))];
+    return changed(null, { missionsToWake: [...new Set(held.map((thread) => thread.missionId))] });
   });
 
 /**
  * The owner sets, changes, or removes a mission's budget: the line is recorded, then work stops if the
- * budget is now reached, or held threads are released. Callers run it in a transaction, then cancel
- * the halted turns and wake the released threads.
+ * budget is now reached, or held threads are released: the halted turns are cancelled and the released
+ * threads woken.
  */
 export const setMissionBudget = (missionId: string, limits: BudgetLimits) =>
   Effect.gen(function* () {
@@ -193,14 +194,17 @@ export const setMissionBudget = (missionId: string, limits: BudgetLimits) =>
     const halted = (yield* reachedScopesOf(missionId)).isMission
       ? yield* enforceBudgets(missionId, mission.topThreadId)
       : [];
-    return { halted, released: yield* releaseBudgets };
+    return changed(null, { threadsToWake: yield* releaseBudgets, turnsToCancel: halted });
   });
 
-/** After the global budget changed: work stops if it is reached, or held threads are released. Callers run it in a transaction. */
+/**
+ * After the global budget changed: work stops if it is reached, or held threads are released; the halted
+ * turns are cancelled and the released threads woken.
+ */
 export const applyGlobalBudget = Effect.gen(function* () {
   const global = yield* readGlobalBudget;
   const halted = isReached(global.limits, global.spent) ? yield* stopScope(null, null) : [];
-  return { halted, released: yield* releaseBudgets };
+  return changed(null, { threadsToWake: yield* releaseBudgets, turnsToCancel: halted });
 });
 
 /** Records a new mission's budget, copied from the default, with its line. Callers run it in a transaction. */

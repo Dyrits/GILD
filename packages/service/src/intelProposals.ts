@@ -5,7 +5,8 @@ import { invalid } from "./errors.ts";
 import { type IntelRow, scopeLabelOf, selectIntels } from "./intel.ts";
 import { isSameOf } from "./intelDuplicates.ts";
 import { type Fading, halfLifeDaysOf, readFading, stateOfIntel } from "./intelFading.ts";
-import { owner, trackChange } from "./intelHistory.ts";
+import { owner } from "./intelHistory.ts";
+import { mergeIntels, moveIntel } from "./intelStore.ts";
 import { dayMillis } from "./settings.ts";
 
 // Widening and narrowing proposed from evidence (scoped-intel): the same intel saved in several workspaces
@@ -137,51 +138,6 @@ const readEvidence = Effect.gen(function* () {
 /** The proposals awaiting the owner in the intel panel. */
 export const listIntelProposals = readEvidence.pipe(Effect.map((found) => found.map((evidence) => evidence.proposal)));
 
-/** Deletes an intel merged into another, declining its changes awaiting approval as a deletion does. */
-const mergeInto = (keptId: string, row: IntelRow) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    const now = yield* Clock.currentTimeMillis;
-    yield* sql`DELETE FROM intels WHERE id = ${row.id}`;
-    yield* sql`UPDATE intel_changes SET status = 'Declined', resolved_at = ${now}
-      WHERE intel_id = ${row.id} AND status = 'Awaiting'`;
-    // Its uses become the kept intel's, so later evidence counts them.
-    yield* sql`UPDATE intel_uses SET intel_id = ${keptId} WHERE intel_id = ${row.id}`;
-  });
-
-/** Makes the newest intel of a widening global, with every intel's uses, and merges the others into it. */
-const applyWidening = (rows: ReadonlyArray<IntelRow>) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    const [kept, ...merged] = rows;
-    if (kept === undefined) return;
-    for (const row of merged) yield* trackChange(row.id, "Merged", owner, mergeInto(kept.id, row));
-    const now = yield* Clock.currentTimeMillis;
-    const uses = rows.reduce((sum, row) => sum + row.uses, 0);
-    const lastUsedAt = Math.max(...rows.map((row) => row.lastUsedAt));
-    yield* trackChange(
-      kept.id,
-      "Widened",
-      owner,
-      sql`UPDATE intels SET scope = 'Global', thread_id = NULL, workspace_id = NULL, uses = ${uses},
-        last_used_at = ${lastUsedAt}, updated_at = ${now} WHERE id = ${kept.id}`,
-    );
-  });
-
-/** Moves a global intel to the one workspace that used it. */
-const applyNarrowing = (row: IntelRow, workspaceId: string) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    const now = yield* Clock.currentTimeMillis;
-    yield* trackChange(
-      row.id,
-      "Narrowed",
-      owner,
-      sql`UPDATE intels SET scope = 'Workspace', thread_id = NULL, workspace_id = ${workspaceId},
-        updated_at = ${now} WHERE id = ${row.id}`,
-    );
-  });
-
 /**
  * The owner approves or declines a proposal; either way it is not proposed again. A proposal the evidence no
  * longer backs is refused. Callers run it in a transaction.
@@ -198,7 +154,16 @@ export const resolveIntelProposal = (proposalId: string, isApproved: boolean) =>
       VALUES (${proposalId}, ${isApproved ? "Approved" : "Declined"}, ${now})`;
     if (!isApproved) return null;
     const [row] = evidence.rows;
-    if (evidence.workspaceId === null) yield* applyWidening(evidence.rows);
-    else if (row !== undefined) yield* applyNarrowing(row, evidence.workspaceId);
+    // A widening makes the newest intel global and merges the others into it; a narrowing moves the intel to
+    // the one workspace that used it.
+    if (evidence.workspaceId === null && row !== undefined) {
+      yield* mergeIntels(
+        row.id,
+        evidence.rows.slice(1).map((merged) => merged.id),
+      );
+    } else if (evidence.workspaceId !== null && row !== undefined) {
+      const placement = { scope: "Workspace", threadId: null, workspaceId: evidence.workspaceId } as const;
+      yield* moveIntel(row.id, placement, null, "Narrowed", owner);
+    }
     return null;
   });

@@ -10,6 +10,7 @@ import type {
 } from "@canopy/contracts";
 import { Text, View } from "react-native";
 import type { ServiceClient } from "./client";
+import { clockOf } from "./formatting";
 import { IntelChangeCard, IntelChangeLine } from "./intel";
 import { QuestionCard, QuestionLine } from "./questions";
 import { styles } from "./styles";
@@ -40,20 +41,25 @@ export const entriesOf = (detail: MissionDetail): Array<Entry> =>
 
 const shortened = (title: string) => (title.length > 60 ? `${title.slice(0, 59)}…` : title);
 
+/** Each sender's bubble. */
+const senderStyles = {
+  agent: styles.fromAgent,
+  thread: styles.fromThread,
+  user: styles.fromUser,
+} satisfies Record<Message["sender"], unknown>;
+
+/** The label above a message: none for the owner's own unless it waits for the next turn. */
+const senderLabelOf = (message: Message) => {
+  if (message.sender === "user") return message.isQueued ? "Queued for the next turn" : null;
+  if (message.sender === "agent") return "Agent";
+  return `${message.isResult ? "Result from" : "From"} "${shortened(message.fromTitle ?? "a thread")}"`;
+};
+
 /** One message, labelled by its sender: the owner, the thread's agent, or another thread. */
 function MessageBubble({ message }: { message: Message }) {
-  const sender =
-    message.sender === "user"
-      ? message.isQueued
-        ? "Queued for the next turn"
-        : null
-      : message.sender === "agent"
-        ? "Agent"
-        : `${message.isResult ? "Result from" : "From"} "${shortened(message.fromTitle ?? "a thread")}"`;
-  const style =
-    message.sender === "user" ? styles.fromUser : message.sender === "agent" ? styles.fromAgent : styles.fromThread;
+  const sender = senderLabelOf(message);
   return (
-    <View style={[styles.message, style]}>
+    <View style={[styles.message, senderStyles[message.sender]]}>
       {/* The owner's own messages need no label, as in a chat; a queued one says it waits. */}
       {sender !== null && <Text style={styles.sender}>{sender}</Text>}
       <Text style={styles.body}>{message.text}</Text>
@@ -77,7 +83,7 @@ export function EntryView({
     return (
       <View style={styles.questionLine}>
         <Text style={styles.muted}>
-          {entry.event.text} · {new Date(entry.event.at).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" })}
+          {entry.event.text} · {clockOf(entry.event.at)}
         </Text>
       </View>
     );

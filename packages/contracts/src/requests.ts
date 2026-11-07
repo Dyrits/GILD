@@ -110,6 +110,8 @@ export const OpenThread = Schema.TaggedStruct("OpenThread", {
 });
 /** What a thread the owner opens beneath a thread would start with, before it starts (thread-tree, Opening a thread). */
 export const PreviewStartingContext = Schema.TaggedStruct("PreviewStartingContext", {
+  /** Absent runs on the parent's harness. */
+  harness: Schema.optionalKey(HarnessName),
   model: ModelChoice,
   parentThreadId: ThreadId,
   /** The request typed so far, which may still be empty. */
@@ -327,6 +329,7 @@ export const Request = Schema.Union([
   SignInAccount,
 ]);
 export type Request = typeof Request.Type;
+/** The name of one kind of request. */
 export type RequestTag = Request["_tag"];
 
 /** A started mission's identifiers. */
@@ -392,6 +395,7 @@ export const Results = {
   UpdateSettings: Settings,
   WidenPermission: Schema.Null,
 } as const;
+/** What the service answers to one kind of request. */
 export type ResultOf<T extends RequestTag> = (typeof Results)[T]["Type"];
 
 /** The kinds of failure the app tells apart. */

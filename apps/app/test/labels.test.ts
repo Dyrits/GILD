@@ -191,7 +191,16 @@ describe("starting context labels", () => {
   const context = {
     isOverWarning: true,
     largerModels: [],
-    parts: { intel: 20, journal: 50, openerMessages: 74_830, request: 100 },
+    parts: {
+      budget: 30,
+      instructions: 2_400,
+      intel: 20,
+      journal: 50,
+      openerMessages: 71_800,
+      position: 20,
+      request: 100,
+      workspace: 580,
+    },
     tokens: 75_000,
     warningPercent: 25,
     windowTokens: 200_000,
@@ -205,7 +214,7 @@ describe("starting context labels", () => {
 
   it("lists each part of the starting context with its tokens", () => {
     expect(startingContextPartsOf(context.parts)).toBe(
-      "Request 100 · Journal 50 · Intel 20 · Opener's messages 74,830 tokens",
+      "Request 100 · Journal 50 · Intel 20 · Opener's messages 71,800 · Workspace 580 · Instructions 2,400 · Title and budget 50 tokens",
     );
   });
 });

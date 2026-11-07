@@ -6,7 +6,8 @@ import { describe, expect, it } from "@effect/vitest";
 import { type Duration, Effect, PubSub } from "effect";
 import { SqlClient } from "effect/sql";
 import { afterEach } from "vitest";
-import { Changes, claudeHarnessLayer, Service, serviceLayer } from "../src/index.ts";
+import { Changes, claudeHarnessLayer, makeClaudeHarness, Service, serviceLayer } from "../src/index.ts";
+import { turnRequestOf } from "./fixtures/turns.ts";
 
 const standIn = join(import.meta.dirname, "fixtures", "stand-in-claude.mjs");
 
@@ -76,7 +77,7 @@ const settle = (missionId: MissionId, check: (detail: MissionDetail) => boolean)
 const idleWith = (count: number) => (detail: MissionDetail) =>
   detail.thread.state === "Idle" && detail.messages.filter((m) => m.sender === "agent").length === count;
 
-describe("Claude Code adapter", () => {
+describe("running Claude Code threads", () => {
   it.live("runs the thread's model and effort sandboxed, prompts sent to Canopy, and no Canopy secrets", () => {
     const { layer, starts } = withClaude();
     return Effect.gen(function* () {
@@ -292,6 +293,32 @@ describe("Claude Code adapter", () => {
         permissions: {},
       });
     }).pipe(Effect.provide(layer));
+  });
+
+  it.live("restarts the process, resuming its session, when the thread's model changes", () => {
+    const directory = temporary();
+    const log = join(directory, "starts.jsonl");
+    process.env.STAND_IN_LOG = log;
+    const starts = (): Array<{ pid: number; args: string[] }> =>
+      readFileSync(log, "utf8")
+        .trim()
+        .split("\n")
+        .map((line) => JSON.parse(line));
+    return Effect.gen(function* () {
+      const harness = yield* makeClaudeHarness({
+        command: process.execPath,
+        idleTimeout: "10 minutes",
+        prefixArgs: [standIn],
+        sandboxProblem: null,
+        userSettingsPath: join(directory, "no-settings.json"),
+      });
+      const first = yield* harness.runTurn(turnRequestOf({ cwd: directory, model: "haiku", text: "One" }));
+      yield* harness.runTurn(turnRequestOf({ cwd: directory, model: "opus", sessionId: first.sessionId, text: "Two" }));
+      const [before, after] = starts();
+      expect(after?.pid).not.toBe(before?.pid);
+      expect(after?.args.join(" ")).toContain("--model opus");
+      expect(after?.args[(after?.args.indexOf("--resume") ?? -2) + 1]).toBe(first.sessionId);
+    }).pipe(Effect.scoped);
   });
 
   it.live("asks for every prompt at the default level when the sandbox is unavailable", () => {
@@ -528,8 +555,8 @@ describe("steering and interrupting Claude Code", () => {
   });
 });
 
-describe("settings", () => {
-  it.live("start from defaults and persist updates", () => {
+describe("reading and saving settings", () => {
+  it.live("starts from defaults and persists updates", () => {
     const directory = temporary();
     const options = {
       filename: join(directory, "canopy.sqlite"),

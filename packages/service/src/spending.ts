@@ -13,7 +13,7 @@ export const tokenSum = "CASE WHEN u.cost IS NULL THEN u.input + u.output + u.ca
 export const spendingColumns = `COALESCE(SUM(u.cost), 0) AS cost, COALESCE(SUM(${tokenSum}), 0) AS tokens`;
 
 /** A budget with neither limit. */
-export const noLimits: BudgetLimits = { cost: null, tokens: null };
+const noLimits: BudgetLimits = { cost: null, tokens: null };
 
 const startShifts = {
   Day: () => void 0,
@@ -40,7 +40,7 @@ export const periodStartOf = (now: number, period: BudgetPeriod) => {
 };
 
 /** When the global period holding `now` starts over. */
-export const nextStartOf = (now: number, period: BudgetPeriod) => {
+const nextStartOf = (now: number, period: BudgetPeriod) => {
   const date = new Date(periodStartOf(now, period));
   nextShifts[period](date);
   return date.getTime();

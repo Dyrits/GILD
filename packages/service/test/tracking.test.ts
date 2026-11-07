@@ -4,7 +4,7 @@ import { Effect, PubSub } from "effect";
 import { TestClock } from "effect/testing";
 import { afterEach } from "vitest";
 import { Changes } from "../src/changes.ts";
-import { call, fixture, open, read, send, start } from "./fixtures/batch7.ts";
+import { call, fixture, open, read, send, start } from "./fixtures/service.ts";
 
 const fixtures: ReturnType<typeof fixture>[] = [];
 const live = () => {

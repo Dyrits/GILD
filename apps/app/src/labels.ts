@@ -51,7 +51,15 @@ export const startingContextWarningOf = (context: StartingContext) =>
 
 /** Each part of a starting context with its tokens, for example "Request 100 · Journal 50 · … tokens". */
 export const startingContextPartsOf = (parts: StartingContextParts) =>
-  `Request ${tokenCountOf(parts.request)} · Journal ${tokenCountOf(parts.journal)} · Intel ${tokenCountOf(parts.intel)} · Opener's messages ${tokenCountOf(parts.openerMessages)} tokens`;
+  [
+    `Request ${tokenCountOf(parts.request)}`,
+    `Journal ${tokenCountOf(parts.journal)}`,
+    `Intel ${tokenCountOf(parts.intel)}`,
+    `Opener's messages ${tokenCountOf(parts.openerMessages)}`,
+    `Workspace ${tokenCountOf(parts.workspace)}`,
+    `Instructions ${tokenCountOf(parts.instructions)}`,
+    `Title and budget ${tokenCountOf(parts.position + parts.budget)} tokens`,
+  ].join(" · ");
 
 /** A dashboard row's thread count, for example "5 threads · 2 running". */
 export const threadCountOf = (mission: { readonly runningCount: number; readonly threadCount: number }) =>
@@ -88,26 +96,25 @@ export const raisedLimitsOf = (limits: BudgetLimits, factor: number): BudgetLimi
 });
 
 /** What a thread's change to intel does, for example "Save intel to Global" (scoped-intel). */
-export const intelActionOf = (change: Pick<IntelChange, "kind" | "previousText" | "scopeLabel" | "text">) =>
-  change.kind === "Save"
-    ? `Save intel to ${change.scopeLabel}`
-    : change.kind === "Replace"
-      ? `Replace intel in ${change.scopeLabel}`
-      : change.kind === "Forget"
-        ? `Delete intel from ${change.scopeLabel}`
-        : change.previousText === change.text
-          ? `Move intel to ${change.scopeLabel}`
-          : `Correct intel in ${change.scopeLabel}`;
+export const intelActionOf = (change: Pick<IntelChange, "kind" | "previousText" | "scopeLabel" | "text">) => {
+  const scope = change.scopeLabel;
+  const actions = {
+    Forget: `Delete intel from ${scope}`,
+    Replace: `Replace intel in ${scope}`,
+    Save: `Save intel to ${scope}`,
+    // An update that keeps the text only moves the intel.
+    Update: change.previousText === change.text ? `Move intel to ${scope}` : `Correct intel in ${scope}`,
+  } satisfies Record<IntelChange["kind"], string>;
+  return actions[change.kind];
+};
 
 /** What an intel rests on, for the panel, for example "From journal entry 4: Chose Effect."; null when none. */
-export const intelOriginLabelOf = (origin: IntelOrigin | null) =>
-  origin === null
-    ? null
-    : origin.kind === "JournalEntry"
-      ? `From journal entry ${origin.entryNumber ?? ""}: ${origin.excerpt}`
-      : origin.from === null
-        ? `From your message: ${origin.excerpt}`
-        : `From a message by "${origin.from}": ${origin.excerpt}`;
+export const intelOriginLabelOf = (origin: IntelOrigin | null) => {
+  if (origin === null) return null;
+  if (origin.kind === "JournalEntry") return `From journal entry ${origin.entryNumber ?? ""}: ${origin.excerpt}`;
+  if (origin.from === null) return `From your message: ${origin.excerpt}`;
+  return `From a message by "${origin.from}": ${origin.excerpt}`;
+};
 
 const intelStatusLabels = {
   Approved: " · approved",
@@ -121,10 +128,24 @@ export const intelChangeLineOf = (
   change: Pick<IntelChange, "kind" | "previousText" | "scopeLabel" | "status" | "text">,
 ) => `${intelActionOf(change)}${intelStatusLabels[change.status]}`;
 
+/** A share as a short percentage, "<0.1" for a share too small to show but not nothing. */
+const percentOf = (part: number, whole: number) => {
+  const percent = (part * 100) / whole;
+  if (percent === 0) return "0";
+  if (percent < 0.1) return "<0.1";
+  return percent.toFixed(1);
+};
+
 /** The intel icon's text: the count and its share of the model's context window, for example "Intel · 3 · 0.2%". */
 export const intelGaugeLabelOf = (gauge: Pick<IntelGauge, "count" | "tokens" | "windowTokens">) => {
-  const percent = (gauge.tokens * 100) / gauge.windowTokens;
-  return `Intel · ${gauge.count} · ${percent === 0 ? "0" : percent < 0.1 ? "<0.1" : percent.toFixed(1)}%`;
+  return `Intel · ${gauge.count} · ${percentOf(gauge.tokens, gauge.windowTokens)}%`;
+};
+
+/** How often threads used an intel, for example "used 3 times". */
+const usesLabelOf = (uses: number) => {
+  if (uses === 0) return "not used yet";
+  if (uses === 1) return "used once";
+  return `used ${uses} times`;
 };
 
 /** An intel's fading in the panel, for example "Preference · active · strength 82% · used 3 times · pinned". */
@@ -133,7 +154,7 @@ export const intelFadingLabelOf = (intel: Pick<Intel, "isPinned" | "kind" | "sta
     intel.kind,
     intel.state.toLowerCase(),
     `strength ${Math.round(intel.strength * 100)}%`,
-    intel.uses === 0 ? "not used yet" : intel.uses === 1 ? "used once" : `used ${intel.uses} times`,
+    usesLabelOf(intel.uses),
     ...(intel.isPinned ? ["pinned"] : []),
   ].join(" · ");
 
@@ -154,30 +175,40 @@ const intelHistoryVerbs = {
   Widened: "Moved",
 } as const satisfies Record<IntelHistoryKind, string>;
 
+/** Who made a change in an intel's history, as its line names them. */
+const intelActorLabelOf = (entry: Pick<IntelHistoryEntry, "actor" | "actorTitle">) => {
+  const actors = {
+    Fading: "fading",
+    Owner: "you",
+    Thread: `"${entry.actorTitle ?? "a thread"}"`,
+  } satisfies Record<IntelHistoryEntry["actor"], string>;
+  return actors[entry.actor];
+};
+
+/** What a change in an intel's history did and who did it, for example "Widened to Global by you". */
+const intelHistoryActionOf = (
+  entry: Pick<IntelHistoryEntry, "actor" | "actorTitle" | "kind" | "scopeLabel" | "undid">,
+) => {
+  const verb = intelHistoryVerbs[entry.kind];
+  const who = intelActorLabelOf(entry);
+  if (entry.kind === "Undone") return `You undid: ${intelHistoryVerbs[entry.undid ?? "Saved"].toLowerCase()}`;
+  if (entry.kind === "Replaced") return `${verb} from ${who}`;
+  if (entry.kind === "Widened" || entry.kind === "Narrowed") return `${verb} to ${entry.scopeLabel} by ${who}`;
+  return `${verb} by ${who}`;
+};
+
 /**
  * One entry of an intel's history as a line in the panel, for example 'Saved by "Build" · approved by you',
  * "Became dormant by fading", or "You undid: deleted" (scoped-intel, History and undo).
  */
 export const intelHistoryLineOf = (
   entry: Pick<IntelHistoryEntry, "actor" | "actorTitle" | "approvedAt" | "kind" | "scopeLabel" | "undid" | "undoneAt">,
-) => {
-  const who =
-    entry.actor === "Fading" ? "fading" : entry.actor === "Owner" ? "you" : `"${entry.actorTitle ?? "a thread"}"`;
-  const verb = intelHistoryVerbs[entry.kind];
-  const action =
-    entry.kind === "Undone"
-      ? `You undid: ${intelHistoryVerbs[entry.undid ?? "Saved"].toLowerCase()}`
-      : entry.kind === "Replaced"
-        ? `${verb} from ${who}`
-        : entry.kind === "Widened" || entry.kind === "Narrowed"
-          ? `${verb} to ${entry.scopeLabel} by ${who}`
-          : `${verb} by ${who}`;
-  return [
-    action,
+) =>
+  [
+    intelHistoryActionOf(entry),
     ...(entry.approvedAt === null ? [] : ["approved by you"]),
     ...(entry.undoneAt === null ? [] : ["undone"]),
   ].join(" · ");
-};
 
 /**
  * Why the service proposes a widening or narrowing, and what approving it does, for example "Used only in

@@ -3,7 +3,7 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { TestClock } from "effect/testing";
 import { afterEach } from "vitest";
-import { call, fixture, read, send, start, tool } from "./fixtures/batch7.ts";
+import { call, fixture, read, send, start, tool } from "./fixtures/service.ts";
 
 // Intel over time (scoped-intel: Kinds, Recall, Fading, Search), on the test clock.
 
@@ -59,7 +59,7 @@ const updateSettings = (change: Partial<Settings>) =>
     yield* call({ _tag: "UpdateSettings", settings: { ...settings, ...change } });
   });
 
-describe("intel kinds", () => {
+describe("saving intel by kind", () => {
   it.effect("requires a kind and answers searches with it", () =>
     Effect.gen(function* () {
       const { threadId } = yield* idle();
@@ -136,7 +136,7 @@ describe("recalling intel over time", () => {
   );
 });
 
-describe("fading", () => {
+describe("fading intel", () => {
   it.effect("makes a temporary intel dormant, then archived; search finds it while dormant", () =>
     Effect.gen(function* () {
       const { missionId, threadId } = yield* idle();
@@ -236,7 +236,7 @@ describe("fading", () => {
   );
 });
 
-describe("ranked search", () => {
+describe("ranking intel in searches", () => {
   it.effect("ranks the closest match first", () =>
     Effect.gen(function* () {
       const { threadId } = yield* idle();

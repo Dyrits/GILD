@@ -1,9 +1,7 @@
 import { Clock, Effect, Layer } from "effect";
-import { SqlClient } from "effect/sql";
 import { releaseBudgets } from "./budgets.ts";
-import { Changes } from "./changes.ts";
+import { Commands, changed, unchanged } from "./commands.ts";
 import { readGlobalBudget } from "./spending.ts";
-import { Threads } from "./threads.ts";
 
 const hourMillis = 60 * 60 * 1000;
 
@@ -14,15 +12,12 @@ const hourMillis = 60 * 60 * 1000;
  */
 export const budgetPeriodsLayer = Layer.effectDiscard(
   Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    const changes = yield* Changes;
-    const threads = yield* Threads;
-    const release = Effect.gen(function* () {
-      const released = yield* sql.withTransaction(releaseBudgets);
-      if (released.length === 0) return;
-      yield* changes.publish;
-      for (const id of released) yield* threads.wake(id);
-    });
+    const commands = yield* Commands;
+    const release = commands.run(
+      Effect.map(releaseBudgets, (released) =>
+        released.length === 0 ? unchanged(null) : changed(null, { threadsToWake: released }),
+      ),
+    );
     const untilNextCheck = Effect.gen(function* () {
       const now = yield* Clock.currentTimeMillis;
       const { nextStart } = yield* readGlobalBudget;

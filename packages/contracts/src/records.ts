@@ -279,14 +279,22 @@ export type Suggestion = typeof Suggestion.Type;
 
 /** What a new thread's starting context takes, in estimated tokens, by part (thread-tree, Opening a thread). */
 export const StartingContextParts = Schema.Struct({
+  /** The budget line; none without a budget. */
+  budget: Schema.Number,
+  /** The instructions every thread receives: on threads, the journal, intel, and approvals. */
+  instructions: Schema.Number,
   /** The intel in the new thread's scope: scoped intel in full and the global index. */
   intel: Schema.Number,
   /** The mission's briefing and its latest entries. */
   journal: Schema.Number,
   /** The opener's messages since the journal's latest entry. */
   openerMessages: Schema.Number,
+  /** The line naming the new thread's title and its opener's. */
+  position: Schema.Number,
   /** The opener's request, the new thread's first message. */
   request: Schema.Number,
+  /** The working folder: the workspace with its own instructions, or the mission's scratch folder. */
+  workspace: Schema.Number,
 });
 export type StartingContextParts = typeof StartingContextParts.Type;
 

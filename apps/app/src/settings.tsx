@@ -65,6 +65,7 @@ function NumberSetting({
   );
 }
 
+/** The Settings page, where the owner chooses how Canopy runs their threads. */
 export function SettingsScreen({
   client,
   onBack,

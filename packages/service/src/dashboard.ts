@@ -1,4 +1,4 @@
-import type { MissionList, MissionState, WorkspaceChoice } from "@canopy/contracts";
+import type { MissionList, MissionState, WorkspaceId } from "@canopy/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { listViewSummaries } from "./missions.ts";
@@ -34,7 +34,7 @@ const listSearchMatches = (search: string) =>
 export const listMissions = (filters: MissionFilters) =>
   Effect.gen(function* () {
     const summaries = yield* listViewSummaries(filters.isArchived);
-    const workspaces = new Map<string, string>();
+    const workspaces = new Map<WorkspaceId, string>();
     for (const summary of summaries)
       if (summary.workspaceId !== null) workspaces.set(summary.workspaceId, summary.workspaceName ?? "");
     const search = filters.search?.trim().toLowerCase() ?? "";
@@ -48,6 +48,6 @@ export const listMissions = (filters: MissionFilters) =>
     const first = missions.filter((mission) => statesNeedingOwner.includes(mission.state));
     return {
       missions: [...first, ...missions.filter((mission) => !statesNeedingOwner.includes(mission.state))],
-      workspaces: [...workspaces].map(([id, name]) => ({ id, name }) as WorkspaceChoice),
+      workspaces: [...workspaces].map(([id, name]) => ({ id, name })),
     } satisfies MissionList;
   });

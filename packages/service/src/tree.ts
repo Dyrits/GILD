@@ -1,6 +1,7 @@
 import type { HarnessName, OpenThreadResult, ThreadId } from "@canopy/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
+import { changed, unchanged } from "./commands.ts";
 import { invalid, notFound } from "./errors.ts";
 import { type JournalAuthor, nothingToRecord, openerMessagesOf, updateJournal } from "./journal.ts";
 import { maxOwnerDepth } from "./lifecycle.ts";
@@ -14,7 +15,7 @@ import { titleOf } from "./titles.ts";
 export const maxRunning = 8;
 
 /** How many levels a thread is beneath its mission's top thread, which is 0. */
-export const depthOf = (threadId: string) =>
+const depthOf = (threadId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const [row] = yield* sql<{ depth: number }>`
@@ -61,8 +62,8 @@ const readParent = (parentId: string) =>
 
 /**
  * Records a thread beneath the parent, in the parent's workspace and, unless chosen, with its harness,
- * account, model, and effort, and its first message: the opener's request. Callers run it in a transaction
- * and wake it.
+ * account, model, and effort, and its first message: the opener's request. The command that opens it wakes
+ * it.
  */
 const insertThread = (opening: Opening) =>
   Effect.gen(function* () {
@@ -89,7 +90,7 @@ const insertThread = (opening: Opening) =>
 
 /**
  * The owner opens a thread beneath any thread, down to the depth limit. One whose starting context is over
- * the warning starts only when the owner chose to start it anyway. Callers run it in a transaction.
+ * the warning starts only when the owner chose to start it anyway; the new thread is then woken.
  */
 export const openThreadByOwner = (
   parentId: string,
@@ -102,15 +103,18 @@ export const openThreadByOwner = (
       return yield* invalid(`Threads you open can go down to ${maxOwnerDepth} levels beneath the top thread.`);
     }
     if (!shouldStartAnyway) {
-      const refusal = startingContextRefusalOf(yield* readStartingContext(parentId, choice.model, text));
+      const refusal = startingContextRefusalOf(
+        yield* readStartingContext(parentId, { harness: choice.harness ?? null, model: choice.model }, text),
+      );
       if (refusal !== null) return yield* invalid(refusal);
     }
-    return yield* insertThread({ choice, isAside: false, isOpenedByAgent: false, parentId, text, title: null });
+    const opened = yield* insertThread({ choice, isAside: false, isOpenedByAgent: false, parentId, text, title: null });
+    return changed(opened, { threadsToWake: [opened.threadId] });
   });
 
 /**
- * Keeps an off-topic request as an aside beneath the thread: its first message is the owner's request.
- * Callers run it in a transaction and wake it.
+ * Keeps an off-topic request as an aside beneath the thread: its first message is the owner's request, and
+ * the aside is then woken.
  */
 export const openAside = (parentId: string, text: string, title: string) =>
   insertThread({
@@ -120,7 +124,7 @@ export const openAside = (parentId: string, text: string, title: string) =>
     parentId,
     text,
     title: title.trim() === "" ? null : title,
-  });
+  }).pipe(Effect.map((opened) => changed(opened, { threadsToWake: [opened.threadId] })));
 
 /** Whether the thread is an aside, which leaves the journal to its parent. */
 export const isAside = (threadId: string) =>
@@ -130,9 +134,17 @@ export const isAside = (threadId: string) =>
     return rows.length > 0;
   });
 
+/** What `open_thread` came to: the new thread, or why it was refused. */
+export type OpenedByAgent =
+  | { readonly _tag: "Opened"; readonly threadId: ThreadId }
+  | { readonly _tag: "Refused"; readonly reason: string };
+
+/** A refused `open_thread`, which changes nothing. */
+export const refusedOf = (reason: string) => unchanged<OpenedByAgent>({ _tag: "Refused", reason });
+
 /**
- * A thread opens a thread beneath itself (`open_thread`): the new thread's identifier, or the reason it is
- * refused. Callers run it in a transaction and wake the new thread.
+ * A thread opens a thread beneath itself (`open_thread`): the new thread's identifier, woken once committed,
+ * or the reason it is refused.
  */
 export const openThreadByAgent = (
   callerId: string,
@@ -145,16 +157,14 @@ export const openThreadByAgent = (
     const [caller] = yield* sql<{
       missionId: string;
     }>`SELECT mission_id AS missionId FROM threads WHERE id = ${callerId} AND is_deleting = 0`;
-    if (caller === undefined) return { _tag: "Refused", reason: "Unknown thread." } as const;
-    if (request.trim() === "") return { _tag: "Refused", reason: "The request is empty." } as const;
+    if (caller === undefined) return refusedOf("Unknown thread.");
+    if (request.trim() === "") return refusedOf("The request is empty.");
     const overBudget = yield* budgetRefusalOf(caller.missionId);
-    if (overBudget !== null) return { _tag: "Refused", reason: `Not opened: ${overBudget}` } as const;
-    if ((yield* runningCountOf(caller.missionId)) >= maxRunning) {
-      return {
-        _tag: "Refused",
-        reason: `${maxRunning} threads are already running in this mission. Wait for one to finish, or ask the owner.`,
-      } as const;
-    }
+    if (overBudget !== null) return refusedOf(`Not opened: ${overBudget}`);
+    if ((yield* runningCountOf(caller.missionId)) >= maxRunning)
+      return refusedOf(
+        `${maxRunning} threads are already running in this mission. Wait for one to finish, or ask the owner.`,
+      );
     const opened = yield* insertThread({
       choice,
       isAside: false,
@@ -163,7 +173,7 @@ export const openThreadByAgent = (
       text: request,
       title: title !== null && title.trim() !== "" ? title : null,
     });
-    return { _tag: "Opened", threadId: opened.threadId } as const;
+    return changed<OpenedByAgent>({ _tag: "Opened", threadId: opened.threadId }, { threadsToWake: [opened.threadId] });
   });
 
 /** Whether a thread may message another: its parent, or a thread directly beneath it (thread-messaging). */
@@ -186,13 +196,12 @@ export const isBeneath = (parentId: string, childId: string) =>
   });
 
 /** Whether a result's journal answer says there is nothing to record, in any case and with a final period. */
-export const isNothingToRecord = (journal: string) =>
-  journal.trim().toLowerCase().replace(/\.$/, "") === nothingToRecord;
+const isNothingToRecord = (journal: string) => journal.trim().toLowerCase().replace(/\.$/, "") === nothingToRecord;
 
 /**
  * Records the caller's journal entry, unless it has nothing to record, then its result: it goes to the
- * parent as a thread message, and the turn now running ends the caller Done. Returns the parent, or null
- * for a top thread. Callers run it in a transaction.
+ * parent as a thread message, which wakes it, and the turn now running ends the caller Done. Returns the
+ * parent, or null for a top thread.
  */
 export const reportResult = (threadId: string, result: string, journal: string) =>
   Effect.gen(function* () {
@@ -223,5 +232,5 @@ export const reportResult = (threadId: string, result: string, journal: string) 
         threadId: thread.parentId,
       });
     }
-    return thread.parentId;
+    return changed(thread.parentId, { threadsToWake: thread.parentId === null ? [] : [thread.parentId] });
   });

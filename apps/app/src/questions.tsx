@@ -2,6 +2,7 @@ import type { Answer, Question, QuestionOutcome } from "@canopy/contracts";
 import { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import type { ServiceClient } from "./client";
+import { clockOf } from "./formatting";
 import { styles } from "./styles";
 
 const outcomeLabels = {
@@ -14,8 +15,6 @@ const outcomeLabels = {
   Discarded: "Discarded",
   Withdrawn: "Withdrawn",
 } as const satisfies Record<QuestionOutcome, string>;
-
-const shortTimeOf = (millis: number) => new Date(millis).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
 const lineLength = 80;
 
@@ -31,7 +30,7 @@ export function QuestionLine({ question }: { question: Question }) {
     question.outcome === null ? "Open" : outcomeLabels[question.outcome],
     // An action run without a question is told in plain words; its command stays in the history.
     question.outcome === "AllowedAutomatically" ? question.summary.replace(/\.$/, "") : shortDetailOf(question.details),
-    question.resolvedAt === null ? null : shortTimeOf(question.resolvedAt),
+    question.resolvedAt === null ? null : clockOf(question.resolvedAt),
     question.device,
   ].filter((part) => part !== null);
   return (

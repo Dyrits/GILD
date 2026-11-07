@@ -6,13 +6,14 @@ import { dayMillis, readSettings } from "./settings.ts";
 // since it was last used, slower the more it was used. Strength is worked out when read; nothing runs on a timer.
 
 /** Below this strength an intel is dormant: out of the context, still found by search. */
-export const dormantBelow = 0.15;
+const dormantBelow = 0.15;
 /** Below this strength an intel is archived: out of search too, only in the intel panel. */
-export const archivedBelow = 0.05;
+const archivedBelow = 0.05;
 
 /** The kinds a thread names in `save_intel`. */
 export type ToolKind = "rule" | "preference" | "decision" | "fact" | "temporary";
 
+/** The intel kind each `save_intel` kind names. */
 export const kindOfTool = {
   decision: "Decision",
   fact: "Fact",
@@ -27,6 +28,7 @@ export interface Fading {
   readonly now: number;
 }
 
+/** Reads the time now and the half-lives in Settings. */
 export const readFading = Effect.gen(function* () {
   const now = yield* Clock.currentTimeMillis;
   const { intelHalfLives } = yield* readSettings;
@@ -75,9 +77,14 @@ export const fadingStepsOf = (intel: Fadable, fading: Fading) => {
   return steps.filter((step) => step.at <= fading.now).map((step) => ({ ...step, at: Math.round(step.at) }));
 };
 
-export const stateOf = (strength: number): IntelState =>
-  strength < archivedBelow ? "Archived" : strength < dormantBelow ? "Dormant" : "Active";
+/** The state an intel's strength puts it in. */
+export const stateOf = (strength: number): IntelState => {
+  if (strength < archivedBelow) return "Archived";
+  if (strength < dormantBelow) return "Dormant";
+  return "Active";
+};
 
+/** The state an intel is in now. */
 export const stateOfIntel = (intel: Fadable, fading: Fading) => stateOf(strengthOf(intel, fading));
 
 /** The longest summary of a global intel in the index, in characters. Provisional (work-in-progress, Batch 13). */

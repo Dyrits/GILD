@@ -473,7 +473,7 @@ The warning before a thread starts with too large a starting context (thread-tre
 
 ### Behavior
 
-- **Preview**: while the owner types the first message of a thread opened beneath another, the form shows what it would start with (`PreviewStartingContext`): the request, the briefing and 20 latest entries, the intel in scope (scoped intel in full and the global index, as the intel gauge counts it), and the opener's messages since the journal's latest entry, each in estimated tokens.
+- **Preview**: while the owner types the first message of a thread opened beneath another, the form shows what it would start with (`PreviewStartingContext`): the request, the briefing and 20 latest entries, the intel in scope (scoped intel in full and the global index), the opener's messages since the journal's latest entry, and, since the architecture pass (CHG-0062), the workspace's own instructions, the instructions every thread receives, and the title and budget lines, each in estimated tokens. It measures the same sections the thread then receives, headings included (`startingContext.ts`).
 - **Warning**: past 25% of the chosen model's context window, the form says the size, the share, and each part, and offers a model with a larger window, **Trim intel**, and **Start anyway**.
 - **Trim intel** opens the intel panel of the parent's scope inside the form; the typed request stays, and the preview follows each change.
 - **Refusal**: `OpenThread` is refused over the warning unless the owner chose Start anyway (`shouldStartAnyway`); the refusal names the share.
@@ -485,7 +485,7 @@ The warning before a thread starts with too large a starting context (thread-tre
 - Threads opened by agents (`open_thread`) and asides are not warned: no owner is there to answer before they start.
 - Starting a mission is not warned yet; its context is the first message, the workspace's and global intel.
 - Skills are not counted: threads have none until tool-and-skill-loading.
-- The parts are measured as tokens of their text (characters / 4), like the briefing limit; the instructions every thread receives are not counted.
+- The parts are measured as tokens of their text (characters / 4), like the briefing limit. Since CHG-0062 the instructions every thread receives, the workspace's instructions, and the title and budget lines are counted too, so the warning measures what the harness receives; this reverses the earlier choice not to count the instructions and awaits the owner.
 - The preview is asked for 300 ms after typing pauses.
 
 ### Checks
@@ -526,7 +526,7 @@ Harnesses and provider accounts ([provider-accounts](capabilities/provider-accou
 - Codex threads are not ephemeral: they appear in the owner's Codex history; OpenCode sessions in OpenCode's.
 - OpenCode takes no effort; a steered message waits for its next turn.
 - Codex and OpenCode report no cost: their turns count as subscription tokens (budget-control, Batch 11).
-- Every model counts a 200,000-token window (Batch 12); larger-window suggestions compare Claude Code's models only.
+- Every model counts a 200,000-token window (Batch 12); larger-window suggestions come from the chosen harness's model list, which only Claude Code has, so Codex and OpenCode suggest none (CHG-0062).
 - The Codex model list is cached 10 minutes per account; sign-in states are read when Settings or a picker opens, and on Refresh.
 - Sign-in on Linux and Windows answers with the command to run in a terminal.
 - `approvals.ts` still tells an allowed thread to set `dangerouslyDisableSandbox` for Bash, which only Claude Code has; the instructions themselves leave it out for Codex and OpenCode.
@@ -543,3 +543,54 @@ Harnesses and provider accounts ([provider-accounts](capabilities/provider-accou
 - Thread-handover: changing a thread's harness, account, or model mid-thread.
 - Accounts for Control, routines, and workflows.
 - Harness installs and updates offered from the app (architecture, Integrations).
+
+## Review, refactor, and architecture pass (2026-11-07): uncommitted
+
+Started at HEAD `26bbb1d`, with the empty tree as the fixed point. Ran Standards and Specifications reviews and an architecture scan ([report](architecture-audit/architecture-audit-2026-11-07-1830.html)). The behavior-preserving refactors sit uncommitted in the working tree. Both reviewers verified them: no behavior, owner-facing wording, or contract changed. Checks after the refactor: `bun run test` 339 passed, 8 skipped, the same as before. After the architecture pass: 371 passed, 8 skipped. Typecheck, `bun run check`, `git diff --check`, and the desktop build pass.
+
+### Open, for implementation (red/green): found by the Specifications review, not changed
+
+- **High**: the quote check (`approvals.ts:175-205`) accepts any 2-character quote found in the owner's message. The quote is never compared with the command, so "it" approves anything, and so does a negation such as "don't push it".
+- **High**: commands wrapped in a shell (`bash -lc '…'`, `env X=1 …`, `command`, `time`) skip the sensitive list (`patterns.ts:68`). Codex wraps its commands this way. Needs a live Codex probe.
+- **Medium**: a one-time allowance is not cleared at a normal turn end, so it outlives its turn (`approvals.ts:93-116`).
+- **Medium**: Codex sandbox widenings ("Permissions") are granted without a question.
+- **Medium**: OpenCode edits outside the workspace run unasked (`opencode.ts:59-63`, against workspace-attachment).
+- **Medium**: Codex and OpenCode threads load the owner's own MCP servers and skills (against CHG-0022 and CHG-0031; listed as provisional above).
+- **Medium**: the widened sandbox hosts may let `git push` or `npm publish` run without a prompt. Probe first, and ask the owner before changing anything.
+- **Medium**: a thread-proposed Always allow pattern (for example `gi*`) can cover other kinds of action, and the question shows the proposed pattern rather than the one that will be saved.
+- **Low**:
+  - The running limit counts only Running threads, not Attention inside a turn.
+  - The opener-message cap line gives no count.
+  - The desktop notification fires only for approval questions.
+  - The depth and running limits are not adjustable.
+  - Claude Code rules come from `~/.claude/settings.json` only, not from an added account's folder or the workspace's settings, and nothing tests that they are forwarded.
+  - A reopened mission can run on a removed account.
+  - The model can call `answer_prompt` directly.
+  - Interrupted OpenCode turns count no usage.
+
+### Awaiting the owner
+
+- The architecture pass's behavior changes (CHG-0062, [proof](verification/2026-11-07-architecture-pass.md)). All six audit candidates were applied at the owner's request. Still to accept:
+  - the wider restart key;
+  - `answer_prompt` hidden from Codex and OpenCode;
+  - a failed prompt answer ending the turn;
+  - open harness questions withdrawn at turn end;
+  - the fake harness's new prompt echo;
+  - the starting-context size now counting the instructions, workspace, and title and budget lines (Batch 17 above);
+  - one announcement for SetMissionBudget and the auto-archive sweep;
+  - one transaction each for the account, browsable-root, permission, and dismiss-prompt requests.
+- Every intel deletion declining its awaiting changes: today only the owner's deletion, an undone save, and a merge decline them, and a thread's `forget_intel` does not. The intel store keeps that difference in one place.
+- A glossary term for the harness, account, model, and effort bundle the code calls "runner". The glossary says to avoid "runner" for a harness.
+
+### Left open on purpose
+
+- Files still past about 250 lines after the pass:
+  - `store.ts`: append-only migrations;
+  - `service.ts`;
+  - `intelStore.ts`: splitting it would expose the raw writers;
+  - `approvals.ts`, `threadTools.ts`, `intel.ts`, `codex.ts`, `opencode.ts`, `suggestions.ts`, `threads.ts` (261);
+  - `requests.ts`;
+  - the large test files.
+- Import cycles between `commands.ts`, `threads.ts`, and the modules that compose operations: they are safe, since each side is used only inside functions, and the bundled service starts.
+- `JSON.parse … as` casts: decoding instead would change how malformed input is handled.
+- Multi-behavior test titles, the `server.test.ts` frame casts, and the app client's pending-codec cast.

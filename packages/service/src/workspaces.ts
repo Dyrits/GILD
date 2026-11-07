@@ -1,10 +1,13 @@
 import { mkdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
 import type { Workspace, WorkspaceId } from "@canopy/contracts";
-import { Clock, Effect } from "effect";
+import { Clock, Context, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid } from "./errors.ts";
 import { realFolderOf } from "./folders.ts";
+
+/** Where each mission's threads with no workspace run, one scratch folder per mission. */
+export class ScratchRoot extends Context.Service<ScratchRoot, string>()("canopy/ScratchRoot") {}
 
 /** The existing folder at the path, with links resolved; refused otherwise. */
 const requireFolder = (path: string) =>
@@ -79,19 +82,22 @@ const workspaceContextOf = (workspace: Workspace) =>
   });
 
 /**
- * Where a thread works and the starting context saying so: its workspace's folder, or its
- * mission's scratch folder, made on first use, when it has none.
+ * Where a thread works and the starting context saying so: its workspace's folder, or its mission's scratch
+ * folder when it has none. Only describes the folder; `prepareWorkingFolder` makes it.
  */
-export const prepareWorkingFolder = (workspace: Workspace | null, scratchFolder: string) =>
+export const workingFolderOf = (workspace: Workspace | null, scratchFolder: string) =>
   workspace === null
-    ? Effect.sync(() => {
-        mkdirSync(scratchFolder, { recursive: true });
-        return {
-          context: [
-            "# Your working folder",
-            `You have no workspace. You work in your mission's scratch folder, ${scratchFolder}, shared with the mission's other threads that have none.`,
-          ].join("\n"),
-          cwd: scratchFolder,
-        };
+    ? Effect.succeed({
+        context: [
+          "# Your working folder",
+          `You have no workspace. You work in your mission's scratch folder, ${scratchFolder}, shared with the mission's other threads that have none.`,
+        ].join("\n"),
+        cwd: scratchFolder,
       })
     : workspaceContextOf(workspace).pipe(Effect.map((context) => ({ context, cwd: workspace.path })));
+
+/** Where a thread works and the starting context saying so, with the scratch folder made on first use. */
+export const prepareWorkingFolder = (workspace: Workspace | null, scratchFolder: string) =>
+  (workspace === null ? Effect.sync(() => void mkdirSync(scratchFolder, { recursive: true })) : Effect.void).pipe(
+    Effect.andThen(workingFolderOf(workspace, scratchFolder)),
+  );

@@ -11,6 +11,14 @@ import { SettingsScreen } from "./src/settings";
 import { type Place, Shell } from "./src/sidebar";
 import { colors, fontSizes, fonts } from "./src/theme";
 
+/** The sidebar place the open screen belongs to; the Permissions page belongs to Settings. */
+const placeOf = (open: { isArchivedOpen: boolean; isIntelOpen: boolean; isSettingsOpen: boolean }): Place => {
+  if (open.isSettingsOpen) return "Settings";
+  if (open.isIntelOpen) return "Intel";
+  if (open.isArchivedOpen) return "Archived";
+  return "Missions";
+};
+
 export default function App() {
   const [client, setClient] = useState<ServiceClient | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
@@ -47,8 +55,7 @@ export default function App() {
     setOpenMission(id);
     setOpenCount(openCount + 1);
   };
-  const place: Place =
-    isSettingsOpen || isPermissionsOpen ? "Settings" : isIntelOpen ? "Intel" : isArchivedOpen ? "Archived" : "Missions";
+  const place = placeOf({ isArchivedOpen, isIntelOpen, isSettingsOpen: isSettingsOpen || isPermissionsOpen });
   const content = isIntelOpen ? (
     <IntelScreen client={client} onBack={() => setIsIntelOpen(false)} threadId={null} title="All intel" />
   ) : isPermissionsOpen ? (

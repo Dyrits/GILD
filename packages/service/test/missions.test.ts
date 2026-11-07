@@ -223,7 +223,7 @@ describe("follow-up messages", () => {
   );
 });
 
-describe("persistence", () => {
+describe("persisting missions", () => {
   it.effect("keeps missions and conversations after reopening the database", () =>
     Effect.gen(function* () {
       const filename = databaseFile();

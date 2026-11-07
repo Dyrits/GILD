@@ -2,7 +2,7 @@ import type { IntelScope, MissionId, ThreadId } from "@canopy/contracts";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { afterEach } from "vitest";
-import { call, fixture, open, read, send, settle, start, tool } from "./fixtures/batch7.ts";
+import { call, fixture, open, read, send, settle, start, tool } from "./fixtures/service.ts";
 
 const fixtures: ReturnType<typeof fixture>[] = [];
 const live = () => {

@@ -1,7 +1,7 @@
 import type { JournalView, MissionId } from "@canopy/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import type { ServiceClient } from "./client";
+import { newRequestId, type ServiceClient } from "./client";
 import { timeOf } from "./formatting";
 import { briefingSizeOf, journalAuthorOf } from "./labels";
 import { styles } from "./styles";
@@ -21,7 +21,7 @@ function Briefing({ client, journal }: { client: ServiceClient; journal: Journal
         briefing: draft.briefing,
         entry: draft.entry.trim() === "" ? null : draft.entry,
         missionId: journal.missionId,
-        requestId: crypto.randomUUID(),
+        requestId: newRequestId(),
       })
       .then(
         () => {
@@ -87,7 +87,7 @@ function NewEntry({ client, missionId }: { client: ServiceClient; missionId: Mis
   const [error, setError] = useState<string | null>(null);
   const add = () => {
     if (text.trim() === "") return;
-    client.request({ _tag: "AddJournalEntry", missionId, requestId: crypto.randomUUID(), text }).then(
+    client.request({ _tag: "AddJournalEntry", missionId, requestId: newRequestId(), text }).then(
       () => {
         setText("");
         setError(null);

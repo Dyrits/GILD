@@ -31,8 +31,8 @@ export function StateBadge({ state }: { state: ThreadState | MissionState }) {
   );
 }
 
-export /** One choice among a few options, shown as chips. */
-function Choice<T extends string | null>({
+/** One choice among a few options, shown as chips. */
+export function Choice<T extends string | null>({
   accessibilityLabel,
   options,
   value,
@@ -117,11 +117,11 @@ export function Menu<T extends string | null>({
   );
 }
 
-export /**
+/**
  * A message box that keeps the text until the service accepts it. While a thread runs, a smaller second
  * button sends the other way (Steer or Queue) and Interrupt ends the thread's current turn (CHG-0039).
  */
-function Composer({
+export function Composer({
   placeholder,
   onSend,
   alternative,

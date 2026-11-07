@@ -1,11 +1,11 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import type { IntelHistoryEntry, IntelId, IntelProposal, ThreadId } from "@canopy/contracts";
+import type { IntelId, IntelProposal, ThreadId } from "@canopy/contracts";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { TestClock } from "effect/testing";
 import { afterEach } from "vitest";
-import { call, fixture, start, tool } from "./fixtures/batch7.ts";
+import { call, entryOf, fixture, start, tool } from "./fixtures/service.ts";
 
 // Batch 16 (scoped-intel: Widening and narrowing proposed from evidence), on the test clock.
 
@@ -48,11 +48,6 @@ const proposals = panel().pipe(Effect.map((view) => view.proposals));
 const resolve = (proposal: IntelProposal | undefined, isApproved: boolean) =>
   call({ _tag: "ResolveIntelProposal", isApproved, proposalId: proposal?.id ?? ("" as IntelProposal["id"]) });
 const historyOf = (intelId: IntelId) => call({ _tag: "ReadIntelHistory", intelId });
-const entryOf = (entries: ReadonlyArray<IntelHistoryEntry>, kind: IntelHistoryEntry["kind"]) => {
-  const found = entries.find((entry) => entry.kind === kind);
-  if (found === undefined) throw new Error(`no ${kind} entry in ${entries.map((entry) => entry.kind).join(", ")}`);
-  return found;
-};
 const approveAll = Effect.gen(function* () {
   for (const change of (yield* panel()).awaiting) {
     yield* call({ _tag: "ResolveIntelChange", changeId: change.id, isApproved: true });

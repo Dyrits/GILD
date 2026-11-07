@@ -20,7 +20,7 @@ const selectStops = (sql: SqlClient.SqlClient) => sql`
   FROM budget_stops s LEFT JOIN missions m ON m.id = s.mission_id`;
 
 /** The open stop in a mission's scope, or the global one with null. */
-export const readOpenStop = (missionId: string | null) =>
+const readOpenStop = (missionId: string | null) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const [stop] = yield* sql<BudgetStop>`${selectStops(sql)}

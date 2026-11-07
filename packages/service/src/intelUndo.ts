@@ -1,20 +1,11 @@
 import { Clock, Effect } from "effect";
-import { SqlClient } from "effect/sql";
 import { invalid, notFound } from "./errors.ts";
-import {
-  insertEntry,
-  isFadingEntryId,
-  markUndone,
-  owner,
-  readEntry,
-  readSnapshot,
-  recordFadingSteps,
-  type Snapshot,
-  writeSnapshot,
-} from "./intelHistory.ts";
+import { isFadingEntryId, readEntry, readSnapshot, type Snapshot } from "./intelHistory.ts";
+import { writeUndo } from "./intelStore.ts";
 
 // Undoing a change to intel (scoped-intel, History and undo): the owner puts back what one change changed,
-// recorded as a new entry that can itself be undone.
+// recorded as a new entry that can itself be undone. This module decides what an undo puts back; the intel
+// store writes it.
 
 /**
  * The intel as it is now with what the change changed put back: text, kind, scope, pin, and origin. Uses are
@@ -40,16 +31,6 @@ const revertedOf = (current: Snapshot, before: Snapshot, after: Snapshot, now: n
   };
 };
 
-/** Deletes an intel; its changes awaiting approval are declined, as with the owner's deletion. */
-const removeIntel = (intelId: string) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    const now = yield* Clock.currentTimeMillis;
-    yield* sql`DELETE FROM intels WHERE id = ${intelId}`;
-    yield* sql`UPDATE intel_changes SET status = 'Declined', resolved_at = ${now}
-      WHERE intel_id = ${intelId} AND status = 'Awaiting'`;
-  });
-
 /**
  * The owner undoes one entry of an intel's history: a save is undone by deleting the intel, a deletion by
  * restoring it with its identifier and uses, any other change by putting back what it changed. Fading steps
@@ -64,47 +45,16 @@ export const undoIntelChange = (entryId: string) =>
     if (entry === null) return yield* notFound("No such change in the intel's history.");
     if (entry.undoneAt !== null) return yield* invalid("This change was already undone.");
     const current = yield* readSnapshot(entry.intelId);
-    const now = yield* Clock.currentTimeMillis;
-    const undid = { id: entryId, kind: entry.kind };
-    if (current !== null) yield* recordFadingSteps(current);
+    // What the undo puts back: nothing for a save, the intel for a deletion, the changed fields otherwise.
     if (entry.before === null) {
       if (current === null) return yield* invalid("This intel is already deleted.");
-      yield* removeIntel(entry.intelId);
-      yield* insertEntry({
-        actor: owner,
-        after: null,
-        approvedAt: null,
-        before: current,
-        intelId: entry.intelId,
-        kind: "Undone",
-        undid,
-      });
+      yield* writeUndo(entry, null);
     } else if (entry.after === null) {
       if (current !== null) return yield* invalid("This intel exists again.");
-      yield* writeSnapshot(entry.before);
-      yield* insertEntry({
-        actor: owner,
-        after: entry.before,
-        approvedAt: null,
-        before: null,
-        intelId: entry.intelId,
-        kind: "Undone",
-        undid,
-      });
+      yield* writeUndo(entry, entry.before);
     } else {
       if (current === null) return yield* invalid("This intel is deleted: undo its deletion first.");
-      const reverted = revertedOf(current, entry.before, entry.after, now);
-      yield* writeSnapshot(reverted);
-      yield* insertEntry({
-        actor: owner,
-        after: reverted,
-        approvedAt: null,
-        before: current,
-        intelId: entry.intelId,
-        kind: "Undone",
-        undid,
-      });
+      yield* writeUndo(entry, revertedOf(current, entry.before, entry.after, yield* Clock.currentTimeMillis));
     }
-    yield* markUndone(entryId);
     return null;
   });

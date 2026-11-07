@@ -92,7 +92,11 @@ const childrenOf = (detail: MissionDetail, parentId: string) =>
 const stateOf = (detail: MissionDetail, threadId: string) =>
   detail.threads.find((thread) => thread.id === threadId)?.state;
 const lastText = (detail: MissionDetail) => detail.messages.at(-1)?.text ?? "";
-const only = (threads: ReadonlyArray<ThreadSummary>) => threads[0] as ThreadSummary;
+const only = (threads: ReadonlyArray<ThreadSummary>) => {
+  const [thread] = threads;
+  if (thread === undefined) throw new Error("no thread");
+  return thread;
+};
 
 describe("opening threads", () => {
   it.live("opens a thread beneath the caller with the opener's model, effort, and workspace", () =>
@@ -267,7 +271,7 @@ describe("stopping and resuming", () => {
   );
 });
 
-describe("limits", () => {
+describe("limiting threads", () => {
   it.live("refuses open_thread with the reason once 8 threads run in the mission", () =>
     Effect.gen(function* () {
       const opens = Array.from({ length: 8 }, (_, i) => tool("open_thread", { request: `wait 600\nTask ${i}` }));

@@ -48,7 +48,7 @@ const until = <A>(check: () => A | undefined) =>
     return yield* Effect.fail(new Error("timed out waiting"));
   });
 
-describe("loopback WebSocket", () => {
+describe("serving the owner over a loopback WebSocket", () => {
   it.live("refuses a connection without the owner token", () =>
     Effect.gen(function* () {
       const port = yield* running;

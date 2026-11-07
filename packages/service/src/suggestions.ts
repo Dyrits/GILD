@@ -3,6 +3,7 @@ import { Clock, Context, Effect, Layer, Match } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
 import { makeOwnerWaits } from "./attention.ts";
 import { Changes } from "./changes.ts";
+import { changed, unchanged, type WithFollowUps } from "./commands.ts";
 import { invalid, notFound, type ServiceFailure } from "./errors.ts";
 import { resumeInTurn } from "./lifecycle.ts";
 import { findMissions, findMissionsTextOf, maxMatches } from "./matching.ts";
@@ -10,12 +11,12 @@ import { insertUserMessage } from "./messaging.ts";
 import { insertMission } from "./missions.ts";
 import { readSettings } from "./settings.ts";
 import { readSuggestion } from "./suggestionStore.ts";
-import { type ArgumentsOf, type ToolAnswer, type ToolHandlers, threadTools } from "./threadTools.ts";
+import type { ArgumentsOf, ToolHandlers } from "./threadTools.ts";
 import { proposeTitle, titleOf } from "./titles.ts";
 import { openAside } from "./tree.ts";
 
 /** Where an off-topic request went, as the suggesting thread is told and its conversation links to. */
-interface Resolution {
+export interface Resolution {
   readonly outcome: SuggestionOutcome;
   readonly targetMissionId: string | null;
   readonly targetThreadId: string | null;
@@ -24,31 +25,36 @@ interface Resolution {
 
 const withdrawn: Resolution = { outcome: "Withdrawn", targetMissionId: null, targetThreadId: null, targetTitle: null };
 
-const carryOn = "Carry on as if that message had not been sent to you; do not answer it.";
-
-/** What `suggest_mission` answers the thread for each outcome. */
-const textOf = (resolution: Resolution) =>
-  ({
-    Continued: `The owner continued it in mission "${resolution.targetTitle}" (id ${resolution.targetMissionId}). ${carryOn}`,
-    KeptAsAside: `The owner kept it as an aside beneath you: thread "${resolution.targetTitle}" (id ${resolution.targetThreadId}). It will message you what is relevant to the mission. ${carryOn}`,
-    MovedToMission: `The owner opened it as a new mission "${resolution.targetTitle}" (id ${resolution.targetMissionId}). ${carryOn}`,
-    Withdrawn: "Withdrawn: the turn that asked ended before the owner answered.",
-  }) satisfies Record<SuggestionOutcome, string>;
+/** What a thread's off-topic suggestion came to; what the thread is told is the tool's concern. */
+export type Suggested =
+  | { readonly _tag: "UnknownThread" }
+  /** The thread is not at work in a turn, so the owner was not asked. */
+  | { readonly _tag: "NotAsked" }
+  /** With the setting on and nothing matching, a new mission opened without asking. */
+  | { readonly _tag: "OpenedWithoutAsking"; readonly resolution: Resolution }
+  | { readonly _tag: "Resolved"; readonly resolution: Resolution };
 
 /** Owns off-topic suggestions: asking the owner, carrying out the choice, and withdrawal (thread-tree). */
 export class Suggestions extends Context.Service<
   Suggestions,
   {
+    /**
+     * Carries out the owner's answer and commits it; the follow-ups, which wake the request's new home, are
+     * the caller's to apply (commands.ts), since the waiting turn is settled after the commit.
+     */
     readonly answer: (
       suggestionId: string,
       given: SuggestionAnswer,
-    ) => Effect.Effect<Suggestion, ServiceFailure | SqlError.SqlError>;
+    ) => Effect.Effect<WithFollowUps<Suggestion>, ServiceFailure | SqlError.SqlError>;
     readonly findMissions: ToolHandlers["find_missions"];
-    /** Answers `suggest_mission`, with the thread to wake when a mission opened without asking. */
+    /**
+     * Carries out `suggest_mission` and commits it, asking the owner when needed; the follow-ups, which wake
+     * a mission opened without asking, are the caller's to apply.
+     */
     readonly suggest: (
       threadId: string,
       args: ArgumentsOf<"suggest_mission">,
-    ) => Effect.Effect<{ readonly answer: ToolAnswer; readonly threadToWake: string | null }>;
+    ) => Effect.Effect<WithFollowUps<Suggested>>;
     readonly withdraw: (threadId: string) => Effect.Effect<void>;
   }
 >()("canopy/Suggestions") {}
@@ -74,8 +80,16 @@ export const suggestionsLayer = Layer.effect(
             target_thread_id = ${resolution.targetThreadId}, target_title = ${resolution.targetTitle}, resolved_at = ${now}
           WHERE id = ${suggestionId} AND outcome IS NULL`;
         yield* resumeInTurn(threadId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
-        yield* sql.afterCommit(changes.publish);
       });
+
+    /**
+     * Withdraws a suggestion whose turn ended. Threads withdraws while cancelling a turn, beneath the command
+     * runner, so this announces its own change.
+     */
+    const withdrawOne = (suggestionId: string, threadId: string) =>
+      sql.withTransaction(
+        resolve(suggestionId, threadId, withdrawn).pipe(Effect.tap(() => sql.afterCommit(changes.publish))),
+      );
 
     /** Opens a mission with only the off-topic part, under the proposed title, with no workspace. */
     const openMission = (text: string, title: string, choice: Parameters<typeof insertMission>[1]) =>
@@ -91,12 +105,12 @@ export const suggestionsLayer = Layer.effect(
         } satisfies Resolution;
       });
 
-    /** Carries out the owner's choice. Runs in a transaction; the caller wakes the target thread. */
+    /** Carries out the owner's choice in the answer's transaction; the request's new home is then woken. */
     const carryOut = (suggestion: Suggestion, given: SuggestionAnswer) =>
       Match.valueTags(given, {
         Aside: () =>
           openAside(suggestion.threadId, suggestion.text, suggestion.title).pipe(
-            Effect.flatMap((opened) =>
+            Effect.flatMap(({ value: opened }) =>
               sql<{ title: string }>`SELECT title FROM threads WHERE id = ${opened.threadId}`.pipe(
                 Effect.map(
                   ([row]): Resolution => ({
@@ -146,7 +160,10 @@ export const suggestionsLayer = Layer.effect(
           carryOut(suggestion, given).pipe(Effect.tap((done) => resolve(suggestionId, suggestion.threadId, done))),
         );
         yield* waits.settle(suggestionId, resolution);
-        return (yield* readSuggestion(suggestionId)) ?? suggestion;
+        const answered = (yield* readSuggestion(suggestionId)) ?? suggestion;
+        return changed(answered, {
+          threadsToWake: answered.targetThreadId === null ? [] : [answered.targetThreadId],
+        });
       }).pipe(Effect.provideService(SqlClient.SqlClient, sql));
 
     /**
@@ -156,7 +173,7 @@ export const suggestionsLayer = Layer.effect(
     const ask = (threadId: string, missionId: string, text: string, title: string, matches: ReadonlyArray<string>) =>
       waits.ask({
         // A caller that gave up leaves nobody to carry on: the suggestion is withdrawn.
-        abandon: (id) => sql.withTransaction(resolve(id, threadId, withdrawn)),
+        abandon: (id) => withdrawOne(id, threadId),
         missionId,
         record: (id, now) =>
           sql`INSERT INTO suggestions (id, mission_id, thread_id, text, title, matches, asked_at)
@@ -184,21 +201,19 @@ export const suggestionsLayer = Layer.effect(
                 is_automatic, target_mission_id, target_thread_id, target_title, resolved_at)
               VALUES (${crypto.randomUUID()}, ${missionId}, ${threadId}, ${text}, ${title}, '[]', ${now}, ${opened.outcome},
                 1, ${opened.targetMissionId}, ${opened.targetThreadId}, ${opened.targetTitle}, ${now})`;
-            yield* sql.afterCommit(changes.publish);
             return opened;
           }),
         );
         return resolution;
       });
 
-    const suggestAnswer = (threadId: string, args: ArgumentsOf<"suggest_mission">) =>
+    const suggest = (threadId: string, args: ArgumentsOf<"suggest_mission">) =>
       Effect.gen(function* () {
-        if (args.text.trim() === "") return { answer: threadTools.suggest_mission.invalid, threadToWake: null };
         const { missions = [], text, title } = args;
         const [caller] = yield* sql<{
           missionId: string;
         }>`SELECT mission_id AS missionId FROM threads WHERE id = ${threadId}`;
-        if (caller === undefined) return { answer: { isError: true, text: "Unknown thread." }, threadToWake: null };
+        if (caller === undefined) return unchanged<Suggested>({ _tag: "UnknownThread" });
         const existing = new Set(
           (missions.length === 0
             ? []
@@ -222,28 +237,13 @@ export const suggestionsLayer = Layer.effect(
                 Effect.catch(() => Effect.succeed(null)),
               )
             : null;
-        if (opened !== null) {
-          return {
-            answer: {
-              isError: false,
-              text: `No mission fits, so Canopy opened it as a new mission "${opened.targetTitle}" (id ${opened.targetMissionId}), as the owner's settings ask. ${carryOn}`,
-            },
-            threadToWake: opened.targetThreadId,
-          };
-        }
+        if (opened !== null)
+          return changed<Suggested>(
+            { _tag: "OpenedWithoutAsking", resolution: opened },
+            { threadsToWake: opened.targetThreadId === null ? [] : [opened.targetThreadId] },
+          );
         const resolution = yield* ask(threadId, caller.missionId, text, title, matches);
-        if (resolution === null)
-          return {
-            answer: {
-              isError: true,
-              text: "Not asked: this thread is not at work in a turn, so the owner was not asked.",
-            },
-            threadToWake: null,
-          };
-        return {
-          answer: { isError: resolution.outcome === "Withdrawn", text: textOf(resolution)[resolution.outcome] },
-          threadToWake: null,
-        };
+        return unchanged<Suggested>(resolution === null ? { _tag: "NotAsked" } : { _tag: "Resolved", resolution });
       }).pipe(Effect.provideService(SqlClient.SqlClient, sql), Effect.orDie);
 
     const findMissionsAnswer = (threadId: string, args: ArgumentsOf<"find_missions">) =>
@@ -257,11 +257,11 @@ export const suggestionsLayer = Layer.effect(
           id: string;
         }>`SELECT id FROM suggestions WHERE thread_id = ${threadId} AND outcome IS NULL`;
         for (const { id } of open) {
-          yield* sql.withTransaction(resolve(id, threadId, withdrawn));
+          yield* withdrawOne(id, threadId);
           yield* waits.settle(id, withdrawn);
         }
       }).pipe(Effect.orDie);
 
-    return { answer, findMissions: findMissionsAnswer, suggest: suggestAnswer, withdraw };
+    return { answer, findMissions: findMissionsAnswer, suggest, withdraw };
   }),
 );

@@ -2,11 +2,10 @@ import { homedir } from "node:os";
 // Entry point when Electron starts the service as a utilityProcess.
 import { join } from "node:path";
 import { Cause, Config, Effect, Exit, Layer } from "effect";
-import { makeClaudeHarness } from "./claude.ts";
-import { makeCodexHarness } from "./codex.ts";
-import { fakeHarnessLayer, Harness, routeHarnesses } from "./execution.ts";
+import { Harness } from "./execution.ts";
+import { fakeHarnessLayer } from "./fakeHarness.ts";
+import { makeHarnessRouter } from "./harnesses.ts";
 import { fakeHarnessToolsLayer, liveHarnessToolsLayer } from "./harnessTools.ts";
-import { makeOpenCodeHarness } from "./opencode.ts";
 import { sandboxProblem } from "./sandbox.ts";
 import { serveLoopback } from "./server.ts";
 import { serviceLayer } from "./service.ts";
@@ -34,16 +33,7 @@ const liveLayer = Layer.unwrap(
     const harness =
       harnessName === "fake"
         ? fakeHarnessLayer("1500 millis")
-        : Layer.effect(
-            Harness,
-            Effect.gen(function* () {
-              return routeHarnesses({
-                claude: yield* makeClaudeHarness({ command: commands.claude, idleTimeout, sandboxProblem: problem }),
-                codex: yield* makeCodexHarness({ command: commands.codex, idleTimeout }),
-                opencode: yield* makeOpenCodeHarness({ command: commands.opencode, idleTimeout }),
-              });
-            }),
-          );
+        : Layer.effect(Harness, makeHarnessRouter(commands, { idleTimeout, sandboxProblem: problem }));
     return Layer.fresh(
       serviceLayer({
         accountsRoot: join(dataDirectory, "accounts"),

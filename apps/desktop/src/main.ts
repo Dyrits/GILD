@@ -15,7 +15,7 @@ const dataDirectory = () => process.env.CANOPY_DATA_DIR ?? app.getPath("userData
 app.setName("Canopy");
 
 // Runs before Electron creates the new user-data folder at ready, so an install from before the rename keeps its data.
-const formerDataMove = Promise.resolve().then(() => {
+const formerDataMoved = Promise.resolve().then(() => {
   if (process.env.CANOPY_DATA_DIR !== undefined) return;
   const claudeFolder = process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), ".claude");
   moveFormerData(app.getPath("appData"), app.getPath("userData"), claudeFolder);
@@ -65,7 +65,7 @@ const quitWith = (reason: string) => {
 
 app
   .whenReady()
-  .then(() => formerDataMove)
+  .then(() => formerDataMoved)
   .then(async () => {
     const token = randomBytes(32).toString("base64url");
     const endpoint = await startService(token);

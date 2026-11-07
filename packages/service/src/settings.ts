@@ -6,6 +6,7 @@ import { invalid } from "./errors.ts";
 /** A day in milliseconds, the unit of the Settings durations. */
 export const dayMillis = 24 * 60 * 60 * 1000;
 
+/** The settings before the owner changes any. */
 export const defaultSettings: Settings = {
   approvalLevel: "RiskyOnly",
   autoArchiveDays: 30,
@@ -29,6 +30,7 @@ export const defaultSettings: Settings = {
 
 const decode = Schema.decodeUnknownSync(Settings);
 
+/** Reads the owner's settings, or the defaults when none are stored or they no longer decode. */
 export const readSettings = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const [row] = yield* sql<{ value: string }>`SELECT value FROM settings WHERE key = 'settings'`;
@@ -41,6 +43,7 @@ export const readSettings = Effect.gen(function* () {
   }
 });
 
+/** Stores the owner's settings, refusing any that do not decode. */
 export const writeSettings = (settings: Settings) =>
   Effect.gen(function* () {
     const parsed = yield* Schema.decodeUnknownEffect(Settings)(settings).pipe(

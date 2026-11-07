@@ -8,7 +8,7 @@ import { readSettings } from "./settings.ts";
 /** How many entries a thread's starting context and `read_journal` carry by default (mission-journal, Reading). */
 export const latestEntryCount = 20;
 /** The most opener's messages a new thread starts with; summarizing longer ones is staged (CHG-0043). */
-export const openerMessageCount = 40;
+const openerMessageCount = 40;
 /** The answer to `report_result`'s journal argument when a thread has nothing to record. */
 export const nothingToRecord = "nothing to record";
 
@@ -215,21 +215,16 @@ export const journalInstructions = [
   "Call read_journal for the current briefing and older entries. Call update_journal with an entry when you settle a decision, change direction, or finish a piece of work. Rewrite the briefing only when where the mission stands has changed: pass the whole new briefing and basedOn, the version you started from.",
 ].join("\n");
 
-/** A thread's journal for each turn's message: the briefing, the latest entries, and its opener's messages. */
-export const journalContextOf = (threadId: string) =>
+/** The mission's journal for each turn's message: the briefing and the latest entries. */
+export const journalContextOf = (missionId: string) =>
   Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    const missionId = yield* missionOf(threadId);
     const briefing = yield* readBriefing(missionId);
     const entries = yield* listEntries(missionId, null, latestEntryCount);
-    const [thread] = yield* sql<{ openerMessages: string | null }>`
-      SELECT opener_messages AS openerMessages FROM threads WHERE id = ${threadId}`;
-    const openerMessages = thread?.openerMessages ?? null;
-    return [
-      "# Mission journal at this turn",
-      journalTextOf(briefing, entries),
-      ...(openerMessages === null
-        ? []
-        : ["", "# Your opener's messages since the latest journal entry", openerMessages]),
-    ].join("\n");
+    return ["# Mission journal at this turn", journalTextOf(briefing, entries)].join("\n");
   });
+
+/** The opener's messages as each turn's message carries them, after the journal; null when there are none. */
+export const openerContextOf = (openerMessages: string | null) =>
+  openerMessages === null
+    ? null
+    : ["# Your opener's messages since the latest journal entry", openerMessages].join("\n");

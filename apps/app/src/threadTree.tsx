@@ -83,8 +83,14 @@ export function OpenThreadForm({
   const request = useSettledText();
   const { data: context } = useServiceQuery(
     client,
-    { _tag: "PreviewStartingContext", model, parentThreadId: parent.id, text: request.settled },
-    `starting:${parent.id}:${model}:${request.settled}`,
+    {
+      _tag: "PreviewStartingContext",
+      harness: runner.harness,
+      model,
+      parentThreadId: parent.id,
+      text: request.settled,
+    },
+    `starting:${parent.id}:${runner.harness}:${model}:${request.settled}`,
   );
   const openWith = (shouldStartAnyway: boolean) => async (text: string) => {
     const opened = await client.request({

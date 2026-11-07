@@ -6,7 +6,7 @@ import { Effect } from "effect";
 import { TestClock } from "effect/testing";
 import { afterEach } from "vitest";
 import { periodStartOf } from "../src/spending.ts";
-import { call, fixture, open, read, send, settle, start, tool } from "./fixtures/batch7.ts";
+import { call, fixture, open, read, send, settle, start, tool } from "./fixtures/service.ts";
 
 const openLine = (request: string) => `call open_thread ${JSON.stringify({ request })}`;
 

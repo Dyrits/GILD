@@ -16,6 +16,7 @@ declare global {
 
 const decodeFrame = Schema.decodeUnknownSync(ServerFrameJson);
 
+/** A request the service refused or failed, carrying its error. */
 export class RequestFailed extends Error {
   constructor(readonly error: ServiceError) {
     super(error.message);
@@ -106,4 +107,5 @@ export class ServiceClient {
   }
 }
 
+/** A fresh request identifier; repeating a command with it returns the original outcome. */
 export const newRequestId = () => crypto.randomUUID();

@@ -278,14 +278,3 @@ export const intelContextOf = (threadId: string) =>
       ...(chain.workspaceId === null ? ["You have no workspace, so workspace intel is not available to you."] : []),
     ].join("\n");
   });
-
-/** Erases deleted threads' own intel and their changes, awaiting or done. Callers run it in a transaction. */
-export const eraseThreadIntel = (threadIds: ReadonlyArray<string>) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    yield* sql`DELETE FROM intel_uses WHERE intel_id IN (
-        SELECT id FROM intels WHERE scope = 'Thread' AND thread_id IN ${sql.in(threadIds)})`;
-    yield* sql`DELETE FROM intels WHERE scope = 'Thread' AND thread_id IN ${sql.in(threadIds)}`;
-    yield* sql`DELETE FROM intel_changes WHERE thread_id IN ${sql.in(threadIds)}
-      OR scope_thread_id IN ${sql.in(threadIds)}`;
-  });

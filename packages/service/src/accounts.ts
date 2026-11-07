@@ -18,7 +18,7 @@ interface AccountRow {
 }
 
 /** An added account's folder. */
-export const accountFolderOf = (accountsRoot: string, accountId: string) => join(accountsRoot, accountId);
+const accountFolderOf = (accountsRoot: string, accountId: string) => join(accountsRoot, accountId);
 
 /** One harness with its accounts' sign-ins and the models its first signed-in account offers. */
 const readHarness = (harness: HarnessName, rows: ReadonlyArray<AccountRow>) =>
@@ -99,6 +99,7 @@ export const addAccount = (harness: HarnessName, label: string) =>
     return id;
   });
 
+/** Gives a provider account a new label the owner reads it by. */
 export const renameAccount = (accountId: string, label: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;

@@ -11,7 +11,7 @@ import type {
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import type { ServiceClient } from "./client";
-import { timeOf } from "./formatting";
+import { clockOf, timeOf } from "./formatting";
 import { DeletedIntelRow, IntelHistoryScreen } from "./intelHistory";
 import {
   intelActionOf,
@@ -26,8 +26,6 @@ import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
 
 // Scoped intel (scoped-intel): the thread's intel icon, its changes in the conversation, and the intel panel.
-
-const clock = (millis: number) => new Date(millis).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
 
 /** The thread's intel icon: its count and share of the context window, red past the warning share. */
 export function IntelIcon({ gauge, onPress }: { gauge: IntelGauge; onPress: () => void }) {
@@ -116,7 +114,7 @@ export function IntelChangeLine({ change }: { change: IntelChange }) {
   return (
     <View style={styles.questionLine}>
       <Text style={styles.muted}>
-        {intelChangeLineOf(change)} · {clock(change.resolvedAt ?? change.at)}
+        {intelChangeLineOf(change)} · {clockOf(change.resolvedAt ?? change.at)}
       </Text>
       <Text style={styles.muted}>{change.text}</Text>
     </View>

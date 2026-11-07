@@ -843,3 +843,61 @@ Summary: OpenMission is now Canopy. The domain terms stay as they are (mission, 
 References: apps/desktop/src/formerData.ts, main.ts, preload.ts; apps/desktop/test/formerData.test.ts; vitest.config.ts; apps/app/app.json; package.json files; bun.lock; README.md; AGENTS.md; documentation/
 Validation: `bun run test` passed 335 with 8 skipped; typecheck, `bun run check`, and the desktop build passed. The owner's data on this computer was moved with `moveFormerData`: 5 threads, integrity check ok, 4 Claude Code session folders renamed; the built service started on it. Not verified: the app driven in the window after the rename.
 Evidence: The owner's instruction of 2026-11-07: "Operate the rebranding overall in Canopy." Intel is kept for now ("Let's keep Intel for now."); former data migrated; dated records left as written.
+
+## CHG-0062 · 2026-11-07 · Architecture pass: review refactors and the six audit candidates
+
+Type: Code
+Event: Delivery
+Scope: Local service (harnesses, approvals, intel, starting context, commands); app labels; contracts
+
+Summary: the review of the whole project and all six candidates of the 2026-11-07 architecture audit, applied at the owner's request:
+- **Review refactors**:
+  - doc comments on every export;
+  - keyed objects and if-chains instead of nested ternaries;
+  - one interrupted-turn outcome and grace constant;
+  - unused exports dropped;
+  - test names as activities;
+  - the shared test fixture renamed `fixtures/service.ts`.
+- **Harness processes** (`harnessProcesses.ts`, `lineProcess.ts`):
+  - one module owns each thread's harness process for Claude Code, Codex, and OpenCode;
+  - the adapters keep only their protocol over one transport with two framings;
+  - every adapter's restart key now includes model, folder, account, and access, so a Claude Code thread restarts on a model change.
+- **Prompts in-process**:
+  - a turn carries `askOwner`, bound to Approvals;
+  - Codex and OpenCode no longer answer their permission requests over loopback HTTP in Claude Code's format;
+  - a failure to ask ends the turn instead of hanging it;
+  - `answer_prompt` is listed only to Claude Code threads.
+- **Each harness defined once** (`harnesses.ts`): a registry keyed by harness name; keyed lookups replace `harness === "claude"` branches.
+- **Intel store** (`intelStore.ts`, `intelDecisions.ts`): the only writer of the intel tables, recording history and fading steps in each named operation.
+- **Starting context** (`startingContext.ts`, `turns.ts`):
+  - one module assembles a thread's system part and turn note;
+  - the size warning measures the same sections, so the workspace's instructions, the fixed instructions, and the title and budget lines now count;
+  - larger-model suggestions come from the chosen harness's list.
+- **Commands** (`commands.ts`): owner requests and thread tools go through one runner. Operations return their follow-ups, and the runner commits, announces once, cancels, then wakes.
+
+Behavior changes, built under the owner's instruction without questions and not yet accepted by the owner:
+- the restart key;
+- `answer_prompt` hidden from Codex and OpenCode;
+- a failed prompt answer ending the turn;
+- open harness questions withdrawn when their turn ends;
+- the fake harness echoing `prompt allowed` / `prompt denied: …`;
+- the starting-context measurement and its label: it now counts the instructions every thread receives, which reverses Batch 17's provisional choice;
+- one announcement instead of two for SetMissionBudget and the auto-archive sweep;
+- account, browsable-root, permission, and dismiss-prompt requests now committed in one transaction each.
+
+References:
+- documentation/architecture-audit/architecture-audit-2026-11-07-1830.html
+- documentation/verification/2026-11-07-architecture-pass.md
+- documentation/architecture.md (Inside the local service)
+- packages/service/src/: harnessProcesses.ts, lineProcess.ts, harnesses.ts, harnessCatalog.ts, claude.ts, claudeArgs.ts, codex.ts, opencode.ts, fakeHarness.ts, execution.ts, threadToolHandlers.ts, intelStore.ts, intelDecisions.ts, intelChanges.ts, intelUndo.ts, intelProposals.ts, intelViews.ts, startingContext.ts, turns.ts, threads.ts, commands.ts, service.ts, tree.ts, budgets.ts, chatter.ts, deleting.ts, ending.ts, suggestions.ts, lifecycle.ts
+- packages/contracts/src/records.ts, requests.ts
+- apps/app/src/labels.ts, threadTree.tsx
+- removed: packages/service/src/rpcProcess.ts
+
+Validation:
+- `bun run test` passed 371 with 8 skipped, twice; the baseline was 339 at `26bbb1d`, and 32 tests are new.
+- `bun run typecheck`, `bun run check`, `git diff --check`, and the desktop build passed.
+- The bundled service started on the fake harness.
+- Not verified: the app driven in the window, or any live harness.
+
+Evidence: The owner's instructions of 2026-11-07: "/review-and-refactor the full project. /improve-codebase-architecture for the full project. /code-simplifier without breaking conventions." and "All the points in the architecture-audit-2026-11-07-1830.html document are relevant. Do the necessary fix/implementation to improve all of that. Document the changes made."

@@ -3,7 +3,7 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { TestClock } from "effect/testing";
 import { afterEach } from "vitest";
-import { call, fixture, open, start, tool } from "./fixtures/batch7.ts";
+import { call, entryOf, fixture, open, start, tool } from "./fixtures/service.ts";
 
 // Batch 15 (scoped-intel: History and undo), on the test clock.
 
@@ -39,11 +39,6 @@ const panel = (state: "Deleted" | null = null) => call({ _tag: "ListIntel", scop
 const intelOf = (id: string) => panel().pipe(Effect.map((view) => view.intels.find((intel) => intel.id === id)));
 const historyOf = (intelId: IntelId) => call({ _tag: "ReadIntelHistory", intelId });
 const kindsOf = (entries: ReadonlyArray<IntelHistoryEntry>) => entries.map((entry) => entry.kind);
-const entryOf = (entries: ReadonlyArray<IntelHistoryEntry>, kind: IntelHistoryEntry["kind"]) => {
-  const found = entries.find((entry) => entry.kind === kind);
-  if (found === undefined) throw new Error(`no ${kind} entry in ${kindsOf(entries).join(", ")}`);
-  return found;
-};
 const undo = (entry: IntelHistoryEntry) => call({ _tag: "UndoIntelChange", entryId: entry.id });
 const approveAll = Effect.gen(function* () {
   for (const change of (yield* panel()).awaiting) {

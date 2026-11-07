@@ -1,15 +1,23 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { MissionDetail, MissionId, Request, RequestTag, ResultOf, ThreadId } from "@canopy/contracts";
+import type {
+  IntelHistoryEntry,
+  MissionDetail,
+  MissionId,
+  Request,
+  RequestTag,
+  ResultOf,
+  ThreadId,
+} from "@canopy/contracts";
 import { Effect } from "effect";
 import { Endpoints } from "../../src/endpoints.ts";
-import { callThreadTool } from "../../src/execution.ts";
+import { callThreadTool } from "../../src/fakeHarness.ts";
 import { fakeHarnessLayer, Service, serviceLayer } from "../../src/index.ts";
 
 /** An isolated service with the scripted fake harness and real temporary SQLite. */
 export const fixture = () => {
-  const directory = mkdtempSync(join(tmpdir(), "canopy-batch7-"));
+  const directory = mkdtempSync(join(tmpdir(), "canopy-service-"));
   return {
     directory,
     layer: serviceLayer({
@@ -72,3 +80,10 @@ export const open = (parentThreadId: ThreadId, text = "Hello") =>
     shouldStartAnyway: false,
     text,
   });
+
+/** The entry of the given kind in an intel's history; fails the test when there is none. */
+export const entryOf = (entries: ReadonlyArray<IntelHistoryEntry>, kind: IntelHistoryEntry["kind"]) => {
+  const found = entries.find((entry) => entry.kind === kind);
+  if (found === undefined) throw new Error(`no ${kind} entry in ${entries.map((entry) => entry.kind).join(", ")}`);
+  return found;
+};

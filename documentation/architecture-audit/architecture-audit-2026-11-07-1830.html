@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Architecture review for Canopy</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+      mermaid.initialize({ securityLevel: "loose", startOnLoad: true, theme: "neutral" });
+    </script>
+    <style>
+      .seam { border-style: dashed; }
+      .deep { color: #f8fafc; background: linear-gradient(135deg, #0f172a, #1e293b); }
+      .leak { color: #dc2626; }
+      .label { font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; }
+    </style>
+  </head>
+  <body class="bg-stone-50 text-slate-900 font-sans">
+    <main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+      <header class="space-y-3">
+        <h1 class="font-serif text-4xl">Architecture review · Canopy</h1>
+        <p class="text-sm text-slate-500">2026-11-07 · HEAD 26bbb1d · full project · weighted by churn since the 2026-11-06 audit (all six of its candidates are done, commit 554a28c)</p>
+        <div class="flex flex-wrap gap-4 text-xs text-slate-600">
+          <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 border border-slate-500"></span> module</span>
+          <span class="flex items-center gap-1"><span class="inline-block w-6 border-t-2 border-dashed border-slate-500"></span> seam</span>
+          <span class="flex items-center gap-1"><span class="inline-block w-6 border-t-2 border-red-600"></span> leakage</span>
+          <span class="flex items-center gap-1"><span class="inline-block w-4 h-3 deep"></span> deep module</span>
+        </div>
+      </header>
+
+      <section class="space-y-10" id="candidates" >
+        <!-- 1 -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-4" id="c1" >
+          <h2 class="font-serif text-2xl">1. One session pool behind the three harness adapters</h2>
+          <div class="flex gap-2 text-xs">
+            <span class="rounded bg-emerald-100 text-emerald-800 px-2 py-0.5">Strong</span>
+            <span class="rounded bg-slate-100 text-slate-700 px-2 py-0.5">ports &amp; adapters</span>
+          </div>
+          <p class="font-mono text-sm text-slate-600">packages/service/src/claude.ts · codex.ts · opencode.ts · rpcProcess.ts · execution.ts</p>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 p-4"><p class="label text-slate-500 mb-2">Before</p>
+              <pre class="mermaid">
+flowchart TB
+  T[Threads] --> R[routeHarnesses]
+  R --> C["Claude adapter<br/>own spawn + own pool<br/>restart key: access + account"]
+  R --> X["Codex adapter<br/>own pool<br/>restart key: + model + cwd"]
+  R --> O["OpenCode adapter<br/>own pool<br/>restart key: + model + cwd"]
+  X --> P[rpcProcess]
+  O --> P
+  C -.Timer tag leaks.-> P
+  classDef leak stroke:#dc2626,stroke-width:2px;
+  class C,P leak
+              </pre>
+            </div>
+            <div class="rounded-lg border border-slate-200 p-4"><p class="label text-slate-500 mb-2">After</p>
+              <pre class="mermaid">
+flowchart TB
+  T[Threads] --> R[routeHarnesses]
+  R --> S["Session pool<br/>start/reuse by restart key · idle close<br/>interrupt grace · untaken close"]
+  S -.seam.-> C[Claude stream protocol]
+  S -.seam.-> X[Codex app-server protocol]
+  S -.seam.-> O[OpenCode ACP protocol]
+  C --> L[Line process: two framings]
+  X --> L
+  O --> L
+  classDef deep fill:#0f172a,color:#f8fafc,stroke:#0f172a,stroke-width:3px;
+  class S deep
+              </pre>
+            </div>
+          </div>
+          <p><strong>Problem.</strong> Each adapter re-implements process lifetime (close, idle timer, 10 s interrupt grace, untaken-message close), and the restart key has drifted: Claude's ignores model and cwd (<span class="font-mono text-sm">claude.ts:301</span>), so a handed-over model would keep a warm <span class="font-mono text-sm">--model</span>.</p>
+          <p><strong>Solution.</strong> A session pool module owns lifetime; each adapter keeps only its protocol and declares its restart key.</p>
+          <ul class="list-disc pl-6 text-sm space-y-1">
+            <li>Locality: lifetime bugs fixed once</li>
+            <li>Leverage: next ACP harness brings protocol only</li>
+            <li>Pool rules tested once, fake protocol</li>
+            <li>Unconfirmed-interrupt path becomes testable</li>
+            <li>Three files fall under 250 lines</li>
+          </ul>
+        </article>
+
+        <!-- 2 -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-4" id="c2" >
+          <h2 class="font-serif text-2xl">2. Harness permission prompts reach Approvals in-process</h2>
+          <div class="flex gap-2 text-xs">
+            <span class="rounded bg-emerald-100 text-emerald-800 px-2 py-0.5">Strong</span>
+            <span class="rounded bg-slate-100 text-slate-700 px-2 py-0.5">in-process</span>
+          </div>
+          <p class="font-mono text-sm text-slate-600">codex.ts:157 · opencode.ts:190 · execution.ts:104 (callThreadTool) · rpcProcess.ts:155 · threadToolHandlers.ts:35 · approvals.ts:219</p>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 p-4"><p class="label text-slate-500 mb-2">Before: six hops</p>
+              <pre class="mermaid">
+sequenceDiagram
+  participant A as Codex/OpenCode adapter
+  participant H as Loopback HTTP + SSE
+  participant M as MCP tool handlers
+  participant P as Approvals
+  A->>H: POST answer_prompt (JSON-RPC)
+  H->>M: tools/call
+  M->>P: answerPrompt
+  P-->>M: allowed / denied
+  M-->>H: {"behavior":"allow"} (Claude format)
+  H-->>A: SSE data: line, parsed with as
+              </pre>
+            </div>
+            <div class="rounded-lg border border-slate-200 p-4"><p class="label text-slate-500 mb-2">After: one call</p>
+              <pre class="mermaid">
+sequenceDiagram
+  participant A as Codex/OpenCode adapter
+  participant P as Approvals
+  participant C as Claude Code (MCP)
+  A->>P: askOwner(action) via turn request
+  P-->>A: allowed / denied + reply
+  C->>P: answer_prompt → same capability
+              </pre>
+            </div>
+          </div>
+          <p><strong>Problem.</strong> In-process adapters answer their harness's prompts over loopback HTTP in Claude Code's wire format; a failed loopback call becomes a defect in a forked fiber and the turn hangs, and Codex and OpenCode threads see <span class="font-mono text-sm">answer_prompt</span> in their tool list.</p>
+          <p><strong>Solution.</strong> The turn request carries an ask-the-owner capability bound to Approvals; MCP <span class="font-mono text-sm">answer_prompt</span> stays as Claude's adapter onto it.</p>
+          <ul class="list-disc pl-6 text-sm space-y-1">
+            <li>Locality: one way into prompt policy</li>
+            <li>Typed failure replaces hanging turn</li>
+            <li>Approval tests drop HTTP</li>
+            <li>Claude format stops leaking</li>
+          </ul>
+        </article>
+
+        <!-- 3 -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-4" id="c3" >
+          <h2 class="font-serif text-2xl">3. Domain commands return their follow-ups; one runner applies them</h2>
+          <div class="flex gap-2 text-xs">
+            <span class="rounded bg-amber-100 text-amber-800 px-2 py-0.5">Worth exploring</span>
+            <span class="rounded bg-slate-100 text-slate-700 px-2 py-0.5">local-substitutable</span>
+          </div>
+          <p class="font-mono text-sm text-slate-600">service.ts · threadToolHandlers.ts · tree.ts · budgets.ts · chatter.ts · deleting.ts · ending.ts · suggestions.ts · lifecycle.ts</p>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 p-4 space-y-2"><p class="label text-slate-500">Before: duties in the doc comments</p>
+              <div class="border border-slate-400 rounded p-2 text-sm">service.ts request handler</div>
+              <div class="ml-4 border border-slate-300 rounded p-2 text-xs">domain fn · "Callers run it in a transaction" ×50</div>
+              <div class="ml-4 border-l-4 border-red-500 pl-2 text-xs leak">publish: 19 sites, two styles (afterCommit / tap)</div>
+              <div class="ml-4 border-l-4 border-red-500 pl-2 text-xs leak">wake: 6 sites in service.ts, 4 in threadToolHandlers</div>
+              <div class="ml-4 border-l-4 border-red-500 pl-2 text-xs leak">cancel turns: "then cancel" in lifecycle, budgets</div>
+            </div>
+            <div class="rounded-lg border border-slate-200 p-4 space-y-2"><p class="label text-slate-500">After</p>
+              <div class="border border-slate-400 rounded p-2 text-sm">owner request · thread tool (≈1 line each)</div>
+              <div class="deep rounded p-3 text-sm">Command runner<div class="text-xs opacity-70 mt-1">transaction → publish once after commit → cancel → wake</div></div>
+              <div class="ml-4 border border-slate-300 rounded p-2 text-xs">domain operation returns {storage work, threads to wake, turns to cancel}</div>
+            </div>
+          </div>
+          <p><strong>Problem.</strong> The domain function decides what follows but each caller carries it out by hand; a forgotten wake leaves a thread silently stuck and is testable only through the whole service.</p>
+          <p><strong>Solution.</strong> Operations return their follow-ups; one runner commits, publishes, cancels, and wakes in a fixed order.</p>
+          <ul class="list-disc pl-6 text-sm space-y-1">
+            <li>Locality: commit-notify-wake order in one place</li>
+            <li>Leverage: one runner, ~30 call sites</li>
+            <li>Operations tested by returned follow-ups</li>
+          </ul>
+        </article>
+
+        <!-- 4 -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-4" id="c4" >
+          <h2 class="font-serif text-2xl">4. Intel keeps its own history: one intel store module</h2>
+          <div class="flex gap-2 text-xs">
+            <span class="rounded bg-amber-100 text-amber-800 px-2 py-0.5">Worth exploring</span>
+            <span class="rounded bg-slate-100 text-slate-700 px-2 py-0.5">local-substitutable</span>
+          </div>
+          <p class="font-mono text-sm text-slate-600">intelChanges.ts · intelHistory.ts · intelUndo.ts · intelProposals.ts · intelViews.ts · intel.ts · deleting.ts</p>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 p-4"><p class="label text-slate-500 mb-2">Before: five writers</p>
+              <pre class="mermaid">
+flowchart LR
+  A[intelChanges] -->|SQL| DB[(intels · intel_history · intel_uses)]
+  B[intelProposals] -->|SQL| DB
+  C[intelUndo] -->|SQL| DB
+  D[intelViews.countUses] -.no trackChange.-> DB
+  E[intel] -->|SQL| DB
+  F[deleting: order matters] -.-> DB
+  classDef leak stroke:#dc2626,stroke-width:2px;
+  class D,F leak
+              </pre>
+            </div>
+            <div class="rounded-lg border border-slate-200 p-4"><p class="label text-slate-500 mb-2">After: one writer</p>
+              <pre class="mermaid">
+flowchart LR
+  A[intelChanges: approval policy] --> S
+  B[intelProposals: evidence] --> S
+  C[intelUndo: what to revert] --> S
+  D[intelViews] --> S
+  F[deleting] --> S
+  S["Intel store<br/>save · correct · move · delete · restore<br/>history + fading steps by construction"] --> DB[(intel tables)]
+  classDef deep fill:#0f172a,color:#f8fafc,stroke:#0f172a,stroke-width:3px;
+  class S deep
+              </pre>
+            </div>
+          </div>
+          <p><strong>Problem.</strong> Five modules write the intel tables; "delete and decline its awaiting changes" is written three times, and recording fading steps before a change is left to each caller — undo depends on all of them remembering.</p>
+          <p><strong>Solution.</strong> One intel store module is the only writer and records history itself; the others keep only policy.</p>
+          <ul class="list-disc pl-6 text-sm space-y-1">
+            <li>Complete history by construction</li>
+            <li>Locality: deleting an intel, one file</li>
+            <li>Undo invariant tested at one interface</li>
+            <li>Highest-churn service cluster (476 lines)</li>
+          </ul>
+        </article>
+
+        <!-- 5 -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-4" id="c5" >
+          <h2 class="font-serif text-2xl">5. One starting context, assembled and measured in one place</h2>
+          <div class="flex gap-2 text-xs">
+            <span class="rounded bg-amber-100 text-amber-800 px-2 py-0.5">Worth exploring</span>
+            <span class="rounded bg-slate-100 text-slate-700 px-2 py-0.5">local-substitutable</span>
+          </div>
+          <p class="font-mono text-sm text-slate-600">threads.ts:299-350 · startingContext.ts · journal.ts · intel.ts · instructions.ts · workspaces.ts</p>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 p-4 space-y-2"><p class="label text-slate-500">Before: two compositions</p>
+              <div class="border border-slate-400 rounded p-2 text-xs">Threads.run (inline, ~8 reads): instructions + workspace AGENTS.md + journal + intel + position + budget</div>
+              <div class="border border-red-400 rounded p-2 text-xs leak">startingContext.ts measures: request + journal + intel + opener messages — misses workspace instructions, fixed instructions, budget line; models from Claude only</div>
+            </div>
+            <div class="rounded-lg border border-slate-200 p-4 space-y-2"><p class="label text-slate-500">After</p>
+              <div class="flex gap-2"><div class="border border-slate-400 rounded p-2 text-xs flex-1">Threads.run</div><div class="border border-slate-400 rounded p-2 text-xs flex-1">PreviewStartingContext</div></div>
+              <div class="deep rounded p-3 text-sm">Starting context<div class="text-xs opacity-70 mt-1">parts → text · parts → size</div></div>
+            </div>
+          </div>
+          <p><strong>Problem.</strong> The CHG-0007 size warning measures a different composition from the one the harness receives.</p>
+          <p><strong>Solution.</strong> One module builds the system part and turn note; the size is derived from the same parts.</p>
+          <ul class="list-disc pl-6 text-sm space-y-1">
+            <li>Warning tracks what is sent</li>
+            <li>threads.ts under 250 lines</li>
+            <li>Context checked without running a turn</li>
+          </ul>
+        </article>
+
+        <!-- 6 -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-4" id="c6" >
+          <h2 class="font-serif text-2xl">6. Each harness defined once</h2>
+          <div class="flex gap-2 text-xs">
+            <span class="rounded bg-slate-200 text-slate-700 px-2 py-0.5">Speculative</span>
+            <span class="rounded bg-slate-100 text-slate-700 px-2 py-0.5">in-process</span>
+          </div>
+          <p class="font-mono text-sm text-slate-600">harnessCatalog.ts · harnessTools.ts · instructions.ts · main.ts · contracts/harnesses.ts</p>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 p-4 space-y-1"><p class="label text-slate-500 mb-2">Before: ~7 files per new harness</p>
+              <div class="grid grid-cols-3 gap-1 text-xs">
+                <div class="border rounded p-1">catalog: labels, models</div><div class="border rounded p-1">harnessTools: if claude ×4</div><div class="border rounded p-1">instructions: if claude</div>
+                <div class="border rounded p-1">main.ts wiring</div><div class="border rounded p-1">claude.ts: env helper</div><div class="border rounded p-1">contracts</div>
+              </div>
+            </div>
+            <div class="rounded-lg border border-slate-200 p-4 space-y-2"><p class="label text-slate-500">After</p>
+              <div class="deep rounded p-3 text-sm">Harness registry, keyed by name</div>
+              <div class="flex gap-1 text-xs"><div class="border rounded p-1 flex-1">Claude def</div><div class="border rounded p-1 flex-1">Codex def</div><div class="border rounded p-1 flex-1">OpenCode def</div></div>
+            </div>
+          </div>
+          <p><strong>Problem.</strong> What Canopy knows about each harness is scattered, and <span class="font-mono text-sm">harnessTools.ts</span> branches on the name against the keyed-object convention.</p>
+          <p><strong>Solution.</strong> One definition per harness and a registry from which HarnessTools and the router derive. Pays off with a fourth harness; fold into candidate 1.</p>
+          <ul class="list-disc pl-6 text-sm space-y-1"><li>Next harness is one module</li></ul>
+        </article>
+      </section>
+
+      <section class="text-sm text-slate-600 space-y-1">
+        <h2 class="font-serif text-xl text-slate-900">Looked at, not proposed</h2>
+        <p><span class="font-mono">store.ts</span>: append-only migrations, passes the deletion test. Contracts <span class="font-mono">requests.ts</span>/<span class="font-mono">records.ts</span>: churn is guarded by <span class="font-mono">Match.valueTags</span>. App <span class="font-mono">labels.ts</span>: pure derivations with tests, earns its keep.</p>
+      </section>
+
+      <section class="rounded-xl deep p-8 space-y-2" id="top-recommendation" >
+        <p class="label opacity-70">Top recommendation</p>
+        <h2 class="font-serif text-3xl"><a class="underline" href="#c1" >1. One session pool behind the three harness adapters</a>, with <a class="underline" href="#c2" >2</a></h2>
+        <p class="opacity-90">Three adapters make the seam real, they are the second-hottest area since the last audit, the restart key has already drifted, and candidate 2 removes a turn-hanging failure in the same files.</p>
+      </section>
+    </main>
+  </body>
+</html>

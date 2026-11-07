@@ -1,5 +1,6 @@
 import { Context, Effect, Layer, PubSub, Ref } from "effect";
 
+/** The reply a thread is writing, as it streams to the owner's screens. */
 export interface DraftUpdate {
   /** The reply written so far; empty when the draft ends. */
   readonly text: string;
@@ -16,6 +17,7 @@ export class Changes extends Context.Service<
   }
 >()("canopy/Changes") {}
 
+/** Changes as an in-memory broadcast to every connected screen. */
 export const changesLayer = Layer.effect(
   Changes,
   Effect.gen(function* () {

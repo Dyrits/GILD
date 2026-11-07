@@ -7,8 +7,9 @@ import { Approvals, approvalsLayer } from "./approvals.ts";
 import { budgetPeriodsLayer } from "./budgetPeriods.ts";
 import { applyGlobalBudget, setMissionBudget, stopAtBudget } from "./budgets.ts";
 import { readBudgetWindow } from "./budgetViews.ts";
-import { Changes, changesLayer } from "./changes.ts";
+import { changesLayer } from "./changes.ts";
 import { resolveChatter } from "./chatter.ts";
+import { Commands, changed, commandsLayer, type FollowUps, noFollowUps, type WithFollowUps } from "./commands.ts";
 import { listMissions } from "./dashboard.ts";
 import { deleteThread, previewDeletion } from "./deleting.ts";
 import { autoArchiveLayer, dismissPrompt, endMission, previewEnding, reopenMission } from "./ending.ts";
@@ -23,7 +24,7 @@ import {
   pinIntelByOwner,
   resolveIntelChange,
   restoreIntelByOwner,
-} from "./intelChanges.ts";
+} from "./intelDecisions.ts";
 import { readIntelHistory } from "./intelHistoryViews.ts";
 import { resolveIntelProposal } from "./intelProposals.ts";
 import { undoIntelChange } from "./intelUndo.ts";
@@ -40,9 +41,10 @@ import { readSettings, readStartChoices, writeSettings } from "./settings.ts";
 import { readStartingContext } from "./startingContext.ts";
 import { storeLayer } from "./store.ts";
 import { Suggestions, suggestionsLayer } from "./suggestions.ts";
-import { AccountsRoot, ScratchRoot, Threads, threadsLayer } from "./threads.ts";
+import { AccountsRoot, Threads, threadsLayer } from "./threads.ts";
 import { renameMission } from "./titles.ts";
 import { openThreadByOwner } from "./tree.ts";
+import { ScratchRoot } from "./workspaces.ts";
 
 /** The entry point shared by app commands and, later, MCP calls. */
 export class Service extends Context.Service<
@@ -76,55 +78,49 @@ const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const threads = yield* Threads;
   const scratchRoot = yield* ScratchRoot;
-  const changes = yield* Changes;
+  const commands = yield* Commands;
   const approvals = yield* Approvals;
   const suggestions = yield* Suggestions;
   const problem = yield* sandboxProblem;
   const harnessTools = yield* HarnessTools;
   const accountsRoot = yield* AccountsRoot;
+  /** Runs storage work as a command whose only follow-up is announcing the change. */
+  const change = <A, E, R>(work: Effect.Effect<A, E, R>) => commands.run(Effect.map(work, (value) => changed(value)));
   /** Runs an account change, then lists the harnesses as they stand after it. */
   const thenListHarnesses = <A, R>(work: Effect.Effect<A, ServiceFailure | SqlError.SqlError, R>) =>
-    work.pipe(
-      Effect.tap(() => changes.publish),
+    change(work).pipe(
       Effect.andThen(listHarnesses),
       Effect.provideService(HarnessTools, harnessTools),
       Effect.provideService(AccountsRoot, accountsRoot),
     );
   const chatterDecisions = yield* Semaphore.make(1);
 
-  /** Runs a command once per request identifier; a repeat returns the stored outcome. */
+  /**
+   * Runs an operation once per request identifier, in the command's transaction; a repeat returns the
+   * stored outcome, announces nothing, and applies only `replayed`'s follow-ups.
+   */
   const once = <A>(
     requestId: string,
     tag: string,
-    work: Effect.Effect<A, ServiceFailure | SqlError.SqlError, SqlClient.SqlClient>,
+    work: Effect.Effect<WithFollowUps<A>, ServiceFailure | SqlError.SqlError, SqlClient.SqlClient>,
+    replayed: (stored: A) => FollowUps = () => noFollowUps,
   ) =>
-    sql.withTransaction(
-      Effect.gen(function* () {
-        const [stored] = yield* sql<{ requestTag: string; outcome: string }>`
-          SELECT request_tag AS requestTag, outcome FROM command_outcomes WHERE request_id = ${requestId}`;
-        if (stored !== undefined) {
-          if (stored.requestTag !== tag) return yield* invalid("This request identifier was used for another command.");
-          return JSON.parse(stored.outcome) as A;
-        }
-        const outcome = yield* work;
-        yield* sql`INSERT INTO command_outcomes (request_id, request_tag, outcome)
-          VALUES (${requestId}, ${tag}, ${JSON.stringify(outcome)})`;
-        yield* sql.afterCommit(changes.publish);
-        return outcome;
-      }),
-    );
+    Effect.gen(function* () {
+      const [stored] = yield* sql<{ requestTag: string; outcome: string }>`
+        SELECT request_tag AS requestTag, outcome FROM command_outcomes WHERE request_id = ${requestId}`;
+      if (stored !== undefined) {
+        if (stored.requestTag !== tag) return yield* invalid("This request identifier was used for another command.");
+        const value = JSON.parse(stored.outcome) as A;
+        return { followUps: replayed(value), value } satisfies WithFollowUps<A>;
+      }
+      const done = yield* work;
+      yield* sql`INSERT INTO command_outcomes (request_id, request_tag, outcome)
+        VALUES (${requestId}, ${tag}, ${JSON.stringify(done.value)})`;
+      return { ...done, followUps: { ...done.followUps, isChanged: true } } satisfies WithFollowUps<A>;
+    });
 
-  /** After a budget change: halted turns end, and released threads carry on with their kept messages. */
-  const applyBudgetOutcome = (outcome: {
-    readonly halted: ReadonlyArray<string>;
-    readonly released: ReadonlyArray<string>;
-  }) =>
-    threads
-      .cancel(outcome.halted)
-      .pipe(
-        Effect.andThen(changes.publish),
-        Effect.andThen(Effect.forEach(outcome.released, (id) => threads.wake(id), { discard: true })),
-      );
+  /** A request's follow-ups that only wake one thread, as a repeated request still does. */
+  const wakingOnly = (threadId: string): FollowUps => ({ ...noFollowUps, threadsToWake: [threadId] });
 
   const handle = (request: Request): Effect.Effect<unknown, ServiceFailure> => {
     // One handler per request tag; Match.valueTags fails to compile when a tag has none.
@@ -132,47 +128,39 @@ const make = Effect.gen(function* () {
       request,
       {
         AddAccount: (add) => thenListHarnesses(addAccount(add.harness, add.label)),
-        AddBrowsableRoot: (add) => addBrowsableRoot(add.path).pipe(Effect.tap(() => changes.publish)),
+        AddBrowsableRoot: (add) => change(addBrowsableRoot(add.path)),
         AddJournalEntry: (add) =>
           nonBlank(add.text).pipe(
             Effect.andThen((text) =>
-              once(
-                add.requestId,
-                add._tag,
-                updateJournal(add.missionId, { kind: "user" }, text, null).pipe(
-                  Effect.flatMap((outcome) => ownerOutcomeOf(add.missionId, outcome)),
+              commands.run(
+                once(
+                  add.requestId,
+                  add._tag,
+                  updateJournal(add.missionId, { kind: "user" }, text, null).pipe(
+                    Effect.flatMap((outcome) => ownerOutcomeOf(add.missionId, outcome)),
+                    Effect.map((view) => changed(view)),
+                  ),
                 ),
               ),
             ),
           ),
         AnswerQuestion: (given) => approvals.answer(given.questionId, given.answer, given.message, "desktop"),
         AnswerSuggestion: (given) =>
-          suggestions
-            .answer(given.suggestionId, given.answer)
-            .pipe(
-              Effect.tap((answered) =>
-                answered.targetThreadId === null ? Effect.void : threads.wake(answered.targetThreadId),
-              ),
-            ),
+          suggestions.answer(given.suggestionId, given.answer).pipe(
+            Effect.tap(({ followUps }) => commands.apply(followUps)),
+            Effect.map(({ value }) => value),
+          ),
         BrowseFolders: (browse) => browseFolders(browse.path, browse.shouldIncludeHidden),
         CreateFolder: (create) => createFolder(create.parent, create.name),
-        DeleteIntel: (given) =>
-          sql.withTransaction(deleteIntelByOwner(given.intelId)).pipe(Effect.tap(() => changes.publish)),
+        DeleteIntel: (given) => change(deleteIntelByOwner(given.intelId)),
         DeleteThread: (given) =>
           deleteThread(given.threadId, given.confirmation).pipe(
-            Effect.provideService(Threads, threads),
             Effect.provideService(ScratchRoot, scratchRoot),
-            Effect.provideService(Changes, changes),
+            Effect.provideService(Commands, commands),
           ),
-        DismissMissionPrompt: (given) =>
-          dismissPrompt(given.missionId, given.prompt).pipe(Effect.tap(() => changes.publish)),
-        EditIntel: (given) =>
-          sql.withTransaction(editIntelByOwner(given.intelId, given.text)).pipe(Effect.tap(() => changes.publish)),
-        EndMission: (given) =>
-          endMission(given.missionId, given.ending, given.snapshot).pipe(
-            Effect.provideService(Threads, threads),
-            Effect.provideService(Changes, changes),
-          ),
+        DismissMissionPrompt: (given) => commands.run(dismissPrompt(given.missionId, given.prompt)),
+        EditIntel: (given) => change(editIntelByOwner(given.intelId, given.text)),
+        EndMission: (given) => commands.run(endMission(given.missionId, given.ending, given.snapshot)),
         InterruptThread: (given) =>
           threads
             .interrupt(given.threadId)
@@ -192,24 +180,30 @@ const make = Effect.gen(function* () {
         OpenThread: (open) =>
           nonBlank(open.text).pipe(
             Effect.andThen((text) =>
-              once(
-                open.requestId,
-                open._tag,
-                openThreadByOwner(
-                  open.parentThreadId,
-                  text,
-                  { accountId: open.accountId, effort: open.effort, harness: open.harness, model: open.model },
-                  open.shouldStartAnyway,
+              commands.run(
+                once(
+                  open.requestId,
+                  open._tag,
+                  openThreadByOwner(
+                    open.parentThreadId,
+                    text,
+                    { accountId: open.accountId, effort: open.effort, harness: open.harness, model: open.model },
+                    open.shouldStartAnyway,
+                  ).pipe(Effect.provideService(ScratchRoot, scratchRoot)),
+                  (opened) => wakingOnly(opened.threadId),
                 ),
               ),
             ),
-            Effect.tap((opened) => threads.wake(opened.threadId)),
           ),
-        PinIntel: (given) =>
-          sql.withTransaction(pinIntelByOwner(given.intelId, given.isPinned)).pipe(Effect.tap(() => changes.publish)),
+        PinIntel: (given) => change(pinIntelByOwner(given.intelId, given.isPinned)),
         PreviewDeletion: (given) => previewDeletion(given.threadId),
         PreviewEnding: (given) => previewEnding(given.missionId, given.ending),
-        PreviewStartingContext: (given) => readStartingContext(given.parentThreadId, given.model, given.text),
+        PreviewStartingContext: (given) =>
+          readStartingContext(
+            given.parentThreadId,
+            { harness: given.harness ?? null, model: given.model },
+            given.text,
+          ).pipe(Effect.provideService(ScratchRoot, scratchRoot)),
         ReadBudget: (read) => readBudgetWindow(read.missionId),
         ReadIntelHistory: (read) => readIntelHistory(read.intelId),
         ReadJournal: (read) => readJournalView(read.missionId),
@@ -227,53 +221,52 @@ const make = Effect.gen(function* () {
         ReadSettings: () => readSettings,
         ReadStartChoices: () => readStartChoices,
         RemoveAccount: (remove) => thenListHarnesses(removeAccount(remove.accountId)),
-        RemovePermission: (remove) => removePermission(remove.permissionId).pipe(Effect.tap(() => changes.publish)),
+        RemovePermission: (remove) => change(removePermission(remove.permissionId)),
         RenameAccount: (rename) => thenListHarnesses(renameAccount(rename.accountId, rename.label)),
-        RenameMission: (rename) =>
-          sql.withTransaction(renameMission(rename.missionId, rename.title)).pipe(Effect.tap(() => changes.publish)),
-        ReopenMission: (reopen) =>
-          sql.withTransaction(reopenMission(reopen.missionId)).pipe(Effect.tap(() => changes.publish)),
+        RenameMission: (rename) => change(renameMission(rename.missionId, rename.title)),
+        ReopenMission: (reopen) => commands.run(reopenMission(reopen.missionId)),
         ResolveChatter: (given) =>
-          resolveChatter(given.id, given.choice, threads).pipe(
+          resolveChatter(given.id, given.choice).pipe(
             chatterDecisions.withPermit,
-            Effect.provideService(Threads, threads),
-            Effect.provideService(Changes, changes),
+            Effect.provideService(Commands, commands),
           ),
-        ResolveIntelChange: (given) =>
-          sql
-            .withTransaction(resolveIntelChange(given.changeId, given.isApproved))
-            .pipe(Effect.tap(() => changes.publish)),
-        ResolveIntelProposal: (given) =>
-          sql
-            .withTransaction(resolveIntelProposal(given.proposalId, given.isApproved))
-            .pipe(Effect.tap(() => changes.publish)),
-        RestoreIntel: (given) =>
-          sql.withTransaction(restoreIntelByOwner(given.intelId)).pipe(Effect.tap(() => changes.publish)),
+        ResolveIntelChange: (given) => change(resolveIntelChange(given.changeId, given.isApproved)),
+        ResolveIntelProposal: (given) => change(resolveIntelProposal(given.proposalId, given.isApproved)),
+        RestoreIntel: (given) => change(restoreIntelByOwner(given.intelId)),
         ResumeThread: (resume) => threads.resume(resume.threadId).pipe(Effect.as(null)),
         RetryThread: (retry) => threads.retry(retry.threadId).pipe(Effect.as(null)),
         RewriteBriefing: (rewrite) => {
           const entry = rewrite.entry === null || rewrite.entry.trim() === "" ? "Rewrote the briefing" : rewrite.entry;
-          return once(
-            rewrite.requestId,
-            rewrite._tag,
-            updateJournal(rewrite.missionId, { kind: "user" }, entry, {
-              basedOn: rewrite.basedOn,
-              briefing: rewrite.briefing,
-            }).pipe(Effect.flatMap((outcome) => ownerOutcomeOf(rewrite.missionId, outcome))),
+          return commands.run(
+            once(
+              rewrite.requestId,
+              rewrite._tag,
+              updateJournal(rewrite.missionId, { kind: "user" }, entry, {
+                basedOn: rewrite.basedOn,
+                briefing: rewrite.briefing,
+              }).pipe(
+                Effect.flatMap((outcome) => ownerOutcomeOf(rewrite.missionId, outcome)),
+                Effect.map((view) => changed(view)),
+              ),
+            ),
           );
         },
         SendMessage: (send) =>
           Effect.gen(function* () {
             const text = yield* nonBlank(send.text);
             const delivery = send.delivery ?? (yield* readSettings).defaultDelivery;
-            return yield* once(send.requestId, send._tag, insertUserMessage(send.threadId, text, delivery === "Queue"));
-          }).pipe(Effect.tap(() => threads.wake(send.threadId))),
-        SetMissionBudget: (given) =>
-          sql
-            .withTransaction(
-              setMissionBudget(given.missionId, given.limits).pipe(Effect.tap(() => sql.afterCommit(changes.publish))),
-            )
-            .pipe(Effect.tap(applyBudgetOutcome), Effect.as(null)),
+            return yield* commands.run(
+              once(
+                send.requestId,
+                send._tag,
+                insertUserMessage(send.threadId, text, delivery === "Queue").pipe(
+                  Effect.map((sent) => changed(sent, { threadsToWake: [send.threadId] })),
+                ),
+                () => wakingOnly(send.threadId),
+              ),
+            );
+          }),
+        SetMissionBudget: (given) => commands.run(setMissionBudget(given.missionId, given.limits)),
         SignInAccount: (given) =>
           signInAccount(given.harness, given.accountId).pipe(
             Effect.provideService(HarnessTools, harnessTools),
@@ -283,35 +276,29 @@ const make = Effect.gen(function* () {
         StartMission: (start) =>
           nonBlank(start.text).pipe(
             Effect.andThen((text) =>
-              once(
-                start.requestId,
-                start._tag,
-                insertMission(
-                  text,
-                  { accountId: start.accountId, effort: start.effort, harness: start.harness, model: start.model },
-                  start.workspacePath,
+              commands.run(
+                once(
+                  start.requestId,
+                  start._tag,
+                  insertMission(
+                    text,
+                    { accountId: start.accountId, effort: start.effort, harness: start.harness, model: start.model },
+                    start.workspacePath,
+                  ).pipe(Effect.map((started) => changed(started, { threadsToWake: [started.threadId] }))),
+                  (started) => wakingOnly(started.threadId),
                 ),
               ),
             ),
-            Effect.tap((started) => threads.wake(started.threadId)),
           ),
-        StopAtBudget: (given) =>
-          sql.withTransaction(stopAtBudget(given.stopId)).pipe(
-            Effect.tap(() => changes.publish),
-            Effect.tap((missions) => Effect.forEach(missions, threads.wakeMission, { discard: true })),
-            Effect.as(null),
-          ),
+        StopAtBudget: (given) => commands.run(stopAtBudget(given.stopId)),
         StopThread: (stop) => threads.stop(stop.threadId).pipe(Effect.as(null)),
-        UndoIntelChange: (given) =>
-          sql.withTransaction(undoIntelChange(given.entryId)).pipe(Effect.tap(() => changes.publish)),
+        UndoIntelChange: (given) => change(undoIntelChange(given.entryId)),
         UpdateSettings: (update) =>
-          sql
-            .withTransaction(writeSettings(update.settings).pipe(Effect.tap(() => sql.afterCommit(changes.publish))))
-            .pipe(
-              // A changed global budget stops work at its limit or releases the threads it held.
-              Effect.tap(() => sql.withTransaction(applyGlobalBudget).pipe(Effect.tap(applyBudgetOutcome))),
-            ),
-        WidenPermission: (widen) => widenPermission(widen.permissionId).pipe(Effect.tap(() => changes.publish)),
+          change(writeSettings(update.settings)).pipe(
+            // A changed global budget stops work at its limit or releases the threads it held.
+            Effect.tap(() => commands.run(applyGlobalBudget)),
+          ),
+        WidenPermission: (widen) => change(widenPermission(widen.permissionId)),
       },
     );
     return run.pipe(
@@ -323,6 +310,7 @@ const make = Effect.gen(function* () {
   return { handle };
 });
 
+/** Where the service keeps its data and how it reaches the harnesses. */
 export interface ServiceOptions {
   /** Where provider accounts added in Canopy keep their folders; beside the database when left out. */
   readonly accountsRoot?: string;
@@ -338,7 +326,8 @@ export interface ServiceOptions {
 
 /**
  * The whole local service over one SQLite file. Approvals and suggestions come before Threads, which
- * withdraws them; the tool server comes after Threads, which it calls, and both meet at the endpoints.
+ * withdraws them; the command runner comes after Threads, which it wakes, and the tool server after the
+ * runner, which it calls; Threads and the tool server meet at the endpoints.
  */
 export const serviceLayer = (options: ServiceOptions) => {
   const foundation = Layer.mergeAll(
@@ -358,6 +347,7 @@ export const serviceLayer = (options: ServiceOptions) => {
   );
   return Layer.effect(Service, make).pipe(
     Layer.provideMerge(Layer.mergeAll(autoArchiveLayer, budgetPeriodsLayer, toolServerLayer)),
+    Layer.provideMerge(commandsLayer),
     Layer.provideMerge(running),
   );
 };

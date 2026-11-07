@@ -3,7 +3,7 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { TestClock } from "effect/testing";
 import { afterEach } from "vitest";
-import { call, fixture, open, read, send, start, tool } from "./fixtures/batch7.ts";
+import { call, fixture, open, read, send, start, tool } from "./fixtures/service.ts";
 
 // Batch 14 (scoped-intel: Duplicates, Saving's origin, Fading's "relied on"), on the test clock.
 

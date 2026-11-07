@@ -5,7 +5,7 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { TestClock } from "effect/testing";
 import { afterEach } from "vitest";
-import { call, fixture, open, start, tool } from "./fixtures/batch7.ts";
+import { call, fixture, open, start, tool } from "./fixtures/service.ts";
 
 const fixtures: ReturnType<typeof fixture>[] = [];
 const make = () => {

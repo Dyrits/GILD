@@ -4,7 +4,7 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { afterEach } from "vitest";
 import { fakeHarnessLayer, serviceLayer } from "../src/index.ts";
-import { call, fixture, read, send, settle, start, tool } from "./fixtures/batch7.ts";
+import { call, fixture, read, send, settle, start, tool } from "./fixtures/service.ts";
 
 const fixtures: ReturnType<typeof fixture>[] = [];
 const setup = () => {

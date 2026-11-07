@@ -1,18 +1,21 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
+import type { HarnessName } from "@canopy/contracts";
 import { Effect, Exit, Layer, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { Approvals } from "./approvals.ts";
-import { Changes } from "./changes.ts";
+import { Commands } from "./commands.ts";
 import { Endpoints } from "./endpoints.ts";
+import { harnessFacts } from "./harnessCatalog.ts";
 import { Suggestions } from "./suggestions.ts";
 import { Threads } from "./threads.ts";
-import { makeToolHandlers } from "./threadToolHandlers.ts";
-import { answerToolCall, isThreadToolName, toolListing, unaskedToolNamesOf } from "./threadTools.ts";
+import { callerRefusalOf, makeToolHandlers } from "./threadToolHandlers.ts";
+import { answerToolCall, isThreadToolName, toolListingOf, unaskedToolNamesOf } from "./threadTools.ts";
 
 /** The server name Claude Code prefixes to tool names (`mcp__canopy__…`). */
 export const toolServerName = "canopy";
 /** The tool name Claude Code's `--permission-prompt-tool` takes. */
 export const promptToolName = `mcp__${toolServerName}__answer_prompt`;
+/** The approval tool's name as Claude Code lists it. */
 export const approvalToolName = `mcp__${toolServerName}__request_approval`;
 /** The thread tools a thread uses without asking (thread-tree, thread-messaging, mission-journal; CHG-0037, CHG-0039, CHG-0043). */
 export const threadToolNames = unaskedToolNamesOf(toolServerName);
@@ -47,20 +50,19 @@ const readBody = (request: IncomingMessage) =>
 
 /**
  * Serves the thread tools over MCP on loopback (ADR 0005), at the endpoints `Endpoints` issues; no tool
- * argument can name another thread. Built after Threads, which it calls directly.
+ * argument can name another thread. Built after Threads and the command runner, which it calls directly.
  */
 export const toolServerLayer = Layer.effectDiscard(
   Effect.gen(function* () {
     const approvals = yield* Approvals;
     const suggestions = yield* Suggestions;
     const sql = yield* SqlClient.SqlClient;
-    const changes = yield* Changes;
+    const commands = yield* Commands;
     const threads = yield* Threads;
     const endpoints = yield* Endpoints;
     const context = yield* Effect.context<never>();
 
-    /** Runs a tree change in one transaction and announces it once committed. */
-    const handlers = makeToolHandlers({ approvals, changes, sql, suggestions, threads });
+    const handlers = makeToolHandlers({ approvals, commands, suggestions, threads });
     const run = Effect.runPromiseWith(context);
 
     const dispatchTool = (threadId: string, name: string, args: unknown) =>
@@ -72,14 +74,17 @@ export const toolServerLayer = Layer.effectDiscard(
 
     const callTool = (threadId: string, name: string, args: unknown) =>
       Effect.gen(function* () {
-        const [caller] = yield* sql<{
-          blocker: string | null;
-        }>`SELECT blocker FROM threads WHERE id = ${threadId} AND is_deleting = 0`;
-        if (caller === undefined) return textResult("Unknown thread.", true);
-        if (caller.blocker === "Chatter" && name !== "send_thread_message" && name !== "report_result")
-          return textResult("Paused by the chatter guard. Wait for the owner.", true);
+        const refusal = yield* callerRefusalOf(threadId, name);
+        if (refusal !== null) return textResult(refusal, true);
         return yield* dispatchTool(threadId, name, args);
-      }).pipe(Effect.orDie);
+      }).pipe(Effect.provideService(SqlClient.SqlClient, sql), Effect.orDie);
+
+    /** The tools the thread's harness lists: `answer_prompt` only for Claude Code. */
+    const listTools = (threadId: string) =>
+      sql<{ harness: HarnessName }>`SELECT harness FROM threads WHERE id = ${threadId}`.pipe(
+        Effect.map(([thread]) => toolListingOf(thread !== undefined && harnessFacts[thread.harness].hasPromptTool)),
+        Effect.orDie,
+      );
 
     const respondJson = (response: ServerResponse, body: unknown) => {
       response.writeHead(200, { "content-type": "application/json" });
@@ -122,7 +127,7 @@ export const toolServerLayer = Layer.effectDiscard(
         return;
       }
       if (message.method === "tools/list") {
-        respondJson(response, reply({ tools: toolListing }));
+        respondJson(response, reply({ tools: await run(listTools(threadId)) }));
         return;
       }
       if (message.method !== "tools/call") {

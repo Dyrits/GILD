@@ -1,12 +1,11 @@
 import type { EndingPreview, MissionEnding, MissionPrompt } from "@canopy/contracts";
 import { Clock, Effect, Layer, Schedule } from "effect";
 import { SqlClient } from "effect/sql";
-import { Changes } from "./changes.ts";
+import { Commands, changed } from "./commands.ts";
 import { invalid, notFound, ServiceFailure } from "./errors.ts";
 import { updateJournal } from "./journal.ts";
 import { activeStates, haltThreads } from "./lifecycle.ts";
 import { dayMillis, readSettings } from "./settings.ts";
-import { Threads } from "./threads.ts";
 
 /** The journal entry for each way a mission ends or continues (mission-journal, When a mission ends). */
 const journalEntries = {
@@ -22,7 +21,7 @@ const questionEndings = { Archived: "archive", Done: "mark as done" } satisfies 
  * The confirmation naming the threads still at work. Threads in Attention count too, so no question stays open
  * on an ended mission (provisional: CHG-0045, work-in-progress Batch 9).
  */
-export const endingQuestionOf = (count: number, ending: MissionEnding) =>
+const endingQuestionOf = (count: number, ending: MissionEnding) =>
   count === 1
     ? `1 thread is still running. Stop it and ${questionEndings[ending]}?`
     : `${count} threads are still running. Stop them and ${questionEndings[ending]}?`;
@@ -65,34 +64,25 @@ export const endMission = Effect.fn("endMission")(function* (
   snapshot: string,
 ) {
   const sql = yield* SqlClient.SqlClient;
-  const threads = yield* Threads;
-  const changes = yield* Changes;
-  const stopped = yield* sql.withTransaction(
-    Effect.gen(function* () {
-      const [mission] = yield* sql<{
-        ending: MissionEnding | null;
-      }>`SELECT ending FROM missions WHERE id = ${missionId}`;
-      if (mission === undefined) return yield* notFound("No such mission.");
-      // An ended mission only moves from Done to Archived; anything else is reopened first.
-      if (mission.ending !== null && !(mission.ending === "Done" && ending === "Archived"))
-        return yield* invalid(
-          mission.ending === "Done" ? "This mission is already done." : "Reopen this mission before marking it done.",
-        );
-      const ids = yield* readWorkingIds(missionId);
-      if (JSON.stringify(ids) !== snapshot) {
-        return yield* new ServiceFailure({
-          kind: "StaleVersion",
-          message: "The threads at work changed. Review them again before ending the mission.",
-        });
-      }
-      yield* haltThreads(ids, "Stopped");
-      yield* recordEnding(missionId, ending, journalEntries[ending]);
-      yield* sql.afterCommit(changes.publish);
-      return ids;
-    }),
-  );
-  yield* threads.cancel(stopped);
-  return null;
+  const [mission] = yield* sql<{
+    ending: MissionEnding | null;
+  }>`SELECT ending FROM missions WHERE id = ${missionId}`;
+  if (mission === undefined) return yield* notFound("No such mission.");
+  // An ended mission only moves from Done to Archived; anything else is reopened first.
+  if (mission.ending !== null && !(mission.ending === "Done" && ending === "Archived"))
+    return yield* invalid(
+      mission.ending === "Done" ? "This mission is already done." : "Reopen this mission before marking it done.",
+    );
+  const ids = yield* readWorkingIds(missionId);
+  if (JSON.stringify(ids) !== snapshot) {
+    return yield* new ServiceFailure({
+      kind: "StaleVersion",
+      message: "The threads at work changed. Review them again before ending the mission.",
+    });
+  }
+  yield* haltThreads(ids, "Stopped");
+  yield* recordEnding(missionId, ending, journalEntries[ending]);
+  return changed(null, { turnsToCancel: ids });
 });
 
 /** Returns an ended mission to the state worked out from its threads. */
@@ -103,7 +93,7 @@ export const reopenMission = Effect.fn("reopenMission")(function* (missionId: st
   if (mission.ending === null) return yield* invalid("This mission has not ended.");
   yield* sql`UPDATE missions SET ending = NULL WHERE id = ${missionId}`;
   yield* updateJournal(missionId, { kind: "user" }, journalEntries.Reopened, null);
-  return null;
+  return changed(null);
 });
 
 /** Not now on a dashboard question; the inactivity question then counts its period from now. */
@@ -113,40 +103,29 @@ export const dismissPrompt = Effect.fn("dismissPrompt")(function* (missionId: st
   yield* prompt === "MarkDone"
     ? sql`UPDATE missions SET is_asking_done = 0 WHERE id = ${missionId}`
     : sql`UPDATE missions SET inactivity_dismissed_at = ${now} WHERE id = ${missionId}`;
-  return null;
+  return changed(null);
 });
 
-/** Archives the Done missions past the auto-archive delay, when the setting is on. */
-const archiveDueMissions = (delayDays: number) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    const changes = yield* Changes;
-    const now = yield* Clock.currentTimeMillis;
-    const due = yield* sql<{ id: string }>`SELECT id FROM missions
-      WHERE ending = 'Done' AND done_at IS NOT NULL AND done_at <= ${now - delayDays * dayMillis}`;
-    if (due.length === 0) return;
-    yield* sql.withTransaction(
-      Effect.gen(function* () {
-        for (const { id } of due) yield* recordEnding(id, "Archived", journalEntries.AutoArchived);
-        yield* sql.afterCommit(changes.publish);
-      }),
-    );
-  });
-
 /**
- * Runs auto-archive at startup and then hourly (provisional: CHG-0045, work-in-progress Batch 9). Each run also
- * announces a change: the inactivity question depends on time alone, so open dashboards refetch to show it.
+ * Archives the Done missions past the auto-archive delay, when the setting is on. Each run announces a
+ * change even with none due: the inactivity question depends on time alone, so open dashboards refetch.
  */
+const archiveDueMissions = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+  const settings = yield* readSettings;
+  if (!settings.shouldAutoArchive) return changed(null);
+  const now = yield* Clock.currentTimeMillis;
+  const due = yield* sql<{ id: string }>`SELECT id FROM missions
+    WHERE ending = 'Done' AND done_at IS NOT NULL AND done_at <= ${now - settings.autoArchiveDays * dayMillis}`;
+  for (const { id } of due) yield* recordEnding(id, "Archived", journalEntries.AutoArchived);
+  return changed(null);
+});
+
+/** Runs auto-archive at startup and then hourly (provisional: CHG-0045, work-in-progress Batch 9). */
 export const autoArchiveLayer = Layer.effectDiscard(
   Effect.gen(function* () {
-    const changes = yield* Changes;
-    const sweep = readSettings.pipe(
-      Effect.flatMap((settings) =>
-        settings.shouldAutoArchive ? archiveDueMissions(settings.autoArchiveDays) : Effect.void,
-      ),
-      Effect.andThen(changes.publish),
-      Effect.orDie,
-    );
+    const commands = yield* Commands;
+    const sweep = commands.run(archiveDueMissions).pipe(Effect.orDie);
     yield* Effect.forkScoped(sweep.pipe(Effect.repeat(Schedule.spaced("1 hour"))));
   }),
 );

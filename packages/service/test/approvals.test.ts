@@ -212,8 +212,7 @@ describe("harness permission prompts", () => {
       expect(openQuestion(repeat)).toMatchObject({ details: "git push origin main", source: "Harness" });
       yield* answer(openQuestion(repeat), "Deny");
       const detail = yield* settle(started.missionId, isReplied);
-      expect(lastReply(detail)).toContain('{"behavior":"allow"');
-      expect(lastReply(detail)).toContain('{"behavior":"deny"');
+      expect(lastReply(detail)).toContain("prompt allowed | prompt denied: ");
     }).pipe(Effect.provide(live())),
   );
 
@@ -222,7 +221,7 @@ describe("harness permission prompts", () => {
       const listing = 'for f in src/*.js; do echo "=== $f"; cat -n $f; done';
       const started = yield* start(prompt(listing));
       const detail = yield* settle(started.missionId, isReplied);
-      expect(lastReply(detail)).toContain('"behavior":"allow"');
+      expect(lastReply(detail)).toContain("prompt allowed");
       expect(detail.questions).toMatchObject([
         { details: listing, outcome: "AllowedAutomatically", source: "Harness" },
       ]);
@@ -242,7 +241,19 @@ describe("harness permission prompts", () => {
           "Push the branch to GitHub. This sends your commits off this computer, where everyone with access to the repository can see them.",
       });
       yield* answer(openQuestion(detail), "Allow");
-      expect(lastReply(yield* settle(started.missionId, isReplied))).toContain('"behavior":"allow"');
+      expect(lastReply(yield* settle(started.missionId, isReplied))).toContain("prompt allowed");
+    }).pipe(Effect.provide(live())),
+  );
+
+  it.live("answers Claude Code's permission prompt tool in its own format, allowing or denying", () =>
+    Effect.gen(function* () {
+      const promptTool = (command: string) =>
+        `call answer_prompt ${JSON.stringify({ input: { command }, tool_name: "Bash" })}`;
+      const started = yield* start(`${promptTool("ls")}\n${promptTool("git push origin main")}`);
+      yield* answer(openQuestion(yield* settle(started.missionId, isAsking)), "Deny");
+      const detail = yield* settle(started.missionId, isReplied);
+      expect(lastReply(detail)).toContain('{"behavior":"allow","updatedInput":{"command":"ls"}}');
+      expect(lastReply(detail)).toContain('{"behavior":"deny","message":"Not approved by the owner.');
     }).pipe(Effect.provide(live())),
   );
 
@@ -262,7 +273,7 @@ describe("harness permission prompts", () => {
       const quiet = yield* start(commit);
       const detail = yield* settle(quiet.missionId, isReplied);
       expect(detail.questions.map((question) => question.outcome)).toEqual(["AllowedAutomatically"]);
-      expect(lastReply(detail)).toContain('"behavior":"allow"');
+      expect(lastReply(detail)).toContain("prompt allowed");
 
       const settings = yield* call({ _tag: "ReadSettings" });
       yield* call({ _tag: "UpdateSettings", settings: { ...settings, approvalLevel: "CommandsAndEdits" } });

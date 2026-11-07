@@ -141,7 +141,7 @@ export const insertUserMessage = (threadId: string, text: string, isQueued: bool
   );
 
 /** A message as the receiving thread's harness reads it: a thread message names its sender. */
-export const deliveredTextOf = (message: {
+const deliveredTextOf = (message: {
   readonly fromThreadId: string | null;
   readonly fromTitle: string | null;
   readonly isResult: boolean;

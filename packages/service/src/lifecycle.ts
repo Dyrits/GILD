@@ -2,12 +2,13 @@ import type { ThreadActions, ThreadState } from "@canopy/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { touchMission } from "./activity.ts";
-import type { Changes } from "./changes.ts";
+import { changed, unchanged } from "./commands.ts";
 
 // The thread lifecycle: the one module that writes a thread's state and blocker (thread-tree, Thread
 // states). Callers decide which threads and which transition; each transition keeps the tree's rules,
 // such as a parent left Waiting with nothing at work beneath it becoming Idle. Transitions run inside
-// the caller's transaction; `makeLifecycle` adds what runs outside one (cancelling turns, waking).
+// the caller's transaction; the command that calls one returns what follows it (commands.ts), and
+// `makeLifecycle` owns cancelling a thread's turn outside any transaction.
 
 /** The owner opens threads down to this many levels beneath the top thread; agents have no depth limit. */
 export const maxOwnerDepth = 4;
@@ -25,7 +26,7 @@ export const waitsInTurn = "(state = 'Attention' AND blocker IS NULL)";
  * Parents left Waiting with nothing active beneath them become Idle, up the tree from the given thread.
  * Callers run it in a transaction.
  */
-export const relaxAncestors = (threadId: string) =>
+const relaxAncestors = (threadId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     let current: string | null = threadId;
@@ -162,7 +163,8 @@ export const recoverThreadStates = Effect.gen(function* () {
 /**
  * Invalidates active turns before cancellation so late output cannot change a paused or stopped thread.
  * Stopping also returns each parent left Waiting with nothing at work beneath it to Idle (thread-tree,
- * Thread states), whichever path stops the threads. Callers run it in a transaction, then cancel the turns.
+ * Thread states), whichever path stops the threads. The command that halts threads returns them as turns to
+ * cancel.
  */
 export const haltThreads = Effect.fn("haltThreads")(function* (
   ids: ReadonlyArray<string>,
@@ -179,17 +181,29 @@ export const haltThreads = Effect.fn("haltThreads")(function* (
   if (state === "Stopped") for (const id of ids) yield* relaxAncestors(id);
 });
 
-/** Owns cancellation and Stop without holding a database transaction while a harness exits. */
+/**
+ * The owner or a harness stops a thread: its turn is invalidated and it becomes Stopped; its turn is then
+ * cancelled and the mission's waiting threads may take the freed slot. Nothing follows for an unknown thread.
+ */
+export const stopThread = Effect.fn("stopThread")(function* (threadId: string) {
+  const sql = yield* SqlClient.SqlClient;
+  const [thread] = yield* sql<{
+    missionId: string;
+  }>`SELECT mission_id AS missionId FROM threads WHERE id = ${threadId}`;
+  if (thread === undefined) return unchanged(null);
+  yield* haltThreads([threadId], "Stopped");
+  yield* touchMission(thread.missionId, yield* Clock.currentTimeMillis);
+  return changed(null, { missionsToWake: [thread.missionId], turnsToCancel: [threadId] });
+});
+
+/** Owns cancelling threads' turns without holding a database transaction while a harness exits. */
 export const makeLifecycle = (dependencies: {
-  readonly sql: SqlClient.SqlClient;
   /** Withdraws everything the thread waits on the owner for. */
   readonly withdraw: (id: string) => Effect.Effect<void>;
-  readonly changes: Changes["Service"];
   readonly cancelTurn: (id: string) => Effect.Effect<void>;
   readonly clearDraft: (id: string) => Effect.Effect<void>;
-  readonly wakeWaiting: (missionId: string, exceptId: string) => Effect.Effect<void>;
 }) => {
-  const { sql, withdraw, changes, cancelTurn, clearDraft, wakeWaiting } = dependencies;
+  const { withdraw, cancelTurn, clearDraft } = dependencies;
   const cancel = Effect.fn("cancelThreads")(function* (ids: ReadonlyArray<string>) {
     for (const id of ids) {
       yield* cancelTurn(id);
@@ -197,23 +211,5 @@ export const makeLifecycle = (dependencies: {
       yield* clearDraft(id);
     }
   });
-  const stop = Effect.fn("stopThread")(function* (threadId: string) {
-    const missionId = yield* sql
-      .withTransaction(
-        Effect.gen(function* () {
-          const [thread] = yield* sql<{
-            missionId: string;
-          }>`SELECT mission_id AS missionId FROM threads WHERE id = ${threadId}`;
-          if (thread === undefined) return null;
-          yield* haltThreads([threadId], "Stopped");
-          yield* touchMission(thread.missionId, yield* Clock.currentTimeMillis);
-          yield* sql.afterCommit(changes.publish);
-          return thread.missionId;
-        }),
-      )
-      .pipe(Effect.provideService(SqlClient.SqlClient, sql));
-    yield* cancel([threadId]);
-    if (missionId !== null) yield* wakeWaiting(missionId, threadId);
-  }, Effect.orDie);
-  return { cancel, stop };
+  return { cancel };
 };

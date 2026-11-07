@@ -5,6 +5,8 @@ import type { AccountId, MissionDetail, MissionId, Request, RequestTag, ResultOf
 import { describe, expect, it } from "@effect/vitest";
 import { type Duration, Effect, Layer } from "effect";
 import { afterEach } from "vitest";
+import { Endpoints } from "../src/endpoints.ts";
+import { HarnessFailure } from "../src/execution.ts";
 import {
   fakeHarnessToolsLayer,
   Harness,
@@ -16,6 +18,7 @@ import {
   serviceLayer,
 } from "../src/index.ts";
 import { runnerOf } from "../src/runners.ts";
+import { turnRequestOf } from "./fixtures/turns.ts";
 
 const fixtures = join(import.meta.dirname, "fixtures");
 
@@ -123,6 +126,21 @@ const start = (fields: Partial<Extract<Request, { _tag: "StartMission" }>> & { t
     ...fields,
   });
 
+/** The tool names a thread's MCP endpoint lists, as its harness reads them. */
+const listTools = (threadId: string) =>
+  Effect.gen(function* () {
+    const url = yield* (yield* Endpoints).urlFor(threadId);
+    const listed = yield* Effect.promise(async () => {
+      const response = await fetch(url, {
+        body: JSON.stringify({ id: 1, jsonrpc: "2.0", method: "tools/list" }),
+        headers: { accept: "application/json, text/event-stream", "content-type": "application/json" },
+        method: "POST",
+      });
+      return (await response.json()) as { result: { tools: Array<{ name: string }> } };
+    });
+    return listed.result.tools.map((tool) => tool.name);
+  });
+
 const answerOpen = (answer: "Allow" | "Deny") =>
   Effect.gen(function* () {
     for (let i = 0; i < 300; i++) {
@@ -163,7 +181,7 @@ describe("choosing a thread's runner", () => {
   });
 });
 
-describe("Codex adapter", () => {
+describe("running Codex threads", () => {
   it.live("runs a thread through the app server with its model, effort, tools, and no Canopy secrets", () => {
     const { layer, logged, requests } = withHarnesses();
     return Effect.gen(function* () {
@@ -200,6 +218,40 @@ describe("Codex adapter", () => {
       const after = yield* settle(started.missionId, idleWith(2));
       expect(replies(after).at(-1)).toBe("ls: accept");
       expect(after.questions.at(-1)?.outcome).toBe("AllowedAutomatically");
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("fails the turn, rather than leave Codex waiting, when the owner cannot be asked", () =>
+    Effect.gen(function* () {
+      const harness = yield* makeCodexHarness({
+        command: process.execPath,
+        idleTimeout: "10 minutes",
+        prefixArgs: [join(fixtures, "stand-in-codex.mjs")],
+      });
+      const failure = yield* harness
+        .runTurn(
+          turnRequestOf({
+            askOwner: () => Effect.fail(new HarnessFailure({ reason: "Canopy could not ask about Bash." })),
+            harness: "codex",
+            text: "run git push origin main",
+          }),
+        )
+        .pipe(Effect.flip);
+      expect(failure.reason).toBe("Canopy could not ask about Bash.");
+    }).pipe(Effect.scoped),
+  );
+
+  it.live("lists the thread tools without Claude Code's permission prompt tool", () => {
+    const { layer } = withHarnesses();
+    return Effect.gen(function* () {
+      const codex = yield* start({ harness: "codex", text: "Hello" });
+      const claude = yield* start({ harness: "claude", text: "Hello" });
+      yield* settle(codex.missionId, idleWith(1));
+      const codexTools = yield* listTools(codex.threadId);
+      const claudeTools = yield* listTools(claude.threadId);
+      expect(codexTools).not.toContain("answer_prompt");
+      expect(codexTools).toContain("request_approval");
+      expect(claudeTools).toContain("answer_prompt");
     }).pipe(Effect.provide(layer));
   });
 
@@ -269,7 +321,7 @@ describe("Codex adapter", () => {
   });
 });
 
-describe("OpenCode adapter", () => {
+describe("running OpenCode threads", () => {
   it.live("runs a thread over ACP with Canopy's tools, permissions, context, and model", () => {
     const { layer, logged, requests } = withHarnesses();
     return Effect.gen(function* () {
@@ -334,7 +386,7 @@ describe("OpenCode adapter", () => {
   });
 });
 
-describe("provider accounts", () => {
+describe("managing provider accounts", () => {
   it.live("lists every harness with the computer's own sign-in first", () => {
     const { layer } = withHarnesses();
     return Effect.gen(function* () {

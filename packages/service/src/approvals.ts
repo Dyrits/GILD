@@ -82,6 +82,7 @@ const textOf = (resolution: Resolution) =>
         ? `Denied by the owner: ${resolution.message}`
         : "Not approved by the owner. Do not do this action; carry on without it.";
 
+/** Approvals over the store, holding the open questions and one-time allowances in memory. */
 export const approvalsLayer = Layer.effect(
   Approvals,
   Effect.gen(function* () {
