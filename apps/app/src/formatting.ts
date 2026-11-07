@@ -1,15 +1,4 @@
-import type { EffortChoice, MissionState, ModelChoice, ThreadState, TokenUsage } from "@openmission/contracts";
-
-export const stateColors: Record<ThreadState | MissionState, string> = {
-  Archived: "#6b7280",
-  Attention: "#b45309",
-  Done: "#15803d",
-  Failed: "#b91c1c",
-  Idle: "#4b5563",
-  Running: "#1d4ed8",
-  Stopped: "#374151",
-  Waiting: "#7c3aed",
-};
+import type { EffortChoice, ModelChoice, TokenUsage } from "@openmission/contracts";
 
 export const modelLabels: Record<ModelChoice, string> = {
   default: "Claude Code default",

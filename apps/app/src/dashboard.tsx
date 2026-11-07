@@ -13,13 +13,15 @@ import { useState } from "react";
 import { FlatList, Pressable, Text, TextInput, View } from "react-native";
 import { BudgetMeters, BudgetScreen, BudgetStopCard } from "./budgets";
 import { newRequestId, type ServiceClient } from "./client";
-import { Choice, Composer, StateBadge } from "./controls";
+import { Choice, Composer, Menu, StateBadge } from "./controls";
 import { effortLabel, modelLabels, timeOf, usageText } from "./formatting";
 import { threadCountOf } from "./labels";
 import { MissionEndingActions, MissionPromptCard } from "./missionActions";
 import { allMissions } from "./queries";
 import { QuestionCard } from "./questions";
+import { useHasSidebar } from "./sidebar";
 import { styles } from "./styles";
+import { colors } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
 import { WorkspacePicker } from "./workspaces";
 
@@ -37,8 +39,27 @@ function MissionStarter({ client, onOpen }: { client: ServiceClient; onOpen: (id
   const chosenEffort = effort ?? last?.effort ?? "default";
   const chosenWorkspace = workspace === null ? (last?.workspacePath ?? null) : workspace.path;
   return (
-    <View>
+    // Above the list below it, so a picker's open list covers the search and the filters.
+    <View style={[styles.section, styles.raised]}>
       <Composer
+        accessory={
+          <>
+            <Menu
+              accessibilityLabel="Model"
+              label={(m) => modelLabels[m]}
+              onChange={setModel}
+              options={ModelChoices.literals}
+              value={chosenModel}
+            />
+            <Menu
+              accessibilityLabel="Effort"
+              label={effortLabel}
+              onChange={setEffort}
+              options={EffortChoices.literals}
+              value={chosenEffort}
+            />
+          </>
+        }
         onSend={async (text) =>
           onOpen(
             (
@@ -55,8 +76,6 @@ function MissionStarter({ client, onOpen }: { client: ServiceClient; onOpen: (id
         }
         placeholder="Start a mission with one message…"
       />
-      <Choice label={(m) => modelLabels[m]} onChange={setModel} options={ModelChoices.literals} value={chosenModel} />
-      <Choice label={effortLabel} onChange={setEffort} options={EffortChoices.literals} value={chosenEffort} />
       <WorkspacePicker onChange={(path) => setWorkspace({ path })} value={chosenWorkspace} />
     </View>
   );
@@ -71,19 +90,21 @@ function MissionRow({
   mission: MissionSummary;
   onOpen: () => void;
 }) {
+  const meta = [mission.workspaceName, threadCountOf(mission), usageText(mission.usage), timeOf(mission.lastActivityAt)]
+    .filter((part) => part !== null)
+    .join(" · ");
   return (
-    <View>
-      <Pressable onPress={onOpen} style={styles.row}>
+    <View style={styles.row}>
+      <Pressable accessibilityRole="button" onPress={onOpen} style={[styles.flex, styles.missionRowMain]}>
         <Text numberOfLines={1} style={styles.title}>
           {mission.title}
         </Text>
-        {mission.workspaceName !== null && <Text style={styles.muted}>{mission.workspaceName}</Text>}
-        <StateBadge state={mission.state} />
-        <Text style={styles.muted}>{threadCountOf(mission)}</Text>
-        <Text style={styles.muted}>{usageText(mission.usage)}</Text>
-        <BudgetMeters use={mission.budget} />
-        <Text style={styles.muted}>{timeOf(mission.lastActivityAt)}</Text>
+        <Text numberOfLines={1} style={styles.muted}>
+          {meta}
+        </Text>
       </Pressable>
+      <BudgetMeters use={mission.budget} />
+      <StateBadge state={mission.state} />
       <MissionEndingActions client={client} mission={mission} />
     </View>
   );
@@ -108,6 +129,7 @@ export function Dashboard({
   /** Opens the intel panel with all intel. */
   onIntel: () => void;
 }) {
+  const hasSidebar = useHasSidebar();
   const [search, setSearch] = useState("");
   const [state, setState] = useState<MissionState | null>(null);
   const [workspaceId, setWorkspaceId] = useState<WorkspaceId | null>(null);
@@ -134,26 +156,28 @@ export function Dashboard({
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
-        {isArchived && (
+        {isArchived && !hasSidebar && (
           <Pressable onPress={onBack}>
             <Text style={styles.link}>← Missions</Text>
           </Pressable>
         )}
         <Text style={[styles.heading, styles.flex]}>{isArchived ? "Archived missions" : "Missions"}</Text>
         {global !== null && <BudgetMeters onPress={() => setIsGlobalBudgetOpen(true)} use={global} />}
-        {!isArchived && (
+        {!isArchived && !hasSidebar && (
           <Pressable onPress={onArchived}>
             <Text style={styles.link}>Archived</Text>
           </Pressable>
         )}
-        {!isArchived && (
+        {!isArchived && !hasSidebar && (
           <Pressable onPress={onIntel}>
             <Text style={styles.link}>Intel</Text>
           </Pressable>
         )}
-        <Pressable onPress={onSettings}>
-          <Text style={styles.link}>Settings</Text>
-        </Pressable>
+        {!hasSidebar && (
+          <Pressable onPress={onSettings}>
+            <Text style={styles.link}>Settings</Text>
+          </Pressable>
+        )}
       </View>
       {!isArchived && global?.stop != null && (
         <BudgetStopCard client={client} onRaise={() => setIsGlobalBudgetOpen(true)} stop={global.stop} />
@@ -190,6 +214,7 @@ export function Dashboard({
         accessibilityLabel="Search missions"
         onChangeText={setSearch}
         placeholder="Search titles and briefings"
+        placeholderTextColor={colors.placeholder}
         style={styles.input}
         value={search}
       />

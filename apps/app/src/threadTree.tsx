@@ -120,7 +120,7 @@ export function OpenThreadForm({
         <View style={styles.failure}>
           <Text style={styles.error}>{startingContextWarningOf(context)}</Text>
           <Text style={styles.muted}>{startingContextPartsOf(context.parts)}</Text>
-          <View style={styles.row}>
+          <View style={styles.inlineRow}>
             {context.largerModels.length === 0 ? (
               <Text style={styles.muted}>No model has a larger context window.</Text>
             ) : (

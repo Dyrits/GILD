@@ -8,6 +8,8 @@ import { IntelScreen } from "./src/intel";
 import { useAttentionNotice } from "./src/notifications";
 import { PermissionsScreen } from "./src/permissions";
 import { SettingsScreen } from "./src/settings";
+import { type Place, Shell } from "./src/sidebar";
+import { colors, fontSizes, fonts } from "./src/theme";
 
 export default function App() {
   const [client, setClient] = useState<ServiceClient | null>(null);
@@ -17,6 +19,8 @@ export default function App() {
   const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
   const [isArchivedOpen, setIsArchivedOpen] = useState(false);
   const [isIntelOpen, setIsIntelOpen] = useState(false);
+  // Counts openings from the sidebar, so choosing the open mission again goes back to its threads.
+  const [openCount, setOpenCount] = useState(0);
   useAttentionNotice(client);
 
   useEffect(() => {
@@ -26,24 +30,36 @@ export default function App() {
   if (client === null) {
     return (
       <View style={styles.center}>
-        <Text>{failure ?? "Connecting to the local service…"}</Text>
+        <Text style={styles.connecting}>{failure ?? "Connecting to the local service…"}</Text>
       </View>
     );
   }
-  if (isIntelOpen) {
-    return <IntelScreen client={client} onBack={() => setIsIntelOpen(false)} threadId={null} title="All intel" />;
-  }
-  if (isPermissionsOpen) return <PermissionsScreen client={client} onBack={() => setIsPermissionsOpen(false)} />;
-  if (isSettingsOpen) {
-    return (
-      <SettingsScreen
-        client={client}
-        onBack={() => setIsSettingsOpen(false)}
-        onPermissions={() => setIsPermissionsOpen(true)}
-      />
-    );
-  }
-  return openMission === null ? (
+  // The sidebar leads to one place at a time: going there closes whatever else is open.
+  const goTo = (place: Place) => {
+    setOpenMission(null);
+    setIsPermissionsOpen(false);
+    setIsIntelOpen(place === "Intel");
+    setIsArchivedOpen(place === "Archived");
+    setIsSettingsOpen(place === "Settings");
+  };
+  const openMissionFromAnywhere = (id: MissionId) => {
+    goTo("Missions");
+    setOpenMission(id);
+    setOpenCount(openCount + 1);
+  };
+  const place: Place =
+    isSettingsOpen || isPermissionsOpen ? "Settings" : isIntelOpen ? "Intel" : isArchivedOpen ? "Archived" : "Missions";
+  const content = isIntelOpen ? (
+    <IntelScreen client={client} onBack={() => setIsIntelOpen(false)} threadId={null} title="All intel" />
+  ) : isPermissionsOpen ? (
+    <PermissionsScreen client={client} onBack={() => setIsPermissionsOpen(false)} />
+  ) : isSettingsOpen ? (
+    <SettingsScreen
+      client={client}
+      onBack={() => setIsSettingsOpen(false)}
+      onPermissions={() => setIsPermissionsOpen(true)}
+    />
+  ) : openMission === null ? (
     <Dashboard
       client={client}
       isArchived={isArchivedOpen}
@@ -57,12 +73,27 @@ export default function App() {
   ) : (
     <Conversation
       client={client}
-      key={openMission}
+      key={`${openMission}:${openCount}`}
       missionId={openMission}
       onBack={() => setOpenMission(null)}
       onOpenMission={setOpenMission}
     />
   );
+  return (
+    <Shell
+      client={client}
+      onNewMission={() => goTo("Missions")}
+      onOpenMission={openMissionFromAnywhere}
+      onPlace={goTo}
+      openMission={openMission}
+      place={place}
+    >
+      {content}
+    </Shell>
+  );
 }
 
-const styles = StyleSheet.create({ center: { alignItems: "center", flex: 1, justifyContent: "center" } });
+const styles = StyleSheet.create({
+  center: { alignItems: "center", backgroundColor: colors.frame, flex: 1, justifyContent: "center" },
+  connecting: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.base },
+});

@@ -7,12 +7,13 @@ import {
   type Settings,
 } from "@openmission/contracts";
 import { useState } from "react";
-import { Pressable, ScrollView, Switch, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { BudgetEditor } from "./budgets";
 import type { ServiceClient } from "./client";
-import { Choice } from "./controls";
+import { Choice, Toggle } from "./controls";
 import { effortLabel, modelLabels } from "./formatting";
 import { levelLabels } from "./permissions";
+import { useHasSidebar } from "./sidebar";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
 
@@ -40,7 +41,7 @@ function NumberSetting({
   return (
     <View>
       <Text style={styles.label}>{label}</Text>
-      <View style={styles.row}>
+      <View style={styles.inlineRow}>
         <TextInput
           accessibilityLabel={label}
           keyboardType="number-pad"
@@ -74,6 +75,7 @@ export function SettingsScreen({
   onBack: () => void;
   onPermissions: () => void;
 }) {
+  const hasSidebar = useHasSidebar();
   const { data: settings, error } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
   const [saveError, setSaveError] = useState<string | null>(null);
   const save = (change: Partial<Settings>) => {
@@ -86,9 +88,11 @@ export function SettingsScreen({
   return (
     <ScrollView contentContainerStyle={styles.screen}>
       <View style={styles.header}>
-        <Pressable onPress={onBack}>
-          <Text style={styles.link}>← Missions</Text>
-        </Pressable>
+        {!hasSidebar && (
+          <Pressable onPress={onBack}>
+            <Text style={styles.link}>← Missions</Text>
+          </Pressable>
+        )}
         <Text style={styles.heading}>Settings</Text>
       </View>
       {error !== null && <Text style={styles.error}>{error}</Text>}
@@ -121,7 +125,7 @@ export function SettingsScreen({
             value={settings.defaultDelivery}
           />
           <View style={styles.toggle}>
-            <Switch
+            <Toggle
               onValueChange={(shouldShowAgentThreads) => save({ shouldShowAgentThreads })}
               value={settings.shouldShowAgentThreads}
             />
@@ -184,14 +188,14 @@ export function SettingsScreen({
             value={settings.inactivityDays}
           />
           <View style={styles.toggle}>
-            <Switch
+            <Toggle
               onValueChange={(shouldAutoArchive) => save({ shouldAutoArchive })}
               value={settings.shouldAutoArchive}
             />
             <Text style={styles.body}>Archive done missions automatically</Text>
           </View>
           <View style={styles.toggle}>
-            <Switch
+            <Toggle
               onValueChange={(shouldOpenOffTopicMissions) => save({ shouldOpenOffTopicMissions })}
               value={settings.shouldOpenOffTopicMissions}
             />
@@ -207,7 +211,7 @@ export function SettingsScreen({
             value={settings.autoArchiveDays}
           />
           <View style={styles.toggle}>
-            <Switch
+            <Toggle
               onValueChange={(shouldStreamReplies) => save({ shouldStreamReplies })}
               value={settings.shouldStreamReplies}
             />

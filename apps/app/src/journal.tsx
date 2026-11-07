@@ -34,7 +34,7 @@ function Briefing({ client, journal }: { client: ServiceClient; journal: Journal
   if (draft === null) {
     return (
       <View style={styles.section}>
-        <View style={styles.row}>
+        <View style={styles.inlineRow}>
           <Text style={[styles.label, styles.flex]}>Briefing · version {journal.version}</Text>
           <Pressable onPress={() => setDraft({ basedOn: journal.version, briefing: journal.briefing, entry: "" })}>
             <Text style={styles.link}>Edit</Text>
@@ -64,7 +64,7 @@ function Briefing({ client, journal }: { client: ServiceClient; journal: Journal
         value={draft.entry}
       />
       {error !== null && <Text style={styles.error}>{error}</Text>}
-      <View style={styles.row}>
+      <View style={styles.inlineRow}>
         <Pressable onPress={save}>
           <Text style={styles.link}>Save</Text>
         </Pressable>
@@ -97,7 +97,7 @@ function NewEntry({ client, missionId }: { client: ServiceClient; missionId: Mis
   };
   return (
     <View style={styles.section}>
-      <View style={styles.row}>
+      <View style={styles.inlineRow}>
         <TextInput
           accessibilityLabel="New entry"
           onChangeText={setText}

@@ -27,4 +27,4 @@
 
 ## Handoffs
 
-To resume after batches 16 and 17 (committed, awaiting the owner's acceptance), read the [current handoff](.agents/handoffs/2026-11-07-1036-batches-16-17-committed.md). Handoffs are shared and committed.
+To resume after the first interface pass (committed, awaiting the owner's judgment), read the [current handoff](.agents/handoffs/2026-11-07-1100-interface-pass.md). Handoffs are shared and committed.

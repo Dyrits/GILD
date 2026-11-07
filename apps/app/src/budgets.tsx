@@ -13,9 +13,10 @@ import { Choice } from "./controls";
 import { timeOf } from "./formatting";
 import { budgetUseTextOf, meterLevelOf, raisedLimitsOf, tokenCountOf } from "./labels";
 import { styles } from "./styles";
+import { colors } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
 
-const levelColors = { normal: "#6b7280", reached: "#b91c1c", warning: "#d97706" } as const;
+const levelColors = { normal: colors.textMuted, reached: colors.danger, warning: colors.warning } as const;
 
 /** One meter per set limit, orange from 80% and red at 100%; nothing when the budget is empty. */
 export function BudgetMeters({ use, onPress }: { use: BudgetUse; onPress?: () => void }) {
@@ -34,7 +35,15 @@ export function BudgetMeters({ use, onPress }: { use: BudgetUse; onPress?: () =>
             key={unit}
             style={{ alignItems: "center", flexDirection: "row", gap: 6 }}
           >
-            <View style={{ backgroundColor: "#e5e7eb", borderRadius: 3, height: 6, overflow: "hidden", width: 80 }}>
+            <View
+              style={{
+                backgroundColor: colors.controlActive,
+                borderRadius: 3,
+                height: 6,
+                overflow: "hidden",
+                width: 80,
+              }}
+            >
               <View style={{ backgroundColor: color, height: 6, width: `${Math.min(100, (spent / limit) * 100)}%` }} />
             </View>
             <Text style={[styles.muted, { color, fontSize: 12 }]}>{budgetUseTextOf(unit, spent, limit)}</Text>

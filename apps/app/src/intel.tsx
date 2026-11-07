@@ -21,6 +21,7 @@ import {
   intelOriginLabelOf,
   intelProposalLineOf,
 } from "./labels";
+import { useHasSidebar } from "./sidebar";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
 
@@ -50,7 +51,7 @@ function Decision({ onResolve }: { onResolve: (isApproved: boolean) => Promise<u
     );
   return (
     <View style={styles.section}>
-      <View style={styles.row}>
+      <View style={styles.inlineRow}>
         <Pressable onPress={() => resolve(true)} style={[styles.answer, styles.answerPrimary]}>
           <Text style={[styles.answerText, styles.answerTextPrimary]}>Approve</Text>
         </Pressable>
@@ -170,7 +171,7 @@ function IntelRow({ client, intel, onHistory }: { client: ServiceClient; intel: 
           </Pressable>
         </View>
       ) : (
-        <View style={styles.row}>
+        <View style={styles.inlineRow}>
           <TextInput
             accessibilityLabel="Intel text"
             multiline
@@ -224,6 +225,7 @@ export function IntelScreen({
   threadId: ThreadId | null;
   title: string;
 }) {
+  const hasSidebar = useHasSidebar();
   const [scope, setScope] = useState<IntelScope | null>(null);
   const [state, setState] = useState<IntelStateFilter | null>(null);
   const [historyOf, setHistoryOf] = useState<IntelId | null>(null);
@@ -238,9 +240,12 @@ export function IntelScreen({
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
-        <Pressable onPress={onBack}>
-          <Text style={styles.link}>← Back</Text>
-        </Pressable>
+        {/* All intel is a place of the sidebar; a thread's intel goes back to its thread. */}
+        {!(hasSidebar && threadId === null) && (
+          <Pressable onPress={onBack}>
+            <Text style={styles.link}>← Back</Text>
+          </Pressable>
+        )}
         <Text numberOfLines={1} style={[styles.heading, styles.flex]}>
           {title}
         </Text>

@@ -33,7 +33,7 @@ export function WorkspacePicker({
   return (
     <View style={styles.section}>
       <View style={styles.header}>
-        <Text style={styles.body}>
+        <Text style={styles.muted}>
           Workspace: <Text style={styles.code}>{value ?? "none (the mission's scratch folder)"}</Text>
         </Text>
         <Pressable onPress={choose}>

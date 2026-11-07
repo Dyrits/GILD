@@ -756,3 +756,19 @@ Provisional choices are listed in work-in-progress (Batch 17). Summarizing a sta
 References: documentation/capabilities/thread-tree/specifications.md (Opening a thread); documentation/work-in-progress.md (Batch 17); documentation/verification/2026-11-07-starting-context.md; packages/service/src/startingContext.ts, tree.ts, intel.ts, service.ts; packages/contracts/src/records.ts, requests.ts; apps/app/src/threadTree.tsx, controls.tsx, labels.ts, styles.ts
 Validation: `bun run test` passed 311 with 5 skipped; typecheck, `bun run check`, `git diff --check`, the desktop build, and a Metro web export passed. 13 of 13 mutations were caught in a separate copy; the new checks fail 8 of 9 on the batch 16 state (the ninth guards that a small thread still opens). Driven in the window on the fake harness. The look awaits the owner. Not verified: a live Claude Code thread.
 Evidence: The owner's instruction of 2026-11-07: "For now, we build, step by step and we verify it works. The look and feel will be adjusted later. Don't ask any question for this session, build what is next. I'll be AFK."
+
+## CHG-0056 · 2026-11-07 · First interface pass, after the look of OpenBot
+
+Type: Code
+Event: Delivery
+Scope: App interface
+
+Summary: The look the owner deferred to an interface pass, close to OpenBot's light theme:
+- a sidebar on a grey frame (New mission, Missions, Intel, Archived, the missions not archived with their state, Settings) beside a raised white panel; narrow windows keep the screens' own links;
+- one palette in `apps/app/src/theme.ts`: neutral greys, a blue accent, soft tinted state pills;
+- the composer as one rounded box with Send inside, and the mission's model and effort as compact pickers in it;
+- mission rows with a muted meta line; the owner's messages as unlabelled grey bubbles, agent replies as plain text; accent switches; borderless button rows.
+No behavior changed. Chosen by an agent under the owner's instruction, without questions; not yet accepted by the owner.
+References: documentation/verification/2026-11-07-interface-pass.md; documentation/inspirations.md (OpenBot); apps/app/App.tsx; apps/app/src/theme.ts, sidebar.tsx, styles.ts, controls.tsx, dashboard.tsx, conversation.tsx, conversationEntries.tsx, settings.tsx, intel.tsx, budgets.tsx, formatting.ts, workspaces.tsx, missionActions.tsx, threadActions.tsx, threadTree.tsx, journal.tsx
+Validation: `bun run test` passed 311 with 5 skipped; typecheck, `bun run check`, `git diff --check`, and a Metro web export passed. Driven in the window on the fake harness, with before and after screenshots. The look awaits the owner.
+Evidence: The owner's instruction of 2026-11-07: "Let's work a bit on the UI. Look at how OpenBot looks like and try to get something close to that if possible. I'll be AFK so don't ask any question for now."

@@ -45,8 +45,8 @@ function MessageBubble({ message }: { message: Message }) {
   const sender =
     message.sender === "user"
       ? message.isQueued
-        ? "You · Queued for the next turn"
-        : "You"
+        ? "Queued for the next turn"
+        : null
       : message.sender === "agent"
         ? "Agent"
         : `${message.isResult ? "Result from" : "From"} "${shortened(message.fromTitle ?? "a thread")}"`;
@@ -54,7 +54,8 @@ function MessageBubble({ message }: { message: Message }) {
     message.sender === "user" ? styles.fromUser : message.sender === "agent" ? styles.fromAgent : styles.fromThread;
   return (
     <View style={[styles.message, style]}>
-      <Text style={styles.sender}>{sender}</Text>
+      {/* The owner's own messages need no label, as in a chat; a queued one says it waits. */}
+      {sender !== null && <Text style={styles.sender}>{sender}</Text>}
       <Text style={styles.body}>{message.text}</Text>
     </View>
   );

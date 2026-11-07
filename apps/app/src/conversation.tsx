@@ -9,6 +9,7 @@ import { effortLabel, modelLabels, usageDetail } from "./formatting";
 import { IntelIcon, IntelScreen } from "./intel";
 import { JournalScreen } from "./journal";
 import { MissionEndingActions, MissionTitle } from "./missionActions";
+import { useHasSidebar } from "./sidebar";
 import { styles } from "./styles";
 import { ChatterNotices, DeleteThreadAction } from "./threadActions";
 import { OpenThreadForm, ThreadTree } from "./threadTree";
@@ -209,6 +210,7 @@ export function Conversation({
   /** Opens another mission, such as where an off-topic request went. */
   onOpenMission: (missionId: MissionId) => void;
 }) {
+  const hasSidebar = useHasSidebar();
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
   const [selectedId, setSelectedId] = useState<ThreadId | null>(null);
   const [isJournalOpen, setIsJournalOpen] = useState(false);
@@ -254,9 +256,11 @@ export function Conversation({
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
-        <Pressable onPress={onBack}>
-          <Text style={styles.link}>← Missions</Text>
-        </Pressable>
+        {!hasSidebar && (
+          <Pressable onPress={onBack}>
+            <Text style={styles.link}>← Missions</Text>
+          </Pressable>
+        )}
         {data ? (
           <MissionTitle client={client} key={data.mission.title} mission={data.mission} />
         ) : (

@@ -13,7 +13,7 @@ function EndingConfirmation({ ending }: { ending: ReturnType<typeof useEnding> }
   return (
     <View style={styles.failure}>
       <Text style={styles.body}>{ending.pending.preview.question}</Text>
-      <View style={styles.row}>
+      <View style={styles.inlineRow}>
         <Pressable disabled={ending.isBusy} onPress={ending.confirm}>
           <Text style={styles.link}>Stop and {endingLabels[ending.pending.ending].toLowerCase()}</Text>
         </Pressable>
@@ -31,7 +31,7 @@ export function MissionEndingActions({ client, mission }: { client: ServiceClien
   const reopen = () => ending.run(() => client.request({ _tag: "ReopenMission", missionId: mission.id }));
   return (
     <View>
-      <View style={styles.row}>
+      <View style={styles.inlineRow}>
         {mission.state === "Archived" ? (
           <Pressable onPress={reopen}>
             <Text style={styles.link}>Reopen</Text>
@@ -80,7 +80,7 @@ export function MissionPromptCard({
         </Text>
       </Pressable>
       <Text style={styles.body}>{promptQuestionOf(prompt, inactivityDays)}</Text>
-      <View style={styles.row}>
+      <View style={styles.inlineRow}>
         {prompt === "Inactive" && (
           <Pressable disabled={ending.isBusy} onPress={() => ending.start("Archived")}>
             <Text style={styles.link}>Archive</Text>
@@ -123,7 +123,7 @@ export function MissionTitle({ client, mission }: { client: ServiceClient; missi
     );
   }
   return (
-    <View style={[styles.flex, styles.row]}>
+    <View style={[styles.flex, styles.inlineRow]}>
       <TextInput
         accessibilityLabel="Mission title"
         autoFocus

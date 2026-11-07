@@ -57,7 +57,7 @@ export function DeleteThreadAction({
           <Text style={styles.muted}>
             This permanently erases {preview.isMission ? "the mission" : "these threads"} and their conversations.
           </Text>
-          <View style={styles.row}>
+          <View style={styles.inlineRow}>
             <Pressable disabled={isBusy} onPress={remove}>
               <Text style={styles.link}>Delete permanently</Text>
             </Pressable>
@@ -93,7 +93,7 @@ export function ChatterNotices({ client, notices }: { client: ServiceClient; not
           <Text style={styles.body}>
             {notice.firstTitle} and {notice.secondTitle} exchanged {notice.count} messages without you
           </Text>
-          <View style={styles.row}>
+          <View style={styles.inlineRow}>
             <Pressable disabled={pending !== null} onPress={() => decide(notice.id, "Continue")}>
               <Text style={styles.link}>Let them continue</Text>
             </Pressable>
