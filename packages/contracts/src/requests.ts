@@ -1,6 +1,8 @@
 import { Schema } from "effect";
 import { BudgetLimits, BudgetWindow } from "./budgets.ts";
+import { HarnessList, HarnessName } from "./harnesses.ts";
 import {
+  AccountId,
   BudgetStopId,
   IntelChangeId,
   IntelHistoryEntryId,
@@ -41,7 +43,11 @@ const MessageText = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLengt
 
 /** Starts a mission with its first message, model, effort, and workspace. */
 export const StartMission = Schema.TaggedStruct("StartMission", {
+  /** The provider account, or null for the harness's own sign-in on this computer; absent is null. */
+  accountId: Schema.optionalKey(Schema.NullOr(AccountId)),
   effort: EffortChoice,
+  /** Absent starts on the Settings default harness. */
+  harness: Schema.optionalKey(HarnessName),
   model: ModelChoice,
   requestId: RequestId,
   text: MessageText,
@@ -90,7 +96,11 @@ export const ReadMission = Schema.TaggedStruct("ReadMission", {
 });
 /** The owner opens a thread beneath any thread of a mission, with its first message (thread-tree, Opening a thread). */
 export const OpenThread = Schema.TaggedStruct("OpenThread", {
+  /** Absent keeps the parent's account when the harness is the parent's, else the computer's own sign-in. */
+  accountId: Schema.optionalKey(Schema.NullOr(AccountId)),
   effort: EffortChoice,
+  /** Absent runs on the parent's harness. */
+  harness: Schema.optionalKey(HarnessName),
   model: ModelChoice,
   parentThreadId: ThreadId,
   requestId: RequestId,
@@ -197,7 +207,13 @@ export const StopAtBudget = Schema.TaggedStruct("StopAtBudget", { stopId: Budget
 /** The owner's choice for an off-topic request (thread-tree, Off-topic requests). */
 export const SuggestionAnswer = Schema.Union([
   Schema.TaggedStruct("Continue", { missionId: MissionId }),
-  Schema.TaggedStruct("NewMission", { effort: EffortChoice, model: ModelChoice }),
+  Schema.TaggedStruct("NewMission", {
+    /** Absent keeps the suggesting thread's account and harness, as for the next two. */
+    accountId: Schema.optionalKey(Schema.NullOr(AccountId)),
+    effort: EffortChoice,
+    harness: Schema.optionalKey(HarnessName),
+    model: ModelChoice,
+  }),
   Schema.TaggedStruct("Aside", {}),
 ]);
 export type SuggestionAnswer = typeof SuggestionAnswer.Type;
@@ -233,6 +249,29 @@ export const BrowseFolders = Schema.TaggedStruct("BrowseFolders", {
 export const CreateFolder = Schema.TaggedStruct("CreateFolder", { name: Schema.String, parent: Schema.String });
 /** Adds an existing folder to the browsable roots (Add root). */
 export const AddBrowsableRoot = Schema.TaggedStruct("AddBrowsableRoot", { path: Schema.String });
+
+/** Every harness with its accounts, sign-in states, and models (provider-accounts). */
+export const ListHarnesses = Schema.TaggedStruct("ListHarnesses", {});
+
+const AccountLabel = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(80));
+
+/** Adds a provider account to a harness, with its own folder; it is signed out until the owner signs in. */
+export const AddAccount = Schema.TaggedStruct("AddAccount", { harness: HarnessName, label: AccountLabel });
+
+/** Renames a provider account added in OpenMission. */
+export const RenameAccount = Schema.TaggedStruct("RenameAccount", { accountId: AccountId, label: AccountLabel });
+
+/** Removes a provider account and its folder; refused while a thread that is not ended uses it. */
+export const RemoveAccount = Schema.TaggedStruct("RemoveAccount", { accountId: AccountId });
+
+/**
+ * Opens the harness's own sign-in for an account in a terminal window on this computer; OpenMission never
+ * sees the credentials (requirements, Comply with provider terms). Null signs in the computer's own account.
+ */
+export const SignInAccount = Schema.TaggedStruct("SignInAccount", {
+  accountId: Schema.NullOr(AccountId),
+  harness: HarnessName,
+});
 
 /** Every request the app can make of the service. */
 export const Request = Schema.Union([
@@ -281,6 +320,11 @@ export const Request = Schema.Union([
   BrowseFolders,
   CreateFolder,
   AddBrowsableRoot,
+  ListHarnesses,
+  AddAccount,
+  RenameAccount,
+  RemoveAccount,
+  SignInAccount,
 ]);
 export type Request = typeof Request.Type;
 export type RequestTag = Request["_tag"];
@@ -297,6 +341,7 @@ export type OpenThreadResult = typeof OpenThreadResult.Type;
 
 /** The result schema of each request, used by both sides to encode and decode. */
 export const Results = {
+  AddAccount: HarnessList,
   AddBrowsableRoot: FolderListing,
   AddJournalEntry: JournalView,
   AnswerQuestion: Question,
@@ -309,6 +354,7 @@ export const Results = {
   EditIntel: Schema.Null,
   EndMission: Schema.Null,
   InterruptThread: Schema.Null,
+  ListHarnesses: HarnessList,
   ListIntel: IntelView,
   ListMissions: MissionList,
   ListOpenQuestions: Schema.Array(Question),
@@ -324,7 +370,9 @@ export const Results = {
   ReadPermissions: PermissionsView,
   ReadSettings: Settings,
   ReadStartChoices: StartChoices,
+  RemoveAccount: HarnessList,
   RemovePermission: Schema.Null,
+  RenameAccount: HarnessList,
   RenameMission: Schema.Null,
   ReopenMission: Schema.Null,
   ResolveChatter: Schema.Null,
@@ -336,6 +384,7 @@ export const Results = {
   RewriteBriefing: JournalView,
   SendMessage: SendMessageResult,
   SetMissionBudget: Schema.Null,
+  SignInAccount: Schema.Null,
   StartMission: StartMissionResult,
   StopAtBudget: Schema.Null,
   StopThread: Schema.Null,

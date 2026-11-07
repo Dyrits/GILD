@@ -19,3 +19,5 @@
 - **Intel capsules** (scoped-intel, idea from souls.house): an intel sealed until a date or condition, then raised by a routine; the thread decides whether to raise, hold, or dismiss it.
 - **Journal compression** (mission-journal, idea from souls.house): roll mission journals into weekly and monthly summaries, keeping the raw entries, and later into a global record across missions.
 - **Inspiration review**: every few weeks, check the products in [inspirations](inspirations.md) for new features and record what is new.
+- **Harness settings isolation** (provider-accounts, CHG-0057): decide whether the owner's own Codex and OpenCode MCP servers, skills, and agents load in OpenMission's threads, as now, or stay off as for Claude Code.
+- **Account sign-in in the app** (provider-accounts): show the harness's sign-in progress inside OpenMission instead of a Terminal window, if each tool offers a non-interactive flow (Codex `--device-auth`).

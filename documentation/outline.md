@@ -24,6 +24,7 @@ The first build serves one user. The [architecture](architecture.md#future-multi
 - **[workspace-attachment](capabilities/workspace-attachment/specifications.md)**: attaching each thread, before it starts, to one workspace browsed under the allowed roots or cloned from a repository, or to none; with an optional own copy of a git workspace.
 - **routine-running**: running a routine on its trigger, in its own thread or by opening new threads.
 - **workflow-running**: running a workflow, each step as a thread.
+- **[provider-accounts](capabilities/provider-accounts/specifications.md)**: running each thread on the harness and provider account chosen for it, with several accounts per harness, each signed in through the harness's own sign-in.
 - **[tool-and-skill-loading](capabilities/tool-and-skill-loading/specifications.md)**: giving every thread its selected global and workspace MCP servers, required thread tools, and skill names and descriptions, with full instructions loaded when used and harness-specific skill preference.
 - **[scoped-intel](capabilities/scoped-intel/specifications.md)**: gathering and recalling intel at thread, workspace, or global scope.
 - **[action-approval](capabilities/action-approval/specifications.md)**: asking the user in plain language before a risky action, one approval per action and thread, with standing permissions for what the user always allows.

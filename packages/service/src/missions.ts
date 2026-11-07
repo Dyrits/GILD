@@ -5,6 +5,7 @@ import type {
   MissionSummary,
   ModelChoice,
   Settings,
+  StartChoices,
   StartMissionResult,
   ThreadState,
 } from "@openmission/contracts";
@@ -14,6 +15,7 @@ import { applyDefaultBudget } from "./budgets.ts";
 import { invalid } from "./errors.ts";
 import { insertJournal } from "./journal.ts";
 import { insertMessage } from "./messaging.ts";
+import { checkAccount, type RunnerChoice, runnerOf } from "./runners.ts";
 import { dayMillis, readSettings, saveStartChoices } from "./settings.ts";
 import { isReached, readGlobalBudget, tokenSum } from "./spending.ts";
 import { titleOf } from "./titles.ts";
@@ -32,8 +34,7 @@ const workedOutStateOf = (states: ReadonlyArray<string>): ThreadState =>
  */
 export const insertMission = (
   text: string,
-  model: ModelChoice,
-  effort: EffortChoice,
+  choice: RunnerChoice & { readonly effort: EffortChoice; readonly model: ModelChoice },
   workspacePath: string | null,
   shouldRememberChoices = true,
 ) =>
@@ -43,19 +44,34 @@ export const insertMission = (
     // A reached global budget refuses new missions (budget-control, Reaching a limit).
     if (isReached(global.limits, global.spent))
       return yield* invalid("The global budget is reached. Raise it in Settings to start a mission.");
+    const settings = yield* readSettings;
+    const runner = yield* checkAccount(
+      runnerOf(
+        { accountId: null, effort: choice.effort, harness: settings.defaultHarness, model: choice.model },
+        choice,
+      ),
+    );
+    const { accountId, effort, harness, model } = runner;
     const workspaceId = workspacePath === null ? null : yield* attachWorkspace(workspacePath);
     const now = yield* Clock.currentTimeMillis;
     const missionId = crypto.randomUUID();
     const threadId = crypto.randomUUID();
     yield* sql`INSERT INTO missions (id, top_thread_id, title, created_at, last_activity_at)
       VALUES (${missionId}, ${threadId}, ${titleOf(text)}, ${now}, ${now})`;
-    yield* sql`INSERT INTO threads (id, mission_id, state, model, effort, workspace_id, title)
-      VALUES (${threadId}, ${missionId}, 'Idle', ${model}, ${effort}, ${workspaceId}, ${titleOf(text)})`;
+    yield* sql`INSERT INTO threads (id, mission_id, state, harness, account_id, model, effort, workspace_id, title)
+      VALUES (${threadId}, ${missionId}, 'Idle', ${harness}, ${accountId}, ${model}, ${effort}, ${workspaceId}, ${titleOf(text)})`;
     const messageId = yield* insertMessage({ fromThreadId: null, isQueued: false, isResult: false, text, threadId });
     yield* insertJournal(missionId);
-    yield* applyDefaultBudget(missionId, (yield* readSettings).defaultMissionBudget);
+    yield* applyDefaultBudget(missionId, settings.defaultMissionBudget);
     // A mission opened from an off-topic suggestion is not the owner's own start, so the prefill stays.
-    if (shouldRememberChoices) yield* saveStartChoices({ effort, model, workspacePath });
+    if (shouldRememberChoices)
+      yield* saveStartChoices({
+        accountId: accountId as StartChoices["accountId"],
+        effort,
+        harness,
+        model,
+        workspacePath,
+      });
     return { messageId, missionId, threadId } as StartMissionResult;
   });
 

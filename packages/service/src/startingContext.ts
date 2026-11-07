@@ -1,6 +1,7 @@
-import { type ModelChoice, ModelChoice as ModelChoices, type StartingContext } from "@openmission/contracts";
+import type { ModelChoice, StartingContext } from "@openmission/contracts";
 import { Effect } from "effect";
-import { contextWindows, readIntelSize } from "./intel.ts";
+import { claudeModels } from "./harnessCatalog.ts";
+import { contextWindowOf, readIntelSize } from "./intel.ts";
 import { openerMessagesOf, readJournalText, tokensOf } from "./journal.ts";
 
 // The starting context of a thread the owner opens (thread-tree, Opening a thread): what it takes of the
@@ -28,12 +29,14 @@ export const readStartingContext = (parentId: string, model: ModelChoice, reques
       request: tokensOf(request),
     };
     const tokens = parts.intel + parts.journal + parts.openerMessages + parts.request;
-    const windowTokens = contextWindows[model];
+    const windowTokens = contextWindowOf(model);
     return {
       isOverWarning: tokens * 100 > windowTokens * startingContextWarningPercent,
-      largerModels: ModelChoices.literals
-        .filter((choice) => contextWindows[choice] > windowTokens)
-        .toSorted((a, b) => contextWindows[b] - contextWindows[a]),
+      // Only Claude Code's models are compared until each harness reports its windows (Batch 12).
+      largerModels: claudeModels
+        .map((option) => option.id)
+        .filter((choice) => contextWindowOf(choice) > windowTokens)
+        .toSorted((a, b) => contextWindowOf(b) - contextWindowOf(a)),
       parts,
       tokens,
       warningPercent: startingContextWarningPercent,

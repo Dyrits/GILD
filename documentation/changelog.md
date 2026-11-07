@@ -772,3 +772,19 @@ No behavior changed. Chosen by an agent under the owner's instruction, without q
 References: documentation/verification/2026-11-07-interface-pass.md; documentation/inspirations.md (OpenBot); apps/app/App.tsx; apps/app/src/theme.ts, sidebar.tsx, styles.ts, controls.tsx, dashboard.tsx, conversation.tsx, conversationEntries.tsx, settings.tsx, intel.tsx, budgets.tsx, formatting.ts, workspaces.tsx, missionActions.tsx, threadActions.tsx, threadTree.tsx, journal.tsx
 Validation: `bun run test` passed 311 with 5 skipped; typecheck, `bun run check`, `git diff --check`, and a Metro web export passed. Driven in the window on the fake harness, with before and after screenshots. The look awaits the owner.
 Evidence: The owner's instruction of 2026-11-07: "Let's work a bit on the UI. Look at how OpenBot looks like and try to get something close to that if possible. I'll be AFK so don't ask any question for now."
+
+## CHG-0057 · 2026-11-07 · Batch 18 built: harnesses and provider accounts
+
+Type: Code
+Event: Delivery
+Scope: First slice, batch 18; new capability provider-accounts; Thread tree; Action approval
+
+Summary: OpenMission runs threads on Claude Code, Codex, or OpenCode, each with several provider accounts:
+- every thread records its harness and account; the mission start, the open-thread form, and Open as new mission choose harness, account, model, and effort; `open_thread` takes a `harness`; a thread on another harness than its opener's takes that harness's own sign-in and default model;
+- Codex runs through `codex app-server` and OpenCode through `opencode acp`, each one process per thread, with OpenMission's thread tools, starting context, approvals answered through `answer_prompt`, usage, interrupts, and (Codex) steering; native subagents are off;
+- Settings lists each harness's version, the computer's own sign-in, and added accounts, each with its own folder (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`, `XDG_DATA_HOME`); Sign in opens the harness's own login in Terminal; Remove waits until missions on the account end;
+- models are the harness's own identifiers: Claude Code's aliases, Codex's app server list, `opencode models`.
+Built by an agent under the owner's instruction, without questions; provisional choices are in work-in-progress (Batch 18). Not yet agreed or accepted by the owner.
+References: documentation/capabilities/provider-accounts/specifications.md; documentation/architecture-decision-record/0011-accounts-as-harness-folders.md; documentation/verification/2026-11-07-harnesses-and-accounts.md; packages/service/src/codex.ts, opencode.ts, rpcProcess.ts, harnessTools.ts, accounts.ts, runners.ts, harnessCatalog.ts, execution.ts, claude.ts, threads.ts, tree.ts, missions.ts, store.ts (0021), main.ts; packages/contracts/src/harnesses.ts, records.ts, requests.ts; apps/app/src/runners.tsx, accounts.tsx, settings.tsx, dashboard.tsx, threadTree.tsx, suggestions.tsx, conversation.tsx, controls.tsx
+Validation: `bun run test` passed 332 with 8 skipped; typecheck, `bun run check`, `git diff --check`, the desktop build, and a Metro web export passed. 12 of 12 mutations were caught in a separate copy; the new checks cannot load on `ab85b66`. The opt-in live checks (`OPENMISSION_LIVE_HARNESSES=1`) passed against the installed Codex and OpenCode. Driven in the window with the real harnesses: a Codex mission, an OpenCode thread beneath it, a Claude Code mission, and adding and removing an account. Not verified: signing in an added account, live Codex escalation and steering, live OpenCode permission prompts.
+Evidence: The owner's instruction of 2026-11-07: "I'd like OpenMission to be able to be used to build OpenMission. I want to be able to use different providers in it, using my Claude subscription (and even register more than one accound like OpenBot does). I want to be able to use Codex ad well and OpenCode. Focuse on that first. I'll be AFK, don't ask any question."

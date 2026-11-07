@@ -1,24 +1,21 @@
 import {
-  type EffortChoice,
-  EffortChoice as EffortChoices,
   type MissionId,
   type MissionState,
   MissionState as MissionStates,
   type MissionSummary,
-  type ModelChoice,
-  ModelChoice as ModelChoices,
   type WorkspaceId,
 } from "@openmission/contracts";
 import { useState } from "react";
 import { FlatList, Pressable, Text, TextInput, View } from "react-native";
 import { BudgetMeters, BudgetScreen, BudgetStopCard } from "./budgets";
 import { newRequestId, type ServiceClient } from "./client";
-import { Choice, Composer, Menu, StateBadge } from "./controls";
-import { effortLabel, modelLabels, timeOf, usageText } from "./formatting";
+import { Choice, Composer, StateBadge } from "./controls";
+import { timeOf, usageText } from "./formatting";
 import { threadCountOf } from "./labels";
 import { MissionEndingActions, MissionPromptCard } from "./missionActions";
 import { allMissions } from "./queries";
 import { QuestionCard } from "./questions";
+import { type Runner, RunnerPickers, useHarnesses } from "./runners";
 import { useHasSidebar } from "./sidebar";
 import { styles } from "./styles";
 import { colors } from "./theme";
@@ -31,42 +28,31 @@ const dashboardStates = MissionStates.literals.filter((state) => state !== "Arch
 /** Starts a mission with one message, prefilled from the last mission's choices (mission-tracking). */
 function MissionStarter({ client, onOpen }: { client: ServiceClient; onOpen: (id: MissionId) => void }) {
   const { data: last } = useServiceQuery(client, { _tag: "ReadStartChoices" }, "start-choices");
-  const [model, setModel] = useState<ModelChoice | null>(null);
-  const [effort, setEffort] = useState<EffortChoice | null>(null);
+  const { data: harnesses } = useHarnesses(client);
+  // Null until the owner picks; the last mission's runner applies until then.
+  const [runner, setRunner] = useState<Runner | null>(null);
   // Null until the owner picks a workspace or none; the last mission's applies until then.
   const [workspace, setWorkspace] = useState<{ readonly path: string | null } | null>(null);
-  const chosenModel = model ?? last?.model ?? "default";
-  const chosenEffort = effort ?? last?.effort ?? "default";
+  const chosen: Runner =
+    runner ??
+    (last === null
+      ? { accountId: null, effort: "default", harness: "claude", model: "default" }
+      : { accountId: last.accountId, effort: last.effort, harness: last.harness, model: last.model });
   const chosenWorkspace = workspace === null ? (last?.workspacePath ?? null) : workspace.path;
   return (
     // Above the list below it, so a picker's open list covers the search and the filters.
     <View style={[styles.section, styles.raised]}>
       <Composer
-        accessory={
-          <>
-            <Menu
-              accessibilityLabel="Model"
-              label={(m) => modelLabels[m]}
-              onChange={setModel}
-              options={ModelChoices.literals}
-              value={chosenModel}
-            />
-            <Menu
-              accessibilityLabel="Effort"
-              label={effortLabel}
-              onChange={setEffort}
-              options={EffortChoices.literals}
-              value={chosenEffort}
-            />
-          </>
-        }
+        accessory={<RunnerPickers harnesses={harnesses} isCompact={true} onChange={setRunner} value={chosen} />}
         onSend={async (text) =>
           onOpen(
             (
               await client.request({
                 _tag: "StartMission",
-                effort: chosenEffort,
-                model: chosenModel,
+                accountId: chosen.accountId,
+                effort: chosen.effort,
+                harness: chosen.harness,
+                model: chosen.model,
                 requestId: newRequestId(),
                 text,
                 workspacePath: chosenWorkspace,

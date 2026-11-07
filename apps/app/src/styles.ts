@@ -142,6 +142,8 @@ export const styles = StyleSheet.create({
     borderRadius: radii.md,
     borderWidth: 1,
     left: 0,
+    // A long list, such as OpenCode's models, scrolls inside the menu.
+    maxHeight: 320,
     minWidth: 200,
     padding: 4,
     position: "absolute",

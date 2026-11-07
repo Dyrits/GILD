@@ -1,18 +1,17 @@
 import {
   BudgetPeriod,
-  EffortChoice as EffortChoices,
   MessageDelivery as MessageDeliveries,
   type MessageDelivery,
-  ModelChoice as ModelChoices,
   type Settings,
 } from "@openmission/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
+import { AccountsSection } from "./accounts";
 import { BudgetEditor } from "./budgets";
 import type { ServiceClient } from "./client";
 import { Choice, Toggle } from "./controls";
-import { effortLabel, modelLabels } from "./formatting";
 import { levelLabels } from "./permissions";
+import { RunnerPickers, useHarnesses } from "./runners";
 import { useHasSidebar } from "./sidebar";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
@@ -78,6 +77,7 @@ export function SettingsScreen({
   const hasSidebar = useHasSidebar();
   const { data: settings, error } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
   const [saveError, setSaveError] = useState<string | null>(null);
+  const harnesses = useHarnesses(client);
   const save = (change: Partial<Settings>) => {
     if (settings === null) return;
     client.request({ _tag: "UpdateSettings", settings: { ...settings, ...change } }).then(
@@ -103,19 +103,27 @@ export function SettingsScreen({
             <Text style={[styles.body, styles.flex]}>Permissions · {levelLabels[settings.approvalLevel]}</Text>
             <Text style={styles.link}>›</Text>
           </Pressable>
-          <Text style={styles.label}>Default model for new missions</Text>
-          <Choice
-            label={(m) => modelLabels[m]}
-            onChange={(defaultModel) => save({ defaultModel })}
-            options={ModelChoices.literals}
-            value={settings.defaultModel}
+          <Text style={styles.label}>Default harness, model, and effort before your first mission</Text>
+          <RunnerPickers
+            harnesses={harnesses.data}
+            isAccountShown={false}
+            isCompact={false}
+            onChange={(runner) =>
+              save({ defaultEffort: runner.effort, defaultHarness: runner.harness, defaultModel: runner.model })
+            }
+            // The account is chosen per mission; new missions otherwise start as the last one did.
+            value={{
+              accountId: null,
+              effort: settings.defaultEffort,
+              harness: settings.defaultHarness,
+              model: settings.defaultModel,
+            }}
           />
-          <Text style={styles.label}>Default effort for new missions</Text>
-          <Choice
-            label={effortLabel}
-            onChange={(defaultEffort) => save({ defaultEffort })}
-            options={EffortChoices.literals}
-            value={settings.defaultEffort}
+          <AccountsSection
+            client={client}
+            harnesses={harnesses.data}
+            onChanged={harnesses.setData}
+            onRefresh={harnesses.refresh}
           />
           <Text style={styles.label}>Send, while a thread is running</Text>
           <Choice

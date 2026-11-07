@@ -506,3 +506,40 @@ The warning before a thread starts with too large a starting context (thread-tre
 - Recovery of turns interrupted by a crash or restart, and uncertain delivery.
 - Idle as the mission state when no thread is urgent, including all Done or Stopped.
 - Claude Code protocol verification; installed version 2.1.302.
+
+## Batch 18: built, awaiting the owner
+
+Harnesses and provider accounts ([provider-accounts](capabilities/provider-accounts/specifications.md)), chosen by an agent under the owner's instruction of 2026-11-07 to make OpenMission usable to build OpenMission with Claude Code (several accounts), Codex, and OpenCode, without questions. Starts from `ab85b66`. Built with stand-in checks first, then probed and driven live: [proof](verification/2026-11-07-harnesses-and-accounts.md). Recorded in CHG-0057.
+
+### Behavior
+
+- **Harness per thread**: Claude Code, Codex, or OpenCode, chosen at mission start and when opening a thread; `open_thread` takes `harness`. Kept for the thread's life.
+- **Accounts**: the computer's own sign-in and accounts added in Settings, each a folder the harness uses as its home (ADR 0011). Sign in opens the harness's own login in Terminal. Remove refused while a mission not ended uses the account.
+- **Models**: free identifiers per harness (`ModelChoice` is now a string), listed by each harness; "default" is the harness's own.
+- **Adapters**: `codex.ts` (app server, JSON-RPC without the `jsonrpc` field) and `opencode.ts` (ACP), over `rpcProcess.ts`; `routeHarnesses` picks the adapter per turn.
+
+### Provisional, until the owner decides
+
+- Codex runs `workspace-write` with `on-request` approvals at the default level and `untrusted` at "Also commands and edits"; its escalations go to `answer_prompt` as a Bash prompt, file changes as Edit, sandbox widenings as "Permissions".
+- OpenCode asks for every shell command (no sandbox) and, at the stricter level, every edit; its subagents are denied. Its starting context is written to `$TMPDIR/openmission-opencode/<thread>.md` and given as `instructions`.
+- The owner's own Codex and OpenCode settings (their MCP servers, skills, agents) still load in threads; Claude Code's stay off as before.
+- Codex threads are not ephemeral: they appear in the owner's Codex history; OpenCode sessions in OpenCode's.
+- OpenCode takes no effort; a steered message waits for its next turn.
+- Codex and OpenCode report no cost: their turns count as subscription tokens (budget-control, Batch 11).
+- Every model counts a 200,000-token window (Batch 12); larger-window suggestions compare Claude Code's models only.
+- The Codex model list is cached 10 minutes per account; sign-in states are read when Settings or a picker opens, and on Refresh.
+- Sign-in on Linux and Windows answers with the command to run in a terminal.
+- `approvals.ts` still tells an allowed thread to set `dangerouslyDisableSandbox` for Bash, which only Claude Code has; the instructions themselves leave it out for Codex and OpenCode.
+
+### Checks
+
+- Automated: 21 checks in `harnesses.test.ts` on stand-ins; 3 opt-in live checks in `liveHarnesses.test.ts` (`OPENMISSION_LIVE_HARNESSES=1`, `OPENMISSION_LIVE_OPENCODE_MODEL`).
+- `bun run test` (332 passed, 8 skipped), `bun run typecheck`, `bun run check`, `git diff --check`, desktop build, Metro web export; 12 of 12 mutations caught in a separate copy.
+- Driven in the window with the real harnesses: see the proof.
+- Not run: signing in an added account; live Codex escalation and steering; live OpenCode permission prompts.
+
+### Staged
+
+- Thread-handover: changing a thread's harness, account, or model mid-thread.
+- Accounts for Control, routines, and workflows.
+- Harness installs and updates offered from the app (architecture, Integrations).

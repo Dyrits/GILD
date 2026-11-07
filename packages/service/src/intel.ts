@@ -21,16 +21,10 @@ import { readSettings } from "./settings.ts";
 export const intelLimit = 200;
 
 /**
- * Each model's context window in tokens. Provisional (work-in-progress, Batch 12): every model counts
- * 200,000 until the harness reports its model's window (thread panel and context gauge, backlog).
+ * A model's context window in tokens. Provisional (work-in-progress, Batch 12): every model of every harness
+ * counts 200,000 until the harness reports its model's window (thread panel and context gauge, backlog).
  */
-export const contextWindows = {
-  default: 200_000,
-  fable: 200_000,
-  haiku: 200_000,
-  opus: 200_000,
-  sonnet: 200_000,
-} as const satisfies Record<ModelChoice, number>;
+export const contextWindowOf = (_model: ModelChoice) => 200_000;
 
 /** Where an intel sits: a thread (the mission's top thread for the whole mission), a workspace, or everywhere. */
 export interface Placement {
@@ -239,7 +233,7 @@ export const readGauge = (threadId: string) =>
     const { count, tokens } = yield* readIntelSize(threadId);
     const [thread] = yield* sql<{ model: ModelChoice }>`SELECT model FROM threads WHERE id = ${threadId}`;
     const { intelWarningPercent } = yield* readSettings;
-    const windowTokens = contextWindows[thread?.model ?? "default"];
+    const windowTokens = contextWindowOf(thread?.model ?? "default");
     return {
       count,
       isOverWarning: tokens * 100 > windowTokens * intelWarningPercent,

@@ -27,4 +27,4 @@
 
 ## Handoffs
 
-To resume after the first interface pass (committed, awaiting the owner's judgment), read the [current handoff](.agents/handoffs/2026-11-07-1100-interface-pass.md). Handoffs are shared and committed.
+To resume after batch 18, harnesses and provider accounts (committed, awaiting the owner), read the [current handoff](.agents/handoffs/2026-11-07-1230-harnesses-and-accounts.md). Handoffs are shared and committed.

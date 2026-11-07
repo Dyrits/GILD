@@ -1,6 +1,8 @@
+import { dirname, join } from "node:path";
 import type { Request } from "@openmission/contracts";
 import { Context, Effect, Layer, Match, Semaphore } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
+import { addAccount, listHarnesses, removeAccount, renameAccount, signInAccount } from "./accounts.ts";
 import { Approvals, approvalsLayer } from "./approvals.ts";
 import { budgetPeriodsLayer } from "./budgetPeriods.ts";
 import { applyGlobalBudget, setMissionBudget, stopAtBudget } from "./budgets.ts";
@@ -14,6 +16,7 @@ import { endpointsLayer } from "./endpoints.ts";
 import { invalid, ServiceFailure } from "./errors.ts";
 import type { Harness } from "./execution.ts";
 import { addBrowsableRoot, browseFolders, createFolder, seedBrowsableRoots } from "./folders.ts";
+import { fakeHarnessToolsLayer, HarnessTools } from "./harnessTools.ts";
 import {
   deleteIntelByOwner,
   editIntelByOwner,
@@ -37,7 +40,7 @@ import { readSettings, readStartChoices, writeSettings } from "./settings.ts";
 import { readStartingContext } from "./startingContext.ts";
 import { storeLayer } from "./store.ts";
 import { Suggestions, suggestionsLayer } from "./suggestions.ts";
-import { ScratchRoot, Threads, threadsLayer } from "./threads.ts";
+import { AccountsRoot, ScratchRoot, Threads, threadsLayer } from "./threads.ts";
 import { renameMission } from "./titles.ts";
 import { openThreadByOwner } from "./tree.ts";
 
@@ -77,6 +80,16 @@ const make = Effect.gen(function* () {
   const approvals = yield* Approvals;
   const suggestions = yield* Suggestions;
   const problem = yield* sandboxProblem;
+  const harnessTools = yield* HarnessTools;
+  const accountsRoot = yield* AccountsRoot;
+  /** Runs an account change, then lists the harnesses as they stand after it. */
+  const thenListHarnesses = <A, R>(work: Effect.Effect<A, ServiceFailure | SqlError.SqlError, R>) =>
+    work.pipe(
+      Effect.tap(() => changes.publish),
+      Effect.andThen(listHarnesses),
+      Effect.provideService(HarnessTools, harnessTools),
+      Effect.provideService(AccountsRoot, accountsRoot),
+    );
   const chatterDecisions = yield* Semaphore.make(1);
 
   /** Runs a command once per request identifier; a repeat returns the stored outcome. */
@@ -118,6 +131,7 @@ const make = Effect.gen(function* () {
     const run: Effect.Effect<unknown, ServiceFailure | SqlError.SqlError, SqlClient.SqlClient> = Match.valueTags(
       request,
       {
+        AddAccount: (add) => thenListHarnesses(addAccount(add.harness, add.label)),
         AddBrowsableRoot: (add) => addBrowsableRoot(add.path).pipe(Effect.tap(() => changes.publish)),
         AddJournalEntry: (add) =>
           nonBlank(add.text).pipe(
@@ -167,6 +181,11 @@ const make = Effect.gen(function* () {
                 isInterrupted ? Effect.succeed(null) : invalid("This thread is not running."),
               ),
             ),
+        ListHarnesses: () =>
+          listHarnesses.pipe(
+            Effect.provideService(HarnessTools, harnessTools),
+            Effect.provideService(AccountsRoot, accountsRoot),
+          ),
         ListIntel: (list) => readIntelView(list.scope, list.state, list.threadId),
         ListMissions: (filters) => listMissions(filters),
         ListOpenQuestions: () => listOpenQuestions,
@@ -176,7 +195,12 @@ const make = Effect.gen(function* () {
               once(
                 open.requestId,
                 open._tag,
-                openThreadByOwner(open.parentThreadId, text, open.model, open.effort, open.shouldStartAnyway),
+                openThreadByOwner(
+                  open.parentThreadId,
+                  text,
+                  { accountId: open.accountId, effort: open.effort, harness: open.harness, model: open.model },
+                  open.shouldStartAnyway,
+                ),
               ),
             ),
             Effect.tap((opened) => threads.wake(opened.threadId)),
@@ -202,7 +226,9 @@ const make = Effect.gen(function* () {
           }),
         ReadSettings: () => readSettings,
         ReadStartChoices: () => readStartChoices,
+        RemoveAccount: (remove) => thenListHarnesses(removeAccount(remove.accountId)),
         RemovePermission: (remove) => removePermission(remove.permissionId).pipe(Effect.tap(() => changes.publish)),
+        RenameAccount: (rename) => thenListHarnesses(renameAccount(rename.accountId, rename.label)),
         RenameMission: (rename) =>
           sql.withTransaction(renameMission(rename.missionId, rename.title)).pipe(Effect.tap(() => changes.publish)),
         ReopenMission: (reopen) =>
@@ -248,10 +274,24 @@ const make = Effect.gen(function* () {
               setMissionBudget(given.missionId, given.limits).pipe(Effect.tap(() => sql.afterCommit(changes.publish))),
             )
             .pipe(Effect.tap(applyBudgetOutcome), Effect.as(null)),
+        SignInAccount: (given) =>
+          signInAccount(given.harness, given.accountId).pipe(
+            Effect.provideService(HarnessTools, harnessTools),
+            Effect.provideService(AccountsRoot, accountsRoot),
+            Effect.as(null),
+          ),
         StartMission: (start) =>
           nonBlank(start.text).pipe(
             Effect.andThen((text) =>
-              once(start.requestId, start._tag, insertMission(text, start.model, start.effort, start.workspacePath)),
+              once(
+                start.requestId,
+                start._tag,
+                insertMission(
+                  text,
+                  { accountId: start.accountId, effort: start.effort, harness: start.harness, model: start.model },
+                  start.workspacePath,
+                ),
+              ),
             ),
             Effect.tap((started) => threads.wake(started.threadId)),
           ),
@@ -284,8 +324,12 @@ const make = Effect.gen(function* () {
 });
 
 export interface ServiceOptions {
+  /** Where provider accounts added in OpenMission keep their folders; beside the database when left out. */
+  readonly accountsRoot?: string;
   readonly filename: string;
   readonly harness: Layer.Layer<Harness>;
+  /** The harnesses' own tools for sign-ins and models; every harness signed in, for checks, when left out. */
+  readonly harnessTools?: Layer.Layer<HarnessTools>;
   /** The owner's home folder, the first browsable root (workspace-attachment). */
   readonly homeFolder: string;
   /** The folder holding each mission's scratch folder. */
@@ -301,7 +345,9 @@ export const serviceLayer = (options: ServiceOptions) => {
     changesLayer,
     endpointsLayer,
     options.harness,
+    options.harnessTools ?? fakeHarnessToolsLayer(),
     Layer.succeed(ScratchRoot, options.scratchRoot),
+    Layer.succeed(AccountsRoot, options.accountsRoot ?? join(dirname(options.filename), "accounts")),
   ).pipe(
     Layer.provideMerge(Layer.effectDiscard(seedBrowsableRoots(options.homeFolder))),
     Layer.provideMerge(storeLayer(options.filename)),

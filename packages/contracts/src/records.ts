@@ -1,6 +1,7 @@
 import { Schema } from "effect";
 import { BudgetEvent, BudgetLimits, BudgetPeriod, BudgetStop, BudgetUse } from "./budgets.ts";
-import { MessageId, MissionId, SuggestionId, ThreadId, WorkspaceId } from "./ids.ts";
+import { HarnessName } from "./harnesses.ts";
+import { AccountId, MessageId, MissionId, SuggestionId, ThreadId, WorkspaceId } from "./ids.ts";
 import { IntelChange, IntelGauge } from "./intel.ts";
 import { ApprovalLevel, Question } from "./questions.ts";
 import { Workspace, WorkspaceChoice } from "./workspaces.ts";
@@ -18,8 +19,11 @@ export type ThreadState = typeof ThreadState.Type;
 export const SenderKind = Schema.Literals(["user", "agent", "thread"]);
 export type SenderKind = typeof SenderKind.Type;
 
-/** The model a thread runs with; default is the harness's own. */
-export const ModelChoice = Schema.Literals(["default", "fable", "opus", "sonnet", "haiku"]);
+/**
+ * The model a thread runs with, by the identifier its harness takes, such as "opus" for Claude Code or
+ * "gpt-6.1-sol" for Codex; "default" is the harness's own (provider-accounts, Models).
+ */
+export const ModelChoice = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200));
 export type ModelChoice = typeof ModelChoice.Type;
 
 /** The effort a thread runs with; default is the harness's own. */
@@ -51,6 +55,8 @@ export const Settings = Schema.Struct({
   /** What Send does while a thread runs; the second button does the other. */
   defaultDelivery: MessageDelivery,
   defaultEffort: EffortChoice,
+  /** The harness a new mission starts on before any mission was started (provider-accounts). */
+  defaultHarness: HarnessName,
   /** Copied onto each new mission; empty at first. */
   defaultMissionBudget: BudgetLimits,
   defaultModel: ModelChoice,
@@ -134,7 +140,10 @@ export type EndingPreview = typeof EndingPreview.Type;
 
 /** A new mission's choices, prefilled from the last mission started (mission-tracking, Starting a mission). */
 export const StartChoices = Schema.Struct({
+  /** The provider account, or null for the harness's own sign-in on this computer. */
+  accountId: Schema.NullOr(AccountId),
   effort: EffortChoice,
+  harness: HarnessName,
   model: ModelChoice,
   workspacePath: Schema.NullOr(Schema.String),
 });
@@ -195,6 +204,10 @@ export type ThreadActions = typeof ThreadActions.Type;
 
 /** The selected thread as its conversation shows it, with the owner's actions on it. */
 export const ThreadView = Schema.Struct({
+  /** The provider account it runs with, or null for the harness's own sign-in on this computer. */
+  accountId: Schema.NullOr(AccountId),
+  /** The account's label as Settings shows it. */
+  accountLabel: Schema.String,
   actions: ThreadActions,
   /** Why the thread waits in Attention for Retry, or null. */
   blocker: Schema.NullOr(ThreadBlocker),
@@ -203,6 +216,7 @@ export const ThreadView = Schema.Struct({
   effort: EffortChoice,
   /** Why the last turn failed, while the thread is Failed. */
   failure: Schema.NullOr(Schema.String),
+  harness: HarnessName,
   id: ThreadId,
   model: ModelChoice,
   parentId: Schema.NullOr(ThreadId),
@@ -235,9 +249,13 @@ export type SuggestionMatch = typeof SuggestionMatch.Type;
 
 /** A thread's suggestion for an off-topic request, open or resolved (thread-tree, Off-topic requests). */
 export const Suggestion = Schema.Struct({
+  /** The suggesting thread's account, prefilled for Open as new mission. */
+  accountId: Schema.NullOr(AccountId),
   askedAt: Schema.Number,
   /** The suggesting thread's effort, prefilled for Open as new mission. */
   effort: EffortChoice,
+  /** The suggesting thread's harness, prefilled for Open as new mission. */
+  harness: HarnessName,
   id: SuggestionId,
   /** Whether the setting opened a new mission without asking. */
   isAutomatic: Schema.Boolean,

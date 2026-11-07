@@ -8,7 +8,8 @@ type SuggestionRow = Omit<Suggestion, "isAutomatic" | "matches"> & { isAutomatic
 const selectSuggestions = (sql: SqlClient.SqlClient) => sql`
   SELECT s.id, s.thread_id AS threadId, s.text, s.title, s.matches, s.asked_at AS askedAt, s.outcome,
     s.is_automatic AS isAutomatic, s.target_mission_id AS targetMissionId, s.target_thread_id AS targetThreadId,
-    s.target_title AS targetTitle, s.resolved_at AS resolvedAt, t.model, t.effort
+    s.target_title AS targetTitle, s.resolved_at AS resolvedAt, t.model, t.effort, t.harness,
+    t.account_id AS accountId
   FROM suggestions s JOIN threads t ON t.id = s.thread_id`;
 
 // Offered mission ids are stored as JSON text; a value that no longer decodes offers none.

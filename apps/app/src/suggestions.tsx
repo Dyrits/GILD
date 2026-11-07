@@ -1,19 +1,9 @@
-import {
-  type EffortChoice,
-  EffortChoice as EffortChoices,
-  type MissionId,
-  type ModelChoice,
-  ModelChoice as ModelChoices,
-  type Suggestion,
-  type SuggestionAnswer,
-  type ThreadId,
-} from "@openmission/contracts";
+import type { MissionId, Suggestion, SuggestionAnswer, ThreadId } from "@openmission/contracts";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import type { ServiceClient } from "./client";
-import { Choice } from "./controls";
-import { effortLabel, modelLabels } from "./formatting";
 import { suggestionLabels } from "./labels";
+import { type Runner, RunnerPickers, useHarnesses } from "./runners";
 import { styles } from "./styles";
 
 /** The line a resolved suggestion leaves in its thread, opening where the request went. */
@@ -55,8 +45,13 @@ export function SuggestionLine({
 
 /** An open suggestion: where the owner sends a message the thread found off topic. */
 export function SuggestionCard({ client, suggestion }: { client: ServiceClient; suggestion: Suggestion }) {
-  const [model, setModel] = useState<ModelChoice>(suggestion.model);
-  const [effort, setEffort] = useState<EffortChoice>(suggestion.effort);
+  const { data: harnesses } = useHarnesses(client);
+  const [runner, setRunner] = useState<Runner>({
+    accountId: suggestion.accountId,
+    effort: suggestion.effort,
+    harness: suggestion.harness,
+    model: suggestion.model,
+  });
   const [error, setError] = useState<string | null>(null);
   const send = (answer: SuggestionAnswer) =>
     client.request({ _tag: "AnswerSuggestion", answer, suggestionId: suggestion.id }).then(
@@ -80,13 +75,12 @@ export function SuggestionCard({ client, suggestion }: { client: ServiceClient; 
       ))}
       <View style={styles.details}>
         <Pressable
-          onPress={() => send({ _tag: "NewMission", effort, model })}
+          onPress={() => send({ _tag: "NewMission", ...runner })}
           style={[styles.answer, styles.answerPrimary]}
         >
           <Text style={[styles.answerText, styles.answerTextPrimary]}>Open as new mission "{suggestion.title}"</Text>
         </Pressable>
-        <Choice label={(m) => modelLabels[m]} onChange={setModel} options={ModelChoices.literals} value={model} />
-        <Choice label={effortLabel} onChange={setEffort} options={EffortChoices.literals} value={effort} />
+        <RunnerPickers harnesses={harnesses} isCompact={false} onChange={setRunner} value={runner} />
       </View>
       <Pressable onPress={() => send({ _tag: "Aside" })} style={styles.answer}>
         <Text style={styles.answerText}>Keep as aside</Text>

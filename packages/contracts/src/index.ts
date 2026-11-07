@@ -3,6 +3,7 @@
 
 export * from "./budgets.ts";
 export * from "./frames.ts";
+export * from "./harnesses.ts";
 export * from "./ids.ts";
 export * from "./intel.ts";
 export * from "./journal.ts";

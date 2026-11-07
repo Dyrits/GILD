@@ -1,9 +1,12 @@
 import { homedir } from "node:os";
 // Entry point when Electron starts the service as a utilityProcess.
 import { join } from "node:path";
-import { Config, Effect, Layer } from "effect";
-import { claudeHarnessLayer } from "./claude.ts";
-import { fakeHarnessLayer } from "./execution.ts";
+import { Cause, Config, Effect, Exit, Layer } from "effect";
+import { makeClaudeHarness } from "./claude.ts";
+import { makeCodexHarness } from "./codex.ts";
+import { fakeHarnessLayer, Harness, routeHarnesses } from "./execution.ts";
+import { fakeHarnessToolsLayer, liveHarnessToolsLayer } from "./harnessTools.ts";
+import { makeOpenCodeHarness } from "./opencode.ts";
 import { sandboxProblem } from "./sandbox.ts";
 import { serveLoopback } from "./server.ts";
 import { serviceLayer } from "./service.ts";
@@ -20,16 +23,33 @@ const liveLayer = Layer.unwrap(
     const dataDirectory = yield* Config.NonEmptyString("OPENMISSION_DATA_DIR");
     // OPENMISSION_HARNESS=fake selects the echo harness for checks.
     const harnessName = yield* Config.String("OPENMISSION_HARNESS").pipe(Config.withDefault("claude"));
-    const claudePath = yield* Config.String("OPENMISSION_CLAUDE_PATH").pipe(Config.withDefault("claude"));
+    const commands = {
+      claude: yield* Config.String("OPENMISSION_CLAUDE_PATH").pipe(Config.withDefault("claude")),
+      codex: yield* Config.String("OPENMISSION_CODEX_PATH").pipe(Config.withDefault("codex")),
+      opencode: yield* Config.String("OPENMISSION_OPENCODE_PATH").pipe(Config.withDefault("opencode")),
+    };
     const problem = yield* sandboxProblem;
+    const idleTimeout = "10 minutes";
+    // Every thread's harness has its own adapter; turns go to the one their thread runs on (provider-accounts).
     const harness =
       harnessName === "fake"
         ? fakeHarnessLayer("1500 millis")
-        : claudeHarnessLayer({ command: claudePath, idleTimeout: "10 minutes", sandboxProblem: problem });
+        : Layer.effect(
+            Harness,
+            Effect.gen(function* () {
+              return routeHarnesses({
+                claude: yield* makeClaudeHarness({ command: commands.claude, idleTimeout, sandboxProblem: problem }),
+                codex: yield* makeCodexHarness({ command: commands.codex, idleTimeout }),
+                opencode: yield* makeOpenCodeHarness({ command: commands.opencode, idleTimeout }),
+              });
+            }),
+          );
     return Layer.fresh(
       serviceLayer({
+        accountsRoot: join(dataDirectory, "accounts"),
         filename: join(dataDirectory, "openmission.sqlite"),
         harness,
+        harnessTools: harnessName === "fake" ? fakeHarnessToolsLayer() : liveHarnessToolsLayer(commands),
         homeFolder: homedir(),
         scratchRoot: join(dataDirectory, "missions"),
       }),
@@ -45,6 +65,7 @@ const program = Effect.gen(function* () {
 }).pipe(Effect.scoped, Effect.provide(liveLayer));
 
 Effect.runFork(program).addObserver((exit) => {
-  console.error("OpenMission service stopped", exit);
+  // The cause in full, so a startup failure says why in the desktop app's log.
+  console.error("OpenMission service stopped", Exit.isFailure(exit) ? Cause.pretty(exit.cause) : exit);
   process.exit(1);
 });

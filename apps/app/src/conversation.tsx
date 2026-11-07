@@ -5,7 +5,7 @@ import { BudgetMeters, BudgetScreen, BudgetStopCard } from "./budgets";
 import { newRequestId, type ServiceClient } from "./client";
 import { Composer, StateBadge } from "./controls";
 import { type Entry, EntryView, entriesOf } from "./conversationEntries";
-import { effortLabel, modelLabels, usageDetail } from "./formatting";
+import { effortLabel, harnessLabels, modelLabelOf, usageDetail } from "./formatting";
 import { IntelIcon, IntelScreen } from "./intel";
 import { JournalScreen } from "./journal";
 import { MissionEndingActions, MissionTitle } from "./missionActions";
@@ -125,7 +125,9 @@ function ThreadPane({
       {detail.budgetStop !== null && <BudgetStopCard client={client} onRaise={onOpenBudget} stop={detail.budgetStop} />}
       {actionError !== null && <Text style={styles.error}>{actionError}</Text>}
       <Text numberOfLines={1} style={styles.muted}>
-        {modelLabels[thread.model]} · {effortLabel(thread.effort)} ·{" "}
+        {harnessLabels[thread.harness]}
+        {thread.accountId === null ? "" : ` (${thread.accountLabel})`} · {modelLabelOf(thread.model)} ·{" "}
+        {effortLabel(thread.effort)} ·{" "}
         {thread.workspace === null
           ? "No workspace: the mission's scratch folder"
           : `Workspace ${thread.workspace.name} · ${thread.workspace.path}`}

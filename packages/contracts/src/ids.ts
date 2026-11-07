@@ -49,3 +49,7 @@ export type IntelHistoryEntryId = typeof IntelHistoryEntryId.Type;
 /** Identifies a widening or narrowing the service proposes from evidence (scoped-intel, Widening and narrowing). */
 export const IntelProposalId = Schema.String.pipe(Schema.brand("IntelProposalId"));
 export type IntelProposalId = typeof IntelProposalId.Type;
+
+/** Identifies a provider account added in OpenMission: a harness signed in with its own folder (provider-accounts). */
+export const AccountId = Schema.String.pipe(Schema.brand("AccountId"));
+export type AccountId = typeof AccountId.Type;
