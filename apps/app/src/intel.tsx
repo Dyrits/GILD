@@ -1,9 +1,18 @@
-import type { Intel, IntelChange, IntelGauge, IntelScope, IntelStateFilter, ThreadId } from "@openmission/contracts";
+import type {
+  Intel,
+  IntelChange,
+  IntelGauge,
+  IntelId,
+  IntelScope,
+  IntelStateFilter,
+  ThreadId,
+} from "@openmission/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import type { ServiceClient } from "./client";
 import { timeOf } from "./formatting";
-import { intelActionOf, intelChangeLineOf, intelFadingLabelOf, intelGaugeLabelOf } from "./labels";
+import { DeletedIntelRow, IntelHistoryScreen } from "./intelHistory";
+import { intelActionOf, intelChangeLineOf, intelFadingLabelOf, intelGaugeLabelOf, intelOriginLabelOf } from "./labels";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
 
@@ -62,7 +71,7 @@ export function IntelChangeCard({
         {intelActionOf(change)}
         {shouldNameThread ? ` · asked by "${change.threadTitle}"` : ""}
       </Text>
-      {change.kind === "Update" && change.previousText !== change.text && (
+      {(change.kind === "Update" || change.kind === "Replace") && change.previousText !== change.text && (
         <Text style={styles.muted}>Was: {change.previousText}</Text>
       )}
       <Text style={styles.body}>{change.text}</Text>
@@ -83,10 +92,11 @@ export function IntelChangeLine({ change }: { change: IntelChange }) {
   );
 }
 
-/** One intel in the panel, with Edit, Pin or Unpin, Restore when it faded, and Delete. */
-function IntelRow({ client, intel }: { client: ServiceClient; intel: Intel }) {
+/** One intel in the panel, with Edit, Pin or Unpin, Restore when it faded, Delete, and its History. */
+function IntelRow({ client, intel, onHistory }: { client: ServiceClient; intel: Intel; onHistory: () => void }) {
   const [draft, setDraft] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
+  const origin = intelOriginLabelOf(intel.origin);
   const act = (request: Promise<unknown>, after: () => void) =>
     request.then(
       () => {
@@ -103,6 +113,7 @@ function IntelRow({ client, intel }: { client: ServiceClient; intel: Intel }) {
         {intel.updatedAt !== intel.savedAt ? ` · changed ${timeOf(intel.updatedAt)}` : ""} · {intel.tokens} tokens
       </Text>
       <Text style={styles.muted}>{intelFadingLabelOf(intel)}</Text>
+      {origin !== null && <Text style={styles.muted}>{origin}</Text>}
       {draft === null ? (
         <View style={styles.row}>
           <Text style={[styles.body, styles.flex]}>{intel.text}</Text>
@@ -123,6 +134,9 @@ function IntelRow({ client, intel }: { client: ServiceClient; intel: Intel }) {
           )}
           <Pressable onPress={() => act(client.request({ _tag: "DeleteIntel", intelId: intel.id }), () => {})}>
             <Text style={styles.link}>Delete</Text>
+          </Pressable>
+          <Pressable onPress={onHistory}>
+            <Text style={styles.link}>History</Text>
           </Pressable>
         </View>
       ) : (
@@ -158,6 +172,7 @@ const states = [
   "Dormant",
   "Archived",
   "Pinned",
+  "Deleted",
 ] as const satisfies ReadonlyArray<IntelStateFilter | null>;
 const scopeNames = { Global: "Global", Thread: "Thread and mission", Workspace: "Workspace" } as const satisfies Record<
   IntelScope,
@@ -181,11 +196,15 @@ export function IntelScreen({
 }) {
   const [scope, setScope] = useState<IntelScope | null>(null);
   const [state, setState] = useState<IntelStateFilter | null>(null);
+  const [historyOf, setHistoryOf] = useState<IntelId | null>(null);
   const { data, error } = useServiceQuery(
     client,
     { _tag: "ListIntel", scope, state, threadId },
     `intel:${threadId ?? "all"}:${scope ?? "all"}:${state ?? "all"}`,
   );
+  if (historyOf !== null) {
+    return <IntelHistoryScreen client={client} intelId={historyOf} onBack={() => setHistoryOf(null)} />;
+  }
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
@@ -240,9 +259,14 @@ export function IntelScreen({
               </Pressable>
             ))}
           </View>
-          {data.intels.length === 0 && <Text style={styles.muted}>No intel here yet.</Text>}
+          {data.intels.length === 0 && data.deleted.length === 0 && (
+            <Text style={styles.muted}>{state === "Deleted" ? "No deleted intel." : "No intel here yet."}</Text>
+          )}
           {data.intels.map((intel) => (
-            <IntelRow client={client} intel={intel} key={intel.id} />
+            <IntelRow client={client} intel={intel} key={intel.id} onHistory={() => setHistoryOf(intel.id)} />
+          ))}
+          {data.deleted.map((intel) => (
+            <DeletedIntelRow client={client} intel={intel} key={intel.id} onHistory={() => setHistoryOf(intel.id)} />
           ))}
         </ScrollView>
       )}

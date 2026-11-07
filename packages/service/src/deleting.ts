@@ -5,6 +5,7 @@ import { SqlClient } from "effect/sql";
 import { Changes } from "./changes.ts";
 import { invalid, notFound, ServiceFailure } from "./errors.ts";
 import { eraseThreadIntel } from "./intel.ts";
+import { eraseThreadHistory } from "./intelHistory.ts";
 import { haltThreads, releaseResolvedChatter } from "./lifecycle.ts";
 import { removeScratch } from "./scratch.ts";
 import { ScratchRoot, Threads } from "./threads.ts";
@@ -71,6 +72,8 @@ export const deleteThread = Effect.fn("deleteThread")(function* (threadId: strin
       yield* releaseResolvedChatter;
       yield* sql`DELETE FROM questions WHERE thread_id IN ${sql.in(ids)}`;
       yield* sql`DELETE FROM suggestions WHERE thread_id IN ${sql.in(ids)}`;
+      // Before the intel goes: its history is found from it.
+      yield* eraseThreadHistory(ids);
       yield* eraseThreadIntel(ids);
       // Usage stays: deleting never gives spending back to a budget (budget-control).
       yield* sql`DELETE FROM turns WHERE thread_id IN ${sql.in(ids)}`;

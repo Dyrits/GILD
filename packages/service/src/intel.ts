@@ -1,4 +1,13 @@
-import type { Intel, IntelGauge, IntelId, IntelKind, IntelScope, MissionId, ModelChoice } from "@openmission/contracts";
+import type {
+  Intel,
+  IntelGauge,
+  IntelId,
+  IntelKind,
+  IntelOrigin,
+  IntelScope,
+  MissionId,
+  ModelChoice,
+} from "@openmission/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { notFound } from "./errors.ts";
@@ -78,6 +87,10 @@ export interface IntelRow {
   readonly lastUsedAt: number;
   readonly missionId: string | null;
   readonly missionTitle: string | null;
+  readonly originEntry: number | null;
+  readonly originExcerpt: string | null;
+  readonly originFrom: string | null;
+  readonly originKind: IntelOrigin["kind"] | null;
   readonly savedAt: number;
   readonly savedByTitle: string | null;
   readonly scope: IntelScope;
@@ -93,7 +106,8 @@ export interface IntelRow {
 /** Selects intels with what their scope labels need; callers add the condition and order. */
 export const selectIntels = (sql: SqlClient.SqlClient) => sql`
   SELECT i.id, i.scope, i.kind, i.is_pinned AS isPinned, i.uses, i.last_used_at AS lastUsedAt, i.text, i.thread_id AS threadId, i.workspace_id AS workspaceId, i.saved_by_title AS savedByTitle,
-    i.saved_at AS savedAt, i.updated_at AS updatedAt, t.title AS threadTitle, t.mission_id AS missionId,
+    i.origin_kind AS originKind, i.origin_entry AS originEntry, i.origin_from AS originFrom,
+    i.origin_excerpt AS originExcerpt, i.saved_at AS savedAt, i.updated_at AS updatedAt, t.title AS threadTitle, t.mission_id AS missionId,
     m.title AS missionTitle, (m.top_thread_id = i.thread_id) AS isTopThread, w.name AS workspaceName
   FROM intels i LEFT JOIN threads t ON t.id = i.thread_id LEFT JOIN missions m ON m.id = t.mission_id
   LEFT JOIN workspaces w ON w.id = i.workspace_id`;
@@ -115,6 +129,17 @@ export const scopeLabelOf = (row: {
     Workspace: `Workspace ${row.workspaceName ?? ""}`,
   })[row.scope];
 
+/** What a stored intel or change rests on, or null when it records none. */
+export const originOf = (row: {
+  readonly originEntry: number | null;
+  readonly originExcerpt: string | null;
+  readonly originFrom: string | null;
+  readonly originKind: IntelOrigin["kind"] | null;
+}): IntelOrigin | null =>
+  row.originKind === null
+    ? null
+    : { entryNumber: row.originEntry, excerpt: row.originExcerpt ?? "", from: row.originFrom, kind: row.originKind };
+
 /** An intel as the owner reads it, with its strength at that time. */
 export const intelOf = (row: IntelRow, fading: Fading): Intel => ({
   id: row.id as IntelId,
@@ -122,6 +147,7 @@ export const intelOf = (row: IntelRow, fading: Fading): Intel => ({
   kind: row.kind,
   lastUsedAt: row.lastUsedAt,
   missionId: row.missionId as MissionId | null,
+  origin: originOf(row),
   savedAt: row.savedAt,
   savedByTitle: row.savedByTitle,
   scope: row.scope,
@@ -233,7 +259,8 @@ export const intelContextOf = (threadId: string) =>
       ...dormant,
       "",
       `Before saving, check there is something worth keeping: saving nothing is better than a vague or forced intel. When you learn something later work should know, save it with save_intel: one fact per intel, at most ${intelLimit} tokens. Choose the narrowest scope that fits: thread (you and the threads beneath you), mission (every thread of this mission), workspace (every thread working in this folder, in any mission), or global (everywhere; it waits for the owner's approval).`,
-      "Choose its kind: rule (never fades), preference, decision, fact, or temporary (fades in days). Intel nobody uses fades, so search_intel for what you need: reading an intel there keeps it alive.",
+      "Choose its kind: rule (never fades), preference, decision, fact, or temporary (fades in days). Intel nobody uses fades, so search_intel for what you need: reading an intel there keeps it alive. When an intel from your context shaped what you did, say so with relied_on_intel and its ids; that keeps it alive too.",
+      "A save that says the same as an intel in its scope or a wider one, or a newer version of it, replaces it: the intel keeps its id and takes the new text. When the intel rests on a journal entry, give its number as journalEntry; otherwise the message you are answering is recorded as its origin.",
       ...(chain.workspaceId === null ? ["You have no workspace, so workspace intel is not available to you."] : []),
       "When the owner gives you a rule in a chat, such as 'always run the tests before a commit', save it as an intel of kind rule without being asked.",
       "Correct an intel that turned out wrong with update_intel, and delete one that no longer holds with forget_intel. When an intel is not specific to where it was saved, such as a general convention or a preference of the owner, propose a wider scope with update_intel; the owner approves the move.",

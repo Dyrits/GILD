@@ -21,6 +21,8 @@ import {
   resolveIntelChange,
   restoreIntelByOwner,
 } from "./intelChanges.ts";
+import { readIntelHistory } from "./intelHistoryViews.ts";
+import { undoIntelChange } from "./intelUndo.ts";
 import { readIntelView } from "./intelViews.ts";
 import { type JournalOutcome, readJournalView, updateJournal } from "./journal.ts";
 import { toolServerLayer } from "./mcp.ts";
@@ -178,6 +180,7 @@ const make = Effect.gen(function* () {
         PreviewDeletion: (given) => previewDeletion(given.threadId),
         PreviewEnding: (given) => previewEnding(given.missionId, given.ending),
         ReadBudget: (read) => readBudgetWindow(read.missionId),
+        ReadIntelHistory: (read) => readIntelHistory(read.intelId),
         ReadJournal: (read) => readJournalView(read.missionId),
         ReadMission: (read) => readMission(read.missionId, read.threadId),
         ReadPermissions: (read) =>
@@ -248,6 +251,8 @@ const make = Effect.gen(function* () {
             Effect.as(null),
           ),
         StopThread: (stop) => threads.stop(stop.threadId).pipe(Effect.as(null)),
+        UndoIntelChange: (given) =>
+          sql.withTransaction(undoIntelChange(given.entryId)).pipe(Effect.tap(() => changes.publish)),
         UpdateSettings: (update) =>
           sql
             .withTransaction(writeSettings(update.settings).pipe(Effect.tap(() => sql.afterCommit(changes.publish))))

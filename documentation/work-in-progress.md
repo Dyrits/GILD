@@ -368,6 +368,70 @@ Part of the agreed intel-over-time rules (CHG-0050, scoped-intel Kinds, Recall, 
 - Driven in the window on the fake harness, days simulated in the database: see the proof.
 - Not run: a live Claude Code thread using kinds, the index, and search.
 
+## Batch 14: built, awaiting the owner
+
+Replacing duplicates, origins, and relying on intel (scoped-intel Duplicates, Saving, Fading), chosen by an agent under the owner's instruction of 2026-11-07 ("build what is next", no questions this session). Starts from `7b6ee2e`, uncommitted. Built test-first on the fake harness and its test clock and driven in the window: [proof](verification/2026-11-07-replacing-intel.md). Recorded in CHG-0052.
+
+### Behavior
+
+- **Replacing**: before a save, the service compares it with the active and dormant intel in the thread's scope, in the save's scope or wider. One in the same scope that is close enough is replaced: it keeps its identifier and uses, takes the new text and kind, and is at full strength again. The answer says "Replaced intel <id>" with the old text. A global replacement waits for approval; its card shows "Was:" with the old text and the new one. The change is a new kind, Replace, shown in the thread as "Replace intel in <scope>".
+- **Close intels**: a save that replaces nothing still names up to 3 close intels in its answer, in the same or a wider scope, so the thread can correct or delete one that is outdated.
+- **Origins**: `save_intel` takes an optional `journalEntry`, the number of the journal entry it rests on; a number that does not exist refuses the save. Without one, the latest message delivered to the thread is recorded, from the owner or a thread. The origin is copied as an excerpt of at most 80 characters, so it outlives the message's thread. A global save keeps its origin until approved. The panel shows "From journal entry N: …", "From your message: …", or "From a message by "<thread>": …".
+- **Relying**: `relied_on_intel` with ids counts one use of each intel in the thread's scope that is not archived; the rest are named as refused, and a call where none counts is an error. The context asks threads to call it when an intel from their context shaped what they did.
+
+### Provisional, until the owner decides
+
+- Closeness is shared meaningful words, as `search_intel` matches them: twice the shared words over both texts' words. A replacement needs 0.6 and at least 2 shared words; a close intel needs 0.3. There is no semantic matching.
+- Only an intel in the same scope is replaced. A narrower intel that differs from a wider one is an override, since the most specific scope wins, so a wider intel is named, not replaced. The specification says "the same scope and the scopes above it"; this reads it as where to look, not what to replace.
+- An archived intel is never replaced; a new intel is saved beside it.
+- A replacement restates the intel: its last use becomes now, without counting a use, and its origin becomes the new one.
+- A replacement's kind is the new save's kind.
+- Each `relied_on_intel` call counts, even for an intel already searched in the same turn.
+- `relied_on_intel` is a fifth intel tool, not listed in the specification's contract before this batch; the contract now lists it.
+
+### Staged, next intel batch
+
+- History with undo, including fading steps and which intel replaced which; widening and narrowing proposed from evidence; Tidy up intel and its routine.
+
+### Checks
+
+- Automated: 13 checks in `intelReplacing.test.ts` on the test clock; 2 label checks; a two-step migration check of 0018 in the proof's folder.
+- `bun run test` (267 passed, 5 skipped), `bun run typecheck`, `bun run check`, `git diff --check`, desktop build, Metro web export; 20 of 20 mutations caught in a separate copy; the new checks fail on `7b6ee2e`.
+- Driven in the window on the fake harness: see the proof.
+- Not run: a live Claude Code thread using replacements, `journalEntry`, and `relied_on_intel`.
+
+## Batch 15: built, awaiting the owner
+
+Intel history with undo (scoped-intel, History and undo), chosen by an agent under the owner's instruction of 2026-11-07 ("build what is next", no questions this session); not yet agreed by the owner. Starts from `7b6ee2e` with batch 14 still uncommitted on top; uncommitted. Built test-first on the fake harness and its test clock and driven in the window: [proof](verification/2026-11-07-intel-history.md). Recorded in CHG-0053.
+
+### Behavior
+
+- **History**: every intel keeps its history, newest first: saved, replaced, corrected, widened, deleted (by a thread, approved or not), edited, deleted, pinned, unpinned, restored (by the owner), became dormant, became archived (by fading), and undone. Each entry says who or what made it (a thread with its title as then, you, or fading) and when; a thread's global change says when the owner approved it. A replacement shows the text it replaced ("Was: …") and the thread whose save replaced it.
+- **Fading steps**: worked out from the intel's strength, so nothing runs on a timer. The time an intel crossed dormant or archived is recorded when something resets its fading (a use, a restore, a replacement, a pin, a deletion), so a step stays in the history after the intel is active again; steps not yet recorded are shown from the current strength.
+- **Undo**: **Undo** on any entry the owner or a thread made puts back what that change changed, as a new entry "Undid …" by the owner, itself undoable. Undoing a save deletes the intel; undoing a deletion restores it with its identifier, uses, and origin. An entry already undone shows no Undo. Undoing a change to an intel that is deleted is refused until its deletion is undone. Fading steps have no Undo: Restore covers them.
+- **Panel**: each intel has **History**, which lists its entries with Undo; the state filter gains **Deleted**, listing deleted intels with their history and **Undo deletion**.
+- **Thread deletion** erases its own intel's history, deleted ones included.
+
+### Provisional, until the owner decides
+
+- Undo restores the fields the change changed (text, kind, scope, pin, origin) whatever happened since; its last use is put back only when no use came after the change; uses are never taken back.
+- Fading steps are worked out with the current half-lives, so changing a half-life moves steps not yet recorded.
+- Intel saved before this batch starts its history with one "Saved" entry; earlier changes are not in it.
+- A thread's change awaiting approval is not in the history until approved; a declined one never is.
+- History entries a deleted thread made on a workspace or global intel stay, with the thread's title as then.
+- Deleting an intel by undoing its save declines its changes awaiting approval, as the owner's deletion does.
+
+### Checks
+
+- Automated: 16 checks in `intelHistory.test.ts` on the test clock; 2 label checks; a two-step migration check of 0019 in the proof's folder.
+- `bun run test` (285 passed, 5 skipped), `bun run typecheck`, `bun run check`, `git diff --check`, desktop build, Metro web export; 22 of 22 mutations caught in a separate copy.
+- Driven in the window on the fake harness, days simulated in the database: see the proof.
+- Not run: a live Claude Code thread whose intel changes appear in the history.
+
+### Staged, next intel batch
+
+- Widening and narrowing proposed from evidence; Tidy up intel and its routine.
+
 ## Open questions, settled when a batch needs them
 
 - Dependency gates and fake-first live launch (first-slice-design, Dependency gates).

@@ -74,7 +74,7 @@ Each intel has a kind, which sets how fast it fades when no thread uses it. The 
 ### History and undo
 
 - Every save, replacement, change, widening, deletion, and fading step is recorded with who or what made it and when.
-- The intel panel shows an intel's history, including which intel replaced which, and the user can undo any change. Undoing a deletion restores the intel.
+- The intel panel shows an intel's history, including which intel replaced which, and the user can undo any change. Undoing a deletion restores the intel. Deleted intel stays listed under the panel's Deleted filter, where its deletion can be undone.
 
 ### Widening and narrowing
 
@@ -103,7 +103,8 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
 | Tool | Purpose | Arguments | Answer |
 | --- | --- | --- | --- |
 | `search_intel` | Search the active and dormant intel in scope, or read intels by identifier; counts as a use of each intel returned | A query or identifiers; optionally a scope | The matching intels, best match first, each with its identifier, scope, kind, and text |
-| `save_intel` | Save an intel | The text, a scope, and a kind | The new identifier; "replaces" with the replaced identifier; or "awaiting approval" for a global save or replacement |
+| `save_intel` | Save an intel | The text, a scope, and a kind; optionally the journal entry it rests on | The new identifier; "replaces" with the replaced identifier; or "awaiting approval" for a global save or replacement |
+| `relied_on_intel` | Say intels shaped the thread's work; counts as a use of each | Identifiers | How many uses were counted, and which identifiers were refused |
 | `update_intel` | Correct or widen an intel | An identifier, and new text or a wider scope or both | Done, or "awaiting approval" for widening or a global change |
 | `forget_intel` | Delete an intel | An identifier | Done, or "awaiting approval" for a global intel |
 

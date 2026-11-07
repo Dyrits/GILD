@@ -60,6 +60,21 @@ export const strengthOf = (intel: Fadable, fading: Fading) => {
   return 0.5 ** (elapsed / halfLife);
 };
 
+/**
+ * When an intel crossed into dormant and archived since its last use, up to now (scoped-intel, History and
+ * undo). Strength halves each half-life, so it reaches a threshold after `half-life × log2(1 / threshold)`.
+ */
+export const fadingStepsOf = (intel: Fadable, fading: Fading) => {
+  const halfLifeDays = halfLifeDaysOf(intel.kind, fading.halfLives);
+  if (intel.isPinned === 1 || halfLifeDays === null) return [];
+  const halfLife = halfLifeDays * dayMillis * (1 + Math.log2(1 + intel.uses));
+  const steps = [
+    { at: intel.lastUsedAt + halfLife * Math.log2(1 / dormantBelow), kind: "Dormant" },
+    { at: intel.lastUsedAt + halfLife * Math.log2(1 / archivedBelow), kind: "Archived" },
+  ] as const;
+  return steps.filter((step) => step.at <= fading.now).map((step) => ({ ...step, at: Math.round(step.at) }));
+};
+
 export const stateOf = (strength: number): IntelState =>
   strength < archivedBelow ? "Archived" : strength < dormantBelow ? "Dormant" : "Active";
 

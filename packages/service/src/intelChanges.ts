@@ -1,4 +1,10 @@
-import type { IntelChangeKind, IntelChangeStatus, IntelKind } from "@openmission/contracts";
+import type {
+  IntelChangeKind,
+  IntelChangeStatus,
+  IntelHistoryKind,
+  IntelKind,
+  IntelOrigin,
+} from "@openmission/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, notFound } from "./errors.ts";
@@ -6,13 +12,17 @@ import {
   type IntelRow,
   intelLimit,
   listInScope,
+  originOf,
   type Placement,
   readIntel,
   readScopeChain,
   type ScopeChain,
   widthOf,
 } from "./intel.ts";
-import { kindOfTool, type ToolKind } from "./intelFading.ts";
+import { duplicatesOf } from "./intelDuplicates.ts";
+import { kindOfTool, readFading, summaryOf, type ToolKind } from "./intelFading.ts";
+import { owner, recordSaved, threadActor, trackChange } from "./intelHistory.ts";
+import { originColumnsOf, readOrigin } from "./intelOrigins.ts";
 import { tokensOf } from "./journal.ts";
 import type { ToolAnswer } from "./threadTools.ts";
 
@@ -64,6 +74,8 @@ interface ChangeRecord {
   readonly intelId: string | null;
   readonly intelKind: IntelKind;
   readonly kind: IntelChangeKind;
+  /** What a save or replacement rests on; null for other changes. */
+  readonly origin: IntelOrigin | null;
   readonly placement: Placement;
   readonly previousText: string | null;
   readonly status: IntelChangeStatus;
@@ -75,25 +87,50 @@ const insertChange = (change: ChangeRecord) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const now = yield* Clock.currentTimeMillis;
+    const origin = originColumnsOf(change.origin);
     yield* sql`INSERT INTO intel_changes (id, thread_id, kind, status, intel_id, intel_kind, scope, scope_thread_id,
-        scope_workspace_id, text, previous_text, at, resolved_at)
+        scope_workspace_id, text, previous_text, at, resolved_at, origin_kind, origin_entry, origin_from, origin_excerpt)
       VALUES (${crypto.randomUUID()}, ${change.threadId}, ${change.kind}, ${change.status}, ${change.intelId},
         ${change.intelKind},
         ${change.placement.scope}, ${change.placement.threadId}, ${change.placement.workspaceId}, ${change.text},
-        ${change.previousText}, ${now}, ${change.status === "Done" ? now : null})`;
+        ${change.previousText}, ${now}, ${change.status === "Done" ? now : null}, ${origin.originKind},
+        ${origin.originEntry}, ${origin.originFrom}, ${origin.originExcerpt})`;
   });
 
-/** Stores a new intel, saved by a thread or, with null, by the owner. Callers run it in a transaction. */
-const insertIntel = (placement: Placement, kind: IntelKind, text: string, savedBy: string | null) =>
+/** Stores a new intel saved by a thread, with what it rests on. Callers run it in a transaction. */
+const insertIntel = (
+  placement: Placement,
+  kind: IntelKind,
+  text: string,
+  savedBy: string | null,
+  given: IntelOrigin | null,
+) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const now = yield* Clock.currentTimeMillis;
     const id = crypto.randomUUID();
+    const origin = originColumnsOf(given);
     yield* sql`INSERT INTO intels (id, scope, kind, thread_id, workspace_id, text, saved_by_thread_id, saved_by_title,
-        saved_at, updated_at, last_used_at)
+        saved_at, updated_at, last_used_at, origin_kind, origin_entry, origin_from, origin_excerpt)
       VALUES (${id}, ${placement.scope}, ${kind}, ${placement.threadId}, ${placement.workspaceId}, ${text.trim()},
-        ${savedBy}, (SELECT title FROM threads WHERE id = ${savedBy}), ${now}, ${now}, ${now})`;
+        ${savedBy}, (SELECT title FROM threads WHERE id = ${savedBy}), ${now}, ${now}, ${now}, ${origin.originKind},
+        ${origin.originEntry}, ${origin.originFrom}, ${origin.originExcerpt})`;
     return id;
+  });
+
+/**
+ * A replacement's new text, kind, and origin on the intel it replaces, which keeps its identifier, scope, and
+ * uses. Restating it makes it active again at full strength (provisional, work-in-progress Batch 14).
+ */
+const replaceIntel = (intelId: string, kind: IntelKind, text: string, given: IntelOrigin | null) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const now = yield* Clock.currentTimeMillis;
+    const origin = originColumnsOf(given);
+    yield* sql`UPDATE intels SET kind = ${kind}, text = ${text.trim()}, updated_at = ${now}, last_used_at = ${now},
+        origin_kind = ${origin.originKind}, origin_entry = ${origin.originEntry}, origin_from = ${origin.originFrom},
+        origin_excerpt = ${origin.originExcerpt}
+      WHERE id = ${intelId}`;
   });
 
 const writeIntel = (intelId: string, placement: Placement, text: string) =>
@@ -107,23 +144,75 @@ const writeIntel = (intelId: string, placement: Placement, text: string) =>
 const awaitingText =
   "Awaiting approval: the owner decides on it. Carry on with your work; do not make the same change again.";
 
-/** `save_intel`: saves thread and workspace intel at once; a global save waits for the owner. */
-export const saveIntel = (threadId: string, text: string, scope: ToolScope, toolKind: ToolKind) =>
+/** The close intels a save did not replace, for the thread to correct or delete if one is outdated. */
+const closeNoteOf = (close: ReadonlyArray<IntelRow>) =>
+  close.length === 0
+    ? ""
+    : ` Close intels, in case one is outdated: ${close.map((row) => `[${row.id}] ${summaryOf(row.text)}`).join("; ")}.`;
+
+/**
+ * `save_intel`: saves thread and workspace intel at once; a global save waits for the owner. A save repeating
+ * an intel in its scope or a wider one replaces that intel instead; a global replacement waits for the owner.
+ */
+export const saveIntel = (
+  threadId: string,
+  text: string,
+  scope: ToolScope,
+  toolKind: ToolKind,
+  journalEntry: number | null,
+) =>
   Effect.gen(function* () {
     const problem = textProblemOf(text);
     if (problem !== null) return answer(`Not saved: ${problem}.`, true);
     const chain = yield* readScopeChain(threadId);
     const placement = placementOf(chain, scope);
     if (typeof placement === "string") return answer(`Not saved: ${placement}.`, true);
+    const origin = yield* readOrigin(threadId, journalEntry);
+    if (typeof origin === "string") return answer(`Not saved: ${origin}.`, true);
     const intelKind = kindOfTool[toolKind];
-    const change = { intelKind, kind: "Save", placement, previousText: null, text: text.trim(), threadId } as const;
+    const { close, replaced } = duplicatesOf(text, placement, chain, yield* listInScope(chain), yield* readFading);
+    const note = closeNoteOf(close);
+    if (replaced !== null) {
+      const replacement = {
+        intelId: replaced.id,
+        intelKind,
+        kind: "Replace",
+        origin,
+        placement: placementOfRow(replaced),
+        previousText: replaced.text,
+        text: text.trim(),
+        threadId,
+      } as const;
+      if (replaced.scope === "Global") {
+        yield* insertChange({ ...replacement, status: "Awaiting" });
+        return answer(`It repeats global intel ${replaced.id}, "${replaced.text}", so it replaces it. ${awaitingText}`);
+      }
+      yield* trackChange(
+        replaced.id,
+        "Replaced",
+        threadActor(threadId),
+        replaceIntel(replaced.id, intelKind, text, origin),
+      );
+      yield* insertChange({ ...replacement, status: "Done" });
+      return answer(`Replaced intel ${replaced.id}: it said "${replaced.text}"; it now says the new text.${note}`);
+    }
+    const change = {
+      intelKind,
+      kind: "Save",
+      origin,
+      placement,
+      previousText: null,
+      text: text.trim(),
+      threadId,
+    } as const;
     if (placement.scope === "Global") {
       yield* insertChange({ ...change, intelId: null, status: "Awaiting" });
-      return answer(awaitingText);
+      return answer(`${awaitingText}${note}`);
     }
-    const intelId = yield* insertIntel(placement, intelKind, text, threadId);
+    const intelId = yield* insertIntel(placement, intelKind, text, threadId, origin);
+    yield* recordSaved(intelId, threadActor(threadId));
     yield* insertChange({ ...change, intelId, status: "Done" });
-    return answer(`Saved intel ${intelId} (${scope}, ${toolKind}).`);
+    return answer(`Saved intel ${intelId} (${scope}, ${toolKind}).${note}`);
   });
 
 /** The intel with that identifier in the thread's scope, or null. */
@@ -153,6 +242,7 @@ export const updateIntel = (threadId: string, intelId: string, text: string | nu
       intelId,
       intelKind: row.kind,
       kind: "Update",
+      origin: null,
       placement,
       previousText: row.text,
       text: (text ?? row.text).trim(),
@@ -162,7 +252,7 @@ export const updateIntel = (threadId: string, intelId: string, text: string | nu
       yield* insertChange({ ...change, status: "Awaiting" });
       return answer(awaitingText);
     }
-    yield* writeIntel(intelId, placement, change.text);
+    yield* trackChange(intelId, "Corrected", threadActor(threadId), writeIntel(intelId, placement, change.text));
     yield* insertChange({ ...change, status: "Done" });
     return answer(`Updated intel ${intelId}.`);
   });
@@ -178,6 +268,7 @@ export const forgetIntel = (threadId: string, intelId: string) =>
       intelId,
       intelKind: row.kind,
       kind: "Forget",
+      origin: null,
       placement: placementOfRow(row),
       previousText: row.text,
       text: row.text,
@@ -187,7 +278,7 @@ export const forgetIntel = (threadId: string, intelId: string) =>
       yield* insertChange({ ...change, status: "Awaiting" });
       return answer(awaitingText);
     }
-    yield* sql`DELETE FROM intels WHERE id = ${intelId}`;
+    yield* trackChange(intelId, "Deleted", threadActor(threadId), sql`DELETE FROM intels WHERE id = ${intelId}`);
     yield* insertChange({ ...change, status: "Done" });
     return answer(`Deleted intel ${intelId}.`);
   });
@@ -202,6 +293,10 @@ export const resolveIntelChange = (changeId: string, isApproved: boolean) =>
     const [change] = yield* sql<{
       intelKind: IntelKind;
       kind: IntelChangeKind;
+      originEntry: number | null;
+      originExcerpt: string | null;
+      originFrom: string | null;
+      originKind: IntelOrigin["kind"] | null;
       status: IntelChangeStatus;
       intelId: string | null;
       scope: Placement["scope"];
@@ -211,22 +306,34 @@ export const resolveIntelChange = (changeId: string, isApproved: boolean) =>
       threadId: string;
     }>`
       SELECT kind, intel_kind AS intelKind, status, intel_id AS intelId, scope, scope_thread_id AS scopeThreadId,
-        scope_workspace_id AS scopeWorkspaceId, text, thread_id AS threadId
+        scope_workspace_id AS scopeWorkspaceId, text, thread_id AS threadId, origin_kind AS originKind,
+        origin_entry AS originEntry, origin_from AS originFrom, origin_excerpt AS originExcerpt
       FROM intel_changes WHERE id = ${changeId}`;
     if (change === undefined) return yield* notFound("No such change to intel.");
     if (change.status !== "Awaiting") return yield* invalid("This change was already decided.");
     const placement = { scope: change.scope, threadId: change.scopeThreadId, workspaceId: change.scopeWorkspaceId };
     const target = change.intelId === null ? null : yield* readIntel(change.intelId);
     const isApplied = isApproved && (change.kind === "Save" || target !== null);
+    const now = yield* Clock.currentTimeMillis;
+    const actor = threadActor(change.threadId);
+    // An approved change is recorded in the intel's history as the thread's, with the owner's approval.
+    const track = <A, E, R>(intelId: string, kind: IntelHistoryKind, apply: Effect.Effect<A, E, R>) =>
+      trackChange(intelId, kind, actor, apply, now);
     if (isApplied && change.kind === "Save") {
-      const intelId = yield* insertIntel(placement, change.intelKind, change.text, change.threadId);
+      const intelId = yield* insertIntel(placement, change.intelKind, change.text, change.threadId, originOf(change));
+      yield* recordSaved(intelId, actor, now);
       yield* sql`UPDATE intel_changes SET intel_id = ${intelId} WHERE id = ${changeId}`;
     }
-    if (isApplied && change.kind === "Update" && change.intelId !== null) {
-      yield* writeIntel(change.intelId, placement, change.text);
+    if (isApplied && target !== null && change.kind === "Update") {
+      const isWidening = target.scope !== placement.scope || target.threadId !== placement.threadId;
+      yield* track(target.id, isWidening ? "Widened" : "Corrected", writeIntel(target.id, placement, change.text));
     }
-    if (isApplied && change.kind === "Forget") yield* sql`DELETE FROM intels WHERE id = ${change.intelId}`;
-    const now = yield* Clock.currentTimeMillis;
+    if (isApplied && target !== null && change.kind === "Replace") {
+      yield* track(target.id, "Replaced", replaceIntel(target.id, change.intelKind, change.text, originOf(change)));
+    }
+    if (isApplied && target !== null && change.kind === "Forget") {
+      yield* track(target.id, "Deleted", sql`DELETE FROM intels WHERE id = ${target.id}`);
+    }
     yield* sql`UPDATE intel_changes SET status = ${isApplied ? "Approved" : "Declined"}, resolved_at = ${now}
       WHERE id = ${changeId}`;
     return null;
@@ -239,7 +346,7 @@ export const editIntelByOwner = (intelId: string, text: string) =>
     if (problem !== null) return yield* invalid(`Not saved: ${problem}.`);
     const row = yield* readIntel(intelId);
     if (row === null) return yield* notFound("No such intel.");
-    yield* writeIntel(intelId, placementOfRow(row), text);
+    yield* trackChange(intelId, "Edited", owner, writeIntel(intelId, placementOfRow(row), text));
     return null;
   });
 
@@ -248,7 +355,7 @@ export const deleteIntelByOwner = (intelId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     if ((yield* readIntel(intelId)) === null) return yield* notFound("No such intel.");
-    yield* sql`DELETE FROM intels WHERE id = ${intelId}`;
+    yield* trackChange(intelId, "Deleted", owner, sql`DELETE FROM intels WHERE id = ${intelId}`);
     const now = yield* Clock.currentTimeMillis;
     yield* sql`UPDATE intel_changes SET status = 'Declined', resolved_at = ${now}
       WHERE intel_id = ${intelId} AND status = 'Awaiting'`;
@@ -260,7 +367,12 @@ export const pinIntelByOwner = (intelId: string, isPinned: boolean) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     if ((yield* readIntel(intelId)) === null) return yield* notFound("No such intel.");
-    yield* sql`UPDATE intels SET is_pinned = ${isPinned ? 1 : 0} WHERE id = ${intelId}`;
+    yield* trackChange(
+      intelId,
+      isPinned ? "Pinned" : "Unpinned",
+      owner,
+      sql`UPDATE intels SET is_pinned = ${isPinned ? 1 : 0} WHERE id = ${intelId}`,
+    );
     return null;
   });
 
@@ -273,6 +385,6 @@ export const restoreIntelByOwner = (intelId: string) =>
     const sql = yield* SqlClient.SqlClient;
     if ((yield* readIntel(intelId)) === null) return yield* notFound("No such intel.");
     const now = yield* Clock.currentTimeMillis;
-    yield* sql`UPDATE intels SET last_used_at = ${now} WHERE id = ${intelId}`;
+    yield* trackChange(intelId, "Restored", owner, sql`UPDATE intels SET last_used_at = ${now} WHERE id = ${intelId}`);
     return null;
   });

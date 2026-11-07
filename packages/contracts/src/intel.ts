@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import { IntelChangeId, IntelId, MissionId, ThreadId } from "./ids.ts";
+import { IntelChangeId, IntelHistoryEntryId, IntelId, MissionId, ThreadId } from "./ids.ts";
 
 // Scoped intel (scoped-intel): facts, preferences, and decisions kept at the scope where they apply.
 
@@ -18,9 +18,24 @@ export type IntelKind = typeof IntelKind.Type;
 export const IntelState = Schema.Literals(["Active", "Dormant", "Archived"]);
 export type IntelState = typeof IntelState.Type;
 
-/** The intel panel's state filter: a state, or pinned intel. */
-export const IntelStateFilter = Schema.Literals(["Active", "Dormant", "Archived", "Pinned"]);
+/** The intel panel's state filter: a state, pinned intel, or deleted intel that can be restored. */
+export const IntelStateFilter = Schema.Literals(["Active", "Dormant", "Archived", "Pinned", "Deleted"]);
 export type IntelStateFilter = typeof IntelStateFilter.Type;
+
+/**
+ * What an intel rests on (scoped-intel, Saving): the journal entry the thread named, or else the message its
+ * turn was answering, as it read when the intel was saved.
+ */
+export const IntelOrigin = Schema.Struct({
+  /** The journal entry's number in the saving thread's mission; null for a message. */
+  entryNumber: Schema.NullOr(Schema.Number),
+  /** The start of the entry or message, cut at a word. */
+  excerpt: Schema.String,
+  /** For a message: the sending thread's title, or null when the owner sent it; null for an entry too. */
+  from: Schema.NullOr(Schema.String),
+  kind: Schema.Literals(["JournalEntry", "Message"]),
+});
+export type IntelOrigin = typeof IntelOrigin.Type;
 
 /** One intel as the owner reads it in the intel panel. */
 export const Intel = Schema.Struct({
@@ -31,6 +46,8 @@ export const Intel = Schema.Struct({
   lastUsedAt: Schema.Number,
   /** The mission of the thread it belongs to, for a thread intel; null otherwise. */
   missionId: Schema.NullOr(MissionId),
+  /** What it rests on; null when nothing was there, or the owner saved it. */
+  origin: Schema.NullOr(IntelOrigin),
   savedAt: Schema.Number,
   /** The title of the thread that saved it, as titled then; null when the owner saved it. */
   savedByTitle: Schema.NullOr(Schema.String),
@@ -44,13 +61,16 @@ export const Intel = Schema.Struct({
   /** The estimated size in tokens, at about 4 characters per token (scoped-intel, Saving). */
   tokens: Schema.Number,
   updatedAt: Schema.Number,
-  /** How many times threads used it: each time search_intel returned it. */
+  /** How many times threads used it: each time search_intel returned it or a thread said it relied on it. */
   uses: Schema.Number,
 });
 export type Intel = typeof Intel.Type;
 
-/** What a thread did to intel: saved, corrected or widened, or deleted. */
-export const IntelChangeKind = Schema.Literals(["Save", "Update", "Forget"]);
+/**
+ * What a thread did to intel: saved, saved a duplicate that replaced an intel's text (scoped-intel,
+ * Duplicates), corrected or widened, or deleted.
+ */
+export const IntelChangeKind = Schema.Literals(["Save", "Replace", "Update", "Forget"]);
 export type IntelChangeKind = typeof IntelChangeKind.Type;
 
 /** Whether a change was made at once, or awaits, received, or was refused the owner's approval. */
@@ -64,7 +84,7 @@ export const IntelChange = Schema.Struct({
   /** The intel changed or deleted; for a save, the intel made, once made. */
   intelId: Schema.NullOr(IntelId),
   kind: IntelChangeKind,
-  /** The intel's text before the change, for an update or a deletion. */
+  /** The intel's text before the change, for a replacement, an update, or a deletion. */
   previousText: Schema.NullOr(Schema.String),
   resolvedAt: Schema.NullOr(Schema.Number),
   /** The scope the change puts the intel in, or the scope it was deleted from. */
@@ -94,9 +114,82 @@ export const IntelGauge = Schema.Struct({
 });
 export type IntelGauge = typeof IntelGauge.Type;
 
+/**
+ * What an entry in an intel's history records (scoped-intel, History and undo): a thread's save, replacement,
+ * correction, widening, or deletion; the owner's edit, deletion, pin, unpin, or restore; a fading step; or an undo.
+ */
+export const IntelHistoryKind = Schema.Literals([
+  "Saved",
+  "Replaced",
+  "Corrected",
+  "Widened",
+  "Deleted",
+  "Edited",
+  "Pinned",
+  "Unpinned",
+  "Restored",
+  "Dormant",
+  "Archived",
+  "Undone",
+]);
+export type IntelHistoryKind = typeof IntelHistoryKind.Type;
+
+/** Who or what made an entry: a thread, the owner, or fading. */
+export const IntelActor = Schema.Literals(["Thread", "Owner", "Fading"]);
+export type IntelActor = typeof IntelActor.Type;
+
+/** One entry in an intel's history, as the owner reads it in the intel panel. */
+export const IntelHistoryEntry = Schema.Struct({
+  actor: IntelActor,
+  /** The thread's title as it was then; null for the owner and fading. */
+  actorTitle: Schema.NullOr(Schema.String),
+  /** When the owner approved a thread's global change or widening; null otherwise. */
+  approvedAt: Schema.NullOr(Schema.Number),
+  at: Schema.Number,
+  /** Whether the owner can undo it: made by a thread or the owner, and not undone yet. */
+  canUndo: Schema.Boolean,
+  id: IntelHistoryEntryId,
+  intelId: IntelId,
+  kind: IntelHistoryKind,
+  /** The text before the entry; null when the intel did not exist before it. */
+  previousText: Schema.NullOr(Schema.String),
+  /** The scope after the entry, or before it for a deletion, in words. */
+  scopeLabel: Schema.String,
+  /** The text after the entry; null when the intel no longer exists after it. */
+  text: Schema.NullOr(Schema.String),
+  /** For an undo: what kind of entry it undid; null otherwise. */
+  undid: Schema.NullOr(IntelHistoryKind),
+  /** When the owner undid it; null while it stands. */
+  undoneAt: Schema.NullOr(Schema.Number),
+});
+export type IntelHistoryEntry = typeof IntelHistoryEntry.Type;
+
+/** An intel's history, newest first, for an existing or a deleted intel. */
+export const IntelHistory = Schema.Struct({
+  entries: Schema.Array(IntelHistoryEntry),
+  intelId: IntelId,
+  isDeleted: Schema.Boolean,
+});
+export type IntelHistory = typeof IntelHistory.Type;
+
+/** A deleted intel the owner can bring back by undoing its deletion. */
+export const DeletedIntel = Schema.Struct({
+  deletedAt: Schema.Number,
+  /** The history entry that deleted it, which Undo deletion undoes. */
+  entryId: IntelHistoryEntryId,
+  id: IntelId,
+  kind: IntelKind,
+  scope: IntelScope,
+  scopeLabel: Schema.String,
+  text: Schema.String,
+});
+export type DeletedIntel = typeof DeletedIntel.Type;
+
 /** The intel panel: intel in one thread's scope (most specific first) or all, and the changes awaiting approval. */
 export const IntelView = Schema.Struct({
   awaiting: Schema.Array(IntelChange),
+  /** Deleted intel, newest deletion first, listed only under the Deleted filter. */
+  deleted: Schema.Array(DeletedIntel),
   /** The thread's gauge when the panel was opened from a thread; null otherwise. */
   gauge: Schema.NullOr(IntelGauge),
   intels: Schema.Array(Intel),

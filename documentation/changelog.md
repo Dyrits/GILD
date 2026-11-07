@@ -693,3 +693,35 @@ Replacing duplicates, origin references, evidence-based widening and narrowing, 
 References: documentation/capabilities/scoped-intel/specifications.md; documentation/work-in-progress.md (Batch 13); documentation/verification/2026-11-06-intel-over-time.md; packages/service/src/intelFading.ts, intel.ts, intelViews.ts, intelChanges.ts, threadTools.ts, store.ts (migration 0017); apps/app/src/intel.tsx, settings.tsx
 Validation: `bun run test` passed 253 with 5 skipped; typecheck, `bun run check`, the desktop build, and a Metro web export passed. 20 of 20 mutations were caught in a separate worktree, the new checks fail on the starting commit, and a migration check passed. The batch was driven in the window on the fake harness, with days simulated in the database. A fresh-context agent reproduced the whole proof. The look awaits the owner. Not verified: a live Claude Code thread using kinds, the index, and search.
 Evidence: The owner's instruction of 2026-11-06, repeated for this session: "For now, we build, step by step and we verify it works. The look and feel will be adjusted later. Don't ask any question for this session, build what is next."
+
+## CHG-0052 · 2026-11-07 · Batch 14 built: replacing duplicates, origins, relying on intel
+
+Type: Code
+Event: Delivery
+Scope: First slice, batch 14; Scoped intel
+
+Summary: Part of the intel-over-time rules agreed in CHG-0050, as built and listed in work-in-progress (Batch 14):
+- a save close to an intel in the same scope replaces it, which keeps its identifier and uses; a global replacement waits for approval with the old and new text; an unclear match is saved new and its answer names the close intels;
+- each intel records its origin: the journal entry named with `journalEntry`, or the latest message delivered to the thread; the panel shows it;
+- `relied_on_intel` counts a use of each intel a thread says it relied on.
+Provisional choices are listed in work-in-progress (Batch 14), among them replacing only within the same scope, so a narrower intel stays an override of a wider one. History with undo, evidence-based widening and narrowing, and Tidy up stay staged. Chosen by an agent under the owner's instruction to build what is next without questions; not yet agreed or accepted by the owner.
+References: documentation/capabilities/scoped-intel/specifications.md; documentation/work-in-progress.md (Batch 14); documentation/verification/2026-11-07-replacing-intel.md; packages/service/src/intelDuplicates.ts, intelOrigins.ts, intelChanges.ts, intelViews.ts, intelTools.ts, intel.ts, threadTools.ts, store.ts (migration 0018); packages/contracts/src/intel.ts; apps/app/src/intel.tsx, labels.ts
+Validation: `bun run test` passed 267 with 5 skipped; typecheck, `bun run check`, `git diff --check`, the desktop build, and a Metro web export passed. 20 of 20 mutations were caught in a separate copy, the new checks fail on the starting commit, and a two-step migration check passed. The batch was driven in the window on the fake harness. The look awaits the owner. Not verified: a live Claude Code thread using replacements, `journalEntry`, and `relied_on_intel`.
+Evidence: The owner's instruction of 2026-11-07: "For now, we build, step by step and we verify it works. The look and feel will be adjusted later. Don't ask any question for this session, build what is next. I'll be AFK."
+
+## CHG-0053 · 2026-11-07 · Batch 15 built: intel history with undo
+
+Type: Code
+Event: Delivery
+Scope: First slice, batch 15; Scoped intel
+
+Summary: Part of the intel-over-time rules agreed in CHG-0050, as built and listed in work-in-progress (Batch 15):
+- every intel keeps a history, newest first: a thread's save, replacement (with the text it replaced), correction, widening, and deletion, with the owner's approval when one was needed; the owner's edit, deletion, pin, unpin, and restore; each with who made it and when;
+- fading steps (dormant, archived) are worked out from strength and stored when something resets fading, so they stay after a use or a restore;
+- the owner undoes any change but a fading step from the panel's History: what the change changed is put back as a new, undoable entry; undoing a save deletes the intel, undoing a deletion restores it with its identifier, uses, and origin;
+- the panel's state filter gains Deleted, with Undo deletion;
+- migration 0019 starts each existing intel's history with its save.
+Provisional choices are listed in work-in-progress (Batch 15). Evidence-based widening and narrowing, and Tidy up, stay staged. Chosen by an agent under the owner's instruction to build what is next without questions; not yet agreed or accepted by the owner.
+References: documentation/capabilities/scoped-intel/specifications.md (History and undo); documentation/work-in-progress.md (Batch 15); documentation/verification/2026-11-07-intel-history.md; packages/service/src/intelHistory.ts, intelHistoryViews.ts, intelUndo.ts, intelChanges.ts, intelFading.ts, intelViews.ts, deleting.ts, service.ts, store.ts (migration 0019); packages/contracts/src/intel.ts, requests.ts, ids.ts; apps/app/src/intel.tsx, intelHistory.tsx, labels.ts
+Validation: `bun run test` passed 285 with 5 skipped; typecheck, `bun run check`, `git diff --check`, the desktop build, and a Metro web export passed. 22 of 22 mutations were caught in a separate copy, the new checks failed before the implementation, and a two-step migration check passed. The batch was driven in the window on the fake harness, with days simulated in the database. The look awaits the owner. Not verified: a live Claude Code thread whose intel changes appear in the history.
+Evidence: The owner's instruction of 2026-11-07: "For now, we build, step by step and we verify it works. The look and feel will be adjusted later. Don't ask any question for this session, build what is next. I'll be AFK."

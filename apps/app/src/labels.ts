@@ -4,6 +4,9 @@ import type {
   IntelChange,
   IntelChangeStatus,
   IntelGauge,
+  IntelHistoryEntry,
+  IntelHistoryKind,
+  IntelOrigin,
   SuggestionOutcome,
 } from "@openmission/contracts";
 
@@ -77,11 +80,23 @@ export const raisedLimitsOf = (limits: BudgetLimits, factor: number): BudgetLimi
 export const intelActionOf = (change: Pick<IntelChange, "kind" | "previousText" | "scopeLabel" | "text">) =>
   change.kind === "Save"
     ? `Save intel to ${change.scopeLabel}`
-    : change.kind === "Forget"
-      ? `Delete intel from ${change.scopeLabel}`
-      : change.previousText === change.text
-        ? `Move intel to ${change.scopeLabel}`
-        : `Correct intel in ${change.scopeLabel}`;
+    : change.kind === "Replace"
+      ? `Replace intel in ${change.scopeLabel}`
+      : change.kind === "Forget"
+        ? `Delete intel from ${change.scopeLabel}`
+        : change.previousText === change.text
+          ? `Move intel to ${change.scopeLabel}`
+          : `Correct intel in ${change.scopeLabel}`;
+
+/** What an intel rests on, for the panel, for example "From journal entry 4: Chose Effect."; null when none. */
+export const intelOriginLabelOf = (origin: IntelOrigin | null) =>
+  origin === null
+    ? null
+    : origin.kind === "JournalEntry"
+      ? `From journal entry ${origin.entryNumber ?? ""}: ${origin.excerpt}`
+      : origin.from === null
+        ? `From your message: ${origin.excerpt}`
+        : `From a message by "${origin.from}": ${origin.excerpt}`;
 
 const intelStatusLabels = {
   Approved: " · approved",
@@ -110,3 +125,43 @@ export const intelFadingLabelOf = (intel: Pick<Intel, "isPinned" | "kind" | "sta
     intel.uses === 0 ? "not used yet" : intel.uses === 1 ? "used once" : `used ${intel.uses} times`,
     ...(intel.isPinned ? ["pinned"] : []),
   ].join(" · ");
+
+const intelHistoryVerbs = {
+  Archived: "Became archived",
+  Corrected: "Corrected",
+  Deleted: "Deleted",
+  Dormant: "Became dormant",
+  Edited: "Edited",
+  Pinned: "Pinned",
+  Replaced: "Replaced by a save",
+  Restored: "Restored",
+  Saved: "Saved",
+  Undone: "Undid",
+  Unpinned: "Unpinned",
+  Widened: "Moved",
+} as const satisfies Record<IntelHistoryKind, string>;
+
+/**
+ * One entry of an intel's history as a line in the panel, for example 'Saved by "Build" · approved by you',
+ * "Became dormant by fading", or "You undid: deleted" (scoped-intel, History and undo).
+ */
+export const intelHistoryLineOf = (
+  entry: Pick<IntelHistoryEntry, "actor" | "actorTitle" | "approvedAt" | "kind" | "scopeLabel" | "undid" | "undoneAt">,
+) => {
+  const who =
+    entry.actor === "Fading" ? "fading" : entry.actor === "Owner" ? "you" : `"${entry.actorTitle ?? "a thread"}"`;
+  const verb = intelHistoryVerbs[entry.kind];
+  const action =
+    entry.kind === "Undone"
+      ? `You undid: ${intelHistoryVerbs[entry.undid ?? "Saved"].toLowerCase()}`
+      : entry.kind === "Replaced"
+        ? `${verb} from ${who}`
+        : entry.kind === "Widened"
+          ? `${verb} to ${entry.scopeLabel} by ${who}`
+          : `${verb} by ${who}`;
+  return [
+    action,
+    ...(entry.approvedAt === null ? [] : ["approved by you"]),
+    ...(entry.undoneAt === null ? [] : ["undone"]),
+  ].join(" · ");
+};

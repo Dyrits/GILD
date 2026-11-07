@@ -3,6 +3,7 @@ import { BudgetLimits, BudgetWindow } from "./budgets.ts";
 import {
   BudgetStopId,
   IntelChangeId,
+  IntelHistoryEntryId,
   IntelId,
   MessageId,
   MissionId,
@@ -12,7 +13,7 @@ import {
   ThreadId,
   WorkspaceId,
 } from "./ids.ts";
-import { IntelScope, IntelStateFilter, IntelView } from "./intel.ts";
+import { IntelHistory, IntelScope, IntelStateFilter, IntelView } from "./intel.ts";
 import { JournalView } from "./journal.ts";
 import { PermissionsView, Question } from "./questions.ts";
 import {
@@ -148,6 +149,10 @@ export const RestoreIntel = Schema.TaggedStruct("RestoreIntel", { intelId: Intel
 export const EditIntel = Schema.TaggedStruct("EditIntel", { intelId: IntelId, text: MessageText });
 /** The owner deletes an intel. */
 export const DeleteIntel = Schema.TaggedStruct("DeleteIntel", { intelId: IntelId });
+/** An intel's history, newest first, deleted intel included (scoped-intel, History and undo). */
+export const ReadIntelHistory = Schema.TaggedStruct("ReadIntelHistory", { intelId: IntelId });
+/** The owner undoes one change in an intel's history; undoing a deletion restores the intel. */
+export const UndoIntelChange = Schema.TaggedStruct("UndoIntelChange", { entryId: IntelHistoryEntryId });
 /** The owner approves or declines a thread's change awaiting approval: a global save, change, or deletion, or a widening. */
 export const ResolveIntelChange = Schema.TaggedStruct("ResolveIntelChange", {
   changeId: IntelChangeId,
@@ -238,6 +243,8 @@ export const Request = Schema.Union([
   PinIntel,
   RestoreIntel,
   ResolveIntelChange,
+  ReadIntelHistory,
+  UndoIntelChange,
   AnswerQuestion,
   AnswerSuggestion,
   SetMissionBudget,
@@ -291,6 +298,7 @@ export const Results = {
   PreviewDeletion: DeletionPreview,
   PreviewEnding: EndingPreview,
   ReadBudget: BudgetWindow,
+  ReadIntelHistory: IntelHistory,
   ReadJournal: JournalView,
   ReadMission: MissionDetail,
   ReadPermissions: PermissionsView,
@@ -310,6 +318,7 @@ export const Results = {
   StartMission: StartMissionResult,
   StopAtBudget: Schema.Null,
   StopThread: Schema.Null,
+  UndoIntelChange: Schema.Null,
   UpdateSettings: Settings,
   WidenPermission: Schema.Null,
 } as const;

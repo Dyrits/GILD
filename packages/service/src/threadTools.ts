@@ -104,6 +104,17 @@ export const threadTools = {
       ),
     }),
   }),
+  relied_on_intel: definitionOf({
+    description:
+      "Say that intels from your context shaped what you did, by their ids. Each counts as a use and keeps it from fading; only intel that really guided you counts.",
+    invalid: invalid("Invalid arguments: give ids, at least one."),
+    isUnasked: true,
+    schema: Schema.Struct({
+      ids: Schema.Array(Schema.String)
+        .check(Schema.isMinLength(1))
+        .annotate({ description: "The ids of the intels you relied on, as your context lists them." }),
+    }),
+  }),
   report_result: definitionOf({
     description:
       "When your work is done, report your result to the thread that opened you, with an entry for the mission's journal. You become Done; a later message continues you.",
@@ -137,12 +148,15 @@ export const threadTools = {
   }),
   save_intel: definitionOf({
     description:
-      "Save one rule, preference, decision, or fact that later work should know, at the narrowest scope that fits, only when it is worth keeping. Thread, mission, and workspace intel are saved at once; global intel waits for the owner's approval.",
+      "Save one rule, preference, decision, or fact that later work should know, at the narrowest scope that fits, only when it is worth keeping. Thread, mission, and workspace intel are saved at once; global intel waits for the owner's approval. A save repeating an intel in that scope or a wider one, or a newer version of it, replaces that intel.",
     invalid: invalid(
       "Invalid arguments: give text, scope (thread, mission, workspace, or global), and kind (rule, preference, decision, fact, or temporary).",
     ),
     isUnasked: true,
     schema: Schema.Struct({
+      journalEntry: optionalWhole(
+        "The number of the journal entry it rests on, when there is one; otherwise the message you are answering is recorded.",
+      ),
       kind: ToolKind.annotate({ description: `What it is, which sets how fast it fades unused. ${kindHelp}` }),
       scope: ToolScope.annotate({ description: `Where it applies. ${scopeHelp}` }),
       text: text("One fact, at most 200 tokens."),

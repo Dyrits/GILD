@@ -1,0 +1,21 @@
+CAUGHT intelDuplicates.ts const sameAt = 0.6;
+CAUGHT intelDuplicates.ts const sameAt = 0.6;
+CAUGHT intelDuplicates.ts const fewestShared = 2;
+CAUGHT intelDuplicates.ts isSamePlace(candidate.row) && 
+CAUGHT intelDuplicates.ts  && stateOfIntel(row, fading) !== "Archived"
+CAUGHT intelDuplicates.ts candidate !== same && candidate.closeness >= closeAt
+CAUGHT intelChanges.ts if (replaced.scope === "Global") {
+CAUGHT intelChanges.ts last_used_at = ${now},         origin_kind
+CAUGHT intelChanges.ts if (isApplied && change.kind === "Replace" && change.intelId
+CAUGHT intelChanges.ts change.threadId, originOf(change));
+CAUGHT intelChanges.ts return answer(`Not saved: ${origin}.`, true);
+CAUGHT intelOrigins.ts ORDER BY sequence DESC LIMIT 1
+CAUGHT intelOrigins.ts AND delivered_turn_id IS NOT NULL
+CAUGHT intelOrigins.ts message.senderKind === "user" ? null
+CAUGHT intelOrigins.ts excerpt: summaryOf(entry.text)
+CAUGHT intelViews.ts if (counted.length === 0) return
+CAUGHT intelViews.ts (yield* searchableOf(threadId)).filter((row) => ids.includes
+CAUGHT intelViews.ts yield* countUses(counted);
+CAUGHT intel.ts say so with relied_on_intel
+CAUGHT threadTools.ts .check(Schema.isMinLength(1))
+20/20

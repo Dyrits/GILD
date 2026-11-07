@@ -297,6 +297,61 @@ const migrations = {
     yield* sql`UPDATE intels SET last_used_at = saved_at`;
     yield* sql`ALTER TABLE intel_changes ADD COLUMN intel_kind TEXT NOT NULL DEFAULT 'Fact'`;
   }),
+  // What an intel rests on (scoped-intel, Saving), copied when saved so it outlives the entry's or message's
+  // thread; a global save awaiting approval carries it until approved. Intel saved before has none.
+  "0018_intel_origins": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    for (const table of ["intels", "intel_changes"]) {
+      yield* sql`ALTER TABLE ${sql(table)} ADD COLUMN origin_kind TEXT`;
+      yield* sql`ALTER TABLE ${sql(table)} ADD COLUMN origin_entry INTEGER`;
+      yield* sql`ALTER TABLE ${sql(table)} ADD COLUMN origin_from TEXT`;
+      yield* sql`ALTER TABLE ${sql(table)} ADD COLUMN origin_excerpt TEXT`;
+    }
+  }),
+  // An intel's history (scoped-intel, History and undo): each entry keeps the intel's state before and after,
+  // as JSON, so the owner can undo it. Intel saved before starts its history with one save.
+  "0019_intel_history": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE intel_history (
+      id TEXT PRIMARY KEY,
+      intel_id TEXT NOT NULL,
+      kind TEXT NOT NULL,
+      actor TEXT NOT NULL,
+      actor_thread_id TEXT,
+      actor_title TEXT,
+      at INTEGER NOT NULL,
+      approved_at INTEGER,
+      before_state TEXT,
+      after_state TEXT,
+      scope_thread_id TEXT,
+      undid TEXT,
+      undo_of TEXT,
+      undone_at INTEGER
+    )`;
+    yield* sql`CREATE INDEX intel_history_intel ON intel_history (intel_id)`;
+    const rows = yield* sql<{
+      id: string;
+      savedAt: number;
+      savedByThreadId: string | null;
+      savedByTitle: string | null;
+      state: string;
+      threadId: string | null;
+    }>`
+      SELECT id, saved_at AS savedAt, saved_by_thread_id AS savedByThreadId, saved_by_title AS savedByTitle,
+        thread_id AS threadId,
+        json_object('id', id, 'scope', scope, 'kind', kind, 'threadId', thread_id, 'workspaceId', workspace_id,
+          'text', text, 'savedByThreadId', saved_by_thread_id, 'savedByTitle', saved_by_title,
+          'savedAt', saved_at, 'updatedAt', updated_at, 'lastUsedAt', last_used_at, 'uses', uses,
+          'isPinned', is_pinned, 'originKind', origin_kind, 'originEntry', origin_entry,
+          'originFrom', origin_from, 'originExcerpt', origin_excerpt) AS state
+      FROM intels`;
+    for (const row of rows) {
+      yield* sql`INSERT INTO intel_history (id, intel_id, kind, actor, actor_thread_id, actor_title, at, after_state,
+          scope_thread_id)
+        VALUES (${crypto.randomUUID()}, ${row.id}, 'Saved', ${row.savedByThreadId === null ? "Owner" : "Thread"},
+          ${row.savedByThreadId}, ${row.savedByTitle}, ${row.savedAt}, ${row.state}, ${row.threadId})`;
+    }
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

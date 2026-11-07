@@ -27,4 +27,4 @@
 
 ## Handoffs
 
-To resume after batch 13 (intel over time, built, verified, committed, and awaiting the owner's acceptance), read the [current handoff](.agents/handoffs/2026-11-06-2350-intel-over-time.md). Handoffs are shared and committed.
+To resume after batch 15 (intel history with undo; built and verified, uncommitted with batch 14, awaiting the owner's acceptance), read the [current handoff](.agents/handoffs/2026-11-07-0125-intel-history.md). Handoffs are shared and committed.

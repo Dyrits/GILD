@@ -1,0 +1,23 @@
+CAUGHT intelFading.ts halfLife * Math.log2(1 / dormantBelow)
+CAUGHT intelFading.ts .filter((step) => step.at <= fading.now)
+CAUGHT intelFading.ts if (intel.isPinned === 1 || halfLifeDays === null) return []
+CAUGHT intelViews.ts yield* recordFadingStepsOf(intelIds);
+CAUGHT intelHistory.ts if (before !== null) yield* recordFadingSteps(before);
+CAUGHT intelHistoryViews.ts canUndo: row.actor !== "Fading" && row.undoneAt === null
+CAUGHT intelHistoryViews.ts .toSorted((a, b) => b.row.at - a.row.at || b.order - a.order
+CAUGHT intelHistoryViews.ts WHERE h.after_state IS NULL AND h.before_state IS NOT NULL
+CAUGHT intelHistory.ts yield* sql`DELETE FROM intel_history WHERE intel_id IN (
+CAUGHT intelHistory.ts (SELECT title FROM threads WHERE id = ${threadId})
+CAUGHT intelUndo.ts if (entry.undoneAt !== null) return
+CAUGHT intelUndo.ts if (isFadingEntryId(entryId)) {
+CAUGHT intelUndo.ts if (current === null) return yield* invalid("This intel is d
+CAUGHT intelUndo.ts yield* markUndone(entryId);
+CAUGHT intelUndo.ts lastUsedAt: current.lastUsedAt === after.lastUsedAt ? before
+CAUGHT intelUndo.ts kind: back("kind"),
+CAUGHT intelUndo.ts scope: back("scope"),
+CAUGHT intelUndo.ts       yield* writeSnapshot(entry.before); 
+CAUGHT intelChanges.ts yield* recordSaved(intelId, actor, now);
+CAUGHT intelChanges.ts isWidening ? "Widened" : "Corrected"
+CAUGHT intelChanges.ts     yield* recordSaved(intelId, threadActor(threadId)); 
+CAUGHT deleting.ts       yield* eraseThreadHistory(ids); 
+22/22

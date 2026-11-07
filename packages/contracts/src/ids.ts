@@ -41,3 +41,7 @@ export type IntelId = typeof IntelId.Type;
 /** Identifies a thread's change to intel, done or awaiting the owner's approval (scoped-intel). */
 export const IntelChangeId = Schema.String.pipe(Schema.brand("IntelChangeId"));
 export type IntelChangeId = typeof IntelChangeId.Type;
+
+/** Identifies one entry in an intel's history (scoped-intel, History and undo). */
+export const IntelHistoryEntryId = Schema.String.pipe(Schema.brand("IntelHistoryEntryId"));
+export type IntelHistoryEntryId = typeof IntelHistoryEntryId.Type;

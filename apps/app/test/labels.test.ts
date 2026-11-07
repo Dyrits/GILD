@@ -7,6 +7,8 @@ import {
   intelChangeLineOf,
   intelFadingLabelOf,
   intelGaugeLabelOf,
+  intelHistoryLineOf,
+  intelOriginLabelOf,
   journalAuthorOf,
   meterLevelOf,
   promptQuestionOf,
@@ -97,6 +99,22 @@ describe("intel labels", () => {
       "Correct intel in Global · approved",
     );
     expect(intelChangeLineOf({ ...change, kind: "Update", previousText: "A fact." })).toBe("Move intel to Global");
+    expect(intelChangeLineOf({ ...change, kind: "Replace", previousText: "Old.", status: "Awaiting" })).toBe(
+      "Replace intel in Global · awaiting your approval",
+    );
+  });
+
+  it("names what an intel rests on", () => {
+    expect(intelOriginLabelOf(null)).toBeNull();
+    expect(intelOriginLabelOf({ entryNumber: 4, excerpt: "Chose Effect.", from: null, kind: "JournalEntry" })).toBe(
+      "From journal entry 4: Chose Effect.",
+    );
+    expect(intelOriginLabelOf({ entryNumber: null, excerpt: "Use Bun.", from: null, kind: "Message" })).toBe(
+      "From your message: Use Bun.",
+    );
+    expect(intelOriginLabelOf({ entryNumber: null, excerpt: "Done.", from: "Build", kind: "Message" })).toBe(
+      'From a message by "Build": Done.',
+    );
   });
 
   it("gives the intel count and its share of the context window", () => {
@@ -112,5 +130,35 @@ describe("intel labels", () => {
     expect(intelFadingLabelOf({ ...intel, isPinned: true, strength: 1, uses: 3 })).toBe(
       "Preference · active · strength 100% · used 3 times · pinned",
     );
+  });
+});
+
+describe("intel history lines", () => {
+  const entry = {
+    actor: "Thread",
+    actorTitle: "Build",
+    approvedAt: null,
+    kind: "Saved",
+    scopeLabel: "Global",
+    undid: null,
+    undoneAt: null,
+  } as const;
+
+  it("names who made each entry, and the owner's approval", () => {
+    expect(intelHistoryLineOf(entry)).toBe('Saved by "Build"');
+    expect(intelHistoryLineOf({ ...entry, approvedAt: 1 })).toBe('Saved by "Build" · approved by you');
+    expect(intelHistoryLineOf({ ...entry, kind: "Replaced" })).toBe('Replaced by a save from "Build"');
+    expect(intelHistoryLineOf({ ...entry, kind: "Widened" })).toBe('Moved to Global by "Build"');
+    expect(intelHistoryLineOf({ ...entry, actor: "Owner", actorTitle: null, kind: "Deleted" })).toBe("Deleted by you");
+  });
+
+  it("says a fading step was fading, and names what an undo undid", () => {
+    expect(intelHistoryLineOf({ ...entry, actor: "Fading", actorTitle: null, kind: "Dormant" })).toBe(
+      "Became dormant by fading",
+    );
+    expect(intelHistoryLineOf({ ...entry, actor: "Owner", actorTitle: null, kind: "Undone", undid: "Deleted" })).toBe(
+      "You undid: deleted",
+    );
+    expect(intelHistoryLineOf({ ...entry, undoneAt: 2 })).toBe('Saved by "Build" · undone');
   });
 });
