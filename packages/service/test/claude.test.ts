@@ -221,6 +221,29 @@ describe("Claude Code adapter", () => {
     }).pipe(Effect.provide(layer));
   });
 
+  it.live("keeps its system prompt and process across a mission rename, and gives the title with the turn", () => {
+    const { layer, starts } = withClaude();
+    return Effect.gen(function* () {
+      const started = yield* call({
+        _tag: "StartMission",
+        effort: "default",
+        model: "default",
+        requestId: "t1",
+        text: "One",
+        workspacePath: null,
+      });
+      yield* settle(started.missionId, idleWith(1));
+      yield* call({ _tag: "RenameMission", missionId: started.missionId, title: "Renamed mission" });
+      yield* call({ _tag: "SendMessage", delivery: null, requestId: "t2", text: "Two", threadId: started.threadId });
+      const detail = yield* settle(started.missionId, idleWith(2));
+
+      expect(starts()).toHaveLength(1);
+      const systemPrompt = starts()[0]?.args[(starts()[0]?.args.indexOf("--append-system-prompt") ?? -2) + 1] ?? "";
+      expect(systemPrompt).toContain(`You are thread ${started.threadId}`);
+      expect(detail.messages.at(-1)?.text).toContain('Your title: "Renamed mission".');
+    }).pipe(Effect.provide(layer));
+  });
+
   it.live("keeps one process per thread across turns and adds up token usage", () => {
     const { layer, starts } = withClaude();
     return Effect.gen(function* () {

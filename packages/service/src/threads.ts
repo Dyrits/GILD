@@ -10,7 +10,7 @@ import { requireChatterDecision } from "./chatter.ts";
 import { Endpoints } from "./endpoints.ts";
 import { invalid, type ServiceFailure } from "./errors.ts";
 import { Harness, type HarnessEvent, type TurnOutcome } from "./execution.ts";
-import { threadInstructionsOf } from "./instructions.ts";
+import { positionLineOf, threadInstructionsOf } from "./instructions.ts";
 import { intelContextOf, intelInstructions } from "./intel.ts";
 import { journalContextOf, journalInstructions } from "./journal.ts";
 import {
@@ -302,13 +302,11 @@ export const threadsLayer = Layer.effect(
         const budget = yield* budgetLineOf(turn.missionId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
         // The system prompt stays the same across a session's turns: rewriting it restarts the process and
         // invalidates the cache and earlier thinking. What changes turn to turn rides on the turn's message.
-        const context = [
-          prepared.context,
-          threadInstructionsOf(yield* readPosition(threadId)),
-          journalInstructions,
-          intelInstructions,
-        ].join("\n\n");
-        const note = [journal, intel, budget].filter((part) => part !== null).join("\n\n") || null;
+        const position = yield* readPosition(threadId);
+        const context = [prepared.context, threadInstructionsOf(position), journalInstructions, intelInstructions].join(
+          "\n\n",
+        );
+        const note = [positionLineOf(position), journal, intel, budget].filter((part) => part !== null).join("\n\n");
         const mcpUrl = yield* endpoints.urlFor(threadId);
         const onEvent = (event: HarnessEvent) =>
           Match.valueTags(event, {

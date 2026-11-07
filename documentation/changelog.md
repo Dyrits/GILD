@@ -788,3 +788,17 @@ Chosen by an agent at the owner's request to apply the audit's changes; not yet 
 References: documentation/verification/2026-11-07-prompt-audit.md; packages/service/src/threads.ts, journal.ts, intel.ts, claude.ts, spending.ts, threadTools.ts; packages/service/test/claude.test.ts, budget.test.ts, threadTools.test.ts, fixtures/stand-in-claude.mjs; apps/app/AGENTS.md; .agents/ai-tooling.md
 Validation: `bun run test` passed 314 with 5 skipped; typecheck, `bun run check`, `git diff --check`, and the desktop build passed. The new checks fail on `ab85b66`, and a fresh agent reproduced the proof. Not verified: a live Claude Code thread's cache reads across a journal change.
 Evidence: The owner's instruction of 2026-11-07: "Apply all the changes you feel relevant. Then /hand-off, commit and push (on main) once done."
+
+## CHG-0058 · 2026-11-07 · Cost audit: titles leave the system prompt
+
+Type: Code
+Event: Delivery
+Scope: Thread context
+
+Summary: A change from a cost audit of the Claude Code harness (`/claude-api cost-optimize`):
+- a thread's system prompt now names the thread and its opener by id only. Their titles come with each turn's message, as its first line ("Your title: …"). Until now, every mission's top thread renamed itself on its first turn (`set_mission_title`), so its second turn restarted Claude Code under a different system prompt: the whole prefix was written to the cache again instead of being read from it, and on Claude Fable 5.1, Opus 5.5, and Sonnet 5.5 the first turn's thinking was lost. An owner's rename did the same to the top thread, and to the threads opened beneath it.
+Left for the owner, in the backlog: sending a turn's journal and intel in full only when they changed (changes scoped-intel's recall rule), and recording Claude Code's reported cost on API-key turns (detecting API-key billing is staged). No effort or model change: there is no eval of thread quality.
+Chosen by an agent at the owner's request to apply the audit's changes; not yet accepted by the owner.
+References: documentation/verification/2026-11-07-cost-audit.md; packages/service/src/instructions.ts, threads.ts; packages/service/test/claude.test.ts
+Validation: `bun run test` passed 315 with 5 skipped; typecheck, `bun run check`, and `git diff --check` passed. The new check fails on `f9de337`. Not verified: a live Claude Code thread's cache reads on a mission's second turn.
+Evidence: The owner's instruction of 2026-11-07: "Apply all the changes you feel relevant. Document them, then /hand-off, commit and push (on main) once done."
