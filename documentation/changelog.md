@@ -788,3 +788,14 @@ Built by an agent under the owner's instruction, without questions; provisional 
 References: documentation/capabilities/provider-accounts/specifications.md; documentation/architecture-decision-record/0011-accounts-as-harness-folders.md; documentation/verification/2026-11-07-harnesses-and-accounts.md; packages/service/src/codex.ts, opencode.ts, rpcProcess.ts, harnessTools.ts, accounts.ts, runners.ts, harnessCatalog.ts, execution.ts, claude.ts, threads.ts, tree.ts, missions.ts, store.ts (0021), main.ts; packages/contracts/src/harnesses.ts, records.ts, requests.ts; apps/app/src/runners.tsx, accounts.tsx, settings.tsx, dashboard.tsx, threadTree.tsx, suggestions.tsx, conversation.tsx, controls.tsx
 Validation: `bun run test` passed 332 with 8 skipped; typecheck, `bun run check`, `git diff --check`, the desktop build, and a Metro web export passed. 12 of 12 mutations were caught in a separate copy; the new checks cannot load on `ab85b66`. The opt-in live checks (`OPENMISSION_LIVE_HARNESSES=1`) passed against the installed Codex and OpenCode. Driven in the window with the real harnesses: a Codex mission, an OpenCode thread beneath it, a Claude Code mission, and adding and removing an account. Not verified: signing in an added account, live Codex escalation and steering, live OpenCode permission prompts.
 Evidence: The owner's instruction of 2026-11-07: "I'd like OpenMission to be able to be used to build OpenMission. I want to be able to use different providers in it, using my Claude subscription (and even register more than one accound like OpenBot does). I want to be able to use Codex ad well and OpenCode. Focuse on that first. I'll be AFK, don't ask any question."
+
+## CHG-0058 · 2026-11-07 · The app's logo
+
+Type: Code
+Event: Delivery
+Scope: App and desktop shell
+
+Summary: The owner's logo (a white arrow on a blue-to-violet arc with an orange trail, on deep navy) replaces Expo's placeholder icons and the sidebar's glyph: `apps/app/assets` icon, splash, favicon, Android adaptive foreground and background (`#01081C`), a 128-pixel `logo.png` in the sidebar, and `apps/desktop/assets/icon.png` with rounded corners as the window and macOS dock icon. Cropped from the owner's image to its square, on its own background colour; Android's monochrome icon reference was dropped, since Expo's placeholder was the only one.
+References: apps/app/app.json; apps/app/assets/; apps/app/src/sidebar.tsx; apps/desktop/assets/icon.png; apps/desktop/src/main.ts; documentation/verification/2026-11-07-logo/sidebar.png
+Validation: `bun run typecheck`, `bun run check`, the desktop build, and a Metro web export passed; the sidebar was seen in the window ([sidebar](verification/2026-11-07-logo/sidebar.png)). Not verified: the dock icon (screen capture unavailable), a native Android or iOS build.
+Evidence: The owner's instruction of 2026-11-07: "Use this logo for the app." with the image `43855.png`.

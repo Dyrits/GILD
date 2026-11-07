@@ -1,6 +1,6 @@
 import type { MissionId, MissionSummary } from "@openmission/contracts";
 import { createContext, type ReactNode, useContext } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import type { ServiceClient } from "./client";
 import { allMissions } from "./queries";
 import { colors, fontSizes, fonts, radii, stateTones } from "./theme";
@@ -8,6 +8,9 @@ import { useServiceQuery } from "./useServiceQuery";
 
 /** The places the sidebar leads to; a mission is opened from its list instead. */
 export type Place = "Missions" | "Intel" | "Archived" | "Settings";
+
+/** The app's logo, the same image as its icon. */
+const logo = require("../assets/logo.png");
 
 const SidebarShown = createContext(false);
 
@@ -92,9 +95,7 @@ function Sidebar({
   return (
     <View style={local.sidebar}>
       <View style={local.brand}>
-        <View style={local.logo}>
-          <Text style={local.logoText}>◎</Text>
-        </View>
+        <Image accessibilityLabel="OpenMission logo" source={logo} style={local.logo} />
         <Text style={local.brandText}>OpenMission</Text>
       </View>
       <Pressable
@@ -178,15 +179,7 @@ const local = StyleSheet.create({
   itemHovered: { backgroundColor: colors.controlHover },
   itemSelected: { backgroundColor: colors.controlActive },
   itemText: { color: colors.textSecondary, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.md },
-  logo: {
-    alignItems: "center",
-    backgroundColor: colors.accent,
-    borderRadius: radii.md,
-    height: 24,
-    justifyContent: "center",
-    width: 24,
-  },
-  logoText: { color: colors.onAccent, fontSize: fontSizes.md, fontWeight: "700" },
+  logo: { borderRadius: radii.md, height: 24, width: 24 },
   missionText: { fontSize: fontSizes.md },
   narrow: { backgroundColor: colors.canvas, flex: 1 },
   newMission: {

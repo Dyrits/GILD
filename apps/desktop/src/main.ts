@@ -4,6 +4,8 @@ import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, dialog, ipcMain, utilityProcess } from "electron";
 
 const here = dirname(fileURLToPath(import.meta.url));
+/** The app's icon, beside `dist` in the desktop app's own `assets`. */
+const iconPath = join(here, "..", "assets", "icon.png");
 const appUrl = process.env.OPENMISSION_APP_URL ?? "http://localhost:8081";
 // Lets checks run against a throwaway folder instead of the owner's data.
 const dataDirectory = () => process.env.OPENMISSION_DATA_DIR ?? app.getPath("userData");
@@ -59,8 +61,11 @@ app
     const endpoint = await startService(token);
     ipcMain.handle("openmission:endpoint", () => endpoint);
 
+    // macOS shows the dock icon of the running app; a packaged build will carry its own icon file.
+    app.dock?.setIcon(iconPath);
     const window = new BrowserWindow({
       height: 800,
+      icon: iconPath,
       title: "OpenMission",
       webPreferences: { contextIsolation: true, preload: join(here, "preload.cjs"), sandbox: true },
       width: 1200,
