@@ -1,4 +1,4 @@
-import type { BudgetScope, MessageDelivery, MissionDetail, MissionId, ThreadId } from "@openmission/contracts";
+import type { BudgetScope, MessageDelivery, MissionDetail, MissionId, ThreadId } from "@canopy/contracts";
 import { useEffect, useRef, useState } from "react";
 import { FlatList, type NativeScrollEvent, type NativeSyntheticEvent, Pressable, Text, View } from "react-native";
 import { BudgetMeters, BudgetScreen, BudgetStopCard } from "./budgets";

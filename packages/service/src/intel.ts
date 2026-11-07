@@ -7,7 +7,7 @@ import type {
   IntelScope,
   MissionId,
   ModelChoice,
-} from "@openmission/contracts";
+} from "@canopy/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { notFound } from "./errors.ts";
@@ -257,7 +257,7 @@ export const intelContextOf = (threadId: string) =>
           : [`${count} dormant intels in your scope are not listed; search_intel finds them by words.`];
     return [
       "# Intel",
-      "Intel is what OpenMission keeps between threads: rules, preferences, decisions, facts, and temporary notes, each at the scope where it applies. The intel in your scope, most specific first; when two conflict, the one listed first wins:",
+      "Intel is what Canopy keeps between threads: rules, preferences, decisions, facts, and temporary notes, each at the scope where it applies. The intel in your scope, most specific first; when two conflict, the one listed first wins:",
       recall.inFull.length === 0 ? "(none yet)" : intelLinesOf(recall.inFull),
       "",
       "Global intel, as an index of one line each; read one in full with search_intel and its id:",

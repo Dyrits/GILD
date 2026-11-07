@@ -1,4 +1,4 @@
-import type { EffortChoice, HarnessName, ModelChoice } from "@openmission/contracts";
+import type { EffortChoice, HarnessName, ModelChoice } from "@canopy/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid } from "./errors.ts";

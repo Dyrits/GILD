@@ -6,7 +6,7 @@
 - **Hosted sync and pricing**: revisit DeltaDB-style synchronization through Durable Objects and an optional managed service, possibly priced per seat. The user deferred this exploration; no price, commercial service, cloud history storage, or requirement change is agreed. Keep the current local-data architecture and relay deployed to each user's Cloudflare account.
 
 - **Skill installation** (tool-and-skill-loading): install skills through the app; version 1 reads existing skill folders.
-- **MCP configuration import** (tool-and-skill-loading): import existing harness MCP configuration; version 1 manages global and workspace servers in OpenMission.
+- **MCP configuration import** (tool-and-skill-loading): import existing harness MCP configuration; version 1 manages global and workspace servers in Canopy.
 
 - **Thread panel and context gauge** (new capability, not named): a side panel per thread, like OpenBot's agent panel, showing its harness, agent, model, effort, workspace, intel, skills, budget, and spending; and a context gauge showing how full the context window is, broken down by instructions, intel, tools, skills, tool calls and results, and messages. Replaces the proposed Advanced view; no terminal. Decide whether budget-control's budget window joins the context gauge in one window.
 - **Desktop shell and service runtime**: compare Electron with a Node service against Tauri with a Bun-compiled service as a sidecar (or Electrobun). Settle with a prototype: a stub service that opens SQLite, loads `sqlite-vec`, and runs one Claude Code turn, measured for app size, memory, and startup. A switch replaces decision record 0004 and changes 0010's runtime line.
@@ -19,5 +19,5 @@
 - **Intel capsules** (scoped-intel, idea from souls.house): an intel sealed until a date or condition, then raised by a routine; the thread decides whether to raise, hold, or dismiss it.
 - **Journal compression** (mission-journal, idea from souls.house): roll mission journals into weekly and monthly summaries, keeping the raw entries, and later into a global record across missions.
 - **Inspiration review**: every few weeks, check the products in [inspirations](inspirations.md) for new features and record what is new.
-- **Harness settings isolation** (provider-accounts, CHG-0057): decide whether the owner's own Codex and OpenCode MCP servers, skills, and agents load in OpenMission's threads, as now, or stay off as for Claude Code.
-- **Account sign-in in the app** (provider-accounts): show the harness's sign-in progress inside OpenMission instead of a Terminal window, if each tool offers a non-interactive flow (Codex `--device-auth`).
+- **Harness settings isolation** (provider-accounts, CHG-0057): decide whether the owner's own Codex and OpenCode MCP servers, skills, and agents load in Canopy's threads, as now, or stay off as for Claude Code.
+- **Account sign-in in the app** (provider-accounts): show the harness's sign-in progress inside Canopy instead of a Terminal window, if each tool offers a non-interactive flow (Codex `--device-auth`).

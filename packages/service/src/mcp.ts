@@ -9,8 +9,8 @@ import { Threads } from "./threads.ts";
 import { makeToolHandlers } from "./threadToolHandlers.ts";
 import { answerToolCall, isThreadToolName, toolListing, unaskedToolNamesOf } from "./threadTools.ts";
 
-/** The server name Claude Code prefixes to tool names (`mcp__openmission__…`). */
-export const toolServerName = "openmission";
+/** The server name Claude Code prefixes to tool names (`mcp__canopy__…`). */
+export const toolServerName = "canopy";
 /** The tool name Claude Code's `--permission-prompt-tool` takes. */
 export const promptToolName = `mcp__${toolServerName}__answer_prompt`;
 export const approvalToolName = `mcp__${toolServerName}__request_approval`;

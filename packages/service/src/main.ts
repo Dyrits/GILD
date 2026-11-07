@@ -20,13 +20,13 @@ const parentPort = (process as unknown as { parentPort?: ParentPort }).parentPor
 // A missing variable fails the program through Config instead of throwing at import.
 const liveLayer = Layer.unwrap(
   Effect.gen(function* () {
-    const dataDirectory = yield* Config.NonEmptyString("OPENMISSION_DATA_DIR");
-    // OPENMISSION_HARNESS=fake selects the echo harness for checks.
-    const harnessName = yield* Config.String("OPENMISSION_HARNESS").pipe(Config.withDefault("claude"));
+    const dataDirectory = yield* Config.NonEmptyString("CANOPY_DATA_DIR");
+    // CANOPY_HARNESS=fake selects the echo harness for checks.
+    const harnessName = yield* Config.String("CANOPY_HARNESS").pipe(Config.withDefault("claude"));
     const commands = {
-      claude: yield* Config.String("OPENMISSION_CLAUDE_PATH").pipe(Config.withDefault("claude")),
-      codex: yield* Config.String("OPENMISSION_CODEX_PATH").pipe(Config.withDefault("codex")),
-      opencode: yield* Config.String("OPENMISSION_OPENCODE_PATH").pipe(Config.withDefault("opencode")),
+      claude: yield* Config.String("CANOPY_CLAUDE_PATH").pipe(Config.withDefault("claude")),
+      codex: yield* Config.String("CANOPY_CODEX_PATH").pipe(Config.withDefault("codex")),
+      opencode: yield* Config.String("CANOPY_OPENCODE_PATH").pipe(Config.withDefault("opencode")),
     };
     const problem = yield* sandboxProblem;
     const idleTimeout = "10 minutes";
@@ -47,7 +47,7 @@ const liveLayer = Layer.unwrap(
     return Layer.fresh(
       serviceLayer({
         accountsRoot: join(dataDirectory, "accounts"),
-        filename: join(dataDirectory, "openmission.sqlite"),
+        filename: join(dataDirectory, "canopy.sqlite"),
         harness,
         harnessTools: harnessName === "fake" ? fakeHarnessToolsLayer() : liveHarnessToolsLayer(commands),
         homeFolder: homedir(),
@@ -58,7 +58,7 @@ const liveLayer = Layer.unwrap(
 );
 
 const program = Effect.gen(function* () {
-  const token = yield* Config.NonEmptyString("OPENMISSION_TOKEN");
+  const token = yield* Config.NonEmptyString("CANOPY_TOKEN");
   const { port } = yield* serveLoopback({ port: 0, token });
   parentPort?.postMessage({ port, type: "ready" });
   return yield* Effect.never;
@@ -66,6 +66,6 @@ const program = Effect.gen(function* () {
 
 Effect.runFork(program).addObserver((exit) => {
   // The cause in full, so a startup failure says why in the desktop app's log.
-  console.error("OpenMission service stopped", Exit.isFailure(exit) ? Cause.pretty(exit.cause) : exit);
+  console.error("Canopy service stopped", Exit.isFailure(exit) ? Cause.pretty(exit.cause) : exit);
   process.exit(1);
 });

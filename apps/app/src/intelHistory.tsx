@@ -1,4 +1,4 @@
-import type { DeletedIntel, IntelHistoryEntry, IntelHistoryEntryId, IntelId } from "@openmission/contracts";
+import type { DeletedIntel, IntelHistoryEntry, IntelHistoryEntryId, IntelId } from "@canopy/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import type { ServiceClient } from "./client";

@@ -1,4 +1,4 @@
-import type { MissionSummary } from "@openmission/contracts";
+import type { MissionSummary } from "@canopy/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { listMissionSummaries } from "./missions.ts";

@@ -1,4 +1,4 @@
-import type { IntelOrigin } from "@openmission/contracts";
+import type { IntelOrigin } from "@canopy/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { summaryOf } from "./intelFading.ts";

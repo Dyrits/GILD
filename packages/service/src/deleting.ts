@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import type { DeletionPreview } from "@openmission/contracts";
+import type { DeletionPreview } from "@canopy/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { Changes } from "./changes.ts";

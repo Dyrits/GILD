@@ -1,4 +1,4 @@
-import { ThreadSummary } from "@openmission/contracts";
+import { ThreadSummary } from "@canopy/contracts";
 import { Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { foldThreads } from "../src/folding";

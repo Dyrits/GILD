@@ -4,7 +4,7 @@ import {
   MissionState as MissionStates,
   type MissionSummary,
   type WorkspaceId,
-} from "@openmission/contracts";
+} from "@canopy/contracts";
 import { useState } from "react";
 import { FlatList, Pressable, Text, TextInput, View } from "react-native";
 import { BudgetMeters, BudgetScreen, BudgetStopCard } from "./budgets";

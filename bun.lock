@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "openmission",
+      "name": "canopy",
       "devDependencies": {
         "@biomejs/biome": "2.6.5",
         "@effect/vitest": "4.1.2",
@@ -16,8 +16,8 @@
       "name": "app",
       "version": "1.0.0",
       "dependencies": {
+        "@canopy/contracts": "workspace:*",
         "@expo/metro-runtime": "~58.0.17",
-        "@openmission/contracts": "workspace:*",
         "effect": "4.1.2",
         "expo": "~58.0.23",
         "expo-status-bar": "~58.0.4",
@@ -40,16 +40,16 @@
       },
     },
     "packages/contracts": {
-      "name": "@openmission/contracts",
+      "name": "@canopy/contracts",
       "dependencies": {
         "effect": "4.1.2",
       },
     },
     "packages/service": {
-      "name": "@openmission/service",
+      "name": "@canopy/service",
       "dependencies": {
+        "@canopy/contracts": "workspace:*",
         "@effect/sql-sqlite-node": "4.1.2",
-        "@openmission/contracts": "workspace:*",
         "effect": "4.1.2",
         "ws": "8.22.1",
       },
@@ -216,6 +216,10 @@
 
     "@biomejs/cli-win32-x64": ["@biomejs/cli-win32-x64@2.6.5", "", { "os": "win32", "cpu": "x64" }, "sha512-07LaCeN9vvmbAAMOMsUjMfL5UbsCDkvVeyMJIgwNRc0xYqhizBGkjVzx05LYEwCXl2AiHcdzqVPR4IOYAsI1QQ=="],
 
+    "@canopy/contracts": ["@canopy/contracts@workspace:packages/contracts"],
+
+    "@canopy/service": ["@canopy/service@workspace:packages/service"],
+
     "@effect/sql-sqlite-node": ["@effect/sql-sqlite-node@4.1.2", "", { "peerDependencies": { "effect": "^4.1.2" } }, "sha512-fTmI8Ol1Lf8rGITtdIW285nuT9G46ETOPZ48CxlZ7vkfWDYgipYnH0dILxPGcZ6f/BMLeybmLRKKBcRWStShfQ=="],
 
     "@effect/vitest": ["@effect/vitest@4.1.2", "", { "peerDependencies": { "effect": "^4.1.2", "vitest": ">=5.0.0 <6.0.0" } }, "sha512-JJPwAHkJHxvM/woW9mMW/khjasAHcmwWdOMAgMy16rfqsxcVhFDnrRsvN9VI2+kMv8zDCCyBE2q1n5hzZlfE0w=="],
@@ -331,10 +335,6 @@
     "@noxcturnal/noxcturnal-win32-arm64-msvc": ["@noxcturnal/noxcturnal-win32-arm64-msvc@0.1.11", "", { "os": "win32", "cpu": "arm64" }, "sha512-Q0Q0ll/qPzakp/GBmVDB/XthqyCkfM2CE5gZ78t9Ix/bkZDe5O0G7OyNkXRsGu49VcorxoGbBgSyF6CK+OaYlQ=="],
 
     "@noxcturnal/noxcturnal-win32-x64-msvc": ["@noxcturnal/noxcturnal-win32-x64-msvc@0.1.11", "", { "os": "win32", "cpu": "x64" }, "sha512-as4HUwZkQegCcGoFzaLzlZbBqdx8BGgFhAoQsTsdJCUbNTxVH0f3R/AcRLOUJ6odfko0E2SSuJc70FI0zQ/IDg=="],
-
-    "@openmission/contracts": ["@openmission/contracts@workspace:packages/contracts"],
-
-    "@openmission/service": ["@openmission/service@workspace:packages/service"],
 
     "@oxc-project/types": ["@oxc-project/types@0.156.0", "", {}, "sha512-1Duyg48TdJNdyhEB8Xn1L36bT9Pv6GUtlKjHxOys8xkaF/rQq3XJE+bAurSK/AgIz5mGFsb77cn9Pb20+WCScw=="],
 

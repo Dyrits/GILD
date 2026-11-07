@@ -1,4 +1,4 @@
-import type { MissionState, ThreadState } from "@openmission/contracts";
+import type { MissionState, ThreadState } from "@canopy/contracts";
 
 /**
  * The palette, sizes, and radii every screen draws from: a quiet light theme with neutral greys, one blue accent,

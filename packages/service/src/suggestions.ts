@@ -1,4 +1,4 @@
-import type { Suggestion, SuggestionAnswer, SuggestionOutcome } from "@openmission/contracts";
+import type { Suggestion, SuggestionAnswer, SuggestionOutcome } from "@canopy/contracts";
 import { Clock, Context, Effect, Layer, Match } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
 import { makeOwnerWaits } from "./attention.ts";
@@ -51,7 +51,7 @@ export class Suggestions extends Context.Service<
     ) => Effect.Effect<{ readonly answer: ToolAnswer; readonly threadToWake: string | null }>;
     readonly withdraw: (threadId: string) => Effect.Effect<void>;
   }
->()("openmission/Suggestions") {}
+>()("canopy/Suggestions") {}
 
 /** Owns off-topic suggestions; a restart withdraws those left open. */
 export const suggestionsLayer = Layer.effect(
@@ -226,7 +226,7 @@ export const suggestionsLayer = Layer.effect(
           return {
             answer: {
               isError: false,
-              text: `No mission fits, so OpenMission opened it as a new mission "${opened.targetTitle}" (id ${opened.targetMissionId}), as the owner's settings ask. ${carryOn}`,
+              text: `No mission fits, so Canopy opened it as a new mission "${opened.targetTitle}" (id ${opened.targetMissionId}), as the owner's settings ask. ${carryOn}`,
             },
             threadToWake: opened.targetThreadId,
           };

@@ -18,7 +18,7 @@ const option = (name) => {
 const sessionId = option("--session-id") ?? option("--resume");
 const mode = process.env.STAND_IN_MODE ?? "ok";
 if (process.env.STAND_IN_LOG) {
-  const env = Object.keys(process.env).filter((key) => key.startsWith("OPENMISSION_"));
+  const env = Object.keys(process.env).filter((key) => key.startsWith("CANOPY_"));
   const home = process.env.CLAUDE_CONFIG_DIR ?? null;
   appendFileSync(
     process.env.STAND_IN_LOG,

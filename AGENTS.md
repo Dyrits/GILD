@@ -1,4 +1,4 @@
-# OpenMission
+# Canopy
 
 ## Documents
 
@@ -10,7 +10,7 @@
 - `documentation/capabilities/<capability>/specifications.md`: each capability's agreed behavior and acceptance. Read before changing that capability.
 - `documentation/first-slice-design.md` and `documentation/capabilities/<capability>/blueprint.md`: proposed modules, interfaces, and staged acceptance. Read before implementing or reviewing the first slice; settle the listed review decisions before production code.
 - `documentation/backlog.md`: candidate work and deferrals. Read when choosing what to do next.
-- `documentation/inspirations.md`: products OpenMission follows, their good ideas, what was taken, and what to check on. Read before designing a capability one of them covers; add new findings with their date.
+- `documentation/inspirations.md`: products Canopy follows, their good ideas, what was taken, and what to check on. Read before designing a capability one of them covers; add new findings with their date.
 - `documentation/work-in-progress.md`: the current batch, its checks, and open questions. Read first when resuming; work proceeds in batches with the iterate skill.
 - `documentation/changelog.md`: authorized agreements and verified deliveries. Append a record for each.
 - `documentation/verification/`: reproducible proofs that delivered work behaves as claimed, with their scripts and screenshots. Read before re-verifying a batch or trusting its claims.
@@ -27,4 +27,4 @@
 
 ## Handoffs
 
-To resume after batch 18, harnesses and provider accounts (committed, awaiting the owner), read the [current handoff](.agents/handoffs/2026-11-07-1230-harnesses-and-accounts.md). Handoffs are shared and committed.
+To resume after the rename to Canopy (batch 18 still awaiting the owner), read the [current handoff](.agents/handoffs/2026-11-07-1455-renamed-to-canopy.md). Handoffs are shared and committed.

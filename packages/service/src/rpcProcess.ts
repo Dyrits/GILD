@@ -151,7 +151,7 @@ export const countOf = (value: unknown, key: string) => {
   return typeof field === "number" ? field : 0;
 };
 
-/** Whether an answer of OpenMission's permission prompt tool (`answer_prompt`) allows the action. */
+/** Whether an answer of Canopy's permission prompt tool (`answer_prompt`) allows the action. */
 export const isPromptAllowed = (answer: string) => {
   try {
     return fieldOf(JSON.parse(answer), "behavior") === "allow";

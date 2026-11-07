@@ -1,4 +1,4 @@
-import type { MissionState, ThreadState } from "@openmission/contracts";
+import type { MissionState, ThreadState } from "@canopy/contracts";
 import { type ReactNode, useState } from "react";
 import { Pressable, ScrollView, Switch, Text, TextInput, View } from "react-native";
 import { styles } from "./styles";

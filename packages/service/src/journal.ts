@@ -1,4 +1,4 @@
-import type { JournalEntry, JournalView, MissionId } from "@openmission/contracts";
+import type { JournalEntry, JournalView, MissionId } from "@canopy/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { touchMission } from "./activity.ts";

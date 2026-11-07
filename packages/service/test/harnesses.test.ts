@@ -1,8 +1,8 @@
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { AccountId, MissionDetail, MissionId, Request, RequestTag, ResultOf } from "@canopy/contracts";
 import { describe, expect, it } from "@effect/vitest";
-import type { AccountId, MissionDetail, MissionId, Request, RequestTag, ResultOf } from "@openmission/contracts";
 import { type Duration, Effect, Layer } from "effect";
 import { afterEach } from "vitest";
 import {
@@ -36,7 +36,7 @@ interface Logged {
 
 /** A service whose three adapters run stand-ins, all logging to one file. */
 const withHarnesses = (idleTimeout: Duration.Input = "10 minutes") => {
-  const directory = realpathSync(mkdtempSync(join(tmpdir(), "openmission-harnesses-")));
+  const directory = realpathSync(mkdtempSync(join(tmpdir(), "canopy-harnesses-")));
   directories.push(directory);
   const log = join(directory, "log.jsonl");
   process.env.STAND_IN_LOG = log;
@@ -69,7 +69,7 @@ const withHarnesses = (idleTimeout: Duration.Input = "10 minutes") => {
   );
   const layer = serviceLayer({
     accountsRoot,
-    filename: join(directory, "openmission.sqlite"),
+    filename: join(directory, "canopy.sqlite"),
     harness,
     harnessTools: fakeHarnessToolsLayer(signIns),
     homeFolder: directory,
@@ -164,7 +164,7 @@ describe("choosing a thread's runner", () => {
 });
 
 describe("Codex adapter", () => {
-  it.live("runs a thread through the app server with its model, effort, tools, and no OpenMission secrets", () => {
+  it.live("runs a thread through the app server with its model, effort, tools, and no Canopy secrets", () => {
     const { layer, logged, requests } = withHarnesses();
     return Effect.gen(function* () {
       const started = yield* start({ effort: "high", harness: "codex", model: "gpt-x", text: "Hello" });
@@ -180,10 +180,8 @@ describe("Codex adapter", () => {
         model: "gpt-x",
         sandbox: "workspace-write",
       });
-      expect(JSON.stringify(thread?.params?.config)).toMatch(
-        /"mcp_servers\.openmission\.url":"http:\/\/127\.0\.0\.1:\d+\//,
-      );
-      expect(String(thread?.params?.developerInstructions)).toContain("# Approvals in OpenMission");
+      expect(JSON.stringify(thread?.params?.config)).toMatch(/"mcp_servers\.canopy\.url":"http:\/\/127\.0\.0\.1:\d+\//);
+      expect(String(thread?.params?.developerInstructions)).toContain("# Approvals in Canopy");
       expect(String(thread?.params?.developerInstructions)).not.toContain("dangerouslyDisableSandbox");
       expect(requests("turn/start")[0]?.params).toMatchObject({ effort: "high", model: "gpt-x" });
       expect(logged().find((entry) => entry.pid !== undefined)?.env).toEqual([]);
@@ -272,7 +270,7 @@ describe("Codex adapter", () => {
 });
 
 describe("OpenCode adapter", () => {
-  it.live("runs a thread over ACP with OpenMission's tools, permissions, context, and model", () => {
+  it.live("runs a thread over ACP with Canopy's tools, permissions, context, and model", () => {
     const { layer, logged, requests } = withHarnesses();
     return Effect.gen(function* () {
       const started = yield* start({ harness: "opencode", model: "provider/model-a", text: "Hello" });
@@ -291,8 +289,8 @@ describe("OpenCode adapter", () => {
         { action: "edit", effect: "allow", resource: "*" },
         { action: "subagent", effect: "deny", resource: "*" },
       ]);
-      expect(config.mcp.servers.openmission?.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\//);
-      expect(readFileSync(config.instructions[0] ?? "", "utf8")).toContain("# Threads in OpenMission");
+      expect(config.mcp.servers.canopy?.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\//);
+      expect(readFileSync(config.instructions[0] ?? "", "utf8")).toContain("# Threads in Canopy");
       expect(requests("session/set_config_option")[0]?.params).toMatchObject({
         configId: "model",
         value: "provider/model-a",

@@ -1,6 +1,6 @@
-import type { HarnessName, ModelOption } from "@openmission/contracts";
+import type { HarnessName, ModelOption } from "@canopy/contracts";
 
-// What OpenMission knows of each harness without running it (provider-accounts).
+// What Canopy knows of each harness without running it (provider-accounts).
 
 /** Each harness's name as the owner reads it. */
 export const harnessLabels = {
@@ -36,5 +36,5 @@ export const configVariables = {
 export const accountEnvironmentOf = (harness: HarnessName, configDirectory: string | null): Record<string, string> =>
   configDirectory === null ? {} : { [configVariables[harness]]: configDirectory };
 
-/** The label of a harness's own sign-in on this computer, outside OpenMission. */
+/** The label of a harness's own sign-in on this computer, outside Canopy. */
 export const ownAccountLabel = "This computer";

@@ -1,6 +1,6 @@
 import { join } from "node:path";
+import type { MissionDetail, MissionId, Suggestion, SuggestionAnswer, ThreadId } from "@canopy/contracts";
 import { describe, expect, it } from "@effect/vitest";
-import type { MissionDetail, MissionId, Suggestion, SuggestionAnswer, ThreadId } from "@openmission/contracts";
 import { Effect } from "effect";
 import { afterEach } from "vitest";
 import { fakeHarnessLayer, serviceLayer } from "../src/index.ts";

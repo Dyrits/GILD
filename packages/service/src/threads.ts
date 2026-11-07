@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import type { EffortChoice, HarnessName, ModelChoice } from "@openmission/contracts";
+import type { EffortChoice, HarnessName, ModelChoice } from "@canopy/contracts";
 import { Clock, Context, Effect, FiberMap, FiberSet, Layer, Match, PubSub } from "effect";
 import { SqlClient } from "effect/sql";
 import { touchMission } from "./activity.ts";
@@ -56,13 +56,13 @@ export class Threads extends Context.Service<
     /** Once threads stopped outside a turn's end, wakes the mission's threads whose messages wait. */
     readonly wakeMission: (missionId: string) => Effect.Effect<void>;
   }
->()("openmission/Threads") {}
+>()("canopy/Threads") {}
 
 /** Where each mission's threads with no workspace run, one scratch folder per mission. */
-export class ScratchRoot extends Context.Service<ScratchRoot, string>()("openmission/ScratchRoot") {}
+export class ScratchRoot extends Context.Service<ScratchRoot, string>()("canopy/ScratchRoot") {}
 
-/** Where each provider account added in OpenMission keeps its own folder (provider-accounts). */
-export class AccountsRoot extends Context.Service<AccountsRoot, string>()("openmission/AccountsRoot") {}
+/** Where each provider account added in Canopy keeps its own folder (provider-accounts). */
+export class AccountsRoot extends Context.Service<AccountsRoot, string>()("canopy/AccountsRoot") {}
 
 interface Admitted {
   readonly accountId: string | null;

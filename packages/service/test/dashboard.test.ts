@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import type { MissionId, MissionList } from "@canopy/contracts";
 import { describe, expect, it } from "@effect/vitest";
-import type { MissionId, MissionList } from "@openmission/contracts";
 import { Effect } from "effect";
 import { TestClock } from "effect/testing";
 import { afterEach } from "vitest";

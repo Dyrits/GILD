@@ -1,4 +1,4 @@
-import type { MissionId, Suggestion, SuggestionAnswer, ThreadId } from "@openmission/contracts";
+import type { MissionId, Suggestion, SuggestionAnswer, ThreadId } from "@canopy/contracts";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import type { ServiceClient } from "./client";

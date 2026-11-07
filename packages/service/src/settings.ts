@@ -1,4 +1,4 @@
-import { Settings, StartChoices } from "@openmission/contracts";
+import { Settings, StartChoices } from "@canopy/contracts";
 import { Effect, Exit, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid } from "./errors.ts";

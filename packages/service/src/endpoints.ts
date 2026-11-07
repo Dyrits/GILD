@@ -17,7 +17,7 @@ export class Endpoints extends Context.Service<
     /** Called once by the tool server when it listens. */
     readonly open: (port: number) => Effect.Effect<void>;
   }
->()("openmission/Endpoints") {}
+>()("canopy/Endpoints") {}
 
 /** Issues endpoints for the service's lifetime; the tool server opens them once it listens. */
 export const endpointsLayer = Layer.effect(

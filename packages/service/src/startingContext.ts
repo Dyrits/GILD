@@ -1,4 +1,4 @@
-import type { ModelChoice, StartingContext } from "@openmission/contracts";
+import type { ModelChoice, StartingContext } from "@canopy/contracts";
 import { Effect } from "effect";
 import { claudeModels } from "./harnessCatalog.ts";
 import { contextWindowOf, readIntelSize } from "./intel.ts";

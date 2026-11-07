@@ -13,7 +13,7 @@ A user who is new to agents does not know which harness, model, or mission fits 
 
 ### What Control does itself
 
-- Control answers only questions about missions and about using OpenMission. It opens a mission for anything else, even a quick question.
+- Control answers only questions about missions and about using Canopy. It opens a mission for anything else, even a quick question.
 - Control opens no threads beneath itself; its work goes into missions. Since it belongs to no mission, the off-topic suggestion never appears in Control.
 - Control acts on missions (stopping threads, marking Done, archiving, renaming) only when the user asks in Control, with the same confirmations as on the dashboard, and never on its own.
 
@@ -21,7 +21,7 @@ A user who is new to agents does not know which harness, model, or mission fits 
 
 - Control first looks for missions that fit the request with `find_missions` and offers **Continue in** for up to 3 matches, as the [off-topic suggestion](../thread-tree/specifications.md#off-topic-requests) does. When nothing matches, it opens a new mission directly.
 - Settings hold a default model and up to three optional tiers (Light, Balanced, Heavy), each a harness, model, and effort. Control picks a tier from how complex the request is, or the default when no tiers are set.
-- Control picks the workspace the request implies, for example "fix the login bug in OpenMission" picks the OpenMission workspace, or none. Given a repository link, it clones the repository with `clone_repository`, or reuses its earlier clone, and opens the mission there (see [workspace-attachment](../workspace-attachment/specifications.md#cloning-a-repository)).
+- Control picks the workspace the request implies, for example "fix the login bug in Canopy" picks the Canopy workspace, or none. Given a repository link, it clones the repository with `clone_repository`, or reuses its earlier clone, and opens the mission there (see [workspace-attachment](../workspace-attachment/specifications.md#cloning-a-repository)).
 - Its reply links to the mission and names the tier, harness, model, effort, and workspace it chose, for example "Opened on Balanced: Codex, GPT-5, medium". The user can change the harness, agent, model, and effort afterwards through a handover; the workspace stays.
 - The new mission's top thread starts as **Open as new mission** does: with the request, global skills and intel, and nothing from another mission.
 

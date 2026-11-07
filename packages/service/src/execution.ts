@@ -1,4 +1,4 @@
-import type { ApprovalLevel, EffortChoice, HarnessName, ModelChoice, TokenUsage } from "@openmission/contracts";
+import type { ApprovalLevel, EffortChoice, HarnessName, ModelChoice, TokenUsage } from "@canopy/contracts";
 import { Context, Deferred, type Duration, Effect, Layer, Schema } from "effect";
 
 export type HarnessEvent =
@@ -80,7 +80,7 @@ export interface HarnessAdapter {
 }
 
 /** The harness seam: runs one turn of a thread, reports its events, and lets it be steered and interrupted. */
-export class Harness extends Context.Service<Harness, HarnessAdapter>()("openmission/Harness") {}
+export class Harness extends Context.Service<Harness, HarnessAdapter>()("canopy/Harness") {}
 
 /**
  * Sends each turn to the adapter of its thread's harness, and steering and interrupts to the adapter running

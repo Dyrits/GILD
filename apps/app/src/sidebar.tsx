@@ -1,4 +1,4 @@
-import type { MissionId, MissionSummary } from "@openmission/contracts";
+import type { MissionId, MissionSummary } from "@canopy/contracts";
 import { createContext, type ReactNode, useContext } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import type { ServiceClient } from "./client";
@@ -95,8 +95,8 @@ function Sidebar({
   return (
     <View style={local.sidebar}>
       <View style={local.brand}>
-        <Image accessibilityLabel="OpenMission logo" source={logo} style={local.logo} />
-        <Text style={local.brandText}>OpenMission</Text>
+        <Image accessibilityLabel="Canopy logo" source={logo} style={local.logo} />
+        <Text style={local.brandText}>Canopy</Text>
       </View>
       <Pressable
         accessibilityRole="button"

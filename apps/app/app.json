@@ -12,9 +12,9 @@
     "ios": {
       "supportsTablet": true
     },
-    "name": "OpenMission",
+    "name": "Canopy",
     "orientation": "portrait",
-    "slug": "openmission",
+    "slug": "canopy",
     "splash": {
       "backgroundColor": "#01081C",
       "image": "./assets/splash-icon.png",

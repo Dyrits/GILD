@@ -50,6 +50,6 @@ export type IntelHistoryEntryId = typeof IntelHistoryEntryId.Type;
 export const IntelProposalId = Schema.String.pipe(Schema.brand("IntelProposalId"));
 export type IntelProposalId = typeof IntelProposalId.Type;
 
-/** Identifies a provider account added in OpenMission: a harness signed in with its own folder (provider-accounts). */
+/** Identifies a provider account added in Canopy: a harness signed in with its own folder (provider-accounts). */
 export const AccountId = Schema.String.pipe(Schema.brand("AccountId"));
 export type AccountId = typeof AccountId.Type;

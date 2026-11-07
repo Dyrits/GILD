@@ -3,7 +3,7 @@ import {
   MessageDelivery as MessageDeliveries,
   type MessageDelivery,
   type Settings,
-} from "@openmission/contracts";
+} from "@canopy/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { AccountsSection } from "./accounts";

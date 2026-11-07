@@ -10,7 +10,7 @@ Delivered in CHG-0026 (commit 649e232). Provisional behavior still in place unti
 
 ## Batch 2: delivered
 
-Delivered in CHG-0030 (commits ddb888d to d62a904). Provisional behavior still in place until decided: a failed turn's messages become undelivered and are retried with the next message; the live check runs only with `OPENMISSION_LIVE_CLAUDE=1`; a missing `claude` executable is covered by the stand-in checks only.
+Delivered in CHG-0030 (commits ddb888d to d62a904). Provisional behavior still in place until decided: a failed turn's messages become undelivered and are retried with the next message; the live check runs only with `CANOPY_LIVE_CLAUDE=1`; a missing `claude` executable is covered by the stand-in checks only.
 
 ## Batch 3: delivered
 
@@ -20,7 +20,7 @@ Delivered in CHG-0033; the owner skipped the run-through and the desktop notific
 
 - **Approval level** in Settings: **Risky actions only** (default) or **Also commands and edits**.
 - **Default level**: Claude Code runs sandboxed with in-workspace edits and sandboxed commands unasked. The thread's instructions list the risky actions (action-approval, Asking); the thread calls `request_approval` before one.
-- **Harness prompts** reach OpenMission through `--permission-prompt-tool` on the local MCP server. A prompt matching the action just allowed in that thread runs once without a question; one matching a standing permission's pattern runs unasked; any other prompt becomes a question. At **Also commands and edits**, every prompt is a question.
+- **Harness prompts** reach Canopy through `--permission-prompt-tool` on the local MCP server. A prompt matching the action just allowed in that thread runs once without a question; one matching a standing permission's pattern runs unasked; any other prompt becomes a question. At **Also commands and edits**, every prompt is a question.
 - **No sandbox** (native Windows; Linux or WSL2 without bubblewrap and socat): the default level asks for every prompt, and Settings says why.
 - **The question**: one sentence (what and why); **Show details** with the exact command or target and the proposed pattern; **Allow**, **Always allow**, **Deny**, **Deny with a message**, **Discard**. Thread in Attention until answered, no time limit. Deny carries on with the refusal; Discard answers as Deny without a message.
 - **Named in the owner's message**: `request_approval` cites the owner's words; when they appear verbatim in the owner's latest message in that thread, the answer is Allowed without a question, recorded as "Allowed by your message". Thread or harness text never counts.
@@ -44,7 +44,7 @@ Delivered in CHG-0033; the owner skipped the run-through and the desktop notific
 
 - Live probe: done, see above.
 - Automated with the fake harness: done, 42 checks.
-- Live check behind `OPENMISSION_LIVE_CLAUDE=1`: done, 44 of 44 pass with Haiku.
+- Live check behind `CANOPY_LIVE_CLAUDE=1`: done, 44 of 44 pass with Haiku.
 - `bun run test`, `bun run typecheck`, `bun run check`: pass. Driven in the Electron window: done, see Drive findings.
 - User run-through: pending. In a mission's scratch folder, allow a push to a local bare remote, choose Always allow, see a second push run unasked, remove the permission on the Permissions page; confirm the desktop notification.
 
@@ -62,9 +62,9 @@ Fixed during the drive, each with a check written first:
 
 Open, for the owner:
 
-- Settled in CHG-0032: the sandbox protects `.git` (its write settings cannot lift a protected path, per Claude Code's settings reference), so OpenMission answers prompts for local git itself at the default level when the sandbox runs. Verified in the window: a mission created a repository, committed, and branched with no question.
+- Settled in CHG-0032: the sandbox protects `.git` (its write settings cannot lift a protected path, per Claude Code's settings reference), so Canopy answers prompts for local git itself at the default level when the sandbox runs. Verified in the window: a mission created a repository, committed, and branched with no question.
 - The desktop notification was not observed by an agent.
-- The service passes its whole environment to Claude Code except `OPENMISSION_` variables. Launched from an agent's shell, that leaked the agent's `CLAUDE_*` and `GIT_CONFIG_*` variables; a normal launch is not affected. Not changed.
+- The service passes its whole environment to Claude Code except `CANOPY_` variables. Launched from an agent's shell, that leaked the agent's `CLAUDE_*` and `GIT_CONFIG_*` variables; a normal launch is not affected. Not changed.
 
 ## Batch 4: delivered
 
@@ -509,7 +509,7 @@ The warning before a thread starts with too large a starting context (thread-tre
 
 ## Batch 18: built, awaiting the owner
 
-Harnesses and provider accounts ([provider-accounts](capabilities/provider-accounts/specifications.md)), chosen by an agent under the owner's instruction of 2026-11-07 to make OpenMission usable to build OpenMission with Claude Code (several accounts), Codex, and OpenCode, without questions. Starts from `ab85b66`. Built with stand-in checks first, then probed and driven live: [proof](verification/2026-11-07-harnesses-and-accounts.md). Recorded in CHG-0057.
+Harnesses and provider accounts ([provider-accounts](capabilities/provider-accounts/specifications.md)), chosen by an agent under the owner's instruction of 2026-11-07 to make Canopy usable to build Canopy with Claude Code (several accounts), Codex, and OpenCode, without questions. Starts from `ab85b66`. Built with stand-in checks first, then probed and driven live: [proof](verification/2026-11-07-harnesses-and-accounts.md). Recorded in CHG-0057.
 
 ### Behavior
 
@@ -521,7 +521,7 @@ Harnesses and provider accounts ([provider-accounts](capabilities/provider-accou
 ### Provisional, until the owner decides
 
 - Codex runs `workspace-write` with `on-request` approvals at the default level and `untrusted` at "Also commands and edits"; its escalations go to `answer_prompt` as a Bash prompt, file changes as Edit, sandbox widenings as "Permissions".
-- OpenCode asks for every shell command (no sandbox) and, at the stricter level, every edit; its subagents are denied. Its starting context is written to `$TMPDIR/openmission-opencode/<thread>.md` and given as `instructions`.
+- OpenCode asks for every shell command (no sandbox) and, at the stricter level, every edit; its subagents are denied. Its starting context is written to `$TMPDIR/canopy-opencode/<thread>.md` and given as `instructions`.
 - The owner's own Codex and OpenCode settings (their MCP servers, skills, agents) still load in threads; Claude Code's stay off as before.
 - Codex threads are not ephemeral: they appear in the owner's Codex history; OpenCode sessions in OpenCode's.
 - OpenCode takes no effort; a steered message waits for its next turn.
@@ -533,7 +533,7 @@ Harnesses and provider accounts ([provider-accounts](capabilities/provider-accou
 
 ### Checks
 
-- Automated: 21 checks in `harnesses.test.ts` on stand-ins; 3 opt-in live checks in `liveHarnesses.test.ts` (`OPENMISSION_LIVE_HARNESSES=1`, `OPENMISSION_LIVE_OPENCODE_MODEL`).
+- Automated: 21 checks in `harnesses.test.ts` on stand-ins; 3 opt-in live checks in `liveHarnesses.test.ts` (`CANOPY_LIVE_HARNESSES=1`, `CANOPY_LIVE_OPENCODE_MODEL`).
 - `bun run test` (332 passed, 8 skipped), `bun run typecheck`, `bun run check`, `git diff --check`, desktop build, Metro web export; 12 of 12 mutations caught in a separate copy.
 - Driven in the window with the real harnesses: see the proof.
 - Not run: signing in an added account; live Codex escalation and steering; live OpenCode permission prompts.

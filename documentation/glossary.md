@@ -1,6 +1,6 @@
-# OpenMission
+# Canopy
 
-OpenMission organizes a person's work with AI agents as missions carried out in trees of threads, where any thread can open further threads on any harness, model, and effort, and threads talk to each other in both directions.
+Canopy organizes a person's work with AI agents as missions carried out in trees of threads, where any thread can open further threads on any harness, model, and effort, and threads talk to each other in both directions.
 
 ## Work
 
@@ -45,7 +45,7 @@ The one permanent thread outside every mission that the user can talk to about a
 _Avoid_: Coordinator, dispatcher, orchestrator, main thread, Mission control
 
 **Workspace**:
-A folder or repository on the user's computer, chosen by the user or cloned by OpenMission, that a thread is attached to before it starts.
+A folder or repository on the user's computer, chosen by the user or cloned by Canopy, that a thread is attached to before it starts.
 _Avoid_: Project, repo, directory
 
 **Browsable root**:
@@ -53,7 +53,7 @@ A folder set in Settings under which the user and threads can browse and choose 
 _Avoid_: Allowed folder, sandbox
 
 **Scratch folder**:
-The folder OpenMission keeps for each mission, where its threads with no workspace work.
+The folder Canopy keeps for each mission, where its threads with no workspace work.
 _Avoid_: Temp folder, default workspace
 
 **Own copy**:
@@ -82,7 +82,7 @@ The account that bills model use, such as an Anthropic subscription or an OpenAI
 _Avoid_: Vendor
 
 **Provider account**:
-One sign-in a harness runs with: the computer's own, or one added in OpenMission with its own folder, such as a second Claude account named "Work".
+One sign-in a harness runs with: the computer's own, or one added in Canopy with its own folder, such as a second Claude account named "Work".
 _Avoid_: Profile, login, credential
 
 **Handover**:
@@ -158,7 +158,7 @@ _Avoid_: Deleted intel
 ## Devices
 
 **Paired device**:
-A phone connected to the user's OpenMission by scanning a pairing code.
+A phone connected to the user's Canopy by scanning a pairing code.
 _Avoid_: Remote, client
 
 **Pairing code**:

@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { TokenUsage } from "@openmission/contracts";
+import type { TokenUsage } from "@canopy/contracts";
 import { Duration, Effect, Fiber, Queue, type Result } from "effect";
 import { harnessEnvironmentOf } from "./claude.ts";
 import {
@@ -18,7 +18,7 @@ import { toolServerName } from "./mcp.ts";
 import { countOf, fieldOf, isPromptAllowed, type RpcProcess, startRpcProcess, textFieldOf } from "./rpcProcess.ts";
 
 // OpenCode through the Agent Client Protocol (ADR 0008; `opencode acp` of OpenCode 2.2.0, probed 2026-11-07):
-// one process per thread, one ACP session per OpenMission thread.
+// one process per thread, one ACP session per Canopy thread.
 
 export interface OpenCodeOptions {
   /** The executable; `opencode` on the PATH by default. */
@@ -53,7 +53,7 @@ const noTimeLimit = 2147483647;
 
 /**
  * OpenCode's permissions, by approval level (CHG-0031, CHG-0035). OpenCode has no sandbox here, so every
- * command asks OpenMission, which lets it run unasked unless it is sensitive; at "Also commands and edits"
+ * command asks Canopy, which lets it run unasked unless it is sensitive; at "Also commands and edits"
  * edits ask too. Its own subagents stay off: threads open threads with open_thread (ADR 0007).
  */
 const permissionsOf = (access: ThreadAccess) => [
@@ -62,7 +62,7 @@ const permissionsOf = (access: ThreadAccess) => [
   { action: "subagent", effect: "deny", resource: "*" },
 ];
 
-/** The configuration OpenCode adds to the owner's own: OpenMission's tools, permissions, and starting context. */
+/** The configuration OpenCode adds to the owner's own: Canopy's tools, permissions, and starting context. */
 const configOf = (access: ThreadAccess, instructionsPath: string) => ({
   instructions: [instructionsPath],
   mcp: {
@@ -108,7 +108,7 @@ export const makeOpenCodeHarness = (options: OpenCodeOptions) =>
   Effect.gen(function* () {
     const sessions = new Map<string, Session>();
     const idleMillis = Duration.toMillis(Duration.fromInputUnsafe(options.idleTimeout));
-    const instructionsFolder = options.instructionsFolder ?? join(tmpdir(), "openmission-opencode");
+    const instructionsFolder = options.instructionsFolder ?? join(tmpdir(), "canopy-opencode");
 
     const close = (threadId: string) => {
       const session = sessions.get(threadId);
@@ -177,7 +177,7 @@ export const makeOpenCodeHarness = (options: OpenCodeOptions) =>
         return session;
       });
 
-    /** Answers one of OpenCode's permission requests through OpenMission's prompt tool; it may wait on the owner. */
+    /** Answers one of OpenCode's permission requests through Canopy's prompt tool; it may wait on the owner. */
     const answerRequest = (
       session: Session,
       request: TurnRequest,
@@ -185,7 +185,7 @@ export const makeOpenCodeHarness = (options: OpenCodeOptions) =>
     ) =>
       Effect.gen(function* () {
         if (incoming.method !== "session/request_permission")
-          return session.rpc.respondError(incoming.id, `OpenMission does not answer ${incoming.method}.`);
+          return session.rpc.respondError(incoming.id, `Canopy does not answer ${incoming.method}.`);
         const { input, toolName } = promptOf(fieldOf(incoming.params, "toolCall"));
         const answer = yield* callThreadTool(request.access.mcpUrl, "answer_prompt", { input, tool_name: toolName });
         const wanted = isPromptAllowed(answer) ? "allow_once" : "reject_once";

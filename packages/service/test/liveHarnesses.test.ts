@@ -1,8 +1,8 @@
 import { mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { HarnessName, MissionDetail, MissionId, Request, RequestTag, ResultOf } from "@canopy/contracts";
 import { describe, expect, it } from "@effect/vitest";
-import type { HarnessName, MissionDetail, MissionId, Request, RequestTag, ResultOf } from "@openmission/contracts";
 import { Effect, Layer } from "effect";
 import { afterEach } from "vitest";
 import {
@@ -17,7 +17,7 @@ import {
 } from "../src/index.ts";
 
 // Opt-in checks against the installed Codex and OpenCode (provider-accounts). Each uses a few tokens of the
-// owner's own sign-in: OPENMISSION_LIVE_HARNESSES=1, and OPENMISSION_LIVE_OPENCODE_MODEL for OpenCode's model.
+// owner's own sign-in: CANOPY_LIVE_HARNESSES=1, and CANOPY_LIVE_OPENCODE_MODEL for OpenCode's model.
 
 const directories: string[] = [];
 afterEach(() => {
@@ -25,13 +25,13 @@ afterEach(() => {
 });
 
 const commands = {
-  claude: process.env.OPENMISSION_CLAUDE_PATH ?? "claude",
-  codex: process.env.OPENMISSION_CODEX_PATH ?? "codex",
-  opencode: process.env.OPENMISSION_OPENCODE_PATH ?? "opencode",
+  claude: process.env.CANOPY_CLAUDE_PATH ?? "claude",
+  codex: process.env.CANOPY_CODEX_PATH ?? "codex",
+  opencode: process.env.CANOPY_OPENCODE_PATH ?? "opencode",
 };
 
 const live = () => {
-  const directory = realpathSync(mkdtempSync(join(tmpdir(), "openmission-live-")));
+  const directory = realpathSync(mkdtempSync(join(tmpdir(), "canopy-live-")));
   directories.push(directory);
   const harness = Layer.effect(
     Harness,
@@ -44,7 +44,7 @@ const live = () => {
     }),
   );
   return serviceLayer({
-    filename: join(directory, "openmission.sqlite"),
+    filename: join(directory, "canopy.sqlite"),
     harness,
     harnessTools: liveHarnessToolsLayer(commands),
     homeFolder: directory,
@@ -90,7 +90,7 @@ const titledTurn = (harness: HarnessName, model: string) =>
     return detail;
   });
 
-describe.runIf(process.env.OPENMISSION_LIVE_HARNESSES === "1")("live harnesses (use a few tokens)", () => {
+describe.runIf(process.env.CANOPY_LIVE_HARNESSES === "1")("live harnesses (use a few tokens)", () => {
   it.live(
     "lists the installed harnesses, their sign-ins, and their models",
     () =>
@@ -117,7 +117,7 @@ describe.runIf(process.env.OPENMISSION_LIVE_HARNESSES === "1")("live harnesses (
 
   it.live(
     "runs an OpenCode turn that uses its thread tools",
-    () => titledTurn("opencode", process.env.OPENMISSION_LIVE_OPENCODE_MODEL ?? "default").pipe(Effect.provide(live())),
+    () => titledTurn("opencode", process.env.CANOPY_LIVE_OPENCODE_MODEL ?? "default").pipe(Effect.provide(live())),
     300_000,
   );
 });

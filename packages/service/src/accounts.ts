@@ -1,6 +1,6 @@
 import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import type { AccountId, AccountStatus, HarnessInfo, HarnessList, HarnessName } from "@openmission/contracts";
+import type { AccountId, AccountStatus, HarnessInfo, HarnessList, HarnessName } from "@canopy/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, notFound } from "./errors.ts";

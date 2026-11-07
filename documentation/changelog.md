@@ -799,3 +799,17 @@ Summary: The owner's logo (a white arrow on a blue-to-violet arc with an orange 
 References: apps/app/app.json; apps/app/assets/; apps/app/src/sidebar.tsx; apps/desktop/assets/icon.png; apps/desktop/src/main.ts; documentation/verification/2026-11-07-logo/sidebar.png
 Validation: `bun run typecheck`, `bun run check`, the desktop build, and a Metro web export passed; the sidebar was seen in the window ([sidebar](verification/2026-11-07-logo/sidebar.png)). Not verified: the dock icon (screen capture unavailable), a native Android or iOS build.
 Evidence: The owner's instruction of 2026-11-07: "Use this logo for the app." with the image `43855.png`.
+
+## CHG-0059 · 2026-11-07 · Renamed to Canopy
+
+Type: Code and documentation
+Event: Delivery
+Scope: Whole product
+
+Summary: OpenMission is now Canopy. The domain terms stay as they are (mission, thread, Control, journal, briefing, dashboard, intel); Canopy reads as the view from above, a cockpit's canopy, not as tree vocabulary.
+- The app, window, sidebar, Expo `name` and `slug`, packages (`canopy`, `@canopy/contracts`, `@canopy/service`), environment variables (`CANOPY_*`), the desktop bridge (`window.canopy`, `canopy:*` channels), service keys, temporary folder prefixes, the database file (`canopy.sqlite`), and the thread tools' MCP server name (`mcp__canopy__…`) carry the new name.
+- On first launch without `CANOPY_DATA_DIR`, the desktop app moves the former `OpenMission` user-data folder to `Canopy` when only the former exists, renames the database with its write-ahead files, and renames Claude Code's session folders for scratch folders (the computer's sign-in and each added account), so threads with no workspace still resume.
+- Living documents use the new name; dated records (handoffs, verification, earlier changelog records, architecture decisions, audits) keep the name they were written with, so their `OPENMISSION_*` commands need the new names when rerun.
+References: apps/desktop/src/formerData.ts, main.ts, preload.ts; apps/desktop/test/formerData.test.ts; vitest.config.ts; apps/app/app.json; package.json files; bun.lock; README.md; AGENTS.md; documentation/
+Validation: `bun run test` passed 335 with 8 skipped; typecheck, `bun run check`, and the desktop build passed. The owner's data on this computer was moved with `moveFormerData`: 5 threads, integrity check ok, 4 Claude Code session folders renamed; the built service started on it. Not verified: the app driven in the window after the rename.
+Evidence: The owner's instruction of 2026-11-07: "Operate the rebranding overall in Canopy." Intel is kept for now ("Let's keep Intel for now."); former data migrated; dated records left as written.

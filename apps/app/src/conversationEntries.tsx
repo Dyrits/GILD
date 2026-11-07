@@ -7,7 +7,7 @@ import type {
   Question,
   Suggestion,
   ThreadId,
-} from "@openmission/contracts";
+} from "@canopy/contracts";
 import { Text, View } from "react-native";
 import type { ServiceClient } from "./client";
 import { IntelChangeCard, IntelChangeLine } from "./intel";

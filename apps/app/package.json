@@ -9,8 +9,8 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@canopy/contracts": "workspace:*",
     "@expo/metro-runtime": "~58.0.17",
-    "@openmission/contracts": "workspace:*",
     "effect": "4.1.2",
     "expo": "~58.0.23",
     "expo-status-bar": "~58.0.4",

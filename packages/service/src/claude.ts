@@ -3,7 +3,7 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
-import type { TokenUsage } from "@openmission/contracts";
+import type { TokenUsage } from "@canopy/contracts";
 import { Duration, Effect, Exit, Layer, Queue, Schema } from "effect";
 import {
   Harness,
@@ -31,7 +31,7 @@ export interface ClaudeOptions {
   readonly userSettingsPath?: string;
 }
 
-/** The fields OpenMission reads from Claude Code's stream-json events. */
+/** The fields Canopy reads from Claude Code's stream-json events. */
 interface StreamEvent {
   readonly error?: unknown;
   readonly errors?: unknown;
@@ -72,7 +72,7 @@ interface Session {
 }
 
 // Tools behind approval (CHG-0031): built-in tools only, none of the owner's MCP
-// servers, skills, or settings; every permission prompt goes to OpenMission.
+// servers, skills, or settings; every permission prompt goes to Canopy.
 const baseArgs = [
   "-p",
   "--input-format",
@@ -190,9 +190,9 @@ const accessArgsOf = (access: ThreadAccess, context: string, options: ClaudeOpti
   ];
 };
 
-/** The environment of a harness's process: OpenMission's own variables, such as the owner token, left out. */
+/** The environment of a harness's process: Canopy's own variables, such as the owner token, left out. */
 export const harnessEnvironmentOf = (extra: Record<string, string>) => ({
-  ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("OPENMISSION_"))),
+  ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("CANOPY_"))),
   ...extra,
 });
 

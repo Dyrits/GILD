@@ -1,4 +1,4 @@
-import type { Request, ResultOf } from "@openmission/contracts";
+import type { Request, ResultOf } from "@canopy/contracts";
 import { useEffect, useState } from "react";
 import type { ServiceClient } from "./client";
 

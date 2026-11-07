@@ -1,4 +1,4 @@
-import type { EffortChoice, TokenUsage } from "@openmission/contracts";
+import type { EffortChoice, TokenUsage } from "@canopy/contracts";
 import { Duration, Effect, Queue } from "effect";
 import { harnessEnvironmentOf } from "./claude.ts";
 import {
@@ -16,7 +16,7 @@ import { toolServerName } from "./mcp.ts";
 import { countOf, fieldOf, isPromptAllowed, type RpcProcess, startRpcProcess, textFieldOf } from "./rpcProcess.ts";
 
 // Codex through its app server (ADR 0008; protocol of codex-cli 0.160.1, probed 2026-11-07): one
-// `codex app-server` process per thread, one Codex thread per OpenMission thread.
+// `codex app-server` process per thread, one Codex thread per Canopy thread.
 
 export interface CodexOptions {
   /** The executable; `codex` on the PATH by default. */
@@ -51,12 +51,12 @@ const interruptGraceMillis = 10_000;
 /** The longest wait Codex accepts for a thread tool, in seconds: a question waits with no time limit. */
 const noTimeLimitSeconds = 2_147_483;
 
-/** Codex's own effort names; OpenMission's match them, and default leaves the model's own. */
+/** Codex's own effort names; Canopy's match them, and default leaves the model's own. */
 const effortOf = (effort: EffortChoice) => (effort === "default" ? null : effort);
 
 /**
  * How Codex asks, by approval level (CHG-0031, CHG-0035). At the default level commands run in Codex's
- * workspace sandbox and ask only to leave it, which OpenMission answers as Claude Code's prompts: unasked
+ * workspace sandbox and ask only to leave it, which Canopy answers as Claude Code's prompts: unasked
  * unless sensitive. At "Also commands and edits" every command it does not trust asks.
  */
 const policyOf = (access: ThreadAccess) => ({
@@ -64,7 +64,7 @@ const policyOf = (access: ThreadAccess) => ({
   sandbox: "workspace-write",
 });
 
-/** The thread's settings: its tools at its own endpoint, no native subagents, and OpenMission's context. */
+/** The thread's settings: its tools at its own endpoint, no native subagents, and Canopy's context. */
 const threadSettingsOf = (request: TurnRequest) => ({
   ...policyOf(request.access),
   config: {
@@ -127,7 +127,7 @@ export const makeCodexHarness = (options: CodexOptions) =>
         const started = yield* Effect.gen(function* () {
           yield* rpc.request("initialize", {
             capabilities: { experimentalApi: true, requestAttestation: false },
-            clientInfo: { name: "openmission", title: "OpenMission", version: "0.0.0" },
+            clientInfo: { name: "canopy", title: "Canopy", version: "0.0.0" },
           });
           rpc.notify("initialized", {});
           const settings = threadSettingsOf(request);
@@ -183,13 +183,13 @@ export const makeCodexHarness = (options: CodexOptions) =>
             scope: "turn",
           });
         }
-        // OpenMission's own tools need no confirmation; another server's question is declined.
+        // Canopy's own tools need no confirmation; another server's question is declined.
         if (method === "mcpServer/elicitation/request") {
           const isOwn = textFieldOf(params, "serverName") === toolServerName;
           return session.rpc.respond(id, { _meta: null, action: isOwn ? "accept" : "decline", content: null });
         }
         if (method === "item/tool/requestUserInput") return session.rpc.respond(id, { answers: {} });
-        return session.rpc.respondError(id, `OpenMission does not answer ${method}.`);
+        return session.rpc.respondError(id, `Canopy does not answer ${method}.`);
       });
 
     const runTurn = (request: TurnRequest) =>

@@ -4,7 +4,7 @@ Status: built in batch 18 (CHG-0057) by an agent under the owner's instruction o
 
 ## Problem and outcome
 
-The owner works with several harnesses and, for some, several subscriptions: two Claude accounts, a ChatGPT plan for Codex, providers behind OpenCode. Each thread must run on the harness and account chosen for it, with its own sign-in and conversations, so OpenMission can build OpenMission with whichever harness and account fits each part of the work.
+The owner works with several harnesses and, for some, several subscriptions: two Claude accounts, a ChatGPT plan for Codex, providers behind OpenCode. Each thread must run on the harness and account chosen for it, with its own sign-in and conversations, so Canopy can build Canopy with whichever harness and account fits each part of the work.
 
 ## Agreed behavior
 
@@ -18,9 +18,9 @@ The owner works with several harnesses and, for some, several subscriptions: two
 
 ### Accounts
 
-- Every harness has the **computer's own sign-in** ("This computer"): what the harness uses outside OpenMission.
+- Every harness has the **computer's own sign-in** ("This computer"): what the harness uses outside Canopy.
 - The owner adds more accounts in Settings, **Harnesses and accounts**, by name (for example "Work"). Each added account has its own folder, where the harness keeps that account's sign-in and conversations: `CLAUDE_CONFIG_DIR` for Claude Code, `CODEX_HOME` for Codex, `XDG_DATA_HOME` for OpenCode.
-- **Sign in** opens the harness's own sign-in (`claude auth login`, `codex login`, `opencode auth login`) in a Terminal window, pointed at the account's folder. OpenMission never sees, reads, or stores the credentials (requirements, Comply with provider terms). **Refresh** reads each account's state again.
+- **Sign in** opens the harness's own sign-in (`claude auth login`, `codex login`, `opencode auth login`) in a Terminal window, pointed at the account's folder. Canopy never sees, reads, or stores the credentials (requirements, Comply with provider terms). **Refresh** reads each account's state again.
 - Settings shows each account's state as the harness's own status command reports it: Signed in (with who, such as an email and plan), Signed out, or unknown.
 - A thread runs on the account chosen when it starts; a thread beneath keeps its opener's account on the same harness, and takes the computer's own sign-in on another harness.
 - **Remove** deletes an added account and its folder. It is refused while a mission that is not ended has a thread on that account, since the thread's conversation lives in that folder. Threads of ended missions keep the account's identifier and show "Removed account".
@@ -29,8 +29,8 @@ The owner works with several harnesses and, for some, several subscriptions: two
 ### Approvals on every harness
 
 - The approval level applies to every harness (action-approval). Claude Code keeps its own sandbox (CHG-0031).
-- **Codex** runs in its workspace-write sandbox. At **Risky actions only** it asks only to leave the sandbox, and OpenMission answers that as a Claude Code prompt: unasked unless sensitive. At **Also commands and edits** every command Codex does not trust asks.
-- **OpenCode** has no sandbox here: every shell command asks OpenMission, which runs it unasked unless it is sensitive. Edits ask only at **Also commands and edits**.
+- **Codex** runs in its workspace-write sandbox. At **Risky actions only** it asks only to leave the sandbox, and Canopy answers that as a Claude Code prompt: unasked unless sensitive. At **Also commands and edits** every command Codex does not trust asks.
+- **OpenCode** has no sandbox here: every shell command asks Canopy, which runs it unasked unless it is sensitive. Edits ask only at **Also commands and edits**.
 - Native subagents stay off on every harness; threads open threads with `open_thread` (ADR 0007).
 
 ### Steering
@@ -48,4 +48,4 @@ The owner works with several harnesses and, for some, several subscriptions: two
 
 - Choosing an account for Control, routines, and workflows when those are built.
 - Whether removing an account should also remove the Claude Code sign-in kept in the system keychain.
-- Whether the owner's own Codex and OpenCode settings (their MCP servers, skills, and agents) should load in OpenMission's threads, as they do now, or be switched off as they are for Claude Code.
+- Whether the owner's own Codex and OpenCode settings (their MCP servers, skills, and agents) should load in Canopy's threads, as they do now, or be switched off as they are for Claude Code.

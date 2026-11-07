@@ -1,5 +1,5 @@
 import { dirname, join } from "node:path";
-import type { Request } from "@openmission/contracts";
+import type { Request } from "@canopy/contracts";
 import { Context, Effect, Layer, Match, Semaphore } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
 import { addAccount, listHarnesses, removeAccount, renameAccount, signInAccount } from "./accounts.ts";
@@ -48,7 +48,7 @@ import { openThreadByOwner } from "./tree.ts";
 export class Service extends Context.Service<
   Service,
   { readonly handle: (request: Request) => Effect.Effect<unknown, ServiceFailure> }
->()("openmission/Service") {}
+>()("canopy/Service") {}
 
 const storageFailure = (error: SqlError.SqlError) =>
   new ServiceFailure({ kind: "ExecutionFailure", message: `Storage failed: ${error.message}` });
@@ -324,7 +324,7 @@ const make = Effect.gen(function* () {
 });
 
 export interface ServiceOptions {
-  /** Where provider accounts added in OpenMission keep their folders; beside the database when left out. */
+  /** Where provider accounts added in Canopy keep their folders; beside the database when left out. */
   readonly accountsRoot?: string;
   readonly filename: string;
   readonly harness: Layer.Layer<Harness>;

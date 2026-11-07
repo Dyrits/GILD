@@ -1,6 +1,6 @@
-# OpenMission
+# Canopy
 
-People who work with several AI agents lose goals, context, and spending across separate chats and tools. OpenMission gives a single user one place where every piece of work is a mission carried out in a tree of threads: the user or any thread opens further threads on whichever harness, agent, model, and effort fits, hands a thread over to another harness without losing its history, and threads talk to each other in both directions. Success is a mission finished through delegated work the user can see, steer, and pay for knowingly, from the computer or a paired phone.
+People who work with several AI agents lose goals, context, and spending across separate chats and tools. Canopy gives a single user one place where every piece of work is a mission carried out in a tree of threads: the user or any thread opens further threads on whichever harness, agent, model, and effort fits, hands a thread over to another harness without losing its history, and threads talk to each other in both directions. Success is a mission finished through delegated work the user can see, steer, and pay for knowingly, from the computer or a paired phone.
 
 ## Actors
 
@@ -29,6 +29,6 @@ The first build serves one user. The [architecture](architecture.md#future-multi
 - **[scoped-intel](capabilities/scoped-intel/specifications.md)**: gathering and recalling intel at thread, workspace, or global scope.
 - **[action-approval](capabilities/action-approval/specifications.md)**: asking the user in plain language before a risky action, one approval per action and thread, with standing permissions for what the user always allows.
 - **[budget-control](capabilities/budget-control/specifications.md)**: budgets on each mission, on Control, and on all spending over a period, stopping new spending at the limit and shown as rings that fill as they are used.
-- **device-pairing**: pairing a phone with one pairing code and using OpenMission from it on any network.
+- **device-pairing**: pairing a phone with one pairing code and using Canopy from it on any network.
 
 See also the [requirements](requirements.md) and the [glossary](glossary.md).

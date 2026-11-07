@@ -258,14 +258,14 @@ const AccountLabel = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLeng
 /** Adds a provider account to a harness, with its own folder; it is signed out until the owner signs in. */
 export const AddAccount = Schema.TaggedStruct("AddAccount", { harness: HarnessName, label: AccountLabel });
 
-/** Renames a provider account added in OpenMission. */
+/** Renames a provider account added in Canopy. */
 export const RenameAccount = Schema.TaggedStruct("RenameAccount", { accountId: AccountId, label: AccountLabel });
 
 /** Removes a provider account and its folder; refused while a thread that is not ended uses it. */
 export const RemoveAccount = Schema.TaggedStruct("RemoveAccount", { accountId: AccountId });
 
 /**
- * Opens the harness's own sign-in for an account in a terminal window on this computer; OpenMission never
+ * Opens the harness's own sign-in for an account in a terminal window on this computer; Canopy never
  * sees the credentials (requirements, Comply with provider terms). Null signs in the computer's own account.
  */
 export const SignInAccount = Schema.TaggedStruct("SignInAccount", {

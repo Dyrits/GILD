@@ -1,4 +1,4 @@
-import type { Message, MissionDetail, ThreadSummary } from "@openmission/contracts";
+import type { Message, MissionDetail, ThreadSummary } from "@canopy/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { listBudgetEvents, readHeldStop } from "./budgetViews.ts";

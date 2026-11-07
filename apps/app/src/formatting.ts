@@ -1,4 +1,4 @@
-import type { EffortChoice, HarnessName, ModelChoice, ModelOption, TokenUsage } from "@openmission/contracts";
+import type { EffortChoice, HarnessName, ModelChoice, ModelOption, TokenUsage } from "@canopy/contracts";
 
 export const harnessLabels = {
   claude: "Claude Code",

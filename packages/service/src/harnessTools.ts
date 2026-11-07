@@ -2,16 +2,16 @@ import { execFile } from "node:child_process";
 import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { HarnessName, ModelOption, SignInState } from "@openmission/contracts";
+import type { HarnessName, ModelOption, SignInState } from "@canopy/contracts";
 import { Clock, Context, Effect, Layer, Queue } from "effect";
 import { harnessEnvironmentOf } from "./claude.ts";
 import { invalid, type ServiceFailure } from "./errors.ts";
 import { accountEnvironmentOf, claudeModels, configVariables, defaultModel, harnessLabels } from "./harnessCatalog.ts";
 import { fieldOf, startRpcProcess, textFieldOf } from "./rpcProcess.ts";
 
-// What OpenMission asks each harness's own command-line tool about itself: its version, who is signed in,
+// What Canopy asks each harness's own command-line tool about itself: its version, who is signed in,
 // and its models; and how the owner signs in, always through the tool's own sign-in (requirements, Comply
-// with provider terms). OpenMission never reads or stores the credentials.
+// with provider terms). Canopy never reads or stores the credentials.
 
 /** Who a harness says is signed in to one account's folder. */
 export interface SignInStatus {
@@ -38,7 +38,7 @@ export class HarnessTools extends Context.Service<
     readonly openSignIn: (harness: HarnessName, configDirectory: string | null) => Effect.Effect<void, ServiceFailure>;
     readonly readSignIn: (harness: HarnessName, configDirectory: string | null) => Effect.Effect<SignInStatus>;
   }
->()("openmission/HarnessTools") {}
+>()("canopy/HarnessTools") {}
 
 export type HarnessCommands = Record<HarnessName, string>;
 
@@ -90,7 +90,7 @@ const listCodexModels = (command: string, configDirectory: string | null) =>
     const listed = yield* Effect.gen(function* () {
       yield* rpc.request("initialize", {
         capabilities: { experimentalApi: true, requestAttestation: false },
-        clientInfo: { name: "openmission", title: "OpenMission", version: "0.0.0" },
+        clientInfo: { name: "canopy", title: "Canopy", version: "0.0.0" },
       });
       rpc.notify("initialized", {});
       return yield* rpc.request("model/list", {});
@@ -198,7 +198,7 @@ export const liveHarnessToolsLayer = (commands: HarnessCommands) =>
         const line = configDirectory === null ? command : `${variable}=${quoted(configDirectory)} ${command}`;
         if (process.platform !== "darwin") return yield* invalid(`Open a terminal on this computer and run: ${line}`);
         // A .command file opens in Terminal, which runs the harness's own sign-in where the owner answers it.
-        const folder = join(tmpdir(), "openmission-sign-in");
+        const folder = join(tmpdir(), "canopy-sign-in");
         const script = join(folder, `${harness}-${crypto.randomUUID()}.command`);
         yield* Effect.sync(() => {
           mkdirSync(folder, { recursive: true });
@@ -207,7 +207,7 @@ export const liveHarnessToolsLayer = (commands: HarnessCommands) =>
             script,
             [
               "#!/bin/sh",
-              `echo ${quoted(`Signing in to ${harnessLabels[harness]} for OpenMission. Close this window when done.`)}`,
+              `echo ${quoted(`Signing in to ${harnessLabels[harness]} for Canopy. Close this window when done.`)}`,
               ...exports,
               command,
               `rm -f ${quoted(script)}`,

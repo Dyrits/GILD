@@ -1,5 +1,5 @@
+import type { IntelHistoryEntry, IntelId, ThreadId } from "@canopy/contracts";
 import { describe, expect, it } from "@effect/vitest";
-import type { IntelHistoryEntry, IntelId, ThreadId } from "@openmission/contracts";
 import { Effect } from "effect";
 import { TestClock } from "effect/testing";
 import { afterEach } from "vitest";

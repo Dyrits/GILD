@@ -6,7 +6,7 @@ import {
   type HarnessList,
   type HarnessName,
   type ModelChoice,
-} from "@openmission/contracts";
+} from "@canopy/contracts";
 import { useCallback, useEffect, useState } from "react";
 import type { ServiceClient } from "./client";
 import { Choice, Menu } from "./controls";

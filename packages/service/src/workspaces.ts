@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import type { Workspace, WorkspaceId } from "@openmission/contracts";
+import type { Workspace, WorkspaceId } from "@canopy/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid } from "./errors.ts";
