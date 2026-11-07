@@ -772,3 +772,19 @@ No behavior changed. Chosen by an agent under the owner's instruction, without q
 References: documentation/verification/2026-11-07-interface-pass.md; documentation/inspirations.md (OpenBot); apps/app/App.tsx; apps/app/src/theme.ts, sidebar.tsx, styles.ts, controls.tsx, dashboard.tsx, conversation.tsx, conversationEntries.tsx, settings.tsx, intel.tsx, budgets.tsx, formatting.ts, workspaces.tsx, missionActions.tsx, threadActions.tsx, threadTree.tsx, journal.tsx
 Validation: `bun run test` passed 311 with 5 skipped; typecheck, `bun run check`, `git diff --check`, and a Metro web export passed. Driven in the window on the fake harness, with before and after screenshots. The look awaits the owner.
 Evidence: The owner's instruction of 2026-11-07: "Let's work a bit on the UI. Look at how OpenBot looks like and try to get something close to that if possible. I'll be AFK so don't ask any question for now."
+
+## CHG-0057 · 2026-11-07 · Prompt audit: a steady system prompt, fuller tool descriptions, current agent instructions
+
+Type: Code
+Event: Delivery
+Scope: Thread context, thread tools, agent instructions
+
+Summary: Changes from a prompt audit against the current Claude models (`/claude-api prompt-audit`):
+- a thread's system prompt now holds only what stays the same across turns: its working folder, its place in the tree, and how to use the journal, intel, and approvals. The journal's briefing and latest entries, the intel in scope, and the budget line come with each turn's message, ahead of a `---` line. Until now, a new journal entry or intel changed the system prompt, so Claude Code restarted and resumed under a different prompt. That cost the prompt cache and, on Claude Fable 5.1, Opus 5.5, and Sonnet 5.5, the earlier thinking;
+- the budget line ends with what happens at a limit (the work stops and the owner is asked) instead of "prefer cheaper work";
+- tool descriptions: `send_thread_message.text`, `open_thread.model`, and `open_thread.effort` are described; `save_intel` names the temporary kind;
+- `apps/app/AGENTS.md` describes the app as a web build in the desktop window first (ADR 0009) and lints with Biome (`bun run check`), not `expo lint`; `.agents/ai-tooling.md` gives `claudeHarnessLayer`'s current line.
+Chosen by an agent at the owner's request to apply the audit's changes; not yet accepted by the owner.
+References: documentation/verification/2026-11-07-prompt-audit.md; packages/service/src/threads.ts, journal.ts, intel.ts, claude.ts, spending.ts, threadTools.ts; packages/service/test/claude.test.ts, budget.test.ts, threadTools.test.ts, fixtures/stand-in-claude.mjs; apps/app/AGENTS.md; .agents/ai-tooling.md
+Validation: `bun run test` passed 314 with 5 skipped; typecheck, `bun run check`, `git diff --check`, and the desktop build passed. The new checks fail on `ab85b66`, and a fresh agent reproduced the proof. Not verified: a live Claude Code thread's cache reads across a journal change.
+Evidence: The owner's instruction of 2026-11-07: "Apply all the changes you feel relevant. Then /hand-off, commit and push (on main) once done."

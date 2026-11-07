@@ -294,8 +294,8 @@ export const claudeHarnessLayer = (options: ClaudeOptions) =>
           const accessArgs = accessArgsOf(request.access, request.context, options);
           const signature = JSON.stringify(accessArgs);
           const existing = sessions.get(request.threadId);
-          // A changed level, set of permissions, or set of workspace instructions restarts the
-          // process, resuming its conversation.
+          // A changed level, set of permissions, or set of workspace instructions restarts the process,
+          // resuming its conversation; the journal and intel ride on the turn's message instead.
           if (existing !== undefined && existing.signature !== signature) close(request.threadId);
           const current = sessions.get(request.threadId);
           const session =
@@ -308,7 +308,8 @@ export const claudeHarnessLayer = (options: ClaudeOptions) =>
             untaken: new Set(),
           };
           session.turn = turn;
-          const content = request.note === null ? request.text : `${request.note}\n\n${request.text}`;
+          // The turn's note (journal, intel, budget) comes first, set off from the messages it precedes.
+          const content = request.note === null ? request.text : `${request.note}\n\n---\n\n${request.text}`;
           write(session, { message: { content, role: "user" }, type: "user" });
 
           /**

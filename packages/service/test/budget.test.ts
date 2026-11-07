@@ -217,6 +217,7 @@ describe("telling threads their budget", () => {
       yield* send(started.threadId, "context");
       const detail = yield* settle(started.missionId, (d) => isIdle(d) && lastAgentText(d).includes("Budget:"));
       expect(lastAgentText(detail)).toContain("Budget: 200 of 1,000 tokens used (20%)");
+      expect(lastAgentText(detail)).toContain("At a limit, OpenMission stops the work under it and asks the owner.");
     }).pipe(Effect.provide(setup().layer)),
   );
 });

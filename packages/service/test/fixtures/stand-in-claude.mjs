@@ -81,7 +81,8 @@ const startTurn = (input) => {
     emit({ is_error: true, result: "There's an issue with the selected model.", subtype: "success", type: "result" });
     return;
   }
-  const slow = /^slow (\d+)$/.exec(text);
+  // The turn's note, when there is one, precedes the messages after a "---" line.
+  const slow = /(?:^|\n---\n\n)slow (\d+)$/.exec(text);
   current = { held: [], joined: [], text, timer: null, turn };
   if (slow === null) finish(false);
   else current.timer = setTimeout(() => finish(false), Number(slow[1]));

@@ -11,8 +11,8 @@ import { Endpoints } from "./endpoints.ts";
 import { invalid, type ServiceFailure } from "./errors.ts";
 import { Harness, type HarnessEvent, type TurnOutcome } from "./execution.ts";
 import { threadInstructionsOf } from "./instructions.ts";
-import { intelContextOf } from "./intel.ts";
-import { journalContextOf } from "./journal.ts";
+import { intelContextOf, intelInstructions } from "./intel.ts";
+import { journalContextOf, journalInstructions } from "./journal.ts";
 import {
   endTurn,
   failTurn,
@@ -300,9 +300,15 @@ export const threadsLayer = Layer.effect(
         const journal = yield* journalContextOf(threadId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
         const intel = yield* intelContextOf(threadId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
         const budget = yield* budgetLineOf(turn.missionId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
-        const context = [prepared.context, threadInstructionsOf(yield* readPosition(threadId)), journal, intel]
-          .filter((part) => part !== null)
-          .join("\n\n");
+        // The system prompt stays the same across a session's turns: rewriting it restarts the process and
+        // invalidates the cache and earlier thinking. What changes turn to turn rides on the turn's message.
+        const context = [
+          prepared.context,
+          threadInstructionsOf(yield* readPosition(threadId)),
+          journalInstructions,
+          intelInstructions,
+        ].join("\n\n");
+        const note = [journal, intel, budget].filter((part) => part !== null).join("\n\n") || null;
         const mcpUrl = yield* endpoints.urlFor(threadId);
         const onEvent = (event: HarnessEvent) =>
           Match.valueTags(event, {
@@ -325,7 +331,7 @@ export const threadsLayer = Layer.effect(
             cwd,
             effort: turn.effort,
             model: turn.model,
-            note: budget,
+            note,
             onEvent,
             sessionId: turn.sessionId,
             text: turn.messages.join("\n\n"),

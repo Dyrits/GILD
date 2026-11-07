@@ -26,7 +26,7 @@ Not installed: RTK (declined), Chrome DevTools MCP (no diagnosis need yet).
 - Codex sessions: `~/.codex/sessions/` (JSONL), not attributed per project by path.
 - Gemini CLI sessions: `gemini --list-sessions` in the repository: 3 at setup (all setup probes).
 - No token monitor or output-reduction counter is installed; command-output reduction is unmeasured.
-- Representative read-only task: "where is `claudeHarnessLayer` defined and who calls it". Correct answer: `packages/service/src/claude.ts:83`, callers in `packages/service/src/main.ts`, `packages/service/src/index.ts`, tested by `packages/service/test/claude.test.ts`. Codex used 16,155 tokens for it through CodeGraph; duration and output bytes were not measured.
+- Representative read-only task: "where is `claudeHarnessLayer` defined and who calls it". Correct answer: `packages/service/src/claude.ts:217` (it was at line 83 when the baseline was measured), callers in `packages/service/src/main.ts`, `packages/service/src/index.ts`, tested by `packages/service/test/claude.test.ts`. Codex used 16,155 tokens for it through CodeGraph; duration and output bytes were not measured.
 
 ## Session recovery
 

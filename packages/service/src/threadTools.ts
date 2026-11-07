@@ -85,8 +85,16 @@ export const threadTools = {
     invalid: invalid("Invalid arguments: give request."),
     isUnasked: true,
     schema: Schema.Struct({
-      effort: Schema.optionalKey(EffortChoice),
-      model: Schema.optionalKey(ModelChoice),
+      effort: Schema.optionalKey(
+        EffortChoice.annotate({
+          description: "How hard the new thread works, low to max; default is the harness's own. Yours when left out.",
+        }),
+      ),
+      model: Schema.optionalKey(
+        ModelChoice.annotate({
+          description: "The new thread's model; default is the harness's own. Yours when left out.",
+        }),
+      ),
       request: text("Everything the new thread needs to know: it sees none of your conversation."),
       title: optionalText("A short title for the new thread, a few words, shown to the owner."),
     }),
@@ -148,7 +156,7 @@ export const threadTools = {
   }),
   save_intel: definitionOf({
     description:
-      "Save one rule, preference, decision, or fact that later work should know, at the narrowest scope that fits, only when it is worth keeping. Thread, mission, and workspace intel are saved at once; global intel waits for the owner's approval. A save repeating an intel in that scope or a wider one, or a newer version of it, replaces that intel.",
+      "Save one rule, preference, decision, fact, or temporary note that later work should know, at the narrowest scope that fits, only when it is worth keeping. Thread, mission, and workspace intel are saved at once; global intel waits for the owner's approval. A save repeating an intel in that scope or a wider one, or a newer version of it, replaces that intel.",
     invalid: invalid(
       "Invalid arguments: give text, scope (thread, mission, workspace, or global), and kind (rule, preference, decision, fact, or temporary).",
     ),
@@ -180,7 +188,10 @@ export const threadTools = {
       "Send a message to your parent thread or to a thread directly beneath you, by its id. It joins that thread's current turn if it is running, and wakes it if it is idle.",
     invalid: invalid("Invalid arguments: give to and text."),
     isUnasked: true,
-    schema: Schema.Struct({ text: Schema.String, to: text("The receiving thread's id.") }),
+    schema: Schema.Struct({
+      text: text("The message, complete enough to act on: the receiving thread sees none of your conversation."),
+      to: text("The receiving thread's id."),
+    }),
   }),
   set_mission_title: definitionOf({
     description:

@@ -178,5 +178,5 @@ export const budgetLineOf = (missionId: string) =>
         ? null
         : `${percentOf(global.spent.tokens, global.limits.tokens)}% of ${words} tokens`,
     ].filter((part) => part !== null);
-    return `Budget: ${mission}${globalParts.length === 0 ? "" : `; global: ${globalParts.join(", ")}`}. When it is close, prefer cheaper work.`;
+    return `Budget: ${mission}${globalParts.length === 0 ? "" : `; global: ${globalParts.join(", ")}`}. At a limit, OpenMission stops the work under it and asks the owner.`;
   });

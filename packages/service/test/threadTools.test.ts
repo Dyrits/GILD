@@ -28,4 +28,19 @@ describe("listing the thread tools", () => {
     expect(names).not.toContain("mcp__openmission__answer_prompt");
     expect(names).toHaveLength(Object.keys(threadTools).length - 2);
   });
+
+  it("describes every argument a thread fills in", () => {
+    const missing = toolListing
+      .filter((tool) => tool.name !== "answer_prompt")
+      .flatMap((tool) =>
+        Object.entries((tool.inputSchema as { properties?: Record<string, { description?: string }> }).properties ?? {})
+          .filter(([, property]) => property.description === undefined)
+          .map(([name]) => `${tool.name}.${name}`),
+      );
+    expect(missing).toEqual([]);
+  });
+
+  it("names every intel kind in save_intel", () => {
+    expect(toolListing.find((tool) => tool.name === "save_intel")?.description).toContain("temporary");
+  });
 });

@@ -27,4 +27,4 @@
 
 ## Handoffs
 
-To resume after the first interface pass (committed, awaiting the owner's judgment), read the [current handoff](.agents/handoffs/2026-11-07-1100-interface-pass.md). Handoffs are shared and committed.
+To resume after the prompt audit (committed; the interface pass still awaits the owner's judgment), read the [current handoff](.agents/handoffs/2026-11-07-1724-prompt-audit.md). Handoffs are shared and committed.

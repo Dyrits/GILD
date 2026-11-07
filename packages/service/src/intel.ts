@@ -249,7 +249,19 @@ export const readGauge = (threadId: string) =>
     } satisfies IntelGauge;
   });
 
-/** A thread's intel context for each turn: the intel in its scope and how to keep it (scoped-intel, Recall). */
+/** How a thread keeps intel; part of its system prompt, the same every turn (scoped-intel). */
+export const intelInstructions = [
+  "# Intel",
+  "Intel is what OpenMission keeps between threads: rules, preferences, decisions, facts, and temporary notes, each at the scope where it applies. Each of your turns starts with the intel in your scope.",
+  `Before saving, check there is something worth keeping: saving nothing is better than a vague or forced intel. When you learn something later work should know, save it with save_intel: one fact per intel, at most ${intelLimit} tokens. Choose the narrowest scope that fits: thread (you and the threads beneath you), mission (every thread of this mission), workspace (every thread working in this folder, in any mission), or global (everywhere; it waits for the owner's approval).`,
+  "Choose its kind: rule (never fades), preference, decision, fact, or temporary (fades in days). Intel nobody uses fades, so search_intel for what you need: reading an intel there keeps it alive. When an intel from your context shaped what you did, say so with relied_on_intel and its ids; that keeps it alive too.",
+  "A save that says the same as an intel in its scope or a wider one, or a newer version of it, replaces it: the intel keeps its id and takes the new text. When the intel rests on a journal entry, give its number as journalEntry; otherwise the message you are answering is recorded as its origin.",
+  "When the owner gives you a rule in a chat, such as 'always run the tests before a commit', save it as an intel of kind rule without being asked.",
+  "Correct an intel that turned out wrong with update_intel, and delete one that no longer holds with forget_intel. When an intel is not specific to where it was saved, such as a general convention or a preference of the owner, propose a wider scope with update_intel; the owner approves the move.",
+  "Where the mission stands belongs in the journal, not in intel.",
+].join("\n");
+
+/** A thread's intel for each turn's message: the intel in its scope (scoped-intel, Recall). */
 export const intelContextOf = (threadId: string) =>
   Effect.gen(function* () {
     const chain = yield* readScopeChain(threadId);
@@ -262,21 +274,14 @@ export const intelContextOf = (threadId: string) =>
           ? ["1 dormant intel in your scope is not listed; search_intel finds it by words."]
           : [`${count} dormant intels in your scope are not listed; search_intel finds them by words.`];
     return [
-      "# Intel",
-      "Intel is what OpenMission keeps between threads: rules, preferences, decisions, facts, and temporary notes, each at the scope where it applies. The intel in your scope, most specific first; when two conflict, the one listed first wins:",
+      "# Intel at this turn",
+      "The intel in your scope, most specific first; when two conflict, the one listed first wins:",
       recall.inFull.length === 0 ? "(none yet)" : intelLinesOf(recall.inFull),
       "",
       "Global intel, as an index of one line each; read one in full with search_intel and its id:",
       recall.index.length === 0 ? "(none yet)" : indexLinesOf(recall.index),
       ...dormant,
-      "",
-      `Before saving, check there is something worth keeping: saving nothing is better than a vague or forced intel. When you learn something later work should know, save it with save_intel: one fact per intel, at most ${intelLimit} tokens. Choose the narrowest scope that fits: thread (you and the threads beneath you), mission (every thread of this mission), workspace (every thread working in this folder, in any mission), or global (everywhere; it waits for the owner's approval).`,
-      "Choose its kind: rule (never fades), preference, decision, fact, or temporary (fades in days). Intel nobody uses fades, so search_intel for what you need: reading an intel there keeps it alive. When an intel from your context shaped what you did, say so with relied_on_intel and its ids; that keeps it alive too.",
-      "A save that says the same as an intel in its scope or a wider one, or a newer version of it, replaces it: the intel keeps its id and takes the new text. When the intel rests on a journal entry, give its number as journalEntry; otherwise the message you are answering is recorded as its origin.",
       ...(chain.workspaceId === null ? ["You have no workspace, so workspace intel is not available to you."] : []),
-      "When the owner gives you a rule in a chat, such as 'always run the tests before a commit', save it as an intel of kind rule without being asked.",
-      "Correct an intel that turned out wrong with update_intel, and delete one that no longer holds with forget_intel. When an intel is not specific to where it was saved, such as a general convention or a preference of the owner, propose a wider scope with update_intel; the owner approves the move.",
-      "Where the mission stands belongs in the journal, not in intel.",
     ].join("\n");
   });
 

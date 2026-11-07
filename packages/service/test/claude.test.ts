@@ -10,6 +10,9 @@ import { Changes, claudeHarnessLayer, Service, serviceLayer } from "../src/index
 
 const standIn = join(import.meta.dirname, "fixtures", "stand-in-claude.mjs");
 
+/** A stand-in reply without the turn's note (journal, intel, budget) that precedes the messages. */
+const withoutNote = (text: string | undefined) => text?.replace(/ to: [\s\S]*?\n---\n\n/, " to: ") ?? "";
+
 const directories: string[] = [];
 const temporary = () => {
   const directory = mkdtempSync(join(tmpdir(), "openmission-claude-"));
@@ -90,7 +93,7 @@ describe("Claude Code adapter", () => {
         const detail = yield* settle(started.missionId, idleWith(1));
 
         expect(detail.messages.map((m) => m.sender)).toEqual(["user", "agent"]);
-        expect(detail.messages[1]?.text).toMatch(/^Reply 1 .* to: Hello$/);
+        expect(withoutNote(detail.messages[1]?.text)).toMatch(/^Reply 1 .* to: Hello$/);
         expect(detail.thread).toMatchObject({ effort: "high", failure: null, model: "opus" });
 
         const [start] = starts();
@@ -192,6 +195,32 @@ describe("Claude Code adapter", () => {
     }).pipe(Effect.provide(layer));
   });
 
+  it.live("keeps its system prompt and process across a journal change, and sends the change with the turn", () => {
+    const { layer, starts } = withClaude();
+    return Effect.gen(function* () {
+      const started = yield* call({
+        _tag: "StartMission",
+        effort: "default",
+        model: "default",
+        requestId: "r1",
+        text: "One",
+        workspacePath: null,
+      });
+      yield* settle(started.missionId, idleWith(1));
+      yield* call({ _tag: "AddJournalEntry", missionId: started.missionId, requestId: "r2", text: "Chose SQLite." });
+      yield* call({ _tag: "SendMessage", delivery: null, requestId: "r3", text: "Two", threadId: started.threadId });
+      const detail = yield* settle(started.missionId, idleWith(2));
+
+      expect(starts()).toHaveLength(1);
+      const systemPrompt = starts()[0]?.args[(starts()[0]?.args.indexOf("--append-system-prompt") ?? -2) + 1] ?? "";
+      expect(systemPrompt).toContain("# Mission journal");
+      expect(systemPrompt).not.toContain("Briefing (version");
+      expect(detail.messages.at(-1)?.text).toMatch(
+        /# Mission journal at this turn[\s\S]*Chose SQLite\.[\s\S]*\n---\n\nTwo$/,
+      );
+    }).pipe(Effect.provide(layer));
+  });
+
   it.live("keeps one process per thread across turns and adds up token usage", () => {
     const { layer, starts } = withClaude();
     return Effect.gen(function* () {
@@ -208,7 +237,7 @@ describe("Claude Code adapter", () => {
       const detail = yield* settle(started.missionId, idleWith(2));
 
       expect(starts()).toHaveLength(1);
-      expect(detail.messages.at(-1)?.text).toMatch(/^Reply 2 .* to: Two$/);
+      expect(withoutNote(detail.messages.at(-1)?.text)).toMatch(/^Reply 2 .* to: Two$/);
       expect(detail.mission.usage).toEqual({ cacheCreation: 100, cacheRead: 200, input: 4, output: 20 });
       const {
         missions: [summary],
@@ -284,7 +313,7 @@ describe("Claude Code adapter", () => {
       const [first, second] = starts();
       const sessionId = first?.args[first.args.indexOf("--session-id") + 1];
       expect(second?.args[second.args.indexOf("--resume") + 1]).toBe(sessionId);
-      expect(detail.messages.at(-1)?.text).toMatch(/^Reply 1 .* to: Two$/);
+      expect(withoutNote(detail.messages.at(-1)?.text)).toMatch(/^Reply 1 .* to: Two$/);
     }).pipe(Effect.provide(layer));
   });
 
@@ -307,7 +336,7 @@ describe("Claude Code adapter", () => {
       process.env.STAND_IN_MODE = "ok";
       yield* call({ _tag: "SendMessage", delivery: null, requestId: "r2", text: "Second", threadId: started.threadId });
       const detail = yield* settle(started.missionId, idleWith(1));
-      expect(detail.messages.at(-1)?.text).toMatch(/to: First\n\nSecond$/);
+      expect(withoutNote(detail.messages.at(-1)?.text)).toMatch(/to: First\n\nSecond$/);
       expect(detail.thread.failure).toBeNull();
     }).pipe(Effect.provide(layer));
   });
@@ -415,7 +444,7 @@ describe("steering and interrupting Claude Code", () => {
       });
       const detail = yield* settle(started.missionId, idleWith(1));
 
-      expect(detail.messages.at(-1)?.text).toMatch(/^Reply 1 .* to: slow 600 \+ Also this$/);
+      expect(withoutNote(detail.messages.at(-1)?.text)).toMatch(/^Reply 1 .* to: slow 600 \+ Also this$/);
       expect(starts()).toHaveLength(1);
       expect(starts()[0]?.args).toContain("--replay-user-messages");
       expect(inputLines(directory).at(-1)).toEqual({
@@ -445,7 +474,7 @@ describe("steering and interrupting Claude Code", () => {
         yield* Effect.sleep("400 millis");
 
         const replies = (yield* read(started.missionId)).messages.filter((message) => message.sender === "agent");
-        expect(replies.map((message) => message.text.replace(/ \(pid \d+\)/, ""))).toEqual([
+        expect(replies.map((message) => withoutNote(message.text).replace(/ \(pid \d+\)/, ""))).toEqual([
           "Reply 1 to: slow 400",
           "Reply 1 to: unseen",
         ]);
@@ -472,7 +501,7 @@ describe("steering and interrupting Claude Code", () => {
 
       yield* call({ _tag: "SendMessage", delivery: null, requestId: "r2", text: "Again", threadId: started.threadId });
       const detail = yield* settle(started.missionId, idleWith(1));
-      expect(detail.messages.at(-1)?.text).toMatch(/^Reply 2 .* to: Again$/);
+      expect(withoutNote(detail.messages.at(-1)?.text)).toMatch(/^Reply 2 .* to: Again$/);
       expect(starts()).toHaveLength(1);
     }).pipe(Effect.provide(layer));
   });

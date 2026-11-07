@@ -208,7 +208,14 @@ export const openerMessagesOf = (openerId: string) =>
     return [...omitted, ...kept.map((row) => `${senderLabelOf(row)}:\n${row.text}`)].join("\n\n");
   });
 
-/** A thread's journal context for each turn: the briefing, the latest entries, and its opener's messages. */
+/** How a thread uses the mission journal; part of its system prompt, the same every turn (mission-journal). */
+export const journalInstructions = [
+  "# Mission journal",
+  "Every thread of this mission shares this journal: a briefing of where the mission stands, and a change log only ever added to. Each of your turns starts with the current briefing and latest entries.",
+  "Call read_journal for the current briefing and older entries. Call update_journal with an entry when you settle a decision, change direction, or finish a piece of work. Rewrite the briefing only when where the mission stands has changed: pass the whole new briefing and basedOn, the version you started from.",
+].join("\n");
+
+/** A thread's journal for each turn's message: the briefing, the latest entries, and its opener's messages. */
 export const journalContextOf = (threadId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
@@ -219,11 +226,8 @@ export const journalContextOf = (threadId: string) =>
       SELECT opener_messages AS openerMessages FROM threads WHERE id = ${threadId}`;
     const openerMessages = thread?.openerMessages ?? null;
     return [
-      "# Mission journal",
-      "Every thread of this mission shares this journal: a briefing of where the mission stands, and a change log only ever added to.",
+      "# Mission journal at this turn",
       journalTextOf(briefing, entries),
-      "",
-      "Call read_journal for the current briefing and older entries. Call update_journal with an entry when you settle a decision, change direction, or finish a piece of work. Rewrite the briefing only when where the mission stands has changed: pass the whole new briefing and basedOn, the version you started from.",
       ...(openerMessages === null
         ? []
         : ["", "# Your opener's messages since the latest journal entry", openerMessages]),
