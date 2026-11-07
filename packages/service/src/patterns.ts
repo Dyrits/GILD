@@ -61,12 +61,28 @@ export const targetOf = (toolName: string, input: unknown) => {
 export interface Sensitivity {
   readonly consequence: string;
   readonly permission: string;
+  /** Words that name this kind of action in the owner's message, such as "push" (quotes.ts). */
+  readonly verbs: ReadonlyArray<string>;
 }
 
 // Where a command word may begin: the start, or after a shell operator, a
-// substitution, or a wrapper such as `bunx`, `npx`, or `xargs`.
-const commandStart = /(?:^|[;&|({\n`]|\$\(|\bbunx\s+|\bnpx\s+|\bxargs\s+)\s*/.source;
-const command = (body: string) => new RegExp(`${commandStart}${body}`);
+// substitution, or a wrapper. Wrappers include `bunx`, `npx`, `xargs`, a shell's
+// `-c` script (Codex sends `bash -lc '…'`), `eval`, `env` and variable
+// assignments, and launchers such as `time` or `nohup` (CHG-0063).
+const commandStart = [
+  /^|[;&|({\n`]|\$\(/.source,
+  String.raw`\b(?:bunx|npx|xargs|command|builtin|time|nohup|exec|caffeinate)\s+(?:-\w+\s+)*`,
+  String.raw`\bnice\s+(?:-n\s*-?\d+\s+|-\d+\s+)?`,
+  String.raw`\btimeout\s+(?:-\S+\s+)*\S+\s+`,
+  String.raw`\b(?:ba|z|da|k|fi)?sh\s+(?:-\w+\s+)*-\w*c\w*\s+['"]?`,
+  String.raw`\beval\s+['"]?`,
+  String.raw`\benv\s+(?:-\S+\s+)*`,
+  String.raw`(?:^|\s)[A-Za-z_]\w*=\S*\s+`,
+]
+  .map((start) => `(?:${start})`)
+  .join("|");
+// A command word may carry its folder, as in `/usr/bin/git`.
+const command = (body: string) => new RegExp(`(?:${commandStart})\\s*(?:[\\w.~-]*/)*${body}`);
 // A git subcommand, after any global options such as `-c key=value` or `-C path`.
 const git = (body: string) => command(String.raw`git(?:\s+-[cC]\s+\S+|\s+--?[\w-]+(?:=\S+)?)*\s+${body}`);
 const secretPath =
@@ -79,6 +95,7 @@ const sensitiveCommands: ReadonlyArray<readonly [RegExp, Sensitivity]> = [
       consequence:
         "This sends your commits off this computer, where everyone with access to the repository can see them.",
       permission: "Push code",
+      verbs: ["push"],
     },
   ],
   [
@@ -88,13 +105,18 @@ const sensitiveCommands: ReadonlyArray<readonly [RegExp, Sensitivity]> = [
     {
       consequence: "This makes a package or release public, and a published version usually cannot be taken back.",
       permission: "Publish",
+      verbs: ["publish", "release"],
     },
   ],
   [
     command(
       String.raw`(?:wrangler\s+(?:deploy|publish|pages\s+deploy)\b|vercel\b|netlify\s+deploy\b|fly(?:ctl)?\s+deploy\b|firebase\s+deploy\b|terraform\s+(?:apply|destroy)\b|pulumi\s+(?:up|destroy)\b|kubectl\s+(?:apply|delete|create|replace|rollout|scale)\b|serverless\s+deploy\b|heroku\b|cf\s+deploy\b)`,
     ),
-    { consequence: "This changes a live service that other people may be using.", permission: "Deploy" },
+    {
+      consequence: "This changes a live service that other people may be using.",
+      permission: "Deploy",
+      verbs: ["deploy", "ship", "release", "launch", "apply", "destroy"],
+    },
   ],
   [
     command(
@@ -103,11 +125,29 @@ const sensitiveCommands: ReadonlyArray<readonly [RegExp, Sensitivity]> = [
     {
       consequence: "This writes something under your GitHub account that other people can see.",
       permission: "Post on GitHub",
+      verbs: [
+        "post",
+        "open",
+        "create",
+        "comment",
+        "merge",
+        "close",
+        "reopen",
+        "review",
+        "file",
+        "delete",
+        "archive",
+        "rename",
+      ],
     },
   ],
   [
     command(String.raw`(?:mail|mailx|sendmail|mutt|osascript)\b`),
-    { consequence: "This sends a message or controls another app in your name.", permission: "Send a message" },
+    {
+      consequence: "This sends a message or controls another app in your name.",
+      permission: "Send a message",
+      verbs: ["send", "mail", "email", "message", "text", "tell"],
+    },
   ],
   [
     command(
@@ -116,6 +156,7 @@ const sensitiveCommands: ReadonlyArray<readonly [RegExp, Sensitivity]> = [
     {
       consequence: "This submits information to a server outside this computer.",
       permission: "Send data to a website",
+      verbs: ["send", "post", "submit", "upload"],
     },
   ],
   [
@@ -123,6 +164,7 @@ const sensitiveCommands: ReadonlyArray<readonly [RegExp, Sensitivity]> = [
     {
       consequence: "This runs commands on, or copies files to, another machine.",
       permission: "Connect to another computer",
+      verbs: ["connect", "ssh", "copy", "upload", "sync"],
     },
   ],
   [
@@ -132,6 +174,7 @@ const sensitiveCommands: ReadonlyArray<readonly [RegExp, Sensitivity]> = [
     {
       consequence: "Changes that were never committed, or a branch, are deleted and cannot be recovered.",
       permission: "Discard work",
+      verbs: ["discard", "reset", "clean", "drop", "delete", "remove", "restore", "revert", "wipe", "throw"],
     },
   ],
   [
@@ -139,6 +182,7 @@ const sensitiveCommands: ReadonlyArray<readonly [RegExp, Sensitivity]> = [
     {
       consequence: "Changes that were never committed, or a branch, are deleted and cannot be recovered.",
       permission: "Discard work",
+      verbs: ["discard", "reset", "clean", "drop", "delete", "remove", "restore", "revert", "wipe", "throw"],
     },
   ],
   [
@@ -146,6 +190,7 @@ const sensitiveCommands: ReadonlyArray<readonly [RegExp, Sensitivity]> = [
     {
       consequence: "They do not go to the Trash and cannot be recovered.",
       permission: "Delete files outside the workspace",
+      verbs: ["delete", "remove", "erase", "wipe", "clean"],
     },
   ],
   [
@@ -155,6 +200,21 @@ const sensitiveCommands: ReadonlyArray<readonly [RegExp, Sensitivity]> = [
     {
       consequence: "This alters settings or software outside the workspace, for every program on this computer.",
       permission: "Change this computer's system",
+      verbs: [
+        "install",
+        "uninstall",
+        "remove",
+        "upgrade",
+        "update",
+        "change",
+        "set",
+        "configure",
+        "enable",
+        "disable",
+        "schedule",
+        "restart",
+        "reboot",
+      ],
     },
   ],
 ];
@@ -162,6 +222,7 @@ const sensitiveCommands: ReadonlyArray<readonly [RegExp, Sensitivity]> = [
 const secrets: Sensitivity = {
   consequence: "This opens credentials that give access to your accounts.",
   permission: "Read passwords or keys",
+  verbs: ["read", "show", "get", "print", "use", "token", "key", "password", "credential"],
 };
 const secretCommand = command(String.raw`(?:security\s+(?:find|dump|export)-|gh\s+auth\s+token\b)`);
 
@@ -184,6 +245,7 @@ export const sensitivityOf = (toolName: string, input: unknown): Sensitivity | n
     return {
       consequence: "This changes a file that other programs on this computer may rely on.",
       permission: "Change a file outside the workspace",
+      verbs: ["change", "edit", "write", "update", "modify"],
     };
   }
   return null;

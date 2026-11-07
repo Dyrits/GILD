@@ -27,6 +27,7 @@
 
 ## Handoffs
 
+To resume after the approval fixes (CHG-0063 committed, not pushed; awaiting the owner), read the [current handoff](.agents/handoffs/2026-11-07-2310-approval-fixes.md). Handoffs are shared and committed.
 To resume after the architecture pass (CHG-0062 committed; its behavior changes await the owner), read the [current handoff](.agents/handoffs/2026-11-07-1911-architecture-pass.md). Handoffs are shared and committed.
 To resume after the cost audit (committed; the interface pass still awaits the owner's judgment), read the [current handoff](.agents/handoffs/2026-11-07-1748-cost-audit.md). Handoffs are shared and committed.
 To resume after the rename to Canopy (batch 18 still awaiting the owner), read the [current handoff](.agents/handoffs/2026-11-07-1455-renamed-to-canopy.md). Handoffs are shared and committed.

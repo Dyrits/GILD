@@ -8,6 +8,7 @@ import { resumeInTurn } from "./lifecycle.ts";
 import { plainActionOf, reasonOf, savedPatternOf, sensitivityOf, targetOf } from "./patterns.ts";
 import { findCoveringPermission, insertPermission } from "./permissions.ts";
 import { readQuestion } from "./questions.ts";
+import { isNamingQuote } from "./quotes.ts";
 import { readSettings } from "./settings.ts";
 
 /** What a thread passes to `request_approval`: one action, said in plain language, with its exact target. */
@@ -48,6 +49,8 @@ export class Approvals extends Context.Service<
     ) => Effect.Effect<Question, ServiceFailure | SqlError.SqlError>;
     readonly answerPrompt: (threadId: string, toolName: string, input: unknown) => Effect.Effect<Decision>;
     readonly requestApproval: (threadId: string, request: ApprovalRequest) => Effect.Effect<Decision>;
+    /** Forgets the thread's one-time allowances: an approval lasts only the turn it was given in. */
+    readonly endTurn: (threadId: string) => Effect.Effect<void>;
     readonly withdraw: (threadId: string) => Effect.Effect<void>;
   }
 >()("canopy/Approvals") {}
@@ -172,16 +175,14 @@ export const approvalsLayer = Layer.effect(
         }),
       );
 
-    /** Whether the owner's words appear verbatim in the owner's messages that started the thread's current turn. */
-    const isQuotedByOwner = (threadId: string, quote: string) =>
+    /** Whether the owner's messages that started the thread's current turn approve the command in the quoted words. */
+    const isQuotedByOwner = (threadId: string, quote: string, command: string) =>
       Effect.gen(function* () {
-        const words = quote.trim();
-        if (words.length < 2) return false;
         const messages = yield* sql<{ text: string }>`
           SELECT m.text FROM messages m
           WHERE m.thread_id = ${threadId} AND m.sender_kind = 'user' AND m.delivered_turn_id = (
             SELECT t.id FROM turns t WHERE t.thread_id = ${threadId} ORDER BY t.started_at DESC, t.rowid DESC LIMIT 1)`;
-        return messages.some((message) => message.text.includes(words));
+        return messages.some((message) => isNamingQuote(message.text, quote, command));
       });
 
     const requestApproval = (threadId: string, request: ApprovalRequest) =>
@@ -198,7 +199,7 @@ export const approvalsLayer = Layer.effect(
           summary: request.action,
           threadId,
         };
-        if (request.quote !== null && (yield* isQuotedByOwner(threadId, request.quote))) {
+        if (request.quote !== null && (yield* isQuotedByOwner(threadId, request.quote, request.command))) {
           const resolution: Resolution = { message: `"${request.quote.trim()}"`, outcome: "AllowedByMessage" };
           yield* record(asked, resolution);
           yield* allowOnce(threadId, request.command);
@@ -304,6 +305,7 @@ export const approvalsLayer = Layer.effect(
       answer,
       answerPrompt: (threadId, toolName, input) =>
         answerPrompt(threadId, toolName, input).pipe(Effect.provideService(SqlClient.SqlClient, sql)),
+      endTurn: (threadId) => Effect.sync(() => allowances.delete(threadId)).pipe(Effect.asVoid),
       requestApproval: (threadId, request) =>
         requestApproval(threadId, request).pipe(Effect.provideService(SqlClient.SqlClient, sql)),
       withdraw,

@@ -901,3 +901,29 @@ Validation:
 - Not verified: the app driven in the window, or any live harness.
 
 Evidence: The owner's instructions of 2026-11-07: "/review-and-refactor the full project. /improve-codebase-architecture for the full project. /code-simplifier without breaking conventions." and "All the points in the architecture-audit-2026-11-07-1830.html document are relevant. Do the necessary fix/implementation to improve all of that. Document the changes made."
+
+## CHG-0063 · 2026-11-07 · Approval fixes: the quote check, wrapped commands, one-time allowances
+
+Type: Code
+Event: Delivery
+Scope: Local service (approvals)
+
+Summary: three Specifications review findings from CHG-0062, implemented test-first:
+- **Quote check** (High, `quotes.ts`, `approvals.ts`): a thread's quote now approves only when it appears in the owner's message as whole words, ignoring case; no negation comes before it in its sentence or inside it ("don't", "not", "never", "wait", "hold", French "ne", "pas", "jamais"…); and it names the action. For a command on the sensitive list, naming means a verb of that kind (`Sensitivity.verbs` in `patterns.ts`, such as "push" for Push code, "ship" or "deploy" for Deploy). For any other command, it means a word of 3 letters or more that the command shares. "it", "don't push it", and "push it" for `npm publish` now ask.
+- **Wrapped commands** (High, `patterns.ts`): the sensitive list now recognizes commands after a shell's `-c` script (`bash -lc '…'`, `/bin/zsh -lc "…"`), `eval`, `env` and variable assignments, `command`, `builtin`, `time`, `nohup`, `exec`, `nice`, `timeout`, `caffeinate`, and a command word with its folder (`/usr/bin/git`).
+- **One-time allowance** (Medium, `approvals.ts`, `threads.ts`): `Approvals.endTurn` forgets a thread's one-time allowances however its turn ends, so an approval no longer outlives its turn.
+
+Built under the owner's instruction without questions. Not yet accepted by the owner. Errors fall on the side of asking.
+
+References:
+- documentation/verification/2026-11-07-approval-fixes.md
+- packages/service/src/quotes.ts, patterns.ts, approvals.ts, threads.ts
+- packages/service/test/approvals.test.ts
+
+Validation:
+- `bun run test` passed 380 with 8 skipped, twice; 9 tests are new.
+- `bun run typecheck`, `bun run check`, and `git diff --check` passed.
+- 4 of 4 mutations caught.
+- Not verified: a live Codex escalation's exact command format, or any live harness.
+
+Evidence: The owner's instruction of 2026-11-07: "Read the last handoffs, then continue with the next step. For now, we build, step by step and we verify it works. […] Don't ask any question for this session, build what is next."

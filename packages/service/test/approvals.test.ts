@@ -8,6 +8,7 @@ import { afterEach } from "vitest";
 import { Approvals } from "../src/approvals.ts";
 import { fakeHarnessLayer, Service, serviceLayer } from "../src/index.ts";
 import { isSavablePattern, matchesPattern, savedPatternOf, sensitivityOf, targetOf } from "../src/patterns.ts";
+import { isNamingQuote } from "../src/quotes.ts";
 
 const directories: string[] = [];
 const databaseFile = () => {
@@ -197,10 +198,75 @@ describe("actions named in the owner's message", () => {
       expect(openQuestion(detail).outcome).toBeNull();
     }).pipe(Effect.provide(live())),
   );
+
+  it.live("asks when the owner's quoted words refuse the action", () =>
+    Effect.gen(function* () {
+      const script = ask({ ...push, quote: "push it" }).replace('"push it"', '"push\\u0020it"');
+      const started = yield* start(`Don't push it yet.\n${script}`);
+      const detail = yield* settle(started.missionId, isAsking);
+      expect(openQuestion(detail).outcome).toBeNull();
+    }).pipe(Effect.provide(live())),
+  );
+
+  it.live("asks when the quoted words do not name the action", () =>
+    Effect.gen(function* () {
+      const started = yield* start(`Fix it.\n${ask({ ...push, quote: "it" })}`);
+      const detail = yield* settle(started.missionId, isAsking);
+      expect(openQuestion(detail).outcome).toBeNull();
+    }).pipe(Effect.provide(live())),
+  );
+});
+
+describe("checking the owner's quoted words", () => {
+  const command = "git push origin main";
+
+  it("accepts words that appear in the owner's message and name the action", () => {
+    expect(isNamingQuote("Looks good, push it.", "push it", command)).toBe(true);
+    expect(isNamingQuote("Push it, but don't deploy.", "Push it", command)).toBe(true);
+    expect(isNamingQuote("Ship it!", "ship it", "bunx wrangler deploy")).toBe(true);
+    expect(isNamingQuote("Then send this to Alice.", "send this to Alice", "mail -s hi alice@example.com")).toBe(true);
+  });
+
+  it("refuses words missing from the message or found only inside a longer word", () => {
+    expect(isNamingQuote("Check the build.", "push it", command)).toBe(false);
+    expect(isNamingQuote("That was a pushover.", "push", command)).toBe(false);
+    expect(isNamingQuote("push it", "  ", command)).toBe(false);
+  });
+
+  it("refuses words the owner negated in the same sentence", () => {
+    for (const message of ["Don't push it.", "Please do not push it yet", "Never push it", "Ne push it pas"]) {
+      expect(isNamingQuote(message, "push it", command), message).toBe(false);
+    }
+    expect(isNamingQuote("No need to wait. Push it.", "push it", command)).toBe(true);
+  });
+
+  it("refuses words that name another kind of action, or no action at all", () => {
+    expect(isNamingQuote("Fix it.", "it", command)).toBe(false);
+    expect(isNamingQuote("Run the tests on main.", "Run the tests on main", command)).toBe(false);
+    expect(isNamingQuote("Push it.", "push it", "npm publish")).toBe(false);
+  });
+
+  it("accepts, for an action the sensitive list misses, words the command shares", () => {
+    expect(isNamingQuote("Rotate the staging token.", "Rotate the staging token", "./rotate-token.sh staging")).toBe(
+      true,
+    );
+    expect(isNamingQuote("Do it.", "Do it", "./rotate-token.sh staging")).toBe(false);
+  });
 });
 
 describe("harness permission prompts", () => {
   const prompt = (command: string) => `prompt Bash ${JSON.stringify({ command, dangerouslyDisableSandbox: true })}`;
+
+  it.live("asks again when the action allowed in an earlier turn is prompted in a later one", () =>
+    Effect.gen(function* () {
+      const started = yield* start(ask(push));
+      yield* answer(openQuestion(yield* settle(started.missionId, isAsking)), "Allow");
+      yield* settle(started.missionId, isReplied);
+      yield* send(started.threadId, prompt("git push origin main"));
+      const later = yield* settle(started.missionId, (detail) => detail.questions.length === 2 && isAsking(detail));
+      expect(openQuestion(later)).toMatchObject({ details: "git push origin main", source: "Harness" });
+    }).pipe(Effect.provide(live())),
+  );
 
   it.live("runs the prompt for the action just allowed once, and asks for a repeat", () =>
     Effect.gen(function* () {
@@ -479,6 +545,23 @@ describe("recognizing sensitive actions", () => {
     for (const [command, kind] of cases) expect(kindOf(command), command).toBe(kind);
   });
 
+  it("recognizes a sensitive command wrapped in a shell, an environment, or a launcher", () => {
+    const cases: ReadonlyArray<readonly [string, string]> = [
+      ["bash -lc 'git push origin main'", "Push code"],
+      ['/bin/zsh -lc "git push"', "Push code"],
+      ["sh -c 'cd app && npm publish'", "Publish"],
+      ["env GIT_SSH_COMMAND=ssh git push", "Push code"],
+      ["NODE_ENV=production bunx wrangler deploy", "Deploy"],
+      ["command git push", "Push code"],
+      ["time git push --force", "Push code"],
+      ["nohup terraform apply", "Deploy"],
+      ["exec /usr/bin/git push", "Push code"],
+      ["nice -n 10 rm -rf ~/old", "Delete files outside the workspace"],
+      ["eval 'git reset --hard'", "Discard work"],
+    ];
+    for (const [command, kind] of cases) expect(kindOf(command), command).toBe(kind);
+  });
+
   it("lets ordinary work run: reading, building, testing, installing, and local git", () => {
     for (const command of [
       'for f in controllers/*.js; do echo "=== $f"; cat -n $f; done; ls images node_modules 2>&1 | head -5',
@@ -497,6 +580,9 @@ describe("recognizing sensitive actions", () => {
       "rm build/output.txt",
       "ls ~/Downloads",
       "echo pushed",
+      "bash -lc 'bun run test'",
+      "env CI=1 bun test",
+      "time bun run build",
       "",
     ]) {
       expect(kindOf(command), command).toBeNull();

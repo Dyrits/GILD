@@ -171,7 +171,13 @@ export const threadsLayer = Layer.effect(
             text: turn.messages.join("\n\n"),
             threadId,
           })
-          .pipe(Effect.result, Effect.ensuring(Effect.sync(() => active.delete(threadId))));
+          .pipe(
+            Effect.result,
+            // However the turn ends, what was allowed once in it is spent (action-approval, CHG-0063).
+            Effect.ensuring(
+              Effect.sync(() => active.delete(threadId)).pipe(Effect.andThen(approvals.endTurn(threadId))),
+            ),
+          );
         yield* draft(threadId, "");
         if (outcome._tag === "Failure") {
           yield* fail(threadId, turn, outcome.failure.reason);

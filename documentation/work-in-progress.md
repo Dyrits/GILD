@@ -544,15 +544,16 @@ Harnesses and provider accounts ([provider-accounts](capabilities/provider-accou
 - Accounts for Control, routines, and workflows.
 - Harness installs and updates offered from the app (architecture, Integrations).
 
-## Review, refactor, and architecture pass (2026-11-07): uncommitted
+## Review, refactor, and architecture pass (2026-11-07): committed (CHG-0062)
 
 Started at HEAD `26bbb1d`, with the empty tree as the fixed point. Ran Standards and Specifications reviews and an architecture scan ([report](architecture-audit/architecture-audit-2026-11-07-1830.html)). The behavior-preserving refactors sit uncommitted in the working tree. Both reviewers verified them: no behavior, owner-facing wording, or contract changed. Checks after the refactor: `bun run test` 339 passed, 8 skipped, the same as before. After the architecture pass: 371 passed, 8 skipped. Typecheck, `bun run check`, `git diff --check`, and the desktop build pass.
 
 ### Open, for implementation (red/green): found by the Specifications review, not changed
 
-- **High**: the quote check (`approvals.ts:175-205`) accepts any 2-character quote found in the owner's message. The quote is never compared with the command, so "it" approves anything, and so does a negation such as "don't push it".
-- **High**: commands wrapped in a shell (`bash -lc '…'`, `env X=1 …`, `command`, `time`) skip the sensitive list (`patterns.ts:68`). Codex wraps its commands this way. Needs a live Codex probe.
-- **Medium**: a one-time allowance is not cleared at a normal turn end, so it outlives its turn (`approvals.ts:93-116`).
+- Done in CHG-0063, awaiting the owner ([proof](verification/2026-11-07-approval-fixes.md)):
+  - **High**: the quote check now requires whole words, no negation before them in their sentence, and words naming the action (a verb of its sensitive kind, or a word an unlisted command shares).
+  - **High**: commands wrapped in a shell `-c` script, `eval`, `env`, variable assignments, or a launcher (`time`, `nohup`, `exec`, `nice`…) now meet the sensitive list. Still to probe live: the exact command format Codex sends.
+  - **Medium**: one-time allowances end with their turn (`Approvals.endTurn`).
 - **Medium**: Codex sandbox widenings ("Permissions") are granted without a question.
 - **Medium**: OpenCode edits outside the workspace run unasked (`opencode.ts:59-63`, against workspace-attachment).
 - **Medium**: Codex and OpenCode threads load the owner's own MCP servers and skills (against CHG-0022 and CHG-0031; listed as provisional above).
