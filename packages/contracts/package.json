@@ -1,5 +1,5 @@
 {
-  "name": "@openmission/contracts",
+  "name": "@canopy/contracts",
   "private": true,
   "type": "module",
   "exports": {

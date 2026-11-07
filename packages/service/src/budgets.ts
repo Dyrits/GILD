@@ -1,4 +1,4 @@
-import type { BudgetLimits } from "@openmission/contracts";
+import type { BudgetLimits } from "@canopy/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, notFound } from "./errors.ts";

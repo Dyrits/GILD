@@ -1,12 +1,15 @@
-import type { EffortChoice, ModelChoice, TokenUsage } from "@openmission/contracts";
+import type { EffortChoice, HarnessName, ModelChoice, ModelOption, TokenUsage } from "@canopy/contracts";
 
-export const modelLabels: Record<ModelChoice, string> = {
-  default: "Claude Code default",
-  fable: "Fable",
-  haiku: "Haiku",
-  opus: "Opus",
-  sonnet: "Sonnet",
-};
+export const harnessLabels = {
+  claude: "Claude Code",
+  codex: "Codex",
+  opencode: "OpenCode",
+} as const satisfies Record<HarnessName, string>;
+
+/** A model's label from its harness's list, or its identifier when the list does not name it. */
+export const modelLabelOf = (model: ModelChoice, options: ReadonlyArray<ModelOption> = []) =>
+  options.find((option) => option.id === model)?.label ??
+  (model === "default" ? "Default model" : model.charAt(0).toUpperCase() + model.slice(1));
 export const effortLabel = (effort: EffortChoice) => (effort === "default" ? "Default effort" : effort);
 
 const compact = (n: number) => (n >= 1000 ? `${(n / 1000).toFixed(n >= 10_000 ? 0 : 1)}k` : String(n));

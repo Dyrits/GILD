@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { MissionDetail, MissionId, Request, RequestTag, ResultOf, ThreadId } from "@openmission/contracts";
+import type { MissionDetail, MissionId, Request, RequestTag, ResultOf, ThreadId } from "@canopy/contracts";
 import { Effect } from "effect";
 import { Endpoints } from "../../src/endpoints.ts";
 import { callThreadTool } from "../../src/execution.ts";
@@ -9,7 +9,7 @@ import { fakeHarnessLayer, Service, serviceLayer } from "../../src/index.ts";
 
 /** An isolated service with the scripted fake harness and real temporary SQLite. */
 export const fixture = () => {
-  const directory = mkdtempSync(join(tmpdir(), "openmission-batch7-"));
+  const directory = mkdtempSync(join(tmpdir(), "canopy-batch7-"));
   return {
     directory,
     layer: serviceLayer({

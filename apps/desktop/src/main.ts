@@ -1,24 +1,35 @@
 import { randomBytes } from "node:crypto";
+import { homedir } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, dialog, ipcMain, utilityProcess } from "electron";
+import { moveFormerData } from "./formerData.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
-const appUrl = process.env.OPENMISSION_APP_URL ?? "http://localhost:8081";
+/** The app's icon, beside `dist` in the desktop app's own `assets`. */
+const iconPath = join(here, "..", "assets", "icon.png");
+const appUrl = process.env.CANOPY_APP_URL ?? "http://localhost:8081";
 // Lets checks run against a throwaway folder instead of the owner's data.
-const dataDirectory = () => process.env.OPENMISSION_DATA_DIR ?? app.getPath("userData");
+const dataDirectory = () => process.env.CANOPY_DATA_DIR ?? app.getPath("userData");
 
-app.setName("OpenMission");
+app.setName("Canopy");
+
+// Runs before Electron creates the new user-data folder at ready, so an install from before the rename keeps its data.
+const formerDataMove = Promise.resolve().then(() => {
+  if (process.env.CANOPY_DATA_DIR !== undefined) return;
+  const claudeFolder = process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), ".claude");
+  moveFormerData(app.getPath("appData"), app.getPath("userData"), claudeFolder);
+});
 
 /** Starts the local service on Electron's Node and resolves its loopback endpoint. */
 const startService = (token: string) => {
   const service = utilityProcess.fork(join(here, "service.js"), [], {
     env: {
       ...process.env,
-      OPENMISSION_DATA_DIR: dataDirectory(),
-      OPENMISSION_TOKEN: token,
+      CANOPY_DATA_DIR: dataDirectory(),
+      CANOPY_TOKEN: token,
     },
-    serviceName: "OpenMission service",
+    serviceName: "Canopy service",
     stdio: "inherit",
   });
   app.on("will-quit", () => service.kill());
@@ -48,25 +59,29 @@ const load = async (window: BrowserWindow) => {
 
 /** Startup failures end here: the owner sees why, and the app quits instead of leaving an empty window. */
 const quitWith = (reason: string) => {
-  dialog.showErrorBox("OpenMission could not start", reason);
+  dialog.showErrorBox("Canopy could not start", reason);
   app.quit();
 };
 
 app
   .whenReady()
+  .then(() => formerDataMove)
   .then(async () => {
     const token = randomBytes(32).toString("base64url");
     const endpoint = await startService(token);
-    ipcMain.handle("openmission:endpoint", () => endpoint);
+    ipcMain.handle("canopy:endpoint", () => endpoint);
 
+    // macOS shows the dock icon of the running app; a packaged build will carry its own icon file.
+    app.dock?.setIcon(iconPath);
     const window = new BrowserWindow({
       height: 800,
-      title: "OpenMission",
+      icon: iconPath,
+      title: "Canopy",
       webPreferences: { contextIsolation: true, preload: join(here, "preload.cjs"), sandbox: true },
       width: 1200,
     });
     // Choose folder… opens the system's own dialog, Finder or Explorer (CHG-0035); null when cancelled.
-    ipcMain.handle("openmission:chooseFolder", async () => {
+    ipcMain.handle("canopy:chooseFolder", async () => {
       const chosen = await dialog.showOpenDialog(window, {
         buttonLabel: "Use this folder",
         properties: ["openDirectory", "createDirectory"],

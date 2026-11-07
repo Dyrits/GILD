@@ -1,4 +1,4 @@
-import type { ThreadId } from "@openmission/contracts";
+import type { ThreadId } from "@canopy/contracts";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import type { ServiceClient } from "./client";
@@ -6,9 +6,9 @@ import { styles } from "./styles";
 
 /** Opens the system's folder dialog through the desktop shell; null when cancelled. */
 const chooseFolder = () =>
-  window.openMission === undefined
+  window.canopy === undefined
     ? Promise.reject(new Error("Choosing a folder needs the desktop app."))
-    : window.openMission.chooseFolder();
+    : window.canopy.chooseFolder();
 
 /**
  * Chooses a mission's workspace before it starts: a folder picked in Finder or Explorer,

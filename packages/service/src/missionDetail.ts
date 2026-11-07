@@ -1,9 +1,10 @@
-import type { Message, MissionDetail, ThreadSummary } from "@openmission/contracts";
+import type { Message, MissionDetail, ThreadSummary } from "@canopy/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { listBudgetEvents, readHeldStop } from "./budgetViews.ts";
 import { readChatter } from "./chatter.ts";
 import { notFound } from "./errors.ts";
+import { ownAccountLabel } from "./harnessCatalog.ts";
 import { readGauge } from "./intel.ts";
 import { listThreadIntelChanges } from "./intelViews.ts";
 import { threadActionsOf } from "./lifecycle.ts";
@@ -40,6 +41,10 @@ const listThreads = (missionId: string, topThreadId: string) =>
     );
   });
 
+/** An account's label: the computer's own sign-in reads "This computer", and an account removed since says so. */
+const accountLabelOf = (accountId: string | null, label: string | null) =>
+  accountId === null ? ownAccountLabel : (label ?? "Removed account");
+
 /** A mission with its thread tree and the conversation of one thread, the top thread by default. */
 export const readMission = (missionId: string, threadId: string | null) =>
   Effect.gen(function* () {
@@ -49,8 +54,12 @@ export const readMission = (missionId: string, threadId: string | null) =>
     const threads = yield* listThreads(missionId, summary.topThreadId);
     const selected = threads.find((thread) => thread.id === (threadId ?? summary.topThreadId));
     if (selected === undefined) return yield* notFound("No such thread in this mission.");
-    const [thread] = yield* sql<Pick<MissionDetail["thread"], "id" | "model" | "effort" | "failure" | "blocker">>`
-      SELECT id, model, effort, failure, blocker FROM threads WHERE id = ${selected.id}`;
+    const [thread] = yield* sql<
+      Pick<MissionDetail["thread"], "id" | "model" | "effort" | "failure" | "blocker" | "harness" | "accountId"> & {
+        accountLabel: string | null;
+      }
+    >`SELECT t.id, t.model, t.effort, t.failure, t.blocker, t.harness, t.account_id AS accountId, a.label AS accountLabel
+      FROM threads t LEFT JOIN accounts a ON a.id = t.account_id WHERE t.id = ${selected.id}`;
     if (thread === undefined) return yield* notFound("No such thread in this mission.");
     const workspace = yield* readThreadWorkspace(selected.id);
     const messages = yield* sql<Omit<Message, "isResult" | "isQueued"> & { isResult: number; isQueued: number }>`
@@ -77,6 +86,7 @@ export const readMission = (missionId: string, threadId: string | null) =>
       suggestions,
       thread: {
         ...thread,
+        accountLabel: accountLabelOf(thread.accountId, thread.accountLabel),
         actions: threadActionsOf({ blocker: thread.blocker, depth: selected.depth, state: selected.state }),
         depth: selected.depth,
         parentId: selected.parentId,

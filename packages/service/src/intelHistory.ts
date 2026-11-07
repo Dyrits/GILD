@@ -1,4 +1,4 @@
-import type { IntelActor, IntelHistoryKind, IntelKind, IntelOrigin, IntelScope } from "@openmission/contracts";
+import type { IntelActor, IntelHistoryKind, IntelKind, IntelOrigin, IntelScope } from "@canopy/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { type Fading, fadingStepsOf, readFading } from "./intelFading.ts";

@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import type { MissionDetail, MissionId, Request, RequestTag, ResultOf } from "@canopy/contracts";
 import { describe, expect, it } from "@effect/vitest";
-import type { MissionDetail, MissionId, Request, RequestTag, ResultOf } from "@openmission/contracts";
 import { type Duration, Effect, PubSub } from "effect";
 import { SqlClient } from "effect/sql";
 import { afterEach } from "vitest";
@@ -15,7 +15,7 @@ const withoutNote = (text: string | undefined) => text?.replace(/ to: [\s\S]*?\n
 
 const directories: string[] = [];
 const temporary = () => {
-  const directory = mkdtempSync(join(tmpdir(), "openmission-claude-"));
+  const directory = mkdtempSync(join(tmpdir(), "canopy-claude-"));
   directories.push(directory);
   return directory;
 };
@@ -31,7 +31,7 @@ const withClaude = (options: { idleTimeout?: Duration.Input; sandboxProblem?: st
   const log = join(directory, "starts.jsonl");
   process.env.STAND_IN_LOG = log;
   const layer = serviceLayer({
-    filename: join(directory, "openmission.sqlite"),
+    filename: join(directory, "canopy.sqlite"),
     harness: claudeHarnessLayer({
       command: process.execPath,
       idleTimeout: options.idleTimeout ?? "10 minutes",
@@ -77,46 +77,43 @@ const idleWith = (count: number) => (detail: MissionDetail) =>
   detail.thread.state === "Idle" && detail.messages.filter((m) => m.sender === "agent").length === count;
 
 describe("Claude Code adapter", () => {
-  it.live(
-    "runs the thread's model and effort sandboxed, prompts sent to OpenMission, and no OpenMission secrets",
-    () => {
-      const { layer, starts } = withClaude();
-      return Effect.gen(function* () {
-        const started = yield* call({
-          _tag: "StartMission",
-          effort: "high",
-          model: "opus",
-          requestId: "r1",
-          text: "Hello",
-          workspacePath: null,
-        });
-        const detail = yield* settle(started.missionId, idleWith(1));
+  it.live("runs the thread's model and effort sandboxed, prompts sent to Canopy, and no Canopy secrets", () => {
+    const { layer, starts } = withClaude();
+    return Effect.gen(function* () {
+      const started = yield* call({
+        _tag: "StartMission",
+        effort: "high",
+        model: "opus",
+        requestId: "r1",
+        text: "Hello",
+        workspacePath: null,
+      });
+      const detail = yield* settle(started.missionId, idleWith(1));
 
-        expect(detail.messages.map((m) => m.sender)).toEqual(["user", "agent"]);
-        expect(withoutNote(detail.messages[1]?.text)).toMatch(/^Reply 1 .* to: Hello$/);
-        expect(detail.thread).toMatchObject({ effort: "high", failure: null, model: "opus" });
+      expect(detail.messages.map((m) => m.sender)).toEqual(["user", "agent"]);
+      expect(withoutNote(detail.messages[1]?.text)).toMatch(/^Reply 1 .* to: Hello$/);
+      expect(detail.thread).toMatchObject({ effort: "high", failure: null, model: "opus" });
 
-        const [start] = starts();
-        const args = start?.args.join(" ") ?? "";
-        expect(args).toContain("--input-format stream-json --output-format stream-json");
-        expect(args).toContain("--model opus");
-        expect(args).toContain("--effort high");
-        expect(args).toContain("--permission-prompts host --permission-prompt-tool mcp__openmission__answer_prompt");
-        expect(args).toContain("--allowedTools mcp__openmission__request_approval");
-        expect(args).toContain("--strict-mcp-config");
-        expect(args).toContain("--permission-mode acceptEdits");
-        expect(start?.args[start.args.indexOf("--tools") + 1]).toBe("default");
-        const settings = JSON.parse(start?.args[start.args.indexOf("--settings") + 1] ?? "{}");
-        expect(settings).toEqual({ sandbox: { autoAllowBashIfSandboxed: true, enabled: true } });
-        const mcp = JSON.parse(start?.args[start.args.indexOf("--mcp-config") + 1] ?? "{}");
-        expect(mcp.mcpServers.openmission.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/mcp\/[0-9a-f]{48}$/);
-        // Claude Code aborts a silent call after 300 seconds unless the server sets its own timeout.
-        expect(mcp.mcpServers.openmission.timeout).toBe(2147483647);
-        expect(args).toMatch(/--session-id [0-9a-f-]{36}/);
-        expect(start?.env).toEqual([]);
-      }).pipe(Effect.provide(layer));
-    },
-  );
+      const [start] = starts();
+      const args = start?.args.join(" ") ?? "";
+      expect(args).toContain("--input-format stream-json --output-format stream-json");
+      expect(args).toContain("--model opus");
+      expect(args).toContain("--effort high");
+      expect(args).toContain("--permission-prompts host --permission-prompt-tool mcp__canopy__answer_prompt");
+      expect(args).toContain("--allowedTools mcp__canopy__request_approval");
+      expect(args).toContain("--strict-mcp-config");
+      expect(args).toContain("--permission-mode acceptEdits");
+      expect(start?.args[start.args.indexOf("--tools") + 1]).toBe("default");
+      const settings = JSON.parse(start?.args[start.args.indexOf("--settings") + 1] ?? "{}");
+      expect(settings).toEqual({ sandbox: { autoAllowBashIfSandboxed: true, enabled: true } });
+      const mcp = JSON.parse(start?.args[start.args.indexOf("--mcp-config") + 1] ?? "{}");
+      expect(mcp.mcpServers.canopy.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/mcp\/[0-9a-f]{48}$/);
+      // Claude Code aborts a silent call after 300 seconds unless the server sets its own timeout.
+      expect(mcp.mcpServers.canopy.timeout).toBe(2147483647);
+      expect(args).toMatch(/--session-id [0-9a-f-]{36}/);
+      expect(start?.env).toEqual([]);
+    }).pipe(Effect.provide(layer));
+  });
 
   it.live("starts Claude Code in the workspace with its instructions in the system prompt", () => {
     const { directory, layer, starts } = withClaude();
@@ -138,7 +135,7 @@ describe("Claude Code adapter", () => {
       const prompt = start?.args[start.args.indexOf("--append-system-prompt") + 1] ?? "";
       expect(prompt).toContain(`You work in the workspace "app" at ${app}.`);
       expect(prompt).toContain("## AGENTS.md\nUse Bun, never pnpm.");
-      expect(prompt).toContain("# Approvals in OpenMission");
+      expect(prompt).toContain("# Approvals in Canopy");
     }).pipe(Effect.provide(layer));
   });
 
@@ -410,6 +407,7 @@ describe("Claude Code adapter", () => {
           chatterThreshold: 20,
           defaultDelivery: "Steer",
           defaultEffort: "default",
+          defaultHarness: "claude",
           defaultMissionBudget: { cost: null, tokens: null },
           defaultModel: "default",
           globalBudget: { cost: null, tokens: null },
@@ -534,7 +532,7 @@ describe("settings", () => {
   it.live("start from defaults and persist updates", () => {
     const directory = temporary();
     const options = {
-      filename: join(directory, "openmission.sqlite"),
+      filename: join(directory, "canopy.sqlite"),
       harness: claudeHarnessLayer({
         command: process.execPath,
         idleTimeout: "1 minute",
@@ -553,6 +551,7 @@ describe("settings", () => {
         chatterThreshold: 20,
         defaultDelivery: "Steer",
         defaultEffort: "default",
+        defaultHarness: "claude",
         defaultMissionBudget: { cost: null, tokens: null },
         defaultModel: "default",
         globalBudget: { cost: null, tokens: null },
@@ -573,6 +572,7 @@ describe("settings", () => {
         chatterThreshold: 20,
         defaultDelivery: "Queue",
         defaultEffort: "high",
+        defaultHarness: "codex",
         defaultMissionBudget: { cost: null, tokens: null },
         defaultModel: "sonnet",
         globalBudget: { cost: null, tokens: null },
@@ -603,6 +603,7 @@ describe("settings", () => {
         briefingLimit: 2000,
         chatterThreshold: 20,
         defaultDelivery: "Steer",
+        defaultHarness: "claude",
         defaultMissionBudget: { cost: null, tokens: null },
         globalBudget: { cost: null, tokens: null },
         globalBudgetPeriod: "Month",
@@ -618,7 +619,7 @@ describe("settings", () => {
   });
 });
 
-describe.runIf(process.env.OPENMISSION_LIVE_CLAUDE === "1")("live Claude Code (uses a few tokens)", () => {
+describe.runIf(process.env.CANOPY_LIVE_CLAUDE === "1")("live Claude Code (uses a few tokens)", () => {
   it.live(
     "answers through the installed claude",
     () => {
@@ -639,9 +640,9 @@ describe.runIf(process.env.OPENMISSION_LIVE_CLAUDE === "1")("live Claude Code (u
       }).pipe(
         Effect.provide(
           serviceLayer({
-            filename: join(directory, "openmission.sqlite"),
+            filename: join(directory, "canopy.sqlite"),
             harness: claudeHarnessLayer({
-              command: process.env.OPENMISSION_CLAUDE_PATH ?? "claude",
+              command: process.env.CANOPY_CLAUDE_PATH ?? "claude",
               idleTimeout: "1 minute",
               sandboxProblem: null,
             }),
@@ -701,9 +702,9 @@ describe.runIf(process.env.OPENMISSION_LIVE_CLAUDE === "1")("live Claude Code (u
       }).pipe(
         Effect.provide(
           serviceLayer({
-            filename: join(directory, "openmission.sqlite"),
+            filename: join(directory, "canopy.sqlite"),
             harness: claudeHarnessLayer({
-              command: process.env.OPENMISSION_CLAUDE_PATH ?? "claude",
+              command: process.env.CANOPY_CLAUDE_PATH ?? "claude",
               idleTimeout: "1 minute",
               sandboxProblem: null,
             }),
@@ -745,9 +746,9 @@ describe.runIf(process.env.OPENMISSION_LIVE_CLAUDE === "1")("live Claude Code (u
       }).pipe(
         Effect.provide(
           serviceLayer({
-            filename: join(directory, "openmission.sqlite"),
+            filename: join(directory, "canopy.sqlite"),
             harness: claudeHarnessLayer({
-              command: process.env.OPENMISSION_CLAUDE_PATH ?? "claude",
+              command: process.env.CANOPY_CLAUDE_PATH ?? "claude",
               idleTimeout: "1 minute",
               sandboxProblem: null,
             }),
@@ -762,9 +763,9 @@ describe.runIf(process.env.OPENMISSION_LIVE_CLAUDE === "1")("live Claude Code (u
 
   const liveLayer = (directory: string) =>
     serviceLayer({
-      filename: join(directory, "openmission.sqlite"),
+      filename: join(directory, "canopy.sqlite"),
       harness: claudeHarnessLayer({
-        command: process.env.OPENMISSION_CLAUDE_PATH ?? "claude",
+        command: process.env.CANOPY_CLAUDE_PATH ?? "claude",
         idleTimeout: "1 minute",
         sandboxProblem: null,
       }),

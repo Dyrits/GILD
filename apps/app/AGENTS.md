@@ -1,4 +1,4 @@
-This is OpenMission's one Expo/React Native app (ADR 0009). Its web build (`react-native-web`) runs in the Electron desktop window and as the phone web app; native phone builds come later. Make changes work on web first and keep them portable to native.
+This is Canopy's one Expo/React Native app (ADR 0009). Its web build (`react-native-web`) runs in the Electron desktop window and as the phone web app; native phone builds come later. Make changes work on web first and keep them portable to native.
 
 ## Expo has changed — do not trust your training data
 

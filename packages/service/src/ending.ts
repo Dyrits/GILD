@@ -1,4 +1,4 @@
-import type { EndingPreview, MissionEnding, MissionPrompt } from "@openmission/contracts";
+import type { EndingPreview, MissionEnding, MissionPrompt } from "@canopy/contracts";
 import { Clock, Effect, Layer, Schedule } from "effect";
 import { SqlClient } from "effect/sql";
 import { Changes } from "./changes.ts";

@@ -18,8 +18,12 @@ const option = (name) => {
 const sessionId = option("--session-id") ?? option("--resume");
 const mode = process.env.STAND_IN_MODE ?? "ok";
 if (process.env.STAND_IN_LOG) {
-  const env = Object.keys(process.env).filter((key) => key.startsWith("OPENMISSION_"));
-  appendFileSync(process.env.STAND_IN_LOG, `${JSON.stringify({ args, cwd: process.cwd(), env, pid: process.pid })}\n`);
+  const env = Object.keys(process.env).filter((key) => key.startsWith("CANOPY_"));
+  const home = process.env.CLAUDE_CONFIG_DIR ?? null;
+  appendFileSync(
+    process.env.STAND_IN_LOG,
+    `${JSON.stringify({ args, cwd: process.cwd(), env, home, pid: process.pid })}\n`,
+  );
 }
 if (mode === "fail-start") {
   process.stderr.write("stand-in: cannot start\n");

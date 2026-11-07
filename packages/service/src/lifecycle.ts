@@ -1,4 +1,4 @@
-import type { ThreadActions, ThreadState } from "@openmission/contracts";
+import type { ThreadActions, ThreadState } from "@canopy/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { touchMission } from "./activity.ts";

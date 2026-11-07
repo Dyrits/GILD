@@ -1,4 +1,4 @@
-import type { StandingPermission } from "@openmission/contracts";
+import type { StandingPermission } from "@canopy/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { notFound } from "./errors.ts";

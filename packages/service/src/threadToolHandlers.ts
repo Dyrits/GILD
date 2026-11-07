@@ -61,8 +61,19 @@ export const makeToolHandlers = (dependencies: {
         ),
         Effect.catch((reason: string) => Effect.succeed(answer(reason, true))),
       ),
-    open_thread: (threadId, { effort, model, request, title }) =>
-      commit(openThreadByAgent(threadId, request, title ?? null, model ?? null, effort ?? null)).pipe(
+    open_thread: (threadId, { effort, harness, model, request, title }) =>
+      commit(
+        openThreadByAgent(threadId, request, title ?? null, {
+          effort: effort ?? null,
+          harness: harness ?? null,
+          model: model ?? null,
+        }).pipe(
+          // A refused account comes back to the thread as a refusal.
+          Effect.catchTag("ServiceFailure", (failure) =>
+            Effect.succeed({ _tag: "Refused", reason: failure.message } as const),
+          ),
+        ),
+      ).pipe(
         Effect.flatMap((outcome) =>
           Match.valueTags(outcome, {
             Opened: (opened) =>

@@ -1,4 +1,4 @@
-import type { IntelKind, IntelState, Settings } from "@openmission/contracts";
+import type { IntelKind, IntelState, Settings } from "@canopy/contracts";
 import { Clock, Effect } from "effect";
 import { dayMillis, readSettings } from "./settings.ts";
 

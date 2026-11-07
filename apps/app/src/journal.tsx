@@ -1,4 +1,4 @@
-import type { JournalView, MissionId } from "@openmission/contracts";
+import type { JournalView, MissionId } from "@canopy/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import type { ServiceClient } from "./client";

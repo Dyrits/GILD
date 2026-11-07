@@ -1,4 +1,4 @@
-import type { IntelChange, IntelScope, IntelStateFilter, IntelView } from "@openmission/contracts";
+import type { IntelChange, IntelScope, IntelStateFilter, IntelView } from "@canopy/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import {

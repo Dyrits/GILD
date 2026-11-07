@@ -1,8 +1,8 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { ServerFrameJson } from "@canopy/contracts";
 import { describe, expect, it } from "@effect/vitest";
-import { ServerFrameJson } from "@openmission/contracts";
 import { Effect, Schema } from "effect";
 import { afterEach } from "vitest";
 import { fakeHarnessLayer, serveLoopback, serviceLayer } from "../src/index.ts";
@@ -19,10 +19,10 @@ const running = serveLoopback({ port: 0, token: TOKEN }).pipe(Effect.map(({ port
 
 /** A service over its own database, kept open for the whole test. */
 const fresh = () => {
-  const directory = mkdtempSync(join(tmpdir(), "openmission-test-"));
+  const directory = mkdtempSync(join(tmpdir(), "canopy-test-"));
   directories.push(directory);
   return serviceLayer({
-    filename: join(directory, "openmission.sqlite"),
+    filename: join(directory, "canopy.sqlite"),
     harness: fakeHarnessLayer("10 millis"),
     homeFolder: directory,
     scratchRoot: join(directory, "missions"),

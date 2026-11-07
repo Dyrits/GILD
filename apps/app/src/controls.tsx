@@ -1,6 +1,6 @@
-import type { MissionState, ThreadState } from "@openmission/contracts";
+import type { MissionState, ThreadState } from "@canopy/contracts";
 import { type ReactNode, useState } from "react";
-import { Pressable, Switch, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, Switch, Text, TextInput, View } from "react-native";
 import { styles } from "./styles";
 import { colors, stateTones } from "./theme";
 
@@ -33,18 +33,20 @@ export function StateBadge({ state }: { state: ThreadState | MissionState }) {
 
 export /** One choice among a few options, shown as chips. */
 function Choice<T extends string | null>({
+  accessibilityLabel,
   options,
   value,
   label,
   onChange,
 }: {
+  accessibilityLabel?: string;
   options: ReadonlyArray<T>;
   value: T;
   label: (option: T) => string;
   onChange: (option: T) => void;
 }) {
   return (
-    <View style={styles.chips}>
+    <View accessibilityLabel={accessibilityLabel} style={styles.chips}>
       {options.map((option) => (
         <Pressable
           key={String(option)}
@@ -92,7 +94,7 @@ export function Menu<T extends string | null>({
         <Text style={styles.menuCaret}>▾</Text>
       </Pressable>
       {isOpen && (
-        <View style={styles.menuList}>
+        <ScrollView style={styles.menuList}>
           {options.map((option) => (
             <Pressable
               accessibilityRole="menuitem"
@@ -109,7 +111,7 @@ export function Menu<T extends string | null>({
               {option === value && <Text style={styles.chipTextSelected}>✓</Text>}
             </Pressable>
           ))}
-        </View>
+        </ScrollView>
       )}
     </View>
   );

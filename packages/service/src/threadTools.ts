@@ -1,4 +1,4 @@
-import { EffortChoice, ModelChoice } from "@openmission/contracts";
+import { EffortChoice, HarnessName, ModelChoice } from "@canopy/contracts";
 import { Effect, Exit, Schema } from "effect";
 import { latestEntryCount, nothingToRecord } from "./journal.ts";
 
@@ -81,13 +81,18 @@ export const threadTools = {
   }),
   open_thread: definitionOf({
     description:
-      "Open a thread beneath you to work on one request on its own, in parallel with you. It starts with your request, in your working folder, with your model and effort unless you choose others, and reports its result to you as a message. Use it instead of subagents.",
+      "Open a thread beneath you to work on one request on its own, in parallel with you. It starts with your request, in your working folder, with your harness, account, model, and effort unless you choose others, and reports its result to you as a message. Use it instead of subagents. A harness other than yours (claude for Claude Code, codex, opencode) runs on its own sign-in and default model unless you name one of its models.",
     invalid: invalid("Invalid arguments: give request."),
     isUnasked: true,
     schema: Schema.Struct({
       effort: Schema.optionalKey(
         EffortChoice.annotate({
           description: "How hard the new thread works, low to max; default is the harness's own. Yours when left out.",
+        }),
+      ),
+      harness: Schema.optionalKey(
+        HarnessName.annotate({
+          description: "The harness the new thread runs on: claude, codex, or opencode. Yours when left out.",
         }),
       ),
       model: Schema.optionalKey(

@@ -1,6 +1,6 @@
 # Inspirations
 
-Products OpenMission follows for ideas. For each: what it does well, what OpenMission took or may take, and what to check on at the next review. Ideas are written independently and follow [Respect upstream licenses](requirements.md); code is reused only where a decision record allows it.
+Products Canopy follows for ideas. For each: what it does well, what Canopy took or may take, and what to check on at the next review. Ideas are written independently and follow [Respect upstream licenses](requirements.md); code is reused only where a decision record allows it.
 
 Review this list when starting a capability, and every few weeks: read each product's changelog, releases, or documentation, and add what is new below with its date. Record a taken idea in the capability's specifications and the changelog; put a candidate in the [backlog](backlog.md).
 
@@ -11,14 +11,14 @@ Review this list when starting a capability, and every few weeks: read each prod
 - **Good ideas**: an agent panel per agent; installing and updating each harness's command-line tool from its official package, checked against the published hash; how permissions are asked of casual users.
 - **Taken**: harness installs and updates ([architecture](architecture.md)); the thread panel idea ([backlog](backlog.md)); built-in safe git (CHG-0032 in the [changelog](changelog.md)); (2026-11-07) the window's look: a sidebar on a grey frame beside a raised panel, a neutral palette with one blue accent, tinted state pills, and a composer with its pickers inside (CHG-0056).
 - **License**: PolyForm Noncommercial 1.0.0. Ideas only, no code ([0001](architecture-decision-record/0001-new-codebase-not-a-fork.md)).
-- **Check on**: its memory, routine, and approval features, as the closest product to OpenMission.
+- **Check on**: its memory, routine, and approval features, as the closest product to Canopy.
 
 ### MausBot
 
 - **Good ideas**: runtime event and driver contracts, an ACP client and vendor adapters, Claude Code and Codex drivers, a delegation-tree state machine, process and recovery helpers.
 - **Taken**: these modules may be cherry-picked under Apache 2.0 with their notices ([0001](architecture-decision-record/0001-new-codebase-not-a-fork.md)).
 - **License**: Apache 2.0, except its `enterprise/` folder, which is not used. Its brand is not reused.
-- **Check on**: new versions of the drivers OpenMission takes code from.
+- **Check on**: new versions of the drivers Canopy takes code from.
 
 ### Paseo
 
@@ -32,7 +32,7 @@ Review this list when starting a capability, and every few weeks: read each prod
 - **Good ideas**: a handover that replays the full history to the new harness; version control for agent edits and conversations (DeltaDB).
 - **Taken**: full-history handover ([0006](architecture-decision-record/0006-handover-replays-full-history.md)).
 - **License**: Delta is closed, so ideas only. DeltaDB is not open source as of 2026-11-04.
-- **Check on**: whether DeltaDB is published as open source; it could replace OpenMission's own copies ([backlog](backlog.md)).
+- **Check on**: whether DeltaDB is published as open source; it could replace Canopy's own copies ([backlog](backlog.md)).
 
 ## Memory and long-running agents
 

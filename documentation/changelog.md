@@ -802,3 +802,44 @@ Chosen by an agent at the owner's request to apply the audit's changes; not yet 
 References: documentation/verification/2026-11-07-cost-audit.md; packages/service/src/instructions.ts, threads.ts; packages/service/test/claude.test.ts
 Validation: `bun run test` passed 315 with 5 skipped; typecheck, `bun run check`, and `git diff --check` passed. The new check fails on `f9de337`. Not verified: a live Claude Code thread's cache reads on a mission's second turn.
 Evidence: The owner's instruction of 2026-11-07: "Apply all the changes you feel relevant. Document them, then /hand-off, commit and push (on main) once done."
+
+## CHG-0059 · 2026-11-07 · Batch 18 built: harnesses and provider accounts
+
+Type: Code
+Event: Delivery
+Scope: First slice, batch 18; new capability provider-accounts; Thread tree; Action approval
+
+Summary: OpenMission runs threads on Claude Code, Codex, or OpenCode, each with several provider accounts:
+- every thread records its harness and account; the mission start, the open-thread form, and Open as new mission choose harness, account, model, and effort; `open_thread` takes a `harness`; a thread on another harness than its opener's takes that harness's own sign-in and default model;
+- Codex runs through `codex app-server` and OpenCode through `opencode acp`, each one process per thread, with OpenMission's thread tools, starting context, approvals answered through `answer_prompt`, usage, interrupts, and (Codex) steering; native subagents are off;
+- Settings lists each harness's version, the computer's own sign-in, and added accounts, each with its own folder (`CLAUDE_CONFIG_DIR`, `CODEX_HOME`, `XDG_DATA_HOME`); Sign in opens the harness's own login in Terminal; Remove waits until missions on the account end;
+- models are the harness's own identifiers: Claude Code's aliases, Codex's app server list, `opencode models`.
+Built by an agent under the owner's instruction, without questions; provisional choices are in work-in-progress (Batch 18). Not yet agreed or accepted by the owner.
+References: documentation/capabilities/provider-accounts/specifications.md; documentation/architecture-decision-record/0011-accounts-as-harness-folders.md; documentation/verification/2026-11-07-harnesses-and-accounts.md; packages/service/src/codex.ts, opencode.ts, rpcProcess.ts, harnessTools.ts, accounts.ts, runners.ts, harnessCatalog.ts, execution.ts, claude.ts, threads.ts, tree.ts, missions.ts, store.ts (0021), main.ts; packages/contracts/src/harnesses.ts, records.ts, requests.ts; apps/app/src/runners.tsx, accounts.tsx, settings.tsx, dashboard.tsx, threadTree.tsx, suggestions.tsx, conversation.tsx, controls.tsx
+Validation: `bun run test` passed 332 with 8 skipped; typecheck, `bun run check`, `git diff --check`, the desktop build, and a Metro web export passed. 12 of 12 mutations were caught in a separate copy; the new checks cannot load on `ab85b66`. The opt-in live checks (`OPENMISSION_LIVE_HARNESSES=1`) passed against the installed Codex and OpenCode. Driven in the window with the real harnesses: a Codex mission, an OpenCode thread beneath it, a Claude Code mission, and adding and removing an account. Not verified: signing in an added account, live Codex escalation and steering, live OpenCode permission prompts.
+Evidence: The owner's instruction of 2026-11-07: "I'd like OpenMission to be able to be used to build OpenMission. I want to be able to use different providers in it, using my Claude subscription (and even register more than one accound like OpenBot does). I want to be able to use Codex ad well and OpenCode. Focuse on that first. I'll be AFK, don't ask any question."
+
+## CHG-0060 · 2026-11-07 · The app's logo
+
+Type: Code
+Event: Delivery
+Scope: App and desktop shell
+
+Summary: The owner's logo (a white arrow on a blue-to-violet arc with an orange trail, on deep navy) replaces Expo's placeholder icons and the sidebar's glyph: `apps/app/assets` icon, splash, favicon, Android adaptive foreground and background (`#01081C`), a 128-pixel `logo.png` in the sidebar, and `apps/desktop/assets/icon.png` with rounded corners as the window and macOS dock icon. Cropped from the owner's image to its square, on its own background colour; Android's monochrome icon reference was dropped, since Expo's placeholder was the only one.
+References: apps/app/app.json; apps/app/assets/; apps/app/src/sidebar.tsx; apps/desktop/assets/icon.png; apps/desktop/src/main.ts; documentation/verification/2026-11-07-logo/sidebar.png
+Validation: `bun run typecheck`, `bun run check`, the desktop build, and a Metro web export passed; the sidebar was seen in the window ([sidebar](verification/2026-11-07-logo/sidebar.png)). Not verified: the dock icon (screen capture unavailable), a native Android or iOS build.
+Evidence: The owner's instruction of 2026-11-07: "Use this logo for the app." with the image `43855.png`.
+
+## CHG-0061 · 2026-11-07 · Renamed to Canopy
+
+Type: Code and documentation
+Event: Delivery
+Scope: Whole product
+
+Summary: OpenMission is now Canopy. The domain terms stay as they are (mission, thread, Control, journal, briefing, dashboard, intel); Canopy reads as the view from above, a cockpit's canopy, not as tree vocabulary.
+- The app, window, sidebar, Expo `name` and `slug`, packages (`canopy`, `@canopy/contracts`, `@canopy/service`), environment variables (`CANOPY_*`), the desktop bridge (`window.canopy`, `canopy:*` channels), service keys, temporary folder prefixes, the database file (`canopy.sqlite`), and the thread tools' MCP server name (`mcp__canopy__…`) carry the new name.
+- On first launch without `CANOPY_DATA_DIR`, the desktop app moves the former `OpenMission` user-data folder to `Canopy` when only the former exists, renames the database with its write-ahead files, and renames Claude Code's session folders for scratch folders (the computer's sign-in and each added account), so threads with no workspace still resume.
+- Living documents use the new name; dated records (handoffs, verification, earlier changelog records, architecture decisions, audits) keep the name they were written with, so their `OPENMISSION_*` commands need the new names when rerun.
+References: apps/desktop/src/formerData.ts, main.ts, preload.ts; apps/desktop/test/formerData.test.ts; vitest.config.ts; apps/app/app.json; package.json files; bun.lock; README.md; AGENTS.md; documentation/
+Validation: `bun run test` passed 335 with 8 skipped; typecheck, `bun run check`, and the desktop build passed. The owner's data on this computer was moved with `moveFormerData`: 5 threads, integrity check ok, 4 Claude Code session folders renamed; the built service started on it. Not verified: the app driven in the window after the rename.
+Evidence: The owner's instruction of 2026-11-07: "Operate the rebranding overall in Canopy." Intel is kept for now ("Let's keep Intel for now."); former data migrated; dated records left as written.

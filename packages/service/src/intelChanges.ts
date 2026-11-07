@@ -1,10 +1,4 @@
-import type {
-  IntelChangeKind,
-  IntelChangeStatus,
-  IntelHistoryKind,
-  IntelKind,
-  IntelOrigin,
-} from "@openmission/contracts";
+import type { IntelChangeKind, IntelChangeStatus, IntelHistoryKind, IntelKind, IntelOrigin } from "@canopy/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, notFound } from "./errors.ts";

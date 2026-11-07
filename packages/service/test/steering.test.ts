@@ -1,7 +1,6 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { describe, expect, it } from "@effect/vitest";
 import type {
   MessageDelivery,
   MissionDetail,
@@ -10,7 +9,8 @@ import type {
   RequestTag,
   ResultOf,
   ThreadId,
-} from "@openmission/contracts";
+} from "@canopy/contracts";
+import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { afterEach } from "vitest";
 import { fakeHarnessLayer, Service, serviceLayer } from "../src/index.ts";
@@ -21,10 +21,10 @@ afterEach(() => {
 });
 
 const live = () => {
-  const directory = mkdtempSync(join(tmpdir(), "openmission-steering-"));
+  const directory = mkdtempSync(join(tmpdir(), "canopy-steering-"));
   directories.push(directory);
   return serviceLayer({
-    filename: join(directory, "openmission.sqlite"),
+    filename: join(directory, "canopy.sqlite"),
     harness: fakeHarnessLayer("10 millis"),
     homeFolder: directory,
     scratchRoot: join(directory, "missions"),

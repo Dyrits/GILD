@@ -5,12 +5,12 @@ import {
   Results,
   ServerFrameJson,
   type ServiceError,
-} from "@openmission/contracts";
+} from "@canopy/contracts";
 import { Schema } from "effect";
 
 declare global {
   interface Window {
-    openMission?: { chooseFolder(): Promise<string | null>; endpoint(): Promise<string> };
+    canopy?: { chooseFolder(): Promise<string | null>; endpoint(): Promise<string> };
   }
 }
 
@@ -35,8 +35,8 @@ export class ServiceClient {
   private constructor(private readonly endpoint: string) {}
 
   static async connect(): Promise<ServiceClient> {
-    if (window.openMission === undefined) return Promise.reject(new Error("Open OpenMission through the desktop app."));
-    const client = new ServiceClient(await window.openMission.endpoint());
+    if (window.canopy === undefined) return Promise.reject(new Error("Open Canopy through the desktop app."));
+    const client = new ServiceClient(await window.canopy.endpoint());
     await client.open();
     return client;
   }

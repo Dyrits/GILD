@@ -2,7 +2,7 @@
 // (workspace-attachment). The desktop chooses folders in the system's dialog instead (CHG-0035).
 import { mkdirSync, readdirSync, realpathSync, statSync } from "node:fs";
 import { dirname, isAbsolute, join, sep } from "node:path";
-import type { Folder, FolderListing } from "@openmission/contracts";
+import type { Folder, FolderListing } from "@canopy/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid } from "./errors.ts";

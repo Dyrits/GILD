@@ -3,7 +3,7 @@ import {
   ApprovalLevel as ApprovalLevels,
   type MissionId,
   type StandingPermission,
-} from "@openmission/contracts";
+} from "@canopy/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import type { ServiceClient } from "./client";

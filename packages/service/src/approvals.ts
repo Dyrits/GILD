@@ -1,4 +1,4 @@
-import type { Answer, Question, QuestionOutcome, QuestionSource } from "@openmission/contracts";
+import type { Answer, Question, QuestionOutcome, QuestionSource } from "@canopy/contracts";
 import { Clock, Context, Effect, Layer } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
 import { makeOwnerWaits } from "./attention.ts";
@@ -50,7 +50,7 @@ export class Approvals extends Context.Service<
     readonly requestApproval: (threadId: string, request: ApprovalRequest) => Effect.Effect<Decision>;
     readonly withdraw: (threadId: string) => Effect.Effect<void>;
   }
->()("openmission/Approvals") {}
+>()("canopy/Approvals") {}
 
 const outcomeOfAnswer = {
   Allow: "Allowed",

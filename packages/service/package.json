@@ -1,5 +1,5 @@
 {
-  "name": "@openmission/service",
+  "name": "@canopy/service",
   "private": true,
   "type": "module",
   "exports": {
@@ -9,8 +9,8 @@
     "typecheck": "tsc -p ."
   },
   "dependencies": {
+    "@canopy/contracts": "workspace:*",
     "@effect/sql-sqlite-node": "4.1.2",
-    "@openmission/contracts": "workspace:*",
     "effect": "4.1.2",
     "ws": "8.22.1"
   },

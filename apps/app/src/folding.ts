@@ -1,4 +1,4 @@
-import type { ThreadId, ThreadSummary } from "@openmission/contracts";
+import type { ThreadId, ThreadSummary } from "@canopy/contracts";
 
 /** One visible tree row, with the hidden descendants folded into it. */
 export interface FoldedThread {

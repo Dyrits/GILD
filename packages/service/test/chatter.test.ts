@@ -1,5 +1,5 @@
+import type { ThreadId } from "@canopy/contracts";
 import { describe, expect, it } from "@effect/vitest";
-import type { ThreadId } from "@openmission/contracts";
 import { Effect } from "effect";
 import { afterEach } from "vitest";
 import { call, fixture, open, read, send, settle, start, tool } from "./fixtures/batch7.ts";

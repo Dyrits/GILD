@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import type { EffortChoice, ModelChoice } from "@openmission/contracts";
+import type { EffortChoice, HarnessName, ModelChoice } from "@canopy/contracts";
 import { Clock, Context, Effect, FiberMap, FiberSet, Layer, Match, PubSub } from "effect";
 import { SqlClient } from "effect/sql";
 import { touchMission } from "./activity.ts";
@@ -56,13 +56,18 @@ export class Threads extends Context.Service<
     /** Once threads stopped outside a turn's end, wakes the mission's threads whose messages wait. */
     readonly wakeMission: (missionId: string) => Effect.Effect<void>;
   }
->()("openmission/Threads") {}
+>()("canopy/Threads") {}
 
 /** Where each mission's threads with no workspace run, one scratch folder per mission. */
-export class ScratchRoot extends Context.Service<ScratchRoot, string>()("openmission/ScratchRoot") {}
+export class ScratchRoot extends Context.Service<ScratchRoot, string>()("canopy/ScratchRoot") {}
+
+/** Where each provider account added in Canopy keeps its own folder (provider-accounts). */
+export class AccountsRoot extends Context.Service<AccountsRoot, string>()("canopy/AccountsRoot") {}
 
 interface Admitted {
+  readonly accountId: string | null;
   readonly effort: EffortChoice;
+  readonly harness: HarnessName;
   readonly messages: ReadonlyArray<string>;
   readonly missionId: string;
   readonly model: ModelChoice;
@@ -83,6 +88,7 @@ export const threadsLayer = Layer.effect(
     const harness = yield* Harness;
     const changes = yield* Changes;
     const scratchRoot = yield* ScratchRoot;
+    const accountsRoot = yield* AccountsRoot;
     const approvals = yield* Approvals;
     const suggestions = yield* Suggestions;
     /** Withdraws everything the thread waits on the owner for: questions and suggestions. */
@@ -118,7 +124,10 @@ export const threadsLayer = Layer.effect(
             sessionId: string | null;
             model: ModelChoice;
             effort: EffortChoice;
-          }>`SELECT state, mission_id AS missionId, session_id AS sessionId, model, effort
+            harness: HarnessName;
+            accountId: string | null;
+          }>`SELECT state, mission_id AS missionId, session_id AS sessionId, model, effort, harness,
+              account_id AS accountId
             FROM threads WHERE id = ${threadId}`;
           // A thread waiting on a question is still inside its turn; a Stopped one keeps its
           // messages until the owner resumes it (thread-tree, Stopping).
@@ -154,7 +163,9 @@ export const threadsLayer = Layer.effect(
           yield* touch(thread.missionId, now);
           yield* sql.afterCommit(changes.publish);
           return {
+            accountId: thread.accountId,
             effort: thread.effort,
+            harness: thread.harness,
             messages: pending.map((m) => m.text),
             missionId: thread.missionId,
             model: thread.model,
@@ -325,9 +336,11 @@ export const threadsLayer = Layer.effect(
               mcpUrl,
               permissions: permissions.map((permission) => permission.sentence),
             },
+            configDirectory: turn.accountId === null ? null : join(accountsRoot, turn.accountId),
             context,
             cwd,
             effort: turn.effort,
+            harness: turn.harness,
             model: turn.model,
             note,
             onEvent,

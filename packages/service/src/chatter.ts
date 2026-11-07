@@ -1,4 +1,4 @@
-import type { ChatterNotice } from "@openmission/contracts";
+import type { ChatterNotice } from "@canopy/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { Changes } from "./changes.ts";

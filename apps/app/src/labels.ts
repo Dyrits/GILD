@@ -11,7 +11,7 @@ import type {
   StartingContext,
   StartingContextParts,
   SuggestionOutcome,
-} from "@openmission/contracts";
+} from "@canopy/contracts";
 
 const threadsOf = (count: number) => (count === 1 ? "1 thread" : `${count} threads`);
 

@@ -1,10 +1,11 @@
-import type { EffortChoice, ModelChoice, OpenThreadResult, ThreadId } from "@openmission/contracts";
+import type { HarnessName, OpenThreadResult, ThreadId } from "@canopy/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, notFound } from "./errors.ts";
 import { type JournalAuthor, nothingToRecord, openerMessagesOf, updateJournal } from "./journal.ts";
 import { maxOwnerDepth } from "./lifecycle.ts";
 import { insertMessage } from "./messaging.ts";
+import { checkAccount, type Runner, type RunnerChoice, runnerOf } from "./runners.ts";
 import { budgetRefusalOf } from "./spending.ts";
 import { readStartingContext, startingContextRefusalOf } from "./startingContext.ts";
 import { titleOf } from "./titles.ts";
@@ -36,37 +37,45 @@ export const runningCountOf = (missionId: string) =>
   });
 
 interface Opening {
-  readonly effort: EffortChoice | null;
+  /** The opener's choices; what it leaves out comes from the parent (runnerOf). */
+  readonly choice: RunnerChoice;
   /** An off-topic request the owner kept beneath the thread (thread-tree, Off-topic requests). */
   readonly isAside: boolean;
   readonly isOpenedByAgent: boolean;
-  readonly model: ModelChoice | null;
   readonly parentId: string;
   readonly text: string;
   /** A short title; the first line of the text when null. */
   readonly title: string | null;
 }
 
+/** The parent's runner and where it works, or undefined when it is gone. */
+const readParent = (parentId: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const [parent] = yield* sql<
+      Runner & { missionId: string; workspaceId: string | null }
+    >`SELECT mission_id AS missionId, harness, account_id AS accountId, model, effort, workspace_id AS workspaceId
+      FROM threads WHERE id = ${parentId} AND is_deleting = 0`;
+    return parent;
+  });
+
 /**
- * Records a thread beneath the parent, in the parent's workspace and, unless chosen, with its model and
- * effort, and its first message: the opener's request. Callers run it in a transaction and wake it.
+ * Records a thread beneath the parent, in the parent's workspace and, unless chosen, with its harness,
+ * account, model, and effort, and its first message: the opener's request. Callers run it in a transaction
+ * and wake it.
  */
 const insertThread = (opening: Opening) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const [parent] = yield* sql<{
-      missionId: string;
-      model: ModelChoice;
-      effort: EffortChoice;
-      workspaceId: string | null;
-    }>`SELECT mission_id AS missionId, model, effort, workspace_id AS workspaceId FROM threads WHERE id = ${opening.parentId} AND is_deleting = 0`;
+    const parent = yield* readParent(opening.parentId);
     if (parent === undefined) return yield* notFound("No such thread.");
+    const runner = yield* checkAccount(runnerOf(parent, opening.choice));
     const threadId = crypto.randomUUID();
     // An aside starts from the off-topic request alone, without its opener's conversation.
     const openerMessages = opening.isAside ? null : yield* openerMessagesOf(opening.parentId);
-    yield* sql`INSERT INTO threads (id, mission_id, parent_id, state, model, effort, workspace_id, title, is_opened_by_agent, opener_messages, is_aside)
-      VALUES (${threadId}, ${parent.missionId}, ${opening.parentId}, 'Idle', ${opening.model ?? parent.model},
-        ${opening.effort ?? parent.effort}, ${parent.workspaceId}, ${titleOf(opening.title ?? opening.text)}, ${opening.isOpenedByAgent ? 1 : 0},
+    yield* sql`INSERT INTO threads (id, mission_id, parent_id, state, harness, account_id, model, effort, workspace_id, title, is_opened_by_agent, opener_messages, is_aside)
+      VALUES (${threadId}, ${parent.missionId}, ${opening.parentId}, 'Idle', ${runner.harness}, ${runner.accountId},
+        ${runner.model}, ${runner.effort}, ${parent.workspaceId}, ${titleOf(opening.title ?? opening.text)}, ${opening.isOpenedByAgent ? 1 : 0},
         ${openerMessages}, ${opening.isAside ? 1 : 0})`;
     const messageId = yield* insertMessage({
       fromThreadId: opening.isOpenedByAgent ? opening.parentId : null,
@@ -85,8 +94,7 @@ const insertThread = (opening: Opening) =>
 export const openThreadByOwner = (
   parentId: string,
   text: string,
-  model: ModelChoice,
-  effort: EffortChoice,
+  choice: RunnerChoice & { readonly model: string },
   shouldStartAnyway: boolean,
 ) =>
   Effect.gen(function* () {
@@ -94,10 +102,10 @@ export const openThreadByOwner = (
       return yield* invalid(`Threads you open can go down to ${maxOwnerDepth} levels beneath the top thread.`);
     }
     if (!shouldStartAnyway) {
-      const refusal = startingContextRefusalOf(yield* readStartingContext(parentId, model, text));
+      const refusal = startingContextRefusalOf(yield* readStartingContext(parentId, choice.model, text));
       if (refusal !== null) return yield* invalid(refusal);
     }
-    return yield* insertThread({ effort, isAside: false, isOpenedByAgent: false, model, parentId, text, title: null });
+    return yield* insertThread({ choice, isAside: false, isOpenedByAgent: false, parentId, text, title: null });
   });
 
 /**
@@ -106,10 +114,9 @@ export const openThreadByOwner = (
  */
 export const openAside = (parentId: string, text: string, title: string) =>
   insertThread({
-    effort: null,
+    choice: {},
     isAside: true,
     isOpenedByAgent: false,
-    model: null,
     parentId,
     text,
     title: title.trim() === "" ? null : title,
@@ -131,8 +138,7 @@ export const openThreadByAgent = (
   callerId: string,
   request: string,
   title: string | null,
-  model: ModelChoice | null,
-  effort: EffortChoice | null,
+  choice: RunnerChoice & { readonly harness: HarnessName | null },
 ) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
@@ -150,10 +156,9 @@ export const openThreadByAgent = (
       } as const;
     }
     const opened = yield* insertThread({
-      effort,
+      choice,
       isAside: false,
       isOpenedByAgent: true,
-      model,
       parentId: callerId,
       text: request,
       title: title !== null && title.trim() !== "" ? title : null,

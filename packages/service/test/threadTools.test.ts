@@ -22,10 +22,10 @@ describe("listing the thread tools", () => {
   });
 
   it("runs every tool unasked except the approval tools themselves", () => {
-    const names = unaskedToolNamesOf("openmission");
-    expect(names).toContain("mcp__openmission__open_thread");
-    expect(names).not.toContain("mcp__openmission__request_approval");
-    expect(names).not.toContain("mcp__openmission__answer_prompt");
+    const names = unaskedToolNamesOf("canopy");
+    expect(names).toContain("mcp__canopy__open_thread");
+    expect(names).not.toContain("mcp__canopy__request_approval");
+    expect(names).not.toContain("mcp__canopy__answer_prompt");
     expect(names).toHaveLength(Object.keys(threadTools).length - 2);
   });
 

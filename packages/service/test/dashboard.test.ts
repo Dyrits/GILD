@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
+import type { MissionId, MissionList } from "@canopy/contracts";
 import { describe, expect, it } from "@effect/vitest";
-import type { MissionId, MissionList } from "@openmission/contracts";
 import { Effect } from "effect";
 import { TestClock } from "effect/testing";
 import { afterEach } from "vitest";
@@ -98,7 +98,9 @@ describe("prefilling a new mission's choices", () => {
   it.effect("offers the Settings defaults before any mission", () =>
     Effect.gen(function* () {
       expect(yield* call({ _tag: "ReadStartChoices" })).toEqual({
+        accountId: null,
         effort: "default",
+        harness: "claude",
         model: "default",
         workspacePath: null,
       });
@@ -119,7 +121,9 @@ describe("prefilling a new mission's choices", () => {
         workspacePath: folder,
       });
       expect(yield* call({ _tag: "ReadStartChoices" })).toEqual({
+        accountId: null,
         effort: "high",
+        harness: "claude",
         model: "haiku",
         workspacePath: folder,
       });

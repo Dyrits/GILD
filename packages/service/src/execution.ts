@@ -1,4 +1,4 @@
-import type { ApprovalLevel, EffortChoice, ModelChoice, TokenUsage } from "@openmission/contracts";
+import type { ApprovalLevel, EffortChoice, HarnessName, ModelChoice, TokenUsage } from "@canopy/contracts";
 import { Context, Deferred, type Duration, Effect, Layer, Schema } from "effect";
 
 export type HarnessEvent =
@@ -28,10 +28,16 @@ export interface ThreadAccess {
 
 export interface TurnRequest {
   readonly access: ThreadAccess;
+  /**
+   * The provider account's own folder, where the harness keeps its sign-in and sessions, or null for the
+   * harness's own sign-in on this computer (provider-accounts).
+   */
+  readonly configDirectory: string | null;
   /** The starting context: the thread's workspace, or its scratch folder, with the folder's own instructions. */
   readonly context: string;
   readonly cwd: string;
   readonly effort: EffortChoice;
+  readonly harness: HarnessName;
   readonly model: ModelChoice;
   /**
    * What changes from turn to turn, such as the budget line, given with the turn's message rather than
@@ -60,20 +66,39 @@ export interface TurnOutcome {
 
 export class HarnessFailure extends Schema.TaggedError<HarnessFailure>()("HarnessFailure", { reason: Schema.String }) {}
 
+/** What one harness adapter offers: one turn of a thread at a time, which can be steered and interrupted. */
+export interface HarnessAdapter {
+  /** Ends the thread's running turn, whose `runTurn` then returns as interrupted; false when none runs. */
+  readonly interrupt: (threadId: string) => Effect.Effect<boolean>;
+  readonly runTurn: (request: TurnRequest) => Effect.Effect<TurnOutcome, HarnessFailure>;
+  /**
+   * Writes a message into the thread's running turn; false when no turn runs or the harness cannot take one
+   * mid-turn. Its `Delivered` event follows once the turn takes it in; one not taken in by the turn's end is
+   * left for the next turn.
+   */
+  readonly steer: (threadId: string, message: SteeredMessage) => Effect.Effect<boolean>;
+}
+
 /** The harness seam: runs one turn of a thread, reports its events, and lets it be steered and interrupted. */
-export class Harness extends Context.Service<
-  Harness,
-  {
-    readonly runTurn: (request: TurnRequest) => Effect.Effect<TurnOutcome, HarnessFailure>;
-    /**
-     * Writes a message into the thread's running turn; false when no turn runs. Its `Delivered` event
-     * follows once the turn takes it in; one not taken in by the turn's end is left for the next turn.
-     */
-    readonly steer: (threadId: string, message: SteeredMessage) => Effect.Effect<boolean>;
-    /** Ends the thread's running turn, whose `runTurn` then returns as interrupted; false when none runs. */
-    readonly interrupt: (threadId: string) => Effect.Effect<boolean>;
-  }
->()("openmission/Harness") {}
+export class Harness extends Context.Service<Harness, HarnessAdapter>()("canopy/Harness") {}
+
+/**
+ * Sends each turn to the adapter of its thread's harness, and steering and interrupts to the adapter running
+ * that thread's turn (provider-accounts).
+ */
+export const routeHarnesses = (adapters: Record<HarnessName, HarnessAdapter>): HarnessAdapter => {
+  const running = new Map<string, HarnessAdapter>();
+  return {
+    interrupt: (threadId) => running.get(threadId)?.interrupt(threadId) ?? Effect.succeed(false),
+    runTurn: (request) =>
+      Effect.suspend(() => {
+        const adapter = adapters[request.harness];
+        running.set(request.threadId, adapter);
+        return adapter.runTurn(request);
+      }).pipe(Effect.ensuring(Effect.sync(() => running.delete(request.threadId)))),
+    steer: (threadId, message) => running.get(threadId)?.steer(threadId, message) ?? Effect.succeed(false),
+  };
+};
 
 /** Calls one tool on a thread's MCP endpoint and returns its text, as Claude Code would. */
 export const callThreadTool = (mcpUrl: string, name: string, args: unknown) =>

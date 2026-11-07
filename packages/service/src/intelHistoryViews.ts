@@ -1,10 +1,4 @@
-import type {
-  DeletedIntel,
-  IntelHistory,
-  IntelHistoryEntry,
-  IntelHistoryEntryId,
-  IntelId,
-} from "@openmission/contracts";
+import type { DeletedIntel, IntelHistory, IntelHistoryEntry, IntelHistoryEntryId, IntelId } from "@canopy/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { notFound } from "./errors.ts";

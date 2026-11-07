@@ -1,4 +1,4 @@
-import { ErrorKind } from "@openmission/contracts";
+import { ErrorKind } from "@canopy/contracts";
 import { Schema } from "effect";
 
 /** A refusal or failure reported to the caller with one of the contract's error kinds. */

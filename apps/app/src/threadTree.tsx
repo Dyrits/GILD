@@ -1,20 +1,13 @@
-import {
-  type EffortChoice,
-  EffortChoice as EffortChoices,
-  type ModelChoice,
-  ModelChoice as ModelChoices,
-  type ThreadId,
-  type ThreadSummary,
-  type ThreadView,
-} from "@openmission/contracts";
+import type { ModelChoice, ThreadId, ThreadSummary, ThreadView } from "@canopy/contracts";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { newRequestId, type ServiceClient } from "./client";
-import { Choice, Composer, StateBadge } from "./controls";
+import { Composer, StateBadge } from "./controls";
 import { foldThreads } from "./folding";
-import { effortLabel, modelLabels } from "./formatting";
+import { modelLabelOf } from "./formatting";
 import { IntelScreen } from "./intel";
 import { foldedLabelOf, startingContextPartsOf, startingContextWarningOf } from "./labels";
+import { type Runner, RunnerPickers, useHarnesses } from "./runners";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
 
@@ -77,8 +70,15 @@ export function OpenThreadForm({
   onOpened: (threadId: ThreadId) => void;
   parent: ThreadView;
 }) {
-  const [model, setModel] = useState<ModelChoice>(parent.model);
-  const [effort, setEffort] = useState<EffortChoice>(parent.effort);
+  const { data: harnesses } = useHarnesses(client);
+  const [runner, setRunner] = useState<Runner>({
+    accountId: parent.accountId,
+    effort: parent.effort,
+    harness: parent.harness,
+    model: parent.model,
+  });
+  const { model } = runner;
+  const setModel = (chosen: ModelChoice) => setRunner({ ...runner, model: chosen });
   const [isTrimming, setIsTrimming] = useState(false);
   const request = useSettledText();
   const { data: context } = useServiceQuery(
@@ -89,7 +89,9 @@ export function OpenThreadForm({
   const openWith = (shouldStartAnyway: boolean) => async (text: string) => {
     const opened = await client.request({
       _tag: "OpenThread",
-      effort,
+      accountId: runner.accountId,
+      effort: runner.effort,
+      harness: runner.harness,
       model,
       parentThreadId: parent.id,
       requestId: newRequestId(),
@@ -109,13 +111,7 @@ export function OpenThreadForm({
           <Text style={styles.link}>Cancel</Text>
         </Pressable>
       </View>
-      <Choice
-        label={(choice) => modelLabels[choice]}
-        onChange={setModel}
-        options={ModelChoices.literals}
-        value={model}
-      />
-      <Choice label={effortLabel} onChange={setEffort} options={EffortChoices.literals} value={effort} />
+      <RunnerPickers harnesses={harnesses} isCompact={false} onChange={setRunner} value={runner} />
       {context != null && isOverWarning && (
         <View style={styles.failure}>
           <Text style={styles.error}>{startingContextWarningOf(context)}</Text>
@@ -126,7 +122,7 @@ export function OpenThreadForm({
             ) : (
               context.largerModels.map((larger) => (
                 <Pressable key={larger} onPress={() => setModel(larger)} style={styles.answer}>
-                  <Text style={styles.answerText}>Use {modelLabels[larger]}</Text>
+                  <Text style={styles.answerText}>Use {modelLabelOf(larger)}</Text>
                 </Pressable>
               ))
             )}

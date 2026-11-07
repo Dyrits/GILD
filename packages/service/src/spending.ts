@@ -1,4 +1,4 @@
-import type { BudgetLimits, BudgetPeriod, Spending } from "@openmission/contracts";
+import type { BudgetLimits, BudgetPeriod, Spending } from "@canopy/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { readSettings } from "./settings.ts";
@@ -178,5 +178,5 @@ export const budgetLineOf = (missionId: string) =>
         ? null
         : `${percentOf(global.spent.tokens, global.limits.tokens)}% of ${words} tokens`,
     ].filter((part) => part !== null);
-    return `Budget: ${mission}${globalParts.length === 0 ? "" : `; global: ${globalParts.join(", ")}`}. At a limit, OpenMission stops the work under it and asks the owner.`;
+    return `Budget: ${mission}${globalParts.length === 0 ? "" : `; global: ${globalParts.join(", ")}`}. At a limit, Canopy stops the work under it and asks the owner.`;
   });

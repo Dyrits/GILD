@@ -1,4 +1,4 @@
-import type { Suggestion, SuggestionAnswer, SuggestionOutcome } from "@openmission/contracts";
+import type { Suggestion, SuggestionAnswer, SuggestionOutcome } from "@canopy/contracts";
 import { Clock, Context, Effect, Layer, Match } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
 import { makeOwnerWaits } from "./attention.ts";
@@ -51,7 +51,7 @@ export class Suggestions extends Context.Service<
     ) => Effect.Effect<{ readonly answer: ToolAnswer; readonly threadToWake: string | null }>;
     readonly withdraw: (threadId: string) => Effect.Effect<void>;
   }
->()("openmission/Suggestions") {}
+>()("canopy/Suggestions") {}
 
 /** Owns off-topic suggestions; a restart withdraws those left open. */
 export const suggestionsLayer = Layer.effect(
@@ -78,9 +78,9 @@ export const suggestionsLayer = Layer.effect(
       });
 
     /** Opens a mission with only the off-topic part, under the proposed title, with no workspace. */
-    const openMission = (text: string, title: string, model: Suggestion["model"], effort: Suggestion["effort"]) =>
+    const openMission = (text: string, title: string, choice: Parameters<typeof insertMission>[1]) =>
       Effect.gen(function* () {
-        const started = yield* insertMission(text, model, effort, null, false);
+        const started = yield* insertMission(text, choice, null, false);
         if (titleOf(title) !== "") yield* proposeTitle(started.missionId, title);
         const [mission] = yield* sql<{ title: string }>`SELECT title FROM missions WHERE id = ${started.missionId}`;
         return {
@@ -125,7 +125,15 @@ export const suggestionsLayer = Layer.effect(
               targetTitle: mission.title,
             } satisfies Resolution;
           }),
-        NewMission: ({ effort, model }) => openMission(suggestion.text, suggestion.title, model, effort),
+        NewMission: (chosen) =>
+          // Left out, the harness and account are the suggesting thread's, as Open as new mission prefills them.
+          openMission(suggestion.text, suggestion.title, {
+            accountId:
+              chosen.harness === undefined && chosen.accountId === undefined ? suggestion.accountId : chosen.accountId,
+            effort: chosen.effort,
+            harness: chosen.harness ?? suggestion.harness,
+            model: chosen.model,
+          }),
       });
 
     const answer = (suggestionId: string, given: SuggestionAnswer) =>
@@ -163,9 +171,14 @@ export const suggestionsLayer = Layer.effect(
       Effect.gen(function* () {
         const resolution = yield* sql.withTransaction(
           Effect.gen(function* () {
-            const [thread] = yield* sql<{ model: Suggestion["model"]; effort: Suggestion["effort"] }>`
-              SELECT model, effort FROM threads WHERE id = ${threadId}`;
-            const opened = yield* openMission(text, title, thread?.model ?? "default", thread?.effort ?? "default");
+            const [thread] = yield* sql<Pick<Suggestion, "model" | "effort" | "harness" | "accountId">>`
+              SELECT model, effort, harness, account_id AS accountId FROM threads WHERE id = ${threadId}`;
+            const opened = yield* openMission(text, title, {
+              accountId: thread?.accountId ?? null,
+              effort: thread?.effort ?? "default",
+              harness: thread?.harness ?? null,
+              model: thread?.model ?? "default",
+            });
             const now = yield* Clock.currentTimeMillis;
             yield* sql`INSERT INTO suggestions (id, mission_id, thread_id, text, title, matches, asked_at, outcome,
                 is_automatic, target_mission_id, target_thread_id, target_title, resolved_at)
@@ -213,7 +226,7 @@ export const suggestionsLayer = Layer.effect(
           return {
             answer: {
               isError: false,
-              text: `No mission fits, so OpenMission opened it as a new mission "${opened.targetTitle}" (id ${opened.targetMissionId}), as the owner's settings ask. ${carryOn}`,
+              text: `No mission fits, so Canopy opened it as a new mission "${opened.targetTitle}" (id ${opened.targetMissionId}), as the owner's settings ask. ${carryOn}`,
             },
             threadToWake: opened.targetThreadId,
           };

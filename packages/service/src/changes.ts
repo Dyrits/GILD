@@ -14,7 +14,7 @@ export class Changes extends Context.Service<
     readonly pubsub: PubSub.PubSub<number>;
     readonly drafts: PubSub.PubSub<DraftUpdate>;
   }
->()("openmission/Changes") {}
+>()("canopy/Changes") {}
 
 export const changesLayer = Layer.effect(
   Changes,

@@ -7,7 +7,7 @@ import type {
   IntelScope,
   MissionId,
   ModelChoice,
-} from "@openmission/contracts";
+} from "@canopy/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { notFound } from "./errors.ts";
@@ -21,16 +21,10 @@ import { readSettings } from "./settings.ts";
 export const intelLimit = 200;
 
 /**
- * Each model's context window in tokens. Provisional (work-in-progress, Batch 12): every model counts
- * 200,000 until the harness reports its model's window (thread panel and context gauge, backlog).
+ * A model's context window in tokens. Provisional (work-in-progress, Batch 12): every model of every harness
+ * counts 200,000 until the harness reports its model's window (thread panel and context gauge, backlog).
  */
-export const contextWindows = {
-  default: 200_000,
-  fable: 200_000,
-  haiku: 200_000,
-  opus: 200_000,
-  sonnet: 200_000,
-} as const satisfies Record<ModelChoice, number>;
+export const contextWindowOf = (_model: ModelChoice) => 200_000;
 
 /** Where an intel sits: a thread (the mission's top thread for the whole mission), a workspace, or everywhere. */
 export interface Placement {
@@ -239,7 +233,7 @@ export const readGauge = (threadId: string) =>
     const { count, tokens } = yield* readIntelSize(threadId);
     const [thread] = yield* sql<{ model: ModelChoice }>`SELECT model FROM threads WHERE id = ${threadId}`;
     const { intelWarningPercent } = yield* readSettings;
-    const windowTokens = contextWindows[thread?.model ?? "default"];
+    const windowTokens = contextWindowOf(thread?.model ?? "default");
     return {
       count,
       isOverWarning: tokens * 100 > windowTokens * intelWarningPercent,
@@ -252,7 +246,7 @@ export const readGauge = (threadId: string) =>
 /** How a thread keeps intel; part of its system prompt, the same every turn (scoped-intel). */
 export const intelInstructions = [
   "# Intel",
-  "Intel is what OpenMission keeps between threads: rules, preferences, decisions, facts, and temporary notes, each at the scope where it applies. Each of your turns starts with the intel in your scope.",
+  "Intel is what Canopy keeps between threads: rules, preferences, decisions, facts, and temporary notes, each at the scope where it applies. Each of your turns starts with the intel in your scope.",
   `Before saving, check there is something worth keeping: saving nothing is better than a vague or forced intel. When you learn something later work should know, save it with save_intel: one fact per intel, at most ${intelLimit} tokens. Choose the narrowest scope that fits: thread (you and the threads beneath you), mission (every thread of this mission), workspace (every thread working in this folder, in any mission), or global (everywhere; it waits for the owner's approval).`,
   "Choose its kind: rule (never fades), preference, decision, fact, or temporary (fades in days). Intel nobody uses fades, so search_intel for what you need: reading an intel there keeps it alive. When an intel from your context shaped what you did, say so with relied_on_intel and its ids; that keeps it alive too.",
   "A save that says the same as an intel in its scope or a wider one, or a newer version of it, replaces it: the intel keeps its id and takes the new text. When the intel rests on a journal entry, give its number as journalEntry; otherwise the message you are answering is recorded as its origin.",

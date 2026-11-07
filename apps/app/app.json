@@ -2,10 +2,9 @@
   "expo": {
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#01081C",
         "backgroundImage": "./assets/android-icon-background.png",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "foregroundImage": "./assets/android-icon-foreground.png"
       },
       "predictiveBackGestureEnabled": false
     },
@@ -13,9 +12,14 @@
     "ios": {
       "supportsTablet": true
     },
-    "name": "OpenMission",
+    "name": "Canopy",
     "orientation": "portrait",
-    "slug": "openmission",
+    "slug": "canopy",
+    "splash": {
+      "backgroundColor": "#01081C",
+      "image": "./assets/splash-icon.png",
+      "resizeMode": "contain"
+    },
     "userInterfaceStyle": "light",
     "version": "1.0.0",
     "web": {

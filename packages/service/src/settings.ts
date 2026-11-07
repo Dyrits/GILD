@@ -1,4 +1,4 @@
-import { Settings, StartChoices } from "@openmission/contracts";
+import { Settings, StartChoices } from "@canopy/contracts";
 import { Effect, Exit, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid } from "./errors.ts";
@@ -13,6 +13,7 @@ export const defaultSettings: Settings = {
   chatterThreshold: 20,
   defaultDelivery: "Steer",
   defaultEffort: "default",
+  defaultHarness: "claude",
   defaultMissionBudget: { cost: null, tokens: null },
   defaultModel: "default",
   globalBudget: { cost: null, tokens: null },
@@ -55,17 +56,32 @@ export const writeSettings = (settings: Settings) =>
     return settings;
   });
 
-const decodeChoices = Schema.decodeUnknownExit(Schema.fromJsonString(StartChoices));
+const decodeChoices = Schema.decodeUnknownExit(StartChoices);
+
+/** Saved choices as JSON, with the harness fields older saves lack: Claude Code on the computer's own sign-in. */
+const choicesOf = (text: string) => {
+  try {
+    return decodeChoices({ accountId: null, harness: "claude", ...JSON.parse(text) });
+  } catch {
+    return null;
+  }
+};
 
 /** The last mission's choices, or the Settings defaults with no workspace before any (mission-tracking). */
 export const readStartChoices = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const [row] = yield* sql<{ value: string }>`SELECT value FROM settings WHERE key = 'start_choices'`;
   // A value no longer valid falls back to the defaults below.
-  const decoded = row === undefined ? null : decodeChoices(row.value);
+  const decoded = row === undefined ? null : choicesOf(row.value);
   if (decoded !== null && Exit.isSuccess(decoded)) return decoded.value;
   const settings = yield* readSettings;
-  return { effort: settings.defaultEffort, model: settings.defaultModel, workspacePath: null } satisfies StartChoices;
+  return {
+    accountId: null,
+    effort: settings.defaultEffort,
+    harness: settings.defaultHarness,
+    model: settings.defaultModel,
+    workspacePath: null,
+  } satisfies StartChoices;
 });
 
 /** Remembers a started mission's choices for the next one. Callers run it in a transaction. */
