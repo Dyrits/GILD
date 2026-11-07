@@ -15,6 +15,7 @@ import type { ToolScope } from "./intelChanges.ts";
 import { readFading, stateOfIntel } from "./intelFading.ts";
 import { recordFadingStepsOf } from "./intelHistory.ts";
 import { listDeletedIntel } from "./intelHistoryViews.ts";
+import { listIntelProposals } from "./intelProposals.ts";
 import { wordsOf } from "./matching.ts";
 
 // What the owner and threads read of intel: the panel, a thread's changes, and search_intel.
@@ -91,6 +92,7 @@ export const readIntelView = (scope: IntelScope | null, state: IntelStateFilter 
       intels: rows
         .filter((row) => (scope === null || row.scope === scope) && isOfState(row))
         .map((row) => intelOf(row, fading)),
+      proposals: yield* listIntelProposals,
     } satisfies IntelView;
   });
 
@@ -121,13 +123,18 @@ const rankByWords = (rows: ReadonlyArray<IntelRow>, query: string) => {
 };
 
 /** Counts one use of each intel: it fades slower, and a dormant one is active again (scoped-intel, Fading). */
-const countUses = (intelIds: ReadonlyArray<string>) =>
+const countUses = (threadId: string, intelIds: ReadonlyArray<string>) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const now = yield* Clock.currentTimeMillis;
     // A use resets fading, so the steps it took so far are stored first (scoped-intel, History and undo).
     yield* recordFadingStepsOf(intelIds);
     yield* sql`UPDATE intels SET uses = uses + 1, last_used_at = ${now} WHERE id IN ${sql.in(intelIds)}`;
+    // Where each use happened is the evidence for narrowing (scoped-intel, Widening and narrowing).
+    for (const intelId of intelIds) {
+      yield* sql`INSERT INTO intel_uses (intel_id, at, workspace_id)
+        SELECT ${intelId}, ${now}, workspace_id FROM threads WHERE id = ${threadId}`;
+    }
   });
 
 /** The thread's intel that search reads: in its scope and not archived. */
@@ -149,7 +156,7 @@ export const relyOnIntel = (threadId: string, ids: ReadonlyArray<string>) =>
     const missed = [...new Set(ids)].filter((id) => !counted.includes(id));
     const missedNote = missed.length === 0 ? "" : ` Not in your scope, or archived: ${missed.join(", ")}.`;
     if (counted.length === 0) return { isError: true, text: `No use counted.${missedNote}` };
-    yield* countUses(counted);
+    yield* countUses(threadId, counted);
     return {
       isError: false,
       text: `Counted ${counted.length === 1 ? "1 use" : `${counted.length} uses`}.${missedNote}`,
@@ -175,6 +182,9 @@ export const searchIntelText = (
     if (found.length === 0) {
       return "No intel matches. Your context already lists the active intel in your scope, and global intel as an index.";
     }
-    yield* countUses(found.map((row) => row.id));
+    yield* countUses(
+      threadId,
+      found.map((row) => row.id),
+    );
     return `Intel found, best match first; when two conflict, the more specific scope wins:\n${intelLinesOf(found)}`;
   });

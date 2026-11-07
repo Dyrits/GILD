@@ -5,6 +5,7 @@ import {
   IntelChangeId,
   IntelHistoryEntryId,
   IntelId,
+  IntelProposalId,
   MessageId,
   MissionId,
   PermissionId,
@@ -29,6 +30,7 @@ import {
   RequestId,
   Settings,
   StartChoices,
+  StartingContext,
   Suggestion,
 } from "./records.ts";
 import { Folder, FolderListing } from "./workspaces.ts";
@@ -92,7 +94,16 @@ export const OpenThread = Schema.TaggedStruct("OpenThread", {
   model: ModelChoice,
   parentThreadId: ThreadId,
   requestId: RequestId,
+  /** The owner chose to start it although its starting context is over the warning share. */
+  shouldStartAnyway: Schema.Boolean,
   text: MessageText,
+});
+/** What a thread the owner opens beneath a thread would start with, before it starts (thread-tree, Opening a thread). */
+export const PreviewStartingContext = Schema.TaggedStruct("PreviewStartingContext", {
+  model: ModelChoice,
+  parentThreadId: ThreadId,
+  /** The request typed so far, which may still be empty. */
+  text: Schema.String.check(Schema.isMaxLength(100_000)),
 });
 
 /** The counts and snapshot covered by one permanent deletion confirmation. */
@@ -157,6 +168,12 @@ export const UndoIntelChange = Schema.TaggedStruct("UndoIntelChange", { entryId:
 export const ResolveIntelChange = Schema.TaggedStruct("ResolveIntelChange", {
   changeId: IntelChangeId,
   isApproved: Schema.Boolean,
+});
+
+/** The owner approves or declines a widening or narrowing the service proposed from evidence. */
+export const ResolveIntelProposal = Schema.TaggedStruct("ResolveIntelProposal", {
+  isApproved: Schema.Boolean,
+  proposalId: IntelProposalId,
 });
 
 /** The owner's answer to one open question. */
@@ -243,6 +260,7 @@ export const Request = Schema.Union([
   PinIntel,
   RestoreIntel,
   ResolveIntelChange,
+  ResolveIntelProposal,
   ReadIntelHistory,
   UndoIntelChange,
   AnswerQuestion,
@@ -255,6 +273,7 @@ export const Request = Schema.Union([
   RetryThread,
   InterruptThread,
   OpenThread,
+  PreviewStartingContext,
   ResumeThread,
   ReadPermissions,
   WidenPermission,
@@ -297,6 +316,7 @@ export const Results = {
   PinIntel: Schema.Null,
   PreviewDeletion: DeletionPreview,
   PreviewEnding: EndingPreview,
+  PreviewStartingContext: StartingContext,
   ReadBudget: BudgetWindow,
   ReadIntelHistory: IntelHistory,
   ReadJournal: JournalView,
@@ -309,6 +329,7 @@ export const Results = {
   ReopenMission: Schema.Null,
   ResolveChatter: Schema.Null,
   ResolveIntelChange: Schema.Null,
+  ResolveIntelProposal: Schema.Null,
   RestoreIntel: Schema.Null,
   ResumeThread: Schema.Null,
   RetryThread: Schema.Null,

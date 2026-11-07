@@ -100,4 +100,5 @@ export const styles = StyleSheet.create({
   treeTitle: { color: "#374151", flex: 1, fontSize: 14 },
   treeTitleRow: { alignItems: "center", flexDirection: "row", gap: 6 },
   treeTitleSelected: { color: "#111827", fontWeight: "600" },
+  trimPanel: { borderColor: "#e5e7eb", borderRadius: 8, borderWidth: 1, height: 420, padding: 8 },
 });

@@ -432,6 +432,74 @@ Intel history with undo (scoped-intel, History and undo), chosen by an agent und
 
 - Widening and narrowing proposed from evidence; Tidy up intel and its routine.
 
+## Batch 16: built, awaiting the owner
+
+Widening and narrowing proposed from evidence (scoped-intel, Widening and narrowing), chosen by an agent under the owner's instruction of 2026-11-07 ("build what is next", no questions this session); not yet agreed by the owner. Starts from `b94771f`, uncommitted. Built test-first on the fake harness and its test clock and driven in the window: [proof](verification/2026-11-07-intel-proposals.md). Recorded in CHG-0054.
+
+### Behavior
+
+- **Uses by workspace**: each use (`search_intel`, `relied_on_intel`) is recorded with the using thread's workspace, or none.
+- **Widening proposal**: when workspace intels in two or more workspaces say the same thing (the replacement closeness of batch 14), the intel panel proposes one global intel in their place, with the newest text and kind, listing each.
+- **Narrowing proposal**: when a global intel was saved at least its kind's half-life ago and every use recorded over the last half-life came from threads of one workspace (at least one use), the panel proposes moving it to that workspace.
+- **Nothing before approval**: a proposal changes nothing; **Approve** applies it, **Decline** removes it for good.
+- **Applying a widening**: the newest intel becomes global ("Widened"), takes the sum of uses and the latest use; the others are merged into it ("Merged"), listed under Deleted, and their uses count for it.
+- **Applying a narrowing**: the intel moves to the workspace ("Narrowed").
+- Both are undoable from History like any change; a proposal no longer backed by evidence is refused.
+
+### Provisional, until the owner decides
+
+- Proposals are worked out from evidence when the panel is read, like fading; only decisions are stored. A declined proposal is the same set of intels (widening) or the same intel and workspace (narrowing); a new intel joining the set makes a new proposal.
+- "Its whole half-life" is the kind's half-life in Settings, without the growth from uses; a rule never fades, so it is never narrowed. Uses before this batch have no workspace and do not count.
+- No widening is proposed when a global intel already says the same thing.
+- History entries of an applied proposal are the owner's, since the owner approved them.
+- Archived intel is left out of both.
+
+- A merged intel shows under Deleted as deleted; its history says merged.
+
+### Checks
+
+- Automated: 15 checks in `intelProposals.test.ts` on the test clock; 2 label checks; a two-step migration check of 0020 in the proof's folder.
+- `bun run test` (302 passed, 5 skipped), `bun run typecheck`, `bun run check`, `git diff --check`, desktop build, Metro web export; 17 of 17 mutations caught in a separate copy; the new checks fail 15 of 15 on `b94771f`.
+- Driven in the window on the fake harness, days simulated in the database: see the proof.
+- Not run: a live Claude Code thread whose uses become evidence.
+
+### Staged, next intel batch
+
+- Tidy up intel from the panel; its routine waits for routines.
+
+## Batch 17: built, awaiting the owner
+
+The warning before a thread starts with too large a starting context (thread-tree, Opening a thread; agreed in CHG-0007), chosen by an agent under the owner's instruction of 2026-11-07 ("build what is next", no questions this session); not yet agreed by the owner. Starts from batch 16's uncommitted state on `b94771f`. Built test-first on the fake harness and driven in the window: [proof](verification/2026-11-07-starting-context.md). Recorded in CHG-0055.
+
+### Behavior
+
+- **Preview**: while the owner types the first message of a thread opened beneath another, the form shows what it would start with (`PreviewStartingContext`): the request, the briefing and 20 latest entries, the intel in scope (scoped intel in full and the global index, as the intel gauge counts it), and the opener's messages since the journal's latest entry, each in estimated tokens.
+- **Warning**: past 25% of the chosen model's context window, the form says the size, the share, and each part, and offers a model with a larger window, **Trim intel**, and **Start anyway**.
+- **Trim intel** opens the intel panel of the parent's scope inside the form; the typed request stays, and the preview follows each change.
+- **Refusal**: `OpenThread` is refused over the warning unless the owner chose Start anyway (`shouldStartAnyway`); the refusal names the share.
+
+### Provisional, until the owner decides
+
+- The warning share is fixed at 25%, as specified; it is not a setting.
+- Every model counts 200,000 tokens (Batch 12), so no larger model is ever offered: the form says "No model has a larger context window."
+- Threads opened by agents (`open_thread`) and asides are not warned: no owner is there to answer before they start.
+- Starting a mission is not warned yet; its context is the first message, the workspace's and global intel.
+- Skills are not counted: threads have none until tool-and-skill-loading.
+- The parts are measured as tokens of their text (characters / 4), like the briefing limit; the instructions every thread receives are not counted.
+- The preview is asked for 300 ms after typing pauses.
+
+### Checks
+
+- Automated: 9 checks in `startingContext.test.ts`; 2 label checks.
+- `bun run test` (311 passed, 5 skipped), `bun run typecheck`, `bun run check`, `git diff --check`, desktop build, Metro web export; 13 of 13 mutations caught in a separate copy; the new checks fail 8 of 9 on the batch 16 state.
+- Driven in the window on the fake harness: see the proof.
+- Not run: a live Claude Code thread.
+
+### Staged
+
+- Summarizing the oldest part when a starting context exceeds the model's window (thread-tree, Opening a thread).
+- The warning when starting a mission.
+
 ## Open questions, settled when a batch needs them
 
 - Dependency gates and fake-first live launch (first-slice-design, Dependency gates).

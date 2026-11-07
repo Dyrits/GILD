@@ -3,6 +3,7 @@ import type {
   IntelChange,
   IntelGauge,
   IntelId,
+  IntelProposal,
   IntelScope,
   IntelStateFilter,
   ThreadId,
@@ -12,7 +13,14 @@ import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import type { ServiceClient } from "./client";
 import { timeOf } from "./formatting";
 import { DeletedIntelRow, IntelHistoryScreen } from "./intelHistory";
-import { intelActionOf, intelChangeLineOf, intelFadingLabelOf, intelGaugeLabelOf, intelOriginLabelOf } from "./labels";
+import {
+  intelActionOf,
+  intelChangeLineOf,
+  intelFadingLabelOf,
+  intelGaugeLabelOf,
+  intelOriginLabelOf,
+  intelProposalLineOf,
+} from "./labels";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
 
@@ -32,11 +40,11 @@ export function IntelIcon({ gauge, onPress }: { gauge: IntelGauge; onPress: () =
   );
 }
 
-/** Approve and Decline on a change awaiting the owner. */
-function Decision({ change, client }: { change: IntelChange; client: ServiceClient }) {
+/** Approve and Decline on a change or a proposal awaiting the owner. */
+function Decision({ onResolve }: { onResolve: (isApproved: boolean) => Promise<unknown> }) {
   const [error, setError] = useState<string | null>(null);
   const resolve = (isApproved: boolean) =>
-    client.request({ _tag: "ResolveIntelChange", changeId: change.id, isApproved }).then(
+    onResolve(isApproved).then(
       () => setError(null),
       (reason: Error) => setError(reason.message),
     );
@@ -75,7 +83,29 @@ export function IntelChangeCard({
         <Text style={styles.muted}>Was: {change.previousText}</Text>
       )}
       <Text style={styles.body}>{change.text}</Text>
-      <Decision change={change} client={client} />
+      <Decision
+        onResolve={(isApproved) => client.request({ _tag: "ResolveIntelChange", changeId: change.id, isApproved })}
+      />
+    </View>
+  );
+}
+
+/** A widening or narrowing proposed from evidence: why, the text it keeps, the intels it moves, and the decision. */
+function IntelProposalCard({ client, proposal }: { client: ServiceClient; proposal: IntelProposal }) {
+  return (
+    <View style={styles.question}>
+      <Text style={styles.questionText}>{intelProposalLineOf(proposal)}</Text>
+      <Text style={styles.body}>{proposal.text}</Text>
+      {proposal.intels.map((intel) => (
+        <Text key={intel.id} style={styles.muted}>
+          Now in {intel.scopeLabel}: {intel.text}
+        </Text>
+      ))}
+      <Decision
+        onResolve={(isApproved) =>
+          client.request({ _tag: "ResolveIntelProposal", isApproved, proposalId: proposal.id })
+        }
+      />
     </View>
   );
 }
@@ -225,6 +255,14 @@ export function IntelScreen({
       )}
       {data && (
         <ScrollView style={styles.flex}>
+          {data.proposals.length > 0 && (
+            <View style={styles.section}>
+              <Text style={styles.label}>Proposed from how intel is used</Text>
+              {data.proposals.map((proposal) => (
+                <IntelProposalCard client={client} key={proposal.id} proposal={proposal} />
+              ))}
+            </View>
+          )}
           {data.awaiting.length > 0 && (
             <View style={styles.section}>
               <Text style={styles.label}>Waiting for your approval</Text>

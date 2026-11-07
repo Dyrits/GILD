@@ -217,19 +217,31 @@ export const intelLinesOf = (rows: ReadonlyArray<IntelRow>) =>
 const indexLinesOf = (rows: ReadonlyArray<IntelRow>) =>
   rows.map((row) => `- [${row.id}] (global, ${row.kind.toLowerCase()}) ${summaryOf(row.text)}`).join("\n");
 
+/**
+ * What the intel in a thread's scope takes in a turn's context: how many active intels, and their tokens in
+ * full or as index lines. A thread the owner opens beneath it starts with the same intel.
+ */
+export const readIntelSize = (threadId: string) =>
+  Effect.gen(function* () {
+    const recall = recallOf(yield* listInScope(yield* readScopeChain(threadId)), yield* readFading);
+    return {
+      count: recall.inFull.length + recall.index.length,
+      tokens:
+        recall.inFull.reduce((sum, row) => sum + tokensOf(row.text), 0) +
+        recall.index.reduce((sum, row) => sum + tokensOf(summaryOf(row.text)), 0),
+    };
+  });
+
 /** How much of its model's context window the intel in a thread's scope takes (scoped-intel, Size warning). */
 export const readGauge = (threadId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const recall = recallOf(yield* listInScope(yield* readScopeChain(threadId)), yield* readFading);
+    const { count, tokens } = yield* readIntelSize(threadId);
     const [thread] = yield* sql<{ model: ModelChoice }>`SELECT model FROM threads WHERE id = ${threadId}`;
     const { intelWarningPercent } = yield* readSettings;
     const windowTokens = contextWindows[thread?.model ?? "default"];
-    const tokens =
-      recall.inFull.reduce((sum, row) => sum + tokensOf(row.text), 0) +
-      recall.index.reduce((sum, row) => sum + tokensOf(summaryOf(row.text)), 0);
     return {
-      count: recall.inFull.length + recall.index.length,
+      count,
       isOverWarning: tokens * 100 > windowTokens * intelWarningPercent,
       tokens,
       warningPercent: intelWarningPercent,
@@ -272,6 +284,8 @@ export const intelContextOf = (threadId: string) =>
 export const eraseThreadIntel = (threadIds: ReadonlyArray<string>) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
+    yield* sql`DELETE FROM intel_uses WHERE intel_id IN (
+        SELECT id FROM intels WHERE scope = 'Thread' AND thread_id IN ${sql.in(threadIds)})`;
     yield* sql`DELETE FROM intels WHERE scope = 'Thread' AND thread_id IN ${sql.in(threadIds)}`;
     yield* sql`DELETE FROM intel_changes WHERE thread_id IN ${sql.in(threadIds)}
       OR scope_thread_id IN ${sql.in(threadIds)}`;

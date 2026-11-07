@@ -42,7 +42,7 @@ export interface Fadable {
 }
 
 /** The half-life in days of an intel of that kind, or null for a rule, which never fades. */
-const halfLifeDaysOf = (kind: IntelKind, halfLives: Fading["halfLives"]) =>
+export const halfLifeDaysOf = (kind: IntelKind, halfLives: Fading["halfLives"]) =>
   ({
     Decision: halfLives.decision,
     Fact: halfLives.fact,

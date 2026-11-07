@@ -22,6 +22,7 @@ import {
   restoreIntelByOwner,
 } from "./intelChanges.ts";
 import { readIntelHistory } from "./intelHistoryViews.ts";
+import { resolveIntelProposal } from "./intelProposals.ts";
 import { undoIntelChange } from "./intelUndo.ts";
 import { readIntelView } from "./intelViews.ts";
 import { type JournalOutcome, readJournalView, updateJournal } from "./journal.ts";
@@ -33,6 +34,7 @@ import { listPermissions, removePermission, widenPermission } from "./permission
 import { listOpenQuestions, listQuestionHistory } from "./questions.ts";
 import { sandboxProblem } from "./sandbox.ts";
 import { readSettings, readStartChoices, writeSettings } from "./settings.ts";
+import { readStartingContext } from "./startingContext.ts";
 import { storeLayer } from "./store.ts";
 import { Suggestions, suggestionsLayer } from "./suggestions.ts";
 import { ScratchRoot, Threads, threadsLayer } from "./threads.ts";
@@ -171,7 +173,11 @@ const make = Effect.gen(function* () {
         OpenThread: (open) =>
           nonBlank(open.text).pipe(
             Effect.andThen((text) =>
-              once(open.requestId, open._tag, openThreadByOwner(open.parentThreadId, text, open.model, open.effort)),
+              once(
+                open.requestId,
+                open._tag,
+                openThreadByOwner(open.parentThreadId, text, open.model, open.effort, open.shouldStartAnyway),
+              ),
             ),
             Effect.tap((opened) => threads.wake(opened.threadId)),
           ),
@@ -179,6 +185,7 @@ const make = Effect.gen(function* () {
           sql.withTransaction(pinIntelByOwner(given.intelId, given.isPinned)).pipe(Effect.tap(() => changes.publish)),
         PreviewDeletion: (given) => previewDeletion(given.threadId),
         PreviewEnding: (given) => previewEnding(given.missionId, given.ending),
+        PreviewStartingContext: (given) => readStartingContext(given.parentThreadId, given.model, given.text),
         ReadBudget: (read) => readBudgetWindow(read.missionId),
         ReadIntelHistory: (read) => readIntelHistory(read.intelId),
         ReadJournal: (read) => readJournalView(read.missionId),
@@ -209,6 +216,10 @@ const make = Effect.gen(function* () {
         ResolveIntelChange: (given) =>
           sql
             .withTransaction(resolveIntelChange(given.changeId, given.isApproved))
+            .pipe(Effect.tap(() => changes.publish)),
+        ResolveIntelProposal: (given) =>
+          sql
+            .withTransaction(resolveIntelProposal(given.proposalId, given.isApproved))
             .pipe(Effect.tap(() => changes.publish)),
         RestoreIntel: (given) =>
           sql.withTransaction(restoreIntelByOwner(given.intelId)).pipe(Effect.tap(() => changes.publish)),

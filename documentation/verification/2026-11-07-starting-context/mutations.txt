@@ -1,0 +1,14 @@
+CAUGHT   startingContext.ts tokens * 100 > windowTokens * startingContextWarningPercent
+CAUGHT   startingContext.ts export const startingContextWarningPercent = 25;
+CAUGHT   startingContext.ts intel: intel.tokens,
+CAUGHT   startingContext.ts journal: tokensOf(yield* readJournalText(parentId, null, null)),
+CAUGHT   startingContext.ts openerMessages: openerMessages === null ? 0 : tokensOf(openerMessages)
+CAUGHT   startingContext.ts request: tokensOf(request),
+CAUGHT   startingContext.ts const tokens = parts.intel + parts.journal + parts.openerMessages + pa
+CAUGHT   startingContext.ts .filter((choice) => contextWindows[choice] > windowTokens)
+CAUGHT   tree.ts if (!shouldStartAnyway) {
+CAUGHT   tree.ts if (refusal !== null) return yield* invalid(refusal);
+CAUGHT   intel.ts recall.index.reduce((sum, row) => sum + tokensOf(summaryOf(row.text)),
+CAUGHT   labels.ts Math.round((context.tokens * 100) / context.windowTokens)
+CAUGHT   labels.ts Opener's messages ${tokenCountOf(parts.openerMessages)}
+13/13 caught

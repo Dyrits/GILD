@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import { IntelChangeId, IntelHistoryEntryId, IntelId, MissionId, ThreadId } from "./ids.ts";
+import { IntelChangeId, IntelHistoryEntryId, IntelId, IntelProposalId, MissionId, ThreadId } from "./ids.ts";
 
 // Scoped intel (scoped-intel): facts, preferences, and decisions kept at the scope where they apply.
 
@@ -116,13 +116,16 @@ export type IntelGauge = typeof IntelGauge.Type;
 
 /**
  * What an entry in an intel's history records (scoped-intel, History and undo): a thread's save, replacement,
- * correction, widening, or deletion; the owner's edit, deletion, pin, unpin, or restore; a fading step; or an undo.
+ * correction, widening, or deletion; the owner's edit, deletion, pin, unpin, or restore; a proposal the owner
+ * approved, which widens, narrows, or merges an intel into another; a fading step; or an undo.
  */
 export const IntelHistoryKind = Schema.Literals([
   "Saved",
   "Replaced",
   "Corrected",
   "Widened",
+  "Narrowed",
+  "Merged",
   "Deleted",
   "Edited",
   "Pinned",
@@ -185,6 +188,40 @@ export const DeletedIntel = Schema.Struct({
 });
 export type DeletedIntel = typeof DeletedIntel.Type;
 
+/** What the service proposes from evidence: one global intel for the same one in several workspaces, or a narrower scope. */
+export const IntelProposalKind = Schema.Literals(["Widen", "Narrow"]);
+export type IntelProposalKind = typeof IntelProposalKind.Type;
+
+/** An intel a proposal moves or merges, as it is now. */
+export const ProposedIntel = Schema.Struct({
+  id: IntelId,
+  scopeLabel: Schema.String,
+  text: Schema.String,
+});
+export type ProposedIntel = typeof ProposedIntel.Type;
+
+/**
+ * A widening or narrowing the service proposes from evidence, waiting in the intel panel for the owner's
+ * approval and changing nothing before it (scoped-intel, Widening and narrowing).
+ */
+export const IntelProposal = Schema.Struct({
+  /** For a narrowing: the half-life in days over which every use came from one workspace; null for a widening. */
+  halfLifeDays: Schema.NullOr(Schema.Number),
+  id: IntelProposalId,
+  /** The kind the intel has once moved: the newest intel's for a widening. */
+  intelKind: IntelKind,
+  /** The intels it moves: each workspace's for a widening, the global one for a narrowing. */
+  intels: Schema.Array(ProposedIntel),
+  kind: IntelProposalKind,
+  /** The scope it proposes, in words. */
+  scopeLabel: Schema.String,
+  /** The text the intel keeps: the newest one's for a widening. */
+  text: Schema.String,
+  /** For a narrowing: the uses over that half-life, all from the workspace; null for a widening. */
+  uses: Schema.NullOr(Schema.Number),
+});
+export type IntelProposal = typeof IntelProposal.Type;
+
 /** The intel panel: intel in one thread's scope (most specific first) or all, and the changes awaiting approval. */
 export const IntelView = Schema.Struct({
   awaiting: Schema.Array(IntelChange),
@@ -193,5 +230,7 @@ export const IntelView = Schema.Struct({
   /** The thread's gauge when the panel was opened from a thread; null otherwise. */
   gauge: Schema.NullOr(IntelGauge),
   intels: Schema.Array(Intel),
+  /** Widenings and narrowings proposed from evidence, awaiting the owner. */
+  proposals: Schema.Array(IntelProposal),
 });
 export type IntelView = typeof IntelView.Type;

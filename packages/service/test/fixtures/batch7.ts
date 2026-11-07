@@ -69,5 +69,6 @@ export const open = (parentThreadId: ThreadId, text = "Hello") =>
     model: "default",
     parentThreadId,
     requestId: crypto.randomUUID(),
+    shouldStartAnyway: false,
     text,
   });

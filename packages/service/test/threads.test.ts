@@ -61,7 +61,15 @@ const start = (text: string, model: ModelChoice = "default") =>
 const send = (threadId: ThreadId, text: string) =>
   call({ _tag: "SendMessage", delivery: null, requestId: `send-${++requestCount}`, text, threadId });
 const open = (parentThreadId: ThreadId, text: string, model: ModelChoice = "default") =>
-  call({ _tag: "OpenThread", effort: "default", model, parentThreadId, requestId: `open-${++requestCount}`, text });
+  call({
+    _tag: "OpenThread",
+    effort: "default",
+    model,
+    parentThreadId,
+    requestId: `open-${++requestCount}`,
+    shouldStartAnyway: false,
+    text,
+  });
 
 const read = (missionId: MissionId, threadId: ThreadId | null = null) =>
   call({ _tag: "ReadMission", missionId, threadId });
@@ -303,6 +311,7 @@ describe("limits", () => {
         model: "default",
         parentThreadId: parent,
         requestId: "too-deep",
+        shouldStartAnyway: false,
         text: "Level 5",
       });
       expect(failure).toMatchObject({ kind: "InvalidInput" });

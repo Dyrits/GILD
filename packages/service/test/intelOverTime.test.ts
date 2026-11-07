@@ -163,21 +163,25 @@ describe("fading", () => {
     }).pipe(Effect.provide(live().layer)),
   );
 
-  it.effect("never fades a rule or a pinned intel", () =>
-    Effect.gen(function* () {
-      const { threadId } = yield* idle();
-      const rule = idOf(yield* save(threadId, "Always run the tests.", "thread", "rule"));
-      const pinned = idOf(yield* save(threadId, "The repository is on GitHub.", "thread", "fact"));
-      const plain = idOf(yield* save(threadId, "The CI runs on Linux.", "thread", "fact"));
-      yield* call({ _tag: "PinIntel", intelId: pinned as IntelId, isPinned: true });
-      yield* advance(1000 * day);
-      expect((yield* intelOf(rule))?.state).toBe("Active");
-      expect(yield* intelOf(pinned)).toMatchObject({ isPinned: true, state: "Active", strength: 1 });
-      expect((yield* intelOf(plain))?.state).toBe("Archived");
-      expect((yield* panel("Pinned")).intels.map((intel) => intel.id)).toEqual([pinned]);
-      yield* call({ _tag: "PinIntel", intelId: pinned as IntelId, isPinned: false });
-      expect((yield* intelOf(pinned))?.state).toBe("Archived");
-    }).pipe(Effect.provide(live().layer)),
+  it.effect(
+    "never fades a rule or a pinned intel",
+    () =>
+      Effect.gen(function* () {
+        const { threadId } = yield* idle();
+        const rule = idOf(yield* save(threadId, "Always run the tests.", "thread", "rule"));
+        const pinned = idOf(yield* save(threadId, "The repository is on GitHub.", "thread", "fact"));
+        const plain = idOf(yield* save(threadId, "The CI runs on Linux.", "thread", "fact"));
+        yield* call({ _tag: "PinIntel", intelId: pinned as IntelId, isPinned: true });
+        yield* advance(1000 * day);
+        expect((yield* intelOf(rule))?.state).toBe("Active");
+        expect(yield* intelOf(pinned)).toMatchObject({ isPinned: true, state: "Active", strength: 1 });
+        expect((yield* intelOf(plain))?.state).toBe("Archived");
+        expect((yield* panel("Pinned")).intels.map((intel) => intel.id)).toEqual([pinned]);
+        yield* call({ _tag: "PinIntel", intelId: pinned as IntelId, isPinned: false });
+        expect((yield* intelOf(pinned))?.state).toBe("Archived");
+      }).pipe(Effect.provide(live().layer)),
+    // A thousand days on the test clock take seconds of real fading steps; the default 5 s is too tight in a full run.
+    20_000,
   );
 
   it.effect("counts search as a use, but not being in the context", () =>

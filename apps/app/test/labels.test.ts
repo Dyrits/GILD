@@ -9,10 +9,13 @@ import {
   intelGaugeLabelOf,
   intelHistoryLineOf,
   intelOriginLabelOf,
+  intelProposalLineOf,
   journalAuthorOf,
   meterLevelOf,
   promptQuestionOf,
   raisedLimitsOf,
+  startingContextPartsOf,
+  startingContextWarningOf,
   suggestionLabels,
   threadCountOf,
 } from "../src/labels";
@@ -160,5 +163,49 @@ describe("intel history lines", () => {
       "You undid: deleted",
     );
     expect(intelHistoryLineOf({ ...entry, undoneAt: 2 })).toBe('Saved by "Build" · undone');
+  });
+
+  it("says where an approved proposal moved or merged an intel", () => {
+    const owner = { ...entry, actor: "Owner", actorTitle: null } as const;
+    expect(intelHistoryLineOf({ ...owner, kind: "Narrowed", scopeLabel: "Workspace alpha" })).toBe(
+      "Moved to Workspace alpha by you",
+    );
+    expect(intelHistoryLineOf({ ...owner, kind: "Merged" })).toBe("Merged into one global intel by you");
+  });
+});
+
+describe("intel proposal labels", () => {
+  it("says what a widening merges and why a narrowing moves an intel", () => {
+    const widen = { halfLifeDays: null, intels: [{}, {}], kind: "Widen", scopeLabel: "Global", uses: null } as const;
+    expect(intelProposalLineOf(widen)).toBe("Saved separately in 2 workspaces: make it one global intel");
+    expect(
+      intelProposalLineOf({ halfLifeDays: 45, intels: [{}], kind: "Narrow", scopeLabel: "Workspace alpha", uses: 1 }),
+    ).toBe("Used only in Workspace alpha for 45 days, once: move it there");
+    expect(
+      intelProposalLineOf({ halfLifeDays: 45, intels: [{}], kind: "Narrow", scopeLabel: "Workspace alpha", uses: 3 }),
+    ).toBe("Used only in Workspace alpha for 45 days, 3 times: move it there");
+  });
+});
+
+describe("starting context labels", () => {
+  const context = {
+    isOverWarning: true,
+    largerModels: [],
+    parts: { intel: 20, journal: 50, openerMessages: 74_830, request: 100 },
+    tokens: 75_000,
+    warningPercent: 25,
+    windowTokens: 200_000,
+  } as const;
+
+  it("says how much of the context window a new thread would start with", () => {
+    expect(startingContextWarningOf(context)).toBe(
+      "This thread would start with about 75,000 tokens, 38% of the model's 200,000-token context window; the warning is at 25%.",
+    );
+  });
+
+  it("lists each part of the starting context with its tokens", () => {
+    expect(startingContextPartsOf(context.parts)).toBe(
+      "Request 100 · Journal 50 · Intel 20 · Opener's messages 74,830 tokens",
+    );
   });
 });

@@ -25,6 +25,12 @@ const closenessOf = (a: ReadonlySet<string>, b: ReadonlySet<string>) => {
   return { closeness: a.size + b.size === 0 ? 0 : (2 * shared) / (a.size + b.size), shared };
 };
 
+/** Whether two texts say the same thing, as a save that replaces an intel does. */
+export const isSameOf = (a: string, b: string) => {
+  const { closeness, shared } = closenessOf(wordsOf(a), wordsOf(b));
+  return closeness >= sameAt && shared >= fewestShared;
+};
+
 /** What a save finds among the intels already kept. */
 export interface Duplicates {
   /** Intels close to the save but not the same, closest first. */

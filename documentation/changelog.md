@@ -725,3 +725,34 @@ Provisional choices are listed in work-in-progress (Batch 15). Evidence-based wi
 References: documentation/capabilities/scoped-intel/specifications.md (History and undo); documentation/work-in-progress.md (Batch 15); documentation/verification/2026-11-07-intel-history.md; packages/service/src/intelHistory.ts, intelHistoryViews.ts, intelUndo.ts, intelChanges.ts, intelFading.ts, intelViews.ts, deleting.ts, service.ts, store.ts (migration 0019); packages/contracts/src/intel.ts, requests.ts, ids.ts; apps/app/src/intel.tsx, intelHistory.tsx, labels.ts
 Validation: `bun run test` passed 285 with 5 skipped; typecheck, `bun run check`, `git diff --check`, the desktop build, and a Metro web export passed. 22 of 22 mutations were caught in a separate copy, the new checks failed before the implementation, and a two-step migration check passed. The batch was driven in the window on the fake harness, with days simulated in the database. The look awaits the owner. Not verified: a live Claude Code thread whose intel changes appear in the history.
 Evidence: The owner's instruction of 2026-11-07: "For now, we build, step by step and we verify it works. The look and feel will be adjusted later. Don't ask any question for this session, build what is next. I'll be AFK."
+
+## CHG-0054 · 2026-11-07 · Batch 16 built: widening and narrowing proposed from evidence
+
+Type: Code
+Event: Delivery
+Scope: First slice, batch 16; Scoped intel
+
+Summary: Part of the intel-over-time rules agreed in CHG-0050, as built and listed in work-in-progress (Batch 16):
+- each use of an intel is recorded with the using thread's workspace;
+- the intel panel proposes one global intel when the same workspace intel is saved in two or more workspaces, and moving a global intel to a workspace when every use over its kind's half-life came from that workspace;
+- a proposal changes nothing until the owner approves it; a declined one does not come back; an approved one widens (merging the others, their uses carried over) or narrows, in the history as the owner's and undoable;
+- migration 0020 adds the uses and the decisions; proposals are worked out from evidence when read.
+Provisional choices are listed in work-in-progress (Batch 16). Tidy up stays staged. Chosen by an agent under the owner's instruction to build what is next without questions; not yet agreed or accepted by the owner.
+References: documentation/capabilities/scoped-intel/specifications.md (Widening and narrowing); documentation/work-in-progress.md (Batch 16); documentation/verification/2026-11-07-intel-proposals.md; packages/service/src/intelProposals.ts, intelViews.ts, intelDuplicates.ts, intelFading.ts, intel.ts, service.ts, store.ts (migration 0020); packages/contracts/src/intel.ts, requests.ts, ids.ts; apps/app/src/intel.tsx, labels.ts
+Validation: `bun run test` passed 302 with 5 skipped; typecheck, `bun run check`, `git diff --check`, the desktop build, and a Metro web export passed. 17 of 17 mutations were caught in a separate copy, the new checks fail 15 of 15 on the starting commit, and a two-step migration check passed. The batch was driven in the window on the fake harness, with days simulated in the database. The look awaits the owner. Not verified: a live Claude Code thread whose uses become evidence.
+Evidence: The owner's instruction of 2026-11-07: "For now, we build, step by step and we verify it works. The look and feel will be adjusted later. Don't ask any question for this session, build what is next. I'll be AFK."
+
+## CHG-0055 · 2026-11-07 · Batch 17 built: the warning before a thread starts with too large a starting context
+
+Type: Code
+Event: Delivery
+Scope: First slice, batch 17; Thread tree
+
+Summary: The rule agreed in CHG-0007 for thread-tree (Opening a thread), as built and listed in work-in-progress (Batch 17):
+- while the owner types the first message of a thread opened beneath another, the form measures its starting context: the request, the briefing and latest entries, the intel in scope, and the opener's messages since the latest entry;
+- past 25% of the chosen model's context window it warns with the size, the share, each part, and the choices: a model with a larger window (none today: every model counts 200,000 tokens), Trim intel (the intel panel inside the form, the request kept), or Start anyway;
+- the service refuses to start such a thread unless the owner chose Start anyway; agent-opened threads are not warned.
+Provisional choices are listed in work-in-progress (Batch 17). Summarizing a starting context over the window, and the warning when starting a mission, stay staged. Chosen by an agent under the owner's instruction to build what is next without questions; not yet agreed or accepted by the owner.
+References: documentation/capabilities/thread-tree/specifications.md (Opening a thread); documentation/work-in-progress.md (Batch 17); documentation/verification/2026-11-07-starting-context.md; packages/service/src/startingContext.ts, tree.ts, intel.ts, service.ts; packages/contracts/src/records.ts, requests.ts; apps/app/src/threadTree.tsx, controls.tsx, labels.ts, styles.ts
+Validation: `bun run test` passed 311 with 5 skipped; typecheck, `bun run check`, `git diff --check`, the desktop build, and a Metro web export passed. 13 of 13 mutations were caught in a separate copy; the new checks fail 8 of 9 on the batch 16 state (the ninth guards that a small thread still opens). Driven in the window on the fake harness. The look awaits the owner. Not verified: a live Claude Code thread.
+Evidence: The owner's instruction of 2026-11-07: "For now, we build, step by step and we verify it works. The look and feel will be adjusted later. Don't ask any question for this session, build what is next. I'll be AFK."

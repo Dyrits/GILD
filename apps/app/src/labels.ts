@@ -7,6 +7,9 @@ import type {
   IntelHistoryEntry,
   IntelHistoryKind,
   IntelOrigin,
+  IntelProposal,
+  StartingContext,
+  StartingContextParts,
   SuggestionOutcome,
 } from "@openmission/contracts";
 
@@ -41,6 +44,14 @@ export const tokenCountOf = (tokens: number) => countOf(Math.round(tokens));
 /** The briefing's estimated size against its limit, for example "About 120 of 2,000 tokens". */
 export const briefingSizeOf = (tokens: number, limit: number) =>
   `About ${countOf(tokens)} of ${countOf(limit)} tokens${tokens > limit ? ": over the limit" : ""}`;
+
+/** The warning before a thread starts with too large a starting context (thread-tree, Opening a thread). */
+export const startingContextWarningOf = (context: StartingContext) =>
+  `This thread would start with about ${tokenCountOf(context.tokens)} tokens, ${Math.round((context.tokens * 100) / context.windowTokens)}% of the model's ${countOf(context.windowTokens)}-token context window; the warning is at ${context.warningPercent}%.`;
+
+/** Each part of a starting context with its tokens, for example "Request 100 · Journal 50 · … tokens". */
+export const startingContextPartsOf = (parts: StartingContextParts) =>
+  `Request ${tokenCountOf(parts.request)} · Journal ${tokenCountOf(parts.journal)} · Intel ${tokenCountOf(parts.intel)} · Opener's messages ${tokenCountOf(parts.openerMessages)} tokens`;
 
 /** A dashboard row's thread count, for example "5 threads · 2 running". */
 export const threadCountOf = (mission: { readonly runningCount: number; readonly threadCount: number }) =>
@@ -132,6 +143,8 @@ const intelHistoryVerbs = {
   Deleted: "Deleted",
   Dormant: "Became dormant",
   Edited: "Edited",
+  Merged: "Merged into one global intel",
+  Narrowed: "Moved",
   Pinned: "Pinned",
   Replaced: "Replaced by a save",
   Restored: "Restored",
@@ -156,7 +169,7 @@ export const intelHistoryLineOf = (
       ? `You undid: ${intelHistoryVerbs[entry.undid ?? "Saved"].toLowerCase()}`
       : entry.kind === "Replaced"
         ? `${verb} from ${who}`
-        : entry.kind === "Widened"
+        : entry.kind === "Widened" || entry.kind === "Narrowed"
           ? `${verb} to ${entry.scopeLabel} by ${who}`
           : `${verb} by ${who}`;
   return [
@@ -165,3 +178,18 @@ export const intelHistoryLineOf = (
     ...(entry.undoneAt === null ? [] : ["undone"]),
   ].join(" · ");
 };
+
+/**
+ * Why the service proposes a widening or narrowing, and what approving it does, for example "Used only in
+ * Workspace alpha for 45 days, 3 times: move it there" (scoped-intel, Widening and narrowing).
+ */
+export const intelProposalLineOf = (
+  proposal: Pick<IntelProposal, "halfLifeDays" | "kind" | "scopeLabel" | "uses"> & {
+    readonly intels: ReadonlyArray<unknown>;
+  },
+) =>
+  proposal.kind === "Widen"
+    ? `Saved separately in ${proposal.intels.length} workspaces: make it one global intel`
+    : `Used only in ${proposal.scopeLabel} for ${proposal.halfLifeDays ?? 0} days, ${
+        proposal.uses === 1 ? "once" : `${proposal.uses ?? 0} times`
+      }: move it there`;

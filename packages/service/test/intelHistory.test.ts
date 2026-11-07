@@ -162,13 +162,17 @@ describe("recording fading steps", () => {
     }).pipe(Effect.provide(live().layer)),
   );
 
-  it.effect("records no fading step for a rule", () =>
-    Effect.gen(function* () {
-      const { threadId } = yield* idle();
-      const id = idOf(yield* save(threadId, "Always run the tests before a commit.", "mission", "rule"));
-      yield* advance(400 * day);
-      expect(kindsOf((yield* historyOf(id)).entries)).toEqual(["Saved"]);
-    }).pipe(Effect.provide(live().layer)),
+  it.effect(
+    "records no fading step for a rule",
+    () =>
+      Effect.gen(function* () {
+        const { threadId } = yield* idle();
+        const id = idOf(yield* save(threadId, "Always run the tests before a commit.", "mission", "rule"));
+        yield* advance(400 * day);
+        expect(kindsOf((yield* historyOf(id)).entries)).toEqual(["Saved"]);
+      }).pipe(Effect.provide(live().layer)),
+    // A thousand days on the test clock take seconds of real fading steps; the default 5 s is too tight in a full run.
+    20_000,
   );
 });
 

@@ -7,14 +7,16 @@ import {
   type ThreadSummary,
   type ThreadView,
 } from "@openmission/contracts";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { newRequestId, type ServiceClient } from "./client";
 import { Choice, Composer, StateBadge } from "./controls";
 import { foldThreads } from "./folding";
 import { effortLabel, modelLabels } from "./formatting";
-import { foldedLabelOf } from "./labels";
+import { IntelScreen } from "./intel";
+import { foldedLabelOf, startingContextPartsOf, startingContextWarningOf } from "./labels";
 import { styles } from "./styles";
+import { useServiceQuery } from "./useServiceQuery";
 
 /** A mission's threads as an indented tree with their states; selecting one shows its conversation. */
 export function ThreadTree({
@@ -61,7 +63,8 @@ export function ThreadTree({
 
 /**
  * Opens a thread beneath the selected one: its model and effort start as the parent's and can be changed
- * until the first message is sent (thread-tree, Opening a thread).
+ * until the first message is sent (thread-tree, Opening a thread). Past a quarter of the model's context
+ * window it warns, with a larger model, trimming intel, or starting anyway.
  */
 export function OpenThreadForm({
   client,
@@ -76,6 +79,26 @@ export function OpenThreadForm({
 }) {
   const [model, setModel] = useState<ModelChoice>(parent.model);
   const [effort, setEffort] = useState<EffortChoice>(parent.effort);
+  const [isTrimming, setIsTrimming] = useState(false);
+  const request = useSettledText();
+  const { data: context } = useServiceQuery(
+    client,
+    { _tag: "PreviewStartingContext", model, parentThreadId: parent.id, text: request.settled },
+    `starting:${parent.id}:${model}:${request.settled}`,
+  );
+  const openWith = (shouldStartAnyway: boolean) => async (text: string) => {
+    const opened = await client.request({
+      _tag: "OpenThread",
+      effort,
+      model,
+      parentThreadId: parent.id,
+      requestId: newRequestId(),
+      shouldStartAnyway,
+      text,
+    });
+    onOpened(opened.threadId);
+  };
+  const isOverWarning = context?.isOverWarning === true;
   return (
     <View style={styles.openForm}>
       <View style={styles.header}>
@@ -93,20 +116,54 @@ export function OpenThreadForm({
         value={model}
       />
       <Choice label={effortLabel} onChange={setEffort} options={EffortChoices.literals} value={effort} />
+      {context != null && isOverWarning && (
+        <View style={styles.failure}>
+          <Text style={styles.error}>{startingContextWarningOf(context)}</Text>
+          <Text style={styles.muted}>{startingContextPartsOf(context.parts)}</Text>
+          <View style={styles.row}>
+            {context.largerModels.length === 0 ? (
+              <Text style={styles.muted}>No model has a larger context window.</Text>
+            ) : (
+              context.largerModels.map((larger) => (
+                <Pressable key={larger} onPress={() => setModel(larger)} style={styles.answer}>
+                  <Text style={styles.answerText}>Use {modelLabels[larger]}</Text>
+                </Pressable>
+              ))
+            )}
+            <Pressable onPress={() => setIsTrimming(true)} style={styles.answer}>
+              <Text style={styles.answerText}>Trim intel</Text>
+            </Pressable>
+          </View>
+        </View>
+      )}
+      {isTrimming && (
+        // The panel opens inside the form, so the request typed so far stays.
+        <View style={styles.trimPanel}>
+          <IntelScreen
+            client={client}
+            onBack={() => setIsTrimming(false)}
+            threadId={parent.id}
+            title={`Trim intel · ${parent.title}`}
+          />
+        </View>
+      )}
       <Composer
-        onSend={async (text) => {
-          const opened = await client.request({
-            _tag: "OpenThread",
-            effort,
-            model,
-            parentThreadId: parent.id,
-            requestId: newRequestId(),
-            text,
-          });
-          onOpened(opened.threadId);
-        }}
+        {...(isOverWarning ? { alternative: { label: "Start anyway", onSend: openWith(true) } } : {})}
+        onChangeText={request.change}
+        onSend={openWith(false)}
         placeholder="The new thread's first message…"
       />
     </View>
   );
+}
+
+/** Text as typed, and the same text once typing pauses, so a preview is not asked for at every key. */
+function useSettledText() {
+  const [text, setText] = useState("");
+  const [settled, setSettled] = useState("");
+  useEffect(() => {
+    const timer = setTimeout(() => setSettled(text), 300);
+    return () => clearTimeout(timer);
+  }, [text]);
+  return { change: setText, settled };
 }

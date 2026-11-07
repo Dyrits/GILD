@@ -6,6 +6,7 @@ import { type JournalAuthor, nothingToRecord, openerMessagesOf, updateJournal } 
 import { maxOwnerDepth } from "./lifecycle.ts";
 import { insertMessage } from "./messaging.ts";
 import { budgetRefusalOf } from "./spending.ts";
+import { readStartingContext, startingContextRefusalOf } from "./startingContext.ts";
 import { titleOf } from "./titles.ts";
 
 /** At most this many threads run at once in a mission (thread-tree, Limits; CHG-0037). */
@@ -77,11 +78,24 @@ const insertThread = (opening: Opening) =>
     return { messageId, threadId: threadId as ThreadId } satisfies OpenThreadResult;
   });
 
-/** The owner opens a thread beneath any thread, down to the depth limit. Callers run it in a transaction. */
-export const openThreadByOwner = (parentId: string, text: string, model: ModelChoice, effort: EffortChoice) =>
+/**
+ * The owner opens a thread beneath any thread, down to the depth limit. One whose starting context is over
+ * the warning starts only when the owner chose to start it anyway. Callers run it in a transaction.
+ */
+export const openThreadByOwner = (
+  parentId: string,
+  text: string,
+  model: ModelChoice,
+  effort: EffortChoice,
+  shouldStartAnyway: boolean,
+) =>
   Effect.gen(function* () {
     if ((yield* depthOf(parentId)) + 1 > maxOwnerDepth) {
       return yield* invalid(`Threads you open can go down to ${maxOwnerDepth} levels beneath the top thread.`);
+    }
+    if (!shouldStartAnyway) {
+      const refusal = startingContextRefusalOf(yield* readStartingContext(parentId, model, text));
+      if (refusal !== null) return yield* invalid(refusal);
     }
     return yield* insertThread({ effort, isAside: false, isOpenedByAgent: false, model, parentId, text, title: null });
   });

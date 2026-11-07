@@ -50,13 +50,20 @@ function Composer({
   onSend,
   alternative,
   onInterrupt,
+  onChangeText,
 }: {
   placeholder: string;
   onSend: (text: string) => Promise<unknown>;
   alternative?: { readonly label: string; readonly onSend: (text: string) => Promise<unknown> };
   onInterrupt?: () => Promise<unknown>;
+  /** Hears the text as it is typed and cleared, such as to preview what it would send. */
+  onChangeText?: (text: string) => void;
 }) {
-  const [text, setText] = useState("");
+  const [text, setTextState] = useState("");
+  const setText = (value: string) => {
+    setTextState(value);
+    onChangeText?.(value);
+  };
   const [isSending, setIsSending] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const send = async (handler: (text: string) => Promise<unknown>) => {

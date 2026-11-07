@@ -1,0 +1,18 @@
+CAUGHT   intelProposals.ts .filter((group) => new Set(group.map((row) => row.workspaceId)).size >
+CAUGHT   intelProposals.ts .map((group) => group.toSorted((a, b) => b.updatedAt - a.updatedAt || 
+CAUGHT   intelProposals.ts newest === undefined || globals.some((row) => isSameOf(row.text, newes
+CAUGHT   intelProposals.ts const halfLifeDays = halfLifeDaysOf(row.kind, fading.halfLives);      
+CAUGHT   intelProposals.ts if (row.savedAt > since) continue;
+CAUGHT   intelProposals.ts others.length > 0 || 
+CAUGHT   intelProposals.ts || only.workspaceId === null || only.workspaceName === null
+CAUGHT   intelProposals.ts AND u.at > ${since}
+CAUGHT   intelProposals.ts return all.filter((evidence) => !decided.some((row) => row.id === evid
+CAUGHT   intelProposals.ts .filter(     (row) => stateOfIntel(row, fading) !== "Archived",   )
+CAUGHT   intelProposals.ts for (const row of merged) yield* trackChange(row.id, "Merged", owner, 
+CAUGHT   intelProposals.ts const uses = rows.reduce((sum, row) => sum + row.uses, 0);
+CAUGHT   intelProposals.ts "Narrowed",       owner,
+CAUGHT   intelProposals.ts if (!isApproved) return null;
+CAUGHT   intelProposals.ts yield* sql`UPDATE intel_uses SET intel_id = ${keptId} WHERE intel_id =
+CAUGHT   intelViews.ts SELECT ${intelId}, ${now}, workspace_id FROM threads
+CAUGHT   intelDuplicates.ts return closeness >= sameAt && shared >= fewestShared;
+17/17 caught

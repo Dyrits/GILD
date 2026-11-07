@@ -45,3 +45,7 @@ export type IntelChangeId = typeof IntelChangeId.Type;
 /** Identifies one entry in an intel's history (scoped-intel, History and undo). */
 export const IntelHistoryEntryId = Schema.String.pipe(Schema.brand("IntelHistoryEntryId"));
 export type IntelHistoryEntryId = typeof IntelHistoryEntryId.Type;
+
+/** Identifies a widening or narrowing the service proposes from evidence (scoped-intel, Widening and narrowing). */
+export const IntelProposalId = Schema.String.pipe(Schema.brand("IntelProposalId"));
+export type IntelProposalId = typeof IntelProposalId.Type;

@@ -352,6 +352,22 @@ const migrations = {
           ${row.savedByThreadId}, ${row.savedByTitle}, ${row.savedAt}, ${row.state}, ${row.threadId})`;
     }
   }),
+  // Widening and narrowing proposed from evidence (scoped-intel): each use with the using thread's workspace,
+  // and the owner's decisions on proposals, which are otherwise worked out when read. Earlier uses have none.
+  "0020_intel_proposals": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE intel_uses (
+      intel_id TEXT NOT NULL,
+      at INTEGER NOT NULL,
+      workspace_id TEXT
+    )`;
+    yield* sql`CREATE INDEX intel_uses_intel ON intel_uses (intel_id, at)`;
+    yield* sql`CREATE TABLE intel_proposal_decisions (
+      id TEXT PRIMARY KEY,
+      status TEXT NOT NULL,
+      at INTEGER NOT NULL
+    )`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

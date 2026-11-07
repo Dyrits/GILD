@@ -259,6 +259,35 @@ export const Suggestion = Schema.Struct({
 });
 export type Suggestion = typeof Suggestion.Type;
 
+/** What a new thread's starting context takes, in estimated tokens, by part (thread-tree, Opening a thread). */
+export const StartingContextParts = Schema.Struct({
+  /** The intel in the new thread's scope: scoped intel in full and the global index. */
+  intel: Schema.Number,
+  /** The mission's briefing and its latest entries. */
+  journal: Schema.Number,
+  /** The opener's messages since the journal's latest entry. */
+  openerMessages: Schema.Number,
+  /** The opener's request, the new thread's first message. */
+  request: Schema.Number,
+});
+export type StartingContextParts = typeof StartingContextParts.Type;
+
+/** How much of the chosen model's context window a new thread's starting context would take (thread-tree, Opening a thread). */
+export const StartingContext = Schema.Struct({
+  /** Whether it takes more than the warning share, so the owner is warned before the thread starts. */
+  isOverWarning: Schema.Boolean,
+  /** The models with a larger context window than the chosen one, largest first. */
+  largerModels: Schema.Array(ModelChoice),
+  parts: StartingContextParts,
+  /** The whole starting context: the sum of its parts. */
+  tokens: Schema.Number,
+  /** The share in percent above which the owner is warned. */
+  warningPercent: Schema.Number,
+  /** The chosen model's context window, in tokens. */
+  windowTokens: Schema.Number,
+});
+export type StartingContext = typeof StartingContext.Type;
+
 /** A mission with its thread tree and one selected thread's conversation. */
 export const MissionDetail = Schema.Struct({
   /** Budget lines, shown in the top thread only. */
