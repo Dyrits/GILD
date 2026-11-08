@@ -9,6 +9,7 @@ const thread = (id: string, parentId: string | null, depth: number, isOpenedByAg
     id,
     isAside: false,
     isOpenedByAgent,
+    openedAt: 0,
     parentId,
     state,
     title: id,

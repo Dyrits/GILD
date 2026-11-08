@@ -108,6 +108,8 @@ describe("opening threads", () => {
 
       const detail = yield* read(started.missionId, child.id);
       expect(detail.thread).toMatchObject({ effort: "default", model: "sonnet", parentId: started.threadId });
+      // The parent's conversation places the opening at the child's first message.
+      expect(child.openedAt).toBe(detail.messages[0]?.sentAt);
       expect(detail.messages[0]).toMatchObject({
         fromThreadId: started.threadId,
         isResult: false,

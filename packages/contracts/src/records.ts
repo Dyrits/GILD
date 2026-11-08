@@ -181,6 +181,8 @@ export const ThreadSummary = Schema.Struct({
   isAside: Schema.Boolean,
   /** Whether a thread opened it with `open_thread`, rather than the owner. */
   isOpenedByAgent: Schema.Boolean,
+  /** When it was opened: the time of its first message. */
+  openedAt: Schema.Number,
   parentId: Schema.NullOr(ThreadId),
   state: ThreadState,
   title: Schema.String,

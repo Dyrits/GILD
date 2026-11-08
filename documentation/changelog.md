@@ -1005,3 +1005,29 @@ Validation:
 - Each new test failed before its fix, for the reason the finding names (see the proof).
 - `bun run typecheck`, `bun run check`, and `git diff --check` passed.
 - Not verified: live harnesses (no live check covers these paths); the app driven in the window.
+
+## CHG-0067 · 2026-11-08 · Thread-opening indicators
+
+Type: Code
+Event: Delivery
+Scope: App (conversation), contracts (`ThreadSummary`), local service (mission detail)
+
+Summary: the conversation now shows each thread opened beneath it, like delta's fork lines.
+- The parent's conversation shows "Opened beneath: <title>" ("Agent opened beneath" when an agent opened it) where the thread was opened. Clicking the line selects that thread. An aside has no such line: its suggestion line already leads to it.
+- The child shows "Opened from: <parent title>" under its header. Clicking it selects the parent.
+- `ThreadSummary.openedAt`: the time of the thread's first message, read without a migration.
+- `entriesOf` moved to `apps/app/src/entries.ts`, so it can be tested without React Native.
+
+Asked by the owner on 2026-11-08. Not yet accepted by the owner. The thread-tree specifications are unchanged.
+
+References:
+- documentation/verification/2026-11-08-thread-opening-indicators.md
+- apps/app/src/entries.ts, conversationEntries.tsx, conversation.tsx
+- packages/contracts/src/records.ts, packages/service/src/missionDetail.ts
+- apps/app/test/entries.test.ts, packages/service/test/threads.test.ts
+
+Validation:
+- `bun run test` passed 399 with 10 skipped; 2 tests are new and 1 extended. Mutations showed each check able to fail.
+- `bun run typecheck`, `bun run check`, `git diff --check`, and the web export passed.
+- The app was driven in the window with the fake harness; screenshots are in the proof.
+- Not verified: live harnesses (no harness-specific path changed).

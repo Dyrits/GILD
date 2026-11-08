@@ -4,7 +4,8 @@ import { FlatList, type NativeScrollEvent, type NativeSyntheticEvent, Pressable,
 import { BudgetMeters, BudgetScreen, BudgetStopCard } from "./budgets";
 import { newRequestId, type ServiceClient } from "./client";
 import { Composer, StateBadge } from "./controls";
-import { type Entry, EntryView, entriesOf } from "./conversationEntries";
+import { EntryView } from "./conversationEntries";
+import { type Entry, entriesOf } from "./entries";
 import { effortLabel, harnessLabels, modelLabelOf, usageDetail } from "./formatting";
 import { IntelIcon, IntelScreen } from "./intel";
 import { JournalScreen } from "./journal";
@@ -83,6 +84,7 @@ function ThreadPane({
   const followNewest = useFollowNewest();
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
   const { canOpenBeneath, canResume, canStop, isInTurn } = thread.actions;
+  const parent = detail.threads.find((candidate) => candidate.id === thread.parentId);
   const defaultDelivery = settings?.defaultDelivery ?? "Steer";
   const other = ({ Queue: "Steer", Steer: "Queue" } as const satisfies Record<MessageDelivery, MessageDelivery>)[
     defaultDelivery
@@ -120,6 +122,13 @@ function ThreadPane({
           </Pressable>
         )}
       </View>
+      {parent !== undefined && (
+        <Pressable onPress={() => onSelect(parent.id)}>
+          <Text numberOfLines={1} style={styles.link}>
+            Opened from: {parent.title}
+          </Text>
+        </Pressable>
+      )}
       <DeleteThreadAction client={client} onDeleted={onDeleted} threadId={thread.id} />
       <ChatterNotices client={client} notices={detail.chatter} />
       {detail.budgetStop !== null && <BudgetStopCard client={client} onRaise={onOpenBudget} stop={detail.budgetStop} />}
