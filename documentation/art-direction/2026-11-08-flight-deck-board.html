@@ -1,0 +1,383 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Canopy — Flight Deck Board (direction D, whole app)</title>
+<link href="https://fonts.googleapis.com" rel="preconnect" >
+<link href="https://fonts.googleapis.com/css2?family=Chakra+Petch:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --void: #05080e;       /* page, space outside */
+    --hull: #0b111b;       /* window */
+    --panel: #101827;      /* cards, panels */
+    --glass: #0e1a2b;      /* canopy glass */
+    --line: #22324a;       /* frames */
+    --line-hi: #3a5678;    /* raised frames */
+    --text: #d9e4f2;
+    --dim: #7c8da5;        /* secondary text */
+    --cyan: #5fd4ff;       /* the one accent: Running, links, primary */
+    --cyan-wash: rgba(95, 212, 255, .11);
+    --amber: #ffb547;      /* caution: Attention */
+    --violet: #a68cff;     /* Waiting */
+    --green: #5fe0a0;      /* Done */
+    --red: #ff6b5e;        /* Failed */
+    --display: "Chakra Petch", "Eurostile", sans-serif;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+    --mono: "JetBrains Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    /* Corner brackets: four short strokes per corner. In React Native, four absolutely placed Views. */
+    --b: 9px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 var(--sans); color: var(--text); background: var(--void);
+    background-image: radial-gradient(circle, rgba(255,255,255,.35) .6px, transparent 1px), radial-gradient(circle, rgba(255,255,255,.2) .5px, transparent 1px);
+    background-size: 140px 120px, 90px 70px; background-position: 0 0, 40px 30px; }
+  .page { max-width: 1320px; padding: 28px 32px 60px; margin: 0 auto; }
+  h1.title { margin: 0; font: 700 30px var(--display); letter-spacing: .06em; text-transform: uppercase; }
+  .intro { max-width: 860px; margin: 6px 0 22px; color: var(--dim); }
+  .disp { font-family: var(--display); }
+  .mono { font-family: var(--mono); font-size: 12px; }
+  .lbl { font: 500 10.5px var(--mono); color: var(--dim); text-transform: uppercase; letter-spacing: .14em; }
+
+  /* corner brackets, colored by --bc */
+  .brk { --bc: var(--line-hi);
+    background:
+      linear-gradient(var(--bc), var(--bc)) top left / var(--b) 1.5px no-repeat,
+      linear-gradient(var(--bc), var(--bc)) top left / 1.5px var(--b) no-repeat,
+      linear-gradient(var(--bc), var(--bc)) top right / var(--b) 1.5px no-repeat,
+      linear-gradient(var(--bc), var(--bc)) top right / 1.5px var(--b) no-repeat,
+      linear-gradient(var(--bc), var(--bc)) bottom left / var(--b) 1.5px no-repeat,
+      linear-gradient(var(--bc), var(--bc)) bottom left / 1.5px var(--b) no-repeat,
+      linear-gradient(var(--bc), var(--bc)) bottom right / var(--b) 1.5px no-repeat,
+      linear-gradient(var(--bc), var(--bc)) bottom right / 1.5px var(--b) no-repeat,
+      var(--panel); }
+  .lamp { display: inline-block; width: 7px; height: 7px; border-radius: 50%; background: var(--c, var(--cyan)); box-shadow: 0 0 6px var(--c, var(--cyan)); }
+
+  /* ---------- the window ---------- */
+  .window { display: grid; grid-template-columns: 210px 1fr 360px; min-height: 690px; overflow: hidden;
+    background: var(--hull);
+    background-image: linear-gradient(rgba(95,212,255,.035) 1px, transparent 1px), linear-gradient(90deg, rgba(95,212,255,.035) 1px, transparent 1px);
+    background-size: 24px 24px;
+    border: 1px solid var(--line-hi); border-radius: 14px; box-shadow: 0 0 0 4px #0a0f18, 0 24px 60px rgba(0,0,0,.6); }
+
+  /* rail */
+  .rail { display: flex; flex-direction: column; gap: 20px; padding: 16px 14px; background: #0a0f18; border-right: 1px solid var(--line); }
+  .brand { display: flex; gap: 9px; align-items: center; font: 700 19px var(--display); letter-spacing: .12em; text-transform: uppercase; }
+  .rail h5 { margin: 0 0 6px; font: 500 10.5px var(--mono); color: var(--dim); letter-spacing: .14em; text-transform: uppercase; }
+  .rail a { display: flex; justify-content: space-between; padding: 5px 8px; font-size: 13px; color: var(--text); text-decoration: none; border-left: 2px solid transparent; }
+  .rail a.on { color: #fff; background: var(--cyan-wash); border-left-color: var(--cyan); }
+  .rail a small { font-family: var(--mono); color: var(--dim); }
+  .usage { margin-top: auto; font-size: 12px; }
+  .gauge { height: 8px; margin: 4px 0 9px; background: repeating-linear-gradient(90deg, #1a2638 0 6px, transparent 6px 8px); }
+  .gauge i { display: block; height: 100%; background: repeating-linear-gradient(90deg, var(--cyan) 0 6px, transparent 6px 8px); box-shadow: 0 0 8px rgba(95,212,255,.35); }
+  .gauge.warn i { background: repeating-linear-gradient(90deg, var(--amber) 0 6px, transparent 6px 8px); box-shadow: 0 0 8px rgba(255,181,71,.35); }
+
+  /* board */
+  .board { padding: 18px 20px; }
+  .boardhead { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 16px; }
+  .crumb { font: 12px var(--mono); color: var(--dim); }
+  .crumb b { font-weight: 500; color: var(--cyan); }
+  .boardhead h2 { margin: 2px 0 0; font: 700 26px var(--display); letter-spacing: .08em; text-transform: uppercase; }
+  .new { padding: 7px 14px; font: 600 12.5px var(--display); letter-spacing: .1em; text-transform: uppercase; color: var(--void); background: var(--cyan); box-shadow: 0 0 14px rgba(95,212,255,.35);
+    clip-path: polygon(8px 0, 100% 0, 100% calc(100% - 8px), calc(100% - 8px) 100%, 0 100%, 0 8px); }
+  .cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .col h4 { display: flex; gap: 8px; align-items: center; padding-bottom: 6px; margin: 0 0 10px; font: 600 13px var(--display); letter-spacing: .14em; text-transform: uppercase; border-bottom: 1px solid var(--line); }
+  .col h4 small { margin-left: auto; font: 500 11px var(--mono); color: var(--dim); }
+  .card { position: relative; padding: 11px 12px; margin-bottom: 10px; font-size: 13px; }
+  .card.open { --bc: var(--cyan); box-shadow: 0 0 0 1px rgba(95,212,255,.25), 0 0 22px rgba(95,212,255,.12); }
+  .card .t { margin-bottom: 4px; font-weight: 600; }
+  .card .who { font-size: 12px; color: var(--dim); }
+  .card .meta { display: flex; gap: 10px; margin-top: 8px; font: 11px var(--mono); color: var(--dim); }
+  .add { color: var(--green); } .del { color: var(--red); }
+  .card .note { margin-top: 6px; font: 500 11.5px var(--mono); color: var(--amber); }
+  .card.att { --bc: var(--amber); padding-top: 15px; }
+  .card.att::before { position: absolute; top: 0; right: var(--b); left: var(--b); height: 4px; content: "";
+    background: repeating-linear-gradient(-45deg, var(--amber) 0 5px, transparent 5px 10px); opacity: .85; }
+  .card.done { opacity: .6; }
+  .tick { color: var(--green); }
+  .threads { display: flex; gap: 3px; margin-top: 8px; }
+  .threads span { width: 16px; height: 4px; background: #1d2a3e; }
+  .threads .r { background: var(--cyan); box-shadow: 0 0 5px var(--cyan); }
+  .threads .w { background: var(--violet); box-shadow: 0 0 5px var(--violet); }
+  .threads .d { background: var(--green); }
+  .marg { margin-top: 6px; font: 11px var(--mono); color: var(--dim); }
+
+  /* the canopy: docked mission panel, seen from inside the cockpit */
+  .canopy { display: flex; flex-direction: column; background: #0a101a; border-left: 1px solid var(--line); }
+  .arch { position: relative; height: 74px; }
+  .arch svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .canopy .head { padding: 0 16px 10px; border-bottom: 1px solid var(--line); }
+  .canopy .head .t { font: 600 18px var(--display); letter-spacing: .04em; line-height: 1.15; }
+  .canopy .head .sub { display: flex; justify-content: space-between; margin-top: 5px; font: 11px var(--mono); color: var(--dim); }
+  .canopy .head .sub .land { color: var(--cyan); }
+  .tabs { display: flex; gap: 16px; padding: 9px 16px 0; font: 600 11px var(--display); letter-spacing: .12em; text-transform: uppercase; color: var(--dim); border-bottom: 1px solid var(--line); }
+  .tabs span { padding-bottom: 7px; }
+  .tabs .on { color: var(--cyan); box-shadow: inset 0 -2px 0 var(--cyan); }
+  .feed { display: flex; flex: 1; flex-direction: column; gap: 11px; padding: 14px 16px; font-size: 13px; }
+  .msg.you { align-self: flex-end; max-width: 80%; padding: 7px 10px; background: var(--cyan-wash); border: 1px solid rgba(95,212,255,.3); }
+  .fold { font: 11.5px var(--mono); color: var(--dim); }
+  .ask { --bc: var(--amber); padding: 11px; }
+  .ask .q { margin-bottom: 4px; font-weight: 600; }
+  .ask .q::before { margin-right: 6px; font: 600 10px var(--mono); color: var(--amber); letter-spacing: .14em; content: "CAUTION"; }
+  .ask .btns { display: flex; gap: 8px; margin-top: 9px; }
+  .btn { padding: 5px 11px; font: 600 11.5px var(--display); letter-spacing: .08em; text-transform: uppercase; color: var(--text); border: 1px solid var(--line-hi); }
+  .btn.pri { color: var(--void); background: var(--cyan); border-color: var(--cyan); }
+  .composer { --bc: var(--cyan); padding: 10px 12px; margin: 0 12px 12px; }
+  .composer .ph { margin-bottom: 14px; font: 13px var(--mono); color: var(--dim); }
+  .composer .ph::before { color: var(--cyan); content: "› "; }
+  .composer .foot { display: flex; align-items: center; justify-content: space-between; font: 11.5px var(--mono); }
+  .pick { color: var(--text); border-bottom: 1px dotted var(--dim); }
+
+  /* ---------- sheets below ---------- */
+  h3.sec { margin: 40px 0 12px; font: 700 20px var(--display); letter-spacing: .14em; text-transform: uppercase; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .sheet { padding: 16px; }
+  .sheet h6 { margin: 0 0 12px; font: 600 13px var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--cyan); }
+  .sheet .from { margin-top: 12px; font-size: 11.5px; color: var(--dim); }
+  .sw { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sw div { width: 66px; font: 10.5px var(--mono); color: var(--dim); }
+  .sw i { display: block; height: 34px; margin-bottom: 3px; border: 1px solid var(--line-hi); }
+  .intel { padding: 7px 9px; margin-bottom: 7px; font-size: 12.5px; border: 1px solid var(--line); border-left: 2px solid var(--cyan); }
+  .intel small { font-family: var(--mono); color: var(--dim); }
+  .intel.fade1 { border-left-color: rgba(95,212,255,.45); opacity: .6; }
+  .intel.fade2 { border-left-color: rgba(95,212,255,.2); opacity: .35; }
+  .sig { float: right; display: inline-flex; gap: 2px; align-items: flex-end; height: 11px; margin-top: 3px; }
+  .sig i { width: 3px; background: var(--cyan); }
+  .sig i.off { background: #23324a; }
+  .trace { position: relative; padding-left: 18px; font-size: 12.5px; }
+  .trace::before { position: absolute; top: 4px; bottom: 4px; left: 4px; content: ""; border-left: 1px solid var(--line-hi); }
+  .trace div { position: relative; margin-bottom: 8px; }
+  .trace div::before { position: absolute; top: 5px; left: -18px; width: 7px; height: 7px; content: ""; background: var(--hull); border: 1px solid var(--line-hi); transform: rotate(45deg); }
+  .trace div.now::before { background: var(--cyan); border-color: var(--cyan); box-shadow: 0 0 6px var(--cyan); }
+  .trace .ts { margin-right: 6px; font: 10.5px var(--mono); color: var(--dim); }
+  .diffrow { display: flex; justify-content: space-between; padding: 5px 0; font-size: 12.5px; border-bottom: 1px solid var(--line); }
+  .field { margin-bottom: 13px; font-size: 13px; }
+  .field .n { margin-bottom: 5px; }
+  .select { display: flex; justify-content: space-between; padding: 6px 9px; background: #0a101a; border: 1px solid var(--line-hi); }
+  .select small { font-family: var(--mono); color: var(--dim); }
+  .slider { position: relative; height: 22px; }
+  .slider .tr { position: absolute; top: 9px; right: 0; left: 0; height: 4px; background: repeating-linear-gradient(90deg, #1d2a3e 0 4px, transparent 4px 6px); }
+  .slider .fill { position: absolute; top: 9px; left: 0; width: 50%; height: 4px; background: repeating-linear-gradient(90deg, var(--cyan) 0 4px, transparent 4px 6px); }
+  .slider .k { position: absolute; top: 3px; left: calc(50% - 4px); width: 8px; height: 16px; background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+  .ticks { display: flex; justify-content: space-between; font: 10.5px var(--mono); color: var(--dim); }
+  .ticks b { font-weight: 500; color: var(--cyan); }
+  .empty { padding: 6px 0; text-align: center; }
+  .empty p { margin: 8px 0 0; font: 600 12px var(--display); letter-spacing: .14em; text-transform: uppercase; color: var(--dim); }
+  ul.rules { padding-left: 18px; margin: 0; font-size: 13px; color: var(--dim); }
+  ul.rules li { margin-bottom: 5px; }
+  .seg { margin-top: 10px; font: 500 26px var(--mono); color: var(--cyan); text-align: center; letter-spacing: 6px; text-shadow: 0 0 10px rgba(95,212,255,.5); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 class="title">Canopy — Flight Deck Board</h1>
+  <p class="intro">Direction D applied to the whole app. You sit under the canopy and look out at your missions: a dark cockpit, hairline frames, corner brackets, and signal lamps that glow only for what is live. The canopy is the docked mission panel's top, drawn as glass with struts seen from inside, plus the logo and the empty state. Display type is for labels and headings; everything you read is plain Inter, and numbers, paths, and branches are mono. One accent (cyan) for Running and primary actions; amber is reserved for caution.</p>
+
+  <!-- ================= the main window ================= -->
+  <div class="window">
+    <aside class="rail">
+      <div class="brand">
+        <svg fill="none" height="22" stroke="#5fd4ff" stroke-linecap="square" stroke-width="1.6" viewBox="0 0 30 22" width="30" >
+          <path d="M3 18 C 5 6, 25 6, 27 18"/><path d="M1 18.5 L 29 18.5"/><path d="M15 7 L 15 18"/><path d="M8 9.5 L 10 18"/><path d="M22 9.5 L 20 18"/>
+        </svg>
+        Canopy
+      </div>
+      <div>
+        <h5>Workspaces</h5>
+        <a class="on" href="#">canopy <small>04</small></a>
+        <a href="#">fern-site <small>01</small></a>
+        <a href="#">scratch <small>—</small></a>
+      </div>
+      <div>
+        <h5>Places</h5>
+        <a href="#">Dashboard</a><a href="#">Routines</a><a href="#">Intel</a><a href="#">Journal</a><a href="#">Devices</a>
+      </div>
+      <div class="usage">
+        <h5>Plans today</h5>
+        Claude <span class="mono" style="float:right;color:var(--dim)">62%</span><div class="gauge warn"><i style="width:62%"></i></div>
+        Codex <span class="mono" style="float:right;color:var(--dim)">18%</span><div class="gauge"><i style="width:18%"></i></div>
+        Budget <span class="mono" style="float:right;color:var(--dim)">$7.40 / $20</span><div class="gauge"><i style="width:37%"></i></div>
+      </div>
+    </aside>
+
+    <main class="board">
+      <div class="boardhead">
+        <div>
+          <div class="crumb">All workspaces / <b>canopy ⌄</b></div>
+          <h2>Missions</h2>
+        </div>
+        <span class="new">+ New mission</span>
+      </div>
+      <div class="cols">
+        <div class="col">
+          <h4><span class="lamp" style="--c:var(--amber)"></span>Attention <small>02</small></h4>
+          <div class="card brk att">
+            <div class="t">Carry on after a refusal</div>
+            <div class="who">OpenCode · Sonnet · <span class="mono">fix/refusals</span></div>
+            <div class="note">▲ wants to edit outside the workspace</div>
+          </div>
+          <div class="card brk">
+            <div class="t">Budget alerts</div>
+            <div class="who">Codex · high</div>
+            <div class="meta"><span style="color:var(--red)">folder missing</span></div>
+          </div>
+        </div>
+        <div class="col">
+          <h4><span class="lamp"></span>Running <small>02</small></h4>
+          <div class="card brk open">
+            <div class="t">Thread opening indicators</div>
+            <div class="who">Claude Code · Opus · <span class="mono">feat/indicators</span></div>
+            <div class="threads"><span class="r"></span><span class="r"></span><span class="w"></span><span class="d"></span></div>
+            <div class="meta"><span>$1.84</span><span class="add">+214</span><span class="del">−38</span><span>4 threads</span></div>
+          </div>
+          <div class="card brk">
+            <div class="t">Pairing over the relay</div>
+            <div class="who">Claude Code · Sonnet</div>
+            <div class="threads"><span class="r"></span></div>
+            <div class="meta"><span>$0.40</span><span class="add">+31</span><span class="del">−2</span></div>
+          </div>
+          <div class="marg">↳ 1 idle · 1 waiting</div>
+        </div>
+        <div class="col">
+          <h4><span class="lamp" style="--c:var(--green);box-shadow:none"></span>Done <small>05</small></h4>
+          <div class="card brk done"><div class="t"><span class="tick">✓</span> Five Low findings</div><div class="meta"><span>$3.10</span><span class="add">+120</span><span class="del">−88</span></div></div>
+          <div class="card brk done"><div class="t"><span class="tick">✓</span> Quote check</div><div class="meta"><span>$0.92</span></div></div>
+          <div class="marg">+ 3 more this week</div>
+        </div>
+      </div>
+    </main>
+
+    <section class="canopy">
+      <div class="arch">
+        <svg preserveAspectRatio="none" viewBox="0 0 360 74" >
+          <defs>
+            <linearGradient id="glass" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#16304d"/><stop offset="1" stop-color="#0a101a"/></linearGradient>
+            <linearGradient id="glint" x1="0" x2="1" y1="0" y2="0"><stop offset="0" stop-color="#5fd4ff" stop-opacity="0"/><stop offset=".5" stop-color="#5fd4ff" stop-opacity=".35"/><stop offset="1" stop-color="#5fd4ff" stop-opacity="0"/></linearGradient>
+          </defs>
+          <path d="M0 74 C 30 6, 330 6, 360 74 Z" fill="url(#glass)"/>
+          <circle cx="70" cy="40" fill="#fff" opacity=".6" r=".8"/><circle cx="250" cy="28" fill="#fff" opacity=".5" r=".7"/><circle cx="300" cy="50" fill="#fff" opacity=".4" r=".6"/><circle cx="130" cy="24" fill="#fff" opacity=".5" r=".6"/>
+          <path d="M60 30 C 110 14, 170 12, 220 16" fill="none" stroke="url(#glint)" stroke-width="2" vector-effect="non-scaling-stroke"/>
+          <path d="M0 74 C 30 6, 330 6, 360 74" fill="none" stroke="#3a5678" stroke-width="3" vector-effect="non-scaling-stroke"/>
+          <path d="M180 23 L 180 74 M 95 30 L 120 74 M 265 30 L 240 74" stroke="#3a5678" stroke-width="2.5" vector-effect="non-scaling-stroke"/>
+        </svg>
+      </div>
+      <div class="head">
+        <div class="lbl">Mission · M-014</div>
+        <div class="t">Thread opening indicators</div>
+        <div class="sub"><span><span class="lamp" style="width:6px;height:6px"></span> Running · 4 threads · since origin/main</span><span class="land">Land ⌄</span></div>
+      </div>
+      <div class="tabs"><span class="on">Conversation</span><span>Changes <span class="add">+214</span></span><span>Trace</span><span>Intel</span></div>
+      <div class="feed">
+        <div class="msg you">Show which threads are opening, without moving the list.</div>
+        <div class="fold">▸ thought twice · read 6 files · ran 2 tests</div>
+        <div>Plan: add an <span class="mono">opening</span> state to each entry, draw it as a scanning bar, keep row height fixed.</div>
+        <div class="ask brk">
+          <div class="q">Approve the plan?</div>
+          Three files in <span class="mono">apps/app</span>, one test.
+          <div class="btns"><span class="btn pri">Approve</span><span class="btn">Change it</span></div>
+        </div>
+      </div>
+      <div class="composer brk">
+        <div class="ph">Steer this mission…</div>
+        <div class="foot"><span><span class="pick">Claude Code</span> · <span class="pick">Opus</span> · <span class="pick">high</span></span><span class="btn pri">Send</span></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ================= building blocks ================= -->
+  <h3 class="sec">The kit</h3>
+  <div class="grid">
+    <div class="sheet brk">
+      <h6>Hull, glass, and signal lamps</h6>
+      <div class="sw">
+        <div><i style="background:var(--void)"></i>void</div>
+        <div><i style="background:var(--hull)"></i>hull</div>
+        <div><i style="background:var(--panel)"></i>panel</div>
+        <div><i style="background:var(--dim)"></i>dim</div>
+        <div><i style="background:var(--cyan)"></i>cyan · Running</div>
+        <div><i style="background:var(--amber)"></i>amber · Attention</div>
+        <div><i style="background:var(--violet)"></i>Waiting</div>
+        <div><i style="background:var(--green)"></i>Done</div>
+        <div><i style="background:var(--red)"></i>Failed</div>
+      </div>
+      <div class="from">Only live things glow. Attention gets the caution stripe and amber brackets; Done dims; nothing else lights up.</div>
+    </div>
+    <div class="sheet brk">
+      <h6>Type and instruments</h6>
+      <div class="disp" style="font-size:24px;font-weight:700;letter-spacing:.08em;line-height:1;text-transform:uppercase">Missions</div>
+      <div style="font-weight:600;margin-top:8px">Thread opening indicators</div>
+      <div style="color:var(--dim);font-size:12.5px">Claude Code · Opus · <span class="mono">feat/indicators</span></div>
+      <ul class="rules" style="margin-top:10px">
+        <li>Chakra Petch for labels and headings, uppercase and spaced; Inter for everything you read; JetBrains Mono for numbers, paths, branches.</li>
+        <li>1px hairlines, corner brackets instead of boxes, segmented gauges. Glow only on live state, never on chrome.</li>
+      </ul>
+    </div>
+    <div class="sheet brk">
+      <h6>Settings as instruments</h6>
+      <div class="field"><div class="n lbl">Harness</div><div class="select">Claude Code <small>signed in ⌄</small></div></div>
+      <div class="field"><div class="n lbl">Default model</div><div class="select">Fable <small>⌄</small></div></div>
+      <div class="field"><div class="n lbl">Default effort</div>
+        <div class="slider"><div class="tr"></div><div class="fill"></div><div class="k"></div></div>
+        <div class="ticks"><span>low</span><span>medium</span><b>high</b><span>xhigh</span><span>max</span></div>
+      </div>
+    </div>
+
+    <div class="sheet brk">
+      <h6>Intel as telemetry</h6>
+      <div class="intel"><b>Rule</b> · Never push to main without asking <small>· global</small><span class="sig"><i style="height:4px"></i><i style="height:7px"></i><i style="height:11px"></i></span></div>
+      <div class="intel fade1">Prefers Effect Layers over classes <small>· workspace · fading</small><span class="sig"><i style="height:4px"></i><i style="height:7px"></i><i class="off" style="height:11px"></i></span></div>
+      <div class="intel fade2">Relay port was 8787 <small>· dormant</small><span class="sig"><i style="height:4px"></i><i class="off" style="height:7px"></i><i class="off" style="height:11px"></i></span></div>
+      <div class="from">Fading memories lose signal (Rerun's fading by kind; souls.house's honest skips).</div>
+    </div>
+    <div class="sheet brk">
+      <h6>Flight recorder</h6>
+      <div class="trace">
+        <div><span class="ts">00:12</span>Read <span class="mono">entries.ts</span></div>
+        <div><span class="ts">00:41</span>Asked: edit outside workspace</div>
+        <div class="now"><span class="ts">01:07</span>Ran <span class="mono">bun test</span> · <span style="color:var(--red)">2 failed</span></div>
+        <div style="color:var(--dim)"><span class="ts">--:--</span>Next step…</div>
+      </div>
+      <div class="from">Every run leaves a recording you can step through (Timon's idea, and here its spaceship look too).</div>
+    </div>
+    <div class="sheet brk">
+      <h6>Changes, then Land</h6>
+      <div class="diffrow"><span class="mono">apps/app/src/entries.ts</span><span class="mono"><span class="add">+120</span> <span class="del">−0</span></span></div>
+      <div class="diffrow"><span class="mono">apps/app/src/conversation.tsx</span><span class="mono"><span class="add">+42</span> <span class="del">−30</span></span></div>
+      <div class="diffrow"><span class="mono">packages/contracts/src/records.ts</span><span class="mono"><span class="add">+6</span> <span class="del">−2</span></span></div>
+      <div style="display:flex;gap:8px;margin-top:12px"><span class="btn pri">Land now</span><span class="btn">Hand over…</span></div>
+      <div class="from">Delta's "since origin/main" changes panel; intentic's Land button; Delta's full-history handover.</div>
+    </div>
+
+    <div class="sheet brk">
+      <h6>Empty: canopy closed</h6>
+      <div class="empty">
+        <svg fill="none" height="70" viewBox="0 0 140 70" width="140" >
+          <defs><linearGradient id="g2" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#16304d"/><stop offset="1" stop-color="#0b111b"/></linearGradient></defs>
+          <path d="M10 58 C 16 14, 124 14, 130 58 Z" fill="url(#g2)"/>
+          <path d="M10 58 C 16 14, 124 14, 130 58" stroke="#3a5678" stroke-width="2.5"/>
+          <path d="M70 25 L 70 58 M 40 31 L 48 58 M 100 31 L 92 58" stroke="#3a5678" stroke-width="2"/>
+          <path d="M4 59 L 136 59" stroke="#5fd4ff" stroke-width="1.5"/>
+          <circle cx="56" cy="40" fill="#fff" opacity=".5" r=".9"/><circle cx="84" cy="34" fill="#fff" opacity=".4" r=".8"/><circle cx="110" cy="48" fill="#fff" opacity=".4" r=".7"/>
+        </svg>
+        <p>Nothing needs you. Canopy sealed.</p>
+      </div>
+    </div>
+    <div class="sheet brk">
+      <h6>Asking, for casual users</h6>
+      <div class="ask brk" style="background-color:#0a101a">
+        <div class="q">OpenCode wants to edit <span class="mono">~/notes/todo.md</span></div>
+        It's outside the <b>canopy</b> workspace.
+        <div class="btns"><span class="btn pri">Allow once</span><span class="btn">Always here</span><span class="btn">No</span></div>
+      </div>
+      <div class="from">OpenBot's plain-language permission asks. The CAUTION label is the only jargon.</div>
+    </div>
+    <div class="sheet brk">
+      <h6>Devices and pairing</h6>
+      <div class="intel">MacBook Pro <small>· online · 3 missions</small><span class="lamp" style="float:right;margin-top:6px;--c:var(--green)"></span></div>
+      <div class="intel">iPhone <small>· paired over relay</small><span class="lamp" style="float:right;margin-top:6px"></span></div>
+      <div class="seg">K7·2Q·9F</div>
+      <div class="from">intentic's Devices page; Paseo's encrypted relay. The pairing code reads like a transponder code.</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

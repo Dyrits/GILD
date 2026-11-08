@@ -1,0 +1,363 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Canopy — Forest Canopy Board (direction F, whole app)</title>
+<link href="https://fonts.googleapis.com" rel="preconnect" >
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600;9..144,700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --floor: #eef0e6;      /* page: forest floor in daylight */
+    --leaf-paper: #fafbf5; /* cards, panels */
+    --bark: #2a2a22;       /* text, outlines */
+    --moss: #6f7765;       /* secondary text */
+    --rule: #dde2d2;
+    --forest: #24503a;     /* the one accent: deep forest green (primary, links) */
+    --sprout: #4e9a3c;     /* new growth: Running */
+    --sprout-wash: #e3efd9;
+    --autumn: #d2692a;     /* a turning leaf: Attention */
+    --berry: #7a4a86;      /* Waiting */
+    --straw: #a8916a;      /* a settled, dry leaf: Done */
+    --rust: #a63a2a;       /* Failed */
+    --serif: "Fraunces", Georgia, serif;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+    /* A leaf: two opposite corners round, two nearly pointed. Works in React Native too. */
+    --leaf: 16px 4px 16px 4px;
+    --shade: 0 1px 0 rgba(42, 42, 34, .06), 0 6px 16px -8px rgba(36, 80, 58, .28);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 var(--sans); color: var(--bark); background: #dfe3d4; }
+  .page { max-width: 1320px; padding: 28px 32px 60px; margin: 0 auto; }
+  h1.title { margin: 0; font: 600 32px var(--serif); }
+  .intro { max-width: 860px; margin: 4px 0 22px; color: #535a4c; }
+  .serif { font-family: var(--serif); }
+  .mono { font-family: var(--mono); font-size: 12px; }
+
+  /* ---------- the window ---------- */
+  .window { display: grid; grid-template-columns: 210px 1fr 360px; min-height: 690px; overflow: hidden;
+    background: var(--floor);
+    /* dappled light, as through leaves */
+    background-image:
+      radial-gradient(ellipse 140px 90px at 22% 18%, rgba(255,246,200,.55), transparent 70%),
+      radial-gradient(ellipse 110px 70px at 64% 62%, rgba(255,246,200,.45), transparent 70%),
+      radial-gradient(ellipse 90px 60px at 40% 88%, rgba(255,246,200,.4), transparent 70%);
+    border: 1px solid #b9c2ab; border-radius: 20px; box-shadow: 0 20px 50px -24px rgba(36,80,58,.45); }
+
+  /* rail: the trunk side, darker */
+  .rail { display: flex; flex-direction: column; gap: 18px; padding: 16px 14px; color: #e9eee0; background: var(--forest); }
+  .brand { display: flex; gap: 8px; align-items: center; font: 600 22px var(--serif); }
+  .rail h5 { margin: 0 0 6px; font: 600 11px var(--sans); color: #a9c0a4; letter-spacing: .1em; text-transform: uppercase; }
+  .rail a { display: flex; justify-content: space-between; padding: 5px 9px; font-size: 13px; color: #e9eee0; text-decoration: none; border-radius: var(--leaf); }
+  .rail a.on { color: var(--bark); background: var(--leaf-paper); }
+  .rail a small { color: #a9c0a4; }
+  .rail a.on small { color: var(--moss); }
+  .usage { margin-top: auto; font-size: 12px; }
+  /* usage as a growing stem: the filled part is the grown length */
+  .stem { position: relative; height: 6px; margin: 4px 0 9px; background: rgba(255,255,255,.14); border-radius: 3px; }
+  .stem i { position: relative; display: block; height: 100%; background: #9fd27f; border-radius: 3px; }
+  .stem i::after { position: absolute; top: -4px; right: -5px; width: 10px; height: 10px; content: ""; background: #9fd27f; border-radius: 10px 0 10px 0; transform: rotate(-10deg); }
+  .stem.warn i, .stem.warn i::after { background: #f0a868; }
+
+  /* board */
+  .board { padding: 18px 20px; }
+  .boardhead { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 14px; }
+  .crumb { font-size: 13px; color: var(--moss); }
+  .crumb b { font-weight: 600; color: var(--forest); }
+  .boardhead h2 { margin: 0; font: 600 30px var(--serif); }
+  .new { padding: 7px 14px; font: 600 13px var(--sans); color: #f4f7ee; background: var(--forest); border-radius: var(--leaf); box-shadow: var(--shade); }
+  .cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .col h4 { display: flex; gap: 7px; align-items: center; margin: 0 0 9px; font: 600 18px var(--serif); }
+  .col h4 small { font: 600 12px var(--sans); color: var(--moss); }
+  .leafmark { width: 11px; height: 11px; background: var(--c); border-radius: 11px 0 11px 0; }
+  .card { position: relative; padding: 11px 12px; margin-bottom: 10px; font-size: 13px; background: var(--leaf-paper); border: 1px solid #d3d9c6; border-radius: var(--leaf); box-shadow: var(--shade); }
+  .card.open { border-color: var(--sprout); box-shadow: 0 0 0 3px var(--sprout-wash), var(--shade); }
+  .card .t { margin-bottom: 4px; font-weight: 600; }
+  .card .who { font-size: 12px; color: var(--moss); }
+  .card .meta { display: flex; gap: 10px; margin-top: 7px; font-size: 11.5px; color: var(--moss); }
+  .add { color: var(--sprout); } .del { color: var(--rust); }
+  .card .note { margin-top: 5px; font: italic 500 14px var(--serif); color: var(--autumn); }
+  .card.att { background: #fdf3ea; border-color: #ecc3a3; border-left: 4px solid var(--autumn); }
+  .card.done { background: #f6f2e8; border-color: #e3dac6; opacity: .82; }
+  .card.done .t { color: #6b604c; }
+  .tick { color: var(--straw); }
+  /* threads drawn as leaves along a twig */
+  .twig { display: flex; gap: 2px; align-items: center; height: 14px; margin-top: 8px; padding-left: 4px; border-left: 2px solid #8b7a5e; }
+  .twig span { width: 14px; height: 9px; background: var(--c); border-radius: 9px 0 9px 0; }
+  .twig .r { --c: var(--sprout); }
+  .twig .w { --c: var(--berry); }
+  .twig .d { --c: var(--straw); }
+  .marg { margin-top: 6px; font: italic 500 15px var(--serif); color: var(--moss); }
+
+  /* the canopy: docked mission panel under a crown of leaves */
+  .canopy { display: flex; flex-direction: column; background: var(--leaf-paper); border-left: 1px solid #cdd5bf; }
+  .crown { position: relative; height: 54px; background: var(--floor); }
+  .crown svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .canopy .head { padding: 2px 16px 10px; border-bottom: 1px solid var(--rule); }
+  .canopy .head .t { font: 600 21px var(--serif); line-height: 1.15; }
+  .canopy .head .sub { display: flex; justify-content: space-between; margin-top: 4px; font-size: 12px; color: var(--moss); }
+  .canopy .head .sub .land { font-weight: 600; color: var(--forest); }
+  .tabs { display: flex; gap: 14px; padding: 8px 16px 0; font-size: 13px; color: var(--moss); border-bottom: 1px solid var(--rule); }
+  .tabs span { padding-bottom: 7px; }
+  .tabs .on { font-weight: 600; color: var(--bark); box-shadow: inset 0 -2.5px 0 var(--sprout); }
+  .feed { display: flex; flex: 1; flex-direction: column; gap: 10px; padding: 12px 16px; font-size: 13px; }
+  .msg.you { align-self: flex-end; max-width: 80%; padding: 7px 11px; background: var(--sprout-wash); border-radius: 14px 14px 3px 14px; }
+  .fold { font-size: 12px; color: var(--moss); }
+  .ask { padding: 11px; background: #fdf3ea; border: 1px solid #ecc3a3; border-left: 4px solid var(--autumn); border-radius: var(--leaf); }
+  .ask .q { margin-bottom: 4px; font-weight: 600; }
+  .ask .btns { display: flex; gap: 8px; margin-top: 9px; }
+  .btn { padding: 5px 11px; font: 600 12.5px var(--sans); background: var(--leaf-paper); border: 1px solid #c6cfb7; border-radius: var(--leaf); }
+  .btn.pri { color: #f4f7ee; background: var(--forest); border-color: var(--forest); }
+  .composer { padding: 10px 12px; margin: 0 12px 12px; background: var(--leaf-paper); border: 1px solid #c6cfb7; border-radius: var(--leaf); box-shadow: var(--shade); }
+  .composer .ph { margin-bottom: 14px; font-size: 13px; color: var(--moss); }
+  .composer .foot { display: flex; align-items: center; justify-content: space-between; font-size: 12px; }
+  .pick { border-bottom: 1px dotted var(--moss); }
+
+  /* ---------- sheets below ---------- */
+  h3.sec { margin: 40px 0 12px; font: 600 26px var(--serif); }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .sheet { padding: 16px; background: var(--leaf-paper); border: 1px solid #d3d9c6; border-radius: 22px 6px 22px 6px; box-shadow: var(--shade); }
+  .sheet h6 { margin: 0 0 10px; font: 600 18px var(--serif); }
+  .sheet .from { margin-top: 10px; font-size: 11.5px; color: var(--moss); }
+  .sw { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sw div { width: 66px; font-size: 11px; color: var(--moss); }
+  .sw i { display: block; height: 34px; margin-bottom: 3px; border: 1px solid rgba(42,42,34,.12); border-radius: var(--leaf); }
+  .intel { display: flex; gap: 8px; align-items: baseline; padding: 7px 9px; margin-bottom: 7px; font-size: 12.5px; border: 1px solid var(--rule); border-radius: var(--leaf); }
+  .intel small { color: var(--moss); }
+  .intel .leafmark { flex: none; }
+  .intel.fade1 { color: #6f6a55; }
+  .intel.fade2 { color: #9a9280; border-style: dashed; }
+  /* trace as roots: a trunk line with side shoots */
+  .trace { position: relative; padding-left: 26px; font-size: 12.5px; }
+  .trace div { left: 0; }
+  .trace div::before, .trace div.now::after { margin-left: -6px; }
+  .trace::before { position: absolute; top: 4px; bottom: 8px; left: 5px; content: ""; border-left: 2px solid #8b7a5e; border-radius: 2px; }
+  .trace div { position: relative; margin-bottom: 8px; }
+  .trace div::before { position: absolute; top: 4px; left: -13px; width: 9px; height: 7px; content: ""; border-bottom: 2px solid #8b7a5e; border-left: 2px solid transparent; border-radius: 0 0 0 8px; }
+  .trace div.now::after { position: absolute; top: 2px; left: -6px; width: 10px; height: 10px; content: ""; background: var(--sprout); border-radius: 10px 0 10px 0; }
+  .diffrow { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12.5px; border-bottom: 1px solid var(--rule); }
+  .field { margin-bottom: 12px; font-size: 13px; }
+  .field .n { margin-bottom: 4px; font-size: 12px; color: var(--moss); }
+  .select { display: flex; justify-content: space-between; padding: 6px 10px; border: 1px solid #c6cfb7; border-radius: var(--leaf); }
+  .select small { color: var(--moss); }
+  .slider { position: relative; height: 22px; }
+  .slider .tr { position: absolute; top: 10px; right: 0; left: 0; height: 3px; background: #dcd4c2; border-radius: 2px; }
+  .slider .fill { position: absolute; top: 10px; left: 0; width: 50%; height: 3px; background: var(--forest); border-radius: 2px; }
+  .slider .k { position: absolute; top: 3px; left: calc(50% - 8px); width: 16px; height: 16px; background: var(--sprout); border: 2px solid var(--leaf-paper); border-radius: 16px 0 16px 0; box-shadow: 0 1px 3px rgba(0,0,0,.25); }
+  .ticks { display: flex; justify-content: space-between; font-size: 11px; color: var(--moss); }
+  .ticks b { color: var(--forest); }
+  .empty { padding: 6px 0; text-align: center; }
+  .empty p { margin: 6px 0 0; font: italic 500 17px var(--serif); color: var(--moss); }
+  ul.rules { padding-left: 18px; margin: 0; font-size: 13px; }
+  ul.rules li { margin-bottom: 5px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 class="title">Canopy — Forest Canopy Board</h1>
+  <p class="intro">Direction F takes the other meaning of the name: the canopy of a forest, the layer of leaves above everything else. You work in its light. The rail is the dark green of the trees around you; the board is the forest floor with sunlight coming through in patches. Missions are leaves, with two rounded corners and two pointed ones. Running is new growth, Attention is a leaf turning orange, Done is a leaf that has dried and settled. The canopy itself shows up as the crown over the mission panel, the logo, and the empty state. Fraunces for headings and margin notes, Inter for everything you read.</p>
+
+  <!-- ================= the main window ================= -->
+  <div class="window">
+    <aside class="rail">
+      <div class="brand">
+        <svg fill="none" height="24" viewBox="0 0 28 24" width="28" >
+          <path d="M3 13 C 2 7, 7 4, 10 5 C 11 1, 17 1, 18 5 C 22 3, 27 7, 25 12 C 26 15, 22 17, 19 15 C 17 17, 11 17, 9 15 C 6 17, 2 16, 3 13 Z" fill="#9fd27f"/>
+          <path d="M14 15 L 14 22 M 14 19 L 11 16.5 M 14 18 L 17 15.5" stroke="#e9eee0" stroke-linecap="round" stroke-width="1.6"/>
+        </svg>
+        Canopy
+      </div>
+      <div>
+        <h5>Workspaces</h5>
+        <a class="on" href="#">canopy <small>4</small></a>
+        <a href="#">fern-site <small>1</small></a>
+        <a href="#">scratch <small></small></a>
+      </div>
+      <div>
+        <h5>Places</h5>
+        <a href="#">Dashboard</a><a href="#">Routines</a><a href="#">Intel</a><a href="#">Journal</a><a href="#">Devices</a>
+      </div>
+      <div class="usage">
+        <h5>Plans today</h5>
+        Claude <span style="float:right;color:#a9c0a4">62%</span><div class="stem warn"><i style="width:62%"></i></div>
+        Codex <span style="float:right;color:#a9c0a4">18%</span><div class="stem"><i style="width:18%"></i></div>
+        Budget <span style="float:right;color:#a9c0a4">$7.40 / $20</span><div class="stem"><i style="width:37%"></i></div>
+      </div>
+    </aside>
+
+    <main class="board">
+      <div class="boardhead">
+        <div>
+          <div class="crumb">All workspaces › <b>canopy ⌄</b></div>
+          <h2>Missions</h2>
+        </div>
+        <span class="new">+ New mission</span>
+      </div>
+      <div class="cols">
+        <div class="col">
+          <h4><span class="leafmark" style="--c:var(--autumn)"></span>Attention <small>2</small></h4>
+          <div class="card att">
+            <div class="t">Carry on after a refusal</div>
+            <div class="who">OpenCode · Sonnet · <span class="mono">fix/refusals</span></div>
+            <div class="note">wants to edit outside the workspace</div>
+          </div>
+          <div class="card">
+            <div class="t">Budget alerts</div>
+            <div class="who">Codex · high</div>
+            <div class="meta"><span style="color:var(--rust)">folder missing</span></div>
+          </div>
+        </div>
+        <div class="col">
+          <h4><span class="leafmark" style="--c:var(--sprout)"></span>Running <small>2</small></h4>
+          <div class="card open">
+            <div class="t">Thread opening indicators</div>
+            <div class="who">Claude Code · Opus · <span class="mono">feat/indicators</span></div>
+            <div class="twig"><span class="r"></span><span class="r"></span><span class="w"></span><span class="d"></span></div>
+            <div class="meta"><span>$1.84</span><span class="add">+214</span><span class="del">−38</span><span>4 threads</span></div>
+          </div>
+          <div class="card">
+            <div class="t">Pairing over the relay</div>
+            <div class="who">Claude Code · Sonnet</div>
+            <div class="twig"><span class="r"></span></div>
+            <div class="meta"><span>$0.40</span><span class="add">+31</span><span class="del">−2</span></div>
+          </div>
+          <div class="marg">↳ 1 idle, 1 waiting</div>
+        </div>
+        <div class="col">
+          <h4><span class="leafmark" style="--c:var(--straw)"></span>Done <small>5</small></h4>
+          <div class="card done"><div class="t"><span class="tick">✓</span> Five Low findings</div><div class="meta"><span>$3.10</span><span class="add">+120</span><span class="del">−88</span></div></div>
+          <div class="card done"><div class="t"><span class="tick">✓</span> Quote check</div><div class="meta"><span>$0.92</span></div></div>
+          <div class="marg">+ 3 more this week</div>
+        </div>
+      </div>
+    </main>
+
+    <section class="canopy">
+      <div class="crown">
+        <svg preserveAspectRatio="none" viewBox="0 0 360 54" >
+          <!-- a crown of leaves: scalloped clusters closing over the panel -->
+          <path d="M0 54 L 0 30 C 10 14, 34 12, 44 22 C 52 6, 84 4, 96 18 C 108 2, 146 0, 160 14 C 172 0, 212 0, 222 14 C 236 2, 270 4, 280 18 C 292 6, 322 8, 330 22 C 342 12, 358 18, 360 30 L 360 54 Z" fill="#24503a"/>
+          <path d="M0 54 L 0 40 C 14 30, 36 30, 48 38 C 62 26, 92 26, 104 36 C 120 24, 150 24, 166 34 C 182 24, 210 24, 224 34 C 238 26, 268 26, 282 36 C 296 28, 326 28, 340 38 C 348 34, 356 36, 360 40 L 360 54 Z" fill="#3b7a4c"/>
+          <path d="M0 54 L 0 49 C 30 42, 70 42, 100 47 C 140 41, 220 41, 260 47 C 290 42, 330 42, 360 49 L 360 54 Z" fill="#fafbf5"/>
+          <circle cx="120" cy="14" fill="#fff6c8" opacity=".6" r="2"/><circle cx="250" cy="20" fill="#fff6c8" opacity=".5" r="1.6"/>
+        </svg>
+      </div>
+      <div class="head">
+        <div class="t">Thread opening indicators</div>
+        <div class="sub"><span>Running · 4 threads · since <span class="mono">origin/main</span></span><span class="land">Land ⌄</span></div>
+      </div>
+      <div class="tabs"><span class="on">Conversation</span><span>Changes <span class="add">+214</span></span><span>Trace</span><span>Intel</span></div>
+      <div class="feed">
+        <div class="msg you">Show which threads are opening, without moving the list.</div>
+        <div class="fold">▸ Thought twice, read 6 files, ran 2 tests</div>
+        <div>Plan: add an <span class="mono">opening</span> state to each entry, draw it as a leaf unfurling, keep row height fixed.</div>
+        <div class="ask">
+          <div class="q">Approve the plan?</div>
+          Three files in <span class="mono">apps/app</span>, one test.
+          <div class="btns"><span class="btn pri">Approve</span><span class="btn">Change it</span></div>
+        </div>
+      </div>
+      <div class="composer">
+        <div class="ph">Steer this mission…</div>
+        <div class="foot"><span><span class="pick">Claude Code</span> · <span class="pick">Opus</span> · <span class="pick">high</span></span><span class="btn pri">Send</span></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ================= building blocks ================= -->
+  <h3 class="sec">The kit</h3>
+  <div class="grid">
+    <div class="sheet">
+      <h6>Forest, floor, and the seasons</h6>
+      <div class="sw">
+        <div><i style="background:var(--floor)"></i>floor</div>
+        <div><i style="background:var(--leaf-paper)"></i>leaf paper</div>
+        <div><i style="background:var(--bark)"></i>bark</div>
+        <div><i style="background:var(--moss)"></i>moss</div>
+        <div><i style="background:var(--forest)"></i>forest · primary</div>
+        <div><i style="background:var(--sprout)"></i>sprout · Running</div>
+        <div><i style="background:var(--autumn)"></i>autumn · Attention</div>
+        <div><i style="background:var(--berry)"></i>berry · Waiting</div>
+        <div><i style="background:var(--straw)"></i>straw · Done</div>
+        <div><i style="background:var(--rust)"></i>rust · Failed</div>
+      </div>
+      <div class="from">States follow a leaf's life: it sprouts, turns, or dries. Done is straw rather than green, so green always means alive.</div>
+    </div>
+    <div class="sheet">
+      <h6>Type and shapes</h6>
+      <div class="serif" style="font-size:28px;font-weight:600;line-height:1">Missions</div>
+      <div style="font-weight:600;margin-top:6px">Thread opening indicators</div>
+      <div style="color:var(--moss);font-size:12.5px">Claude Code · Opus · <span class="mono">feat/indicators</span></div>
+      <ul class="rules" style="margin-top:10px">
+        <li>Fraunces for headings and italic margin notes; Inter for everything you read; mono for branches and paths.</li>
+        <li>Leaf corners (two round, two pointed), 1px soft outlines, a low green-tinted shadow, dappled light on the board only.</li>
+      </ul>
+    </div>
+    <div class="sheet">
+      <h6>Settings, no chips</h6>
+      <div class="field"><div class="n">Harness</div><div class="select">Claude Code <small>signed in ⌄</small></div></div>
+      <div class="field"><div class="n">Default model</div><div class="select">Fable <small>⌄</small></div></div>
+      <div class="field"><div class="n">Default effort</div>
+        <div class="slider"><div class="tr"></div><div class="fill"></div><div class="k"></div></div>
+        <div class="ticks"><span>low</span><span>medium</span><b>high</b><span>xhigh</span><span>max</span></div>
+      </div>
+    </div>
+
+    <div class="sheet">
+      <h6>Intel, through the seasons</h6>
+      <div class="intel"><span class="leafmark" style="--c:var(--sprout)"></span><span><b>Rule</b> · Never push to main without asking <small>· global</small></span></div>
+      <div class="intel fade1"><span class="leafmark" style="--c:#c9a245"></span><span>Prefers Effect Layers over classes <small>· workspace · fading</small></span></div>
+      <div class="intel fade2"><span class="leafmark" style="--c:#b39b7a"></span><span>Relay port was 8787 <small>· dormant</small></span></div>
+      <div class="from">Fading memories turn from green to gold to brown, like leaves in autumn (Rerun's fading by kind; souls.house's honest skips).</div>
+    </div>
+    <div class="sheet">
+      <h6>Trace, as roots</h6>
+      <div class="trace">
+        <div>Read <span class="mono">entries.ts</span></div>
+        <div>Asked: edit outside workspace</div>
+        <div class="now">Ran <span class="mono">bun test</span> · <span style="color:var(--rust)">2 failed</span></div>
+        <div style="color:var(--moss)">Next step…</div>
+      </div>
+      <div class="from">Every run leaves a trace you can step through, growing down like a root (Timon's idea, without its spaceship look).</div>
+    </div>
+    <div class="sheet">
+      <h6>Changes, then Land</h6>
+      <div class="diffrow"><span class="mono">apps/app/src/entries.ts</span><span><span class="add">+120</span> <span class="del">−0</span></span></div>
+      <div class="diffrow"><span class="mono">apps/app/src/conversation.tsx</span><span><span class="add">+42</span> <span class="del">−30</span></span></div>
+      <div class="diffrow"><span class="mono">packages/contracts/src/records.ts</span><span><span class="add">+6</span> <span class="del">−2</span></span></div>
+      <div style="display:flex;gap:8px;margin-top:10px"><span class="btn pri">Land now</span><span class="btn">Hand over…</span></div>
+      <div class="from">Delta's "since origin/main" changes panel; intentic's Land button; Delta's full-history handover.</div>
+    </div>
+
+    <div class="sheet">
+      <h6>Empty: a quiet canopy</h6>
+      <div class="empty">
+        <svg fill="none" height="72" viewBox="0 0 140 72" width="140" >
+          <path d="M30 44 C 18 42, 18 26, 32 26 C 32 12, 52 8, 60 18 C 66 6, 88 6, 92 18 C 104 10, 122 18, 116 32 C 126 38, 118 50, 106 46 C 98 54, 80 52, 74 46 C 66 54, 44 54, 40 46 C 36 48, 32 47, 30 44 Z" fill="#3b7a4c"/>
+          <path d="M70 48 L 70 68 M 70 58 L 62 52 M 70 55 L 78 49" stroke="#8b7a5e" stroke-linecap="round" stroke-width="3"/>
+          <path d="M40 68 L 100 68" stroke="#a9b59a" stroke-linecap="round" stroke-width="1.5"/>
+          <circle cx="56" cy="28" fill="#fff6c8" opacity=".7" r="2.2"/><circle cx="90" cy="34" fill="#fff6c8" opacity=".5" r="1.6"/>
+        </svg>
+        <p>Nothing needs you. The canopy's quiet.</p>
+      </div>
+    </div>
+    <div class="sheet">
+      <h6>Asking, for casual users</h6>
+      <div class="ask">
+        <div class="q">OpenCode wants to edit <span class="mono">~/notes/todo.md</span></div>
+        It's outside the <b>canopy</b> workspace.
+        <div class="btns"><span class="btn pri">Allow once</span><span class="btn">Always here</span><span class="btn">No</span></div>
+      </div>
+      <div class="from">OpenBot's plain-language permission asks.</div>
+    </div>
+    <div class="sheet">
+      <h6>Devices and pairing</h6>
+      <div class="intel"><span class="leafmark" style="--c:var(--sprout)"></span><span>MacBook Pro <small>· online · 3 missions</small></span></div>
+      <div class="intel"><span class="leafmark" style="--c:var(--sprout)"></span><span>iPhone <small>· paired over relay</small></span></div>
+      <div class="serif" style="margin-top:8px;font-size:26px;font-weight:600;letter-spacing:5px;text-align:center;color:var(--forest)">K7 · 2Q · 9F</div>
+      <div class="from">intentic's Devices page; Paseo's encrypted relay. The pairing code is set large, to read aloud.</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

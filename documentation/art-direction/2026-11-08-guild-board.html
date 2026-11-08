@@ -1,0 +1,374 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Guild — The Quest Board (direction H, whole app)</title>
+<link href="https://fonts.googleapis.com" rel="preconnect" >
+<link href="https://fonts.googleapis.com/css2?family=Cinzel:wght@600;700;800&family=Cinzel+Decorative:wght@700&family=Alegreya:ital,wght@0,400;0,500;0,700;1,500&family=Fira+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --wood: #3a2819;       /* the tavern board */
+    --wood-dark: #2a1c11;
+    --leather: #3b1f1a;    /* the rail: a tooled leather cover */
+    --parch: #f1e3c2;      /* notices, panels */
+    --parch-dark: #e2cf9f;
+    --ink: #2b1d12;        /* text, outlines */
+    --faded: #7d6a50;      /* secondary text */
+    --gold: #b8862b;       /* gilding: primary, borders, coins */
+    --gold-hi: #e2b85a;
+    --arcane: #3a68b8;     /* the one magic: Running, focus */
+    --arcane-wash: #dfe6f1;
+    --seal: #9e2a22;       /* wax seal: Attention */
+    --violet: #6a4a9c;     /* Waiting */
+    --verdant: #4b7a3a;    /* Done */
+    --fallen: #4a4a4a;     /* Failed */
+    --title: "Cinzel", "Trajan Pro", serif;
+    --deco: "Cinzel Decorative", "Cinzel", serif;
+    --body: "Alegreya", Georgia, serif;
+    --mono: "Fira Mono", ui-monospace, Menlo, monospace;
+    /* a torn notice: uneven radii, no straight machine edge */
+    --torn: 3px 9px 4px 7px / 7px 3px 9px 4px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 15px/1.45 var(--body); color: var(--ink); background: #1d140c; }
+  .page { max-width: 1320px; padding: 28px 32px 60px; margin: 0 auto; color: var(--parch); }
+  h1.title { margin: 0; font: 700 38px var(--deco); color: var(--gold-hi); }
+  .intro { max-width: 880px; margin: 6px 0 22px; color: #cdbb94; }
+  .mono { font-family: var(--mono); font-size: 12px; }
+
+  /* ---------- the window ---------- */
+  .window { display: grid; grid-template-columns: 215px 1fr 370px; min-height: 710px; overflow: hidden; color: var(--ink);
+    border: 3px solid var(--gold); border-radius: 10px; box-shadow: 0 0 0 1px #5a3f17, 0 0 0 6px #1d140c, 0 0 0 7px #6b4d1e, 0 24px 60px rgba(0,0,0,.6); }
+
+  /* rail: tooled leather with a gilt line */
+  .rail { display: flex; flex-direction: column; gap: 18px; padding: 16px 14px; color: #ead8b0; background: var(--leather);
+    background-image: radial-gradient(ellipse at 40% 10%, rgba(255,220,160,.08), transparent 60%);
+    box-shadow: inset 0 0 0 6px var(--leather), inset 0 0 0 7px var(--gold); border-right: 2px solid #1d140c; }
+  .brand { display: flex; gap: 8px; align-items: center; padding: 4px 4px 0; font: 700 21px var(--deco); color: var(--gold-hi); }
+  .rail h5 { display: flex; align-items: center; gap: 6px; margin: 0 0 4px; padding: 0 4px; font: 700 11px var(--title); letter-spacing: .14em; color: var(--gold); text-transform: uppercase; }
+  .rail h5::after { flex: 1; height: 1px; content: ""; background: linear-gradient(90deg, var(--gold), transparent); }
+  .rail a { display: flex; justify-content: space-between; padding: 3px 8px; font-size: 14.5px; color: #ead8b0; text-decoration: none; }
+  .rail a.on { color: var(--ink); background: linear-gradient(var(--parch), var(--parch-dark)); border-radius: 2px; box-shadow: 0 1px 0 #1d140c; }
+  .rail a small { font: 12px var(--mono); color: #b09a70; }
+  .rail a.on small { color: var(--faded); }
+  .rail a .g { margin-right: 6px; color: var(--gold); }
+  .rail a.on .g { color: var(--seal); }
+  .usage { margin-top: auto; padding: 0 4px 6px; font-size: 13px; }
+  .orb { height: 9px; margin: 3px 0 9px; overflow: hidden; background: #1d0f0c; border: 1px solid var(--gold); border-radius: 5px; }
+  .orb i { display: block; height: 100%; border-radius: 4px; }
+  .orb.mana i { background: linear-gradient(#8fb3ec, var(--arcane) 60%, #23447d); }
+  .orb.stam i { background: linear-gradient(#a4d18f, var(--verdant) 60%, #2c4c20); }
+  .orb.gold i { background: linear-gradient(var(--gold-hi), var(--gold) 60%, #7a5718); }
+
+  /* board: planks of the tavern's quest board */
+  .board { padding: 18px 20px; color: var(--parch);
+    background: var(--wood);
+    background-image: repeating-linear-gradient(90deg, transparent 0 118px, rgba(0,0,0,.35) 118px 120px),
+      repeating-linear-gradient(0deg, rgba(255,255,255,.025) 0 2px, transparent 2px 7px); }
+  .boardhead { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 16px; }
+  .crumb { font-size: 13.5px; color: #c9b386; }
+  .crumb b { font-weight: 700; color: var(--gold-hi); }
+  .boardhead h2 { margin: 0; font: 800 32px var(--title); color: var(--parch); letter-spacing: .04em; text-shadow: 0 2px 0 #000; }
+  .new { padding: 6px 14px; font: 700 13px var(--title); letter-spacing: .08em; color: var(--ink); background: linear-gradient(var(--gold-hi), var(--gold)); border: 1px solid #5a3f17; border-radius: 3px; box-shadow: 0 2px 0 #1d140c; }
+  .cols { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; }
+  .notice .t { overflow-wrap: anywhere; }
+  /* column header as a hanging banner */
+  .col h4 { position: relative; display: flex; gap: 6px; align-items: baseline; justify-content: center; padding: 5px 8px 9px; margin: 0 6px 14px; font: 700 15px var(--title); letter-spacing: .1em; color: var(--parch);
+    background: var(--c); clip-path: polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%); }
+  .col h4 small { font: 500 12px var(--mono); opacity: .8; }
+  .col .gl { margin: -10px 0 0; font: italic 500 12.5px var(--body); color: #c9b386; text-align: center; }
+  .notice { position: relative; padding: 14px 13px 11px; margin: 22px 0 12px; font-size: 14px; color: var(--ink);
+    background: var(--parch); background-image: radial-gradient(ellipse at 20% 0%, rgba(255,255,255,.35), transparent 60%), radial-gradient(ellipse at 90% 100%, rgba(120,80,30,.18), transparent 55%);
+    border-radius: var(--torn); box-shadow: 0 3px 6px rgba(0,0,0,.45); }
+  .col .notice:first-of-type { margin-top: 26px; }
+  .notice::before { position: absolute; top: 5px; left: calc(50% - 4px); width: 8px; height: 8px; content: ""; background: radial-gradient(circle at 35% 35%, #c9c3b6, #4a453c); border-radius: 50%; box-shadow: 0 1px 1px rgba(0,0,0,.5); }
+  .notice.tilt { transform: rotate(-1.4deg); }
+  .notice.tilt2 { transform: rotate(1.1deg); }
+  .notice .t { margin-bottom: 2px; font: 700 15.5px/1.25 var(--title); letter-spacing: .01em; }
+  .notice .who { font-size: 13px; color: var(--faded); }
+  .notice .meta { display: flex; gap: 10px; align-items: center; margin-top: 7px; font: 12px var(--mono); color: var(--faded); }
+  .coin { display: inline-block; width: 10px; height: 10px; margin-right: 3px; vertical-align: -1px; background: radial-gradient(circle at 35% 35%, var(--gold-hi), var(--gold) 60%, #7a5718); border-radius: 50%; }
+  .add { color: var(--verdant); } .del { color: var(--seal); }
+  .notice .note { margin-top: 5px; font: italic 500 14px var(--body); color: var(--seal); }
+  .notice.summons { box-shadow: 0 0 0 2px var(--seal), 0 3px 6px rgba(0,0,0,.45); }
+  .wax { position: absolute; right: -8px; bottom: -10px; display: grid; place-items: center; width: 34px; height: 34px; font: 700 15px var(--deco); color: #f3c9b8;
+    background: radial-gradient(circle at 38% 35%, #c9473c, var(--seal) 55%, #6a1712); border-radius: 48% 52% 46% 54%; box-shadow: 0 2px 3px rgba(0,0,0,.4); }
+  .notice.open { box-shadow: 0 0 0 2px var(--arcane), 0 0 18px 2px rgba(90,140,230,.55), 0 3px 6px rgba(0,0,0,.45); }
+  .notice.done { opacity: .82; filter: sepia(.25); }
+
+  .notice .meta { flex-wrap: wrap; row-gap: 2px; }
+  .notice .meta span:has(.coin) { white-space: nowrap; }
+  .ribbon { position: absolute; top: -7px; right: -4px; padding: 1px 8px; font: 700 10px var(--title); letter-spacing: .12em; color: #eaf2df; background: var(--verdant); clip-path: polygon(6px 0, 100% 0, 100% 100%, 6px 100%, 0 50%); }
+  /* threads are the party: one sigil per companion */
+  .party { display: flex; gap: 4px; margin-top: 7px; }
+  .party span { display: grid; place-items: center; width: 17px; height: 19px; font: 700 9px var(--title); color: #fff; background: var(--c); clip-path: polygon(0 0, 100% 0, 100% 60%, 50% 100%, 0 60%); }
+  .party .r { --c: var(--arcane); } .party .w { --c: var(--violet); } .party .d { --c: var(--verdant); }
+  .marg { margin-top: 2px; font: italic 500 14px var(--body); color: #c9b386; }
+
+  /* the scroll: docked quest panel */
+  .scroll { display: flex; flex-direction: column; background: var(--parch); border-left: 2px solid #1d140c;
+    background-image: radial-gradient(ellipse at 50% 0%, rgba(255,255,255,.3), transparent 50%), radial-gradient(ellipse at 100% 100%, rgba(120,80,30,.18), transparent 50%); }
+  .roll { height: 26px; margin: 8px 6px 0; background: linear-gradient(#c9b07a, #f5e8c8 35%, #d9c08a 60%, #a88a52); border-radius: 13px; box-shadow: 0 3px 4px rgba(0,0,0,.3), inset 0 -2px 0 rgba(0,0,0,.15); }
+  .scroll .head { padding: 10px 16px 10px; border-bottom: 1px solid #c9b07a; }
+  .scroll .head .k { font: 700 10.5px var(--title); letter-spacing: .14em; color: var(--gold); }
+  .scroll .head .t { font: 700 21px/1.2 var(--title); }
+  .scroll .head .t::first-letter { float: left; margin: 2px 5px 0 0; padding: 0 5px; font: 700 34px/1 var(--deco); color: var(--seal); border: 1.5px solid var(--gold); background: #f8edd2; }
+  .scroll .head .sub { display: flex; justify-content: space-between; clear: both; margin-top: 4px; font-size: 13px; color: var(--faded); }
+  .scroll .head .sub b { color: var(--arcane); }
+  .tabs { display: flex; gap: 14px; padding: 8px 16px 0; font: 700 12px var(--title); letter-spacing: .08em; color: var(--faded); border-bottom: 1px solid #c9b07a; }
+  .tabs span { padding-bottom: 6px; }
+  .tabs .on { color: var(--ink); box-shadow: inset 0 -2.5px 0 var(--gold); }
+  .feed { display: flex; flex: 1; flex-direction: column; gap: 10px; padding: 12px 16px; font-size: 14.5px; }
+  .msg.you { align-self: flex-end; max-width: 82%; padding: 6px 11px; font-style: italic; background: var(--arcane-wash); border: 1px solid #b8c6e0; border-radius: 12px 12px 2px 12px; }
+  .fold { font-size: 13px; color: var(--faded); }
+  .ask { position: relative; padding: 10px 12px 11px; background: #f8ecd0; border: 1.5px solid var(--seal); border-radius: var(--torn); }
+  .ask .q { margin-bottom: 3px; font: 700 15px var(--title); }
+  .ask .btns { display: flex; gap: 8px; margin-top: 9px; }
+  .btn { padding: 3px 11px; font: 700 12px var(--title); letter-spacing: .06em; color: var(--ink); background: #f8edd2; border: 1px solid var(--gold); border-radius: 3px; }
+  .btn.pri { background: linear-gradient(var(--gold-hi), var(--gold)); border-color: #5a3f17; }
+  .composer { padding: 10px 12px; margin: 0 12px 12px; background: #f8edd2; border: 1px solid var(--gold); border-radius: 4px; box-shadow: inset 0 1px 3px rgba(120,80,30,.2); }
+  .composer .ph { margin-bottom: 14px; font-style: italic; color: var(--faded); }
+  .composer .foot { display: flex; align-items: center; justify-content: space-between; font-size: 13px; }
+  .pick { border-bottom: 1px dotted var(--faded); }
+
+  /* ---------- sheets below ---------- */
+  h3.sec { margin: 40px 0 12px; font: 700 28px var(--deco); color: var(--gold-hi); }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .sheet { position: relative; padding: 16px; color: var(--ink); background: var(--parch); border-radius: var(--torn); box-shadow: 0 0 0 1px #6b4d1e, 0 4px 10px rgba(0,0,0,.5); }
+  .sheet h6 { margin: 0 0 10px; font: 700 16px var(--title); letter-spacing: .04em; }
+  .sheet .from { margin-top: 10px; font-size: 13px; font-style: italic; color: var(--faded); }
+  .sw { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sw div { width: 66px; font-size: 12px; color: var(--faded); }
+  .sw i { display: block; height: 34px; margin-bottom: 3px; border: 1px solid #6b4d1e; border-radius: 3px; }
+  .lex { width: 100%; font-size: 13.5px; border-collapse: collapse; }
+  .lex td { padding: 2px 0; border-bottom: 1px dotted #c9b07a; }
+  .lex td:first-child { color: var(--faded); }
+  .lex td:last-child { font-family: var(--title); font-weight: 700; text-align: right; }
+  .lore { padding: 6px 9px; margin-bottom: 7px; font-size: 14px; border-left: 3px solid var(--gold); background: rgba(255,255,255,.3); }
+  .lore small { color: var(--faded); }
+  .lore.f1 { opacity: .55; border-left-style: dashed; }
+  .lore.f2 { opacity: .3; border-left-style: dotted; filter: blur(.3px); }
+  .chron { font-size: 14px; }
+  .chron div { padding: 3px 0 3px 22px; position: relative; }
+  .chron div::before { position: absolute; left: 2px; top: 5px; font: 700 12px var(--deco); color: var(--gold); content: attr(data-n); }
+  .chron .now { color: var(--arcane); font-weight: 700; }
+  .diffrow { display: flex; justify-content: space-between; padding: 3px 0; font-size: 13px; border-bottom: 1px dotted #c9b07a; }
+  .field { margin-bottom: 12px; font-size: 14px; }
+  .field .n { margin-bottom: 4px; font: 700 11px var(--title); letter-spacing: .12em; color: var(--faded); }
+  .select { display: flex; justify-content: space-between; padding: 5px 9px; background: #f8edd2; border: 1px solid var(--gold); border-radius: 3px; }
+  .select small { color: var(--faded); }
+  .runes { display: flex; justify-content: space-between; }
+  .runes span { display: grid; place-items: center; width: 34px; height: 34px; font: 700 11px var(--title); color: var(--faded); border: 1px solid #c9b07a; border-radius: 50%; }
+  .runes span.on { color: #fff; background: radial-gradient(circle at 40% 35%, #8fb3ec, var(--arcane) 60%, #23447d); border-color: var(--arcane); box-shadow: 0 0 10px rgba(58,104,184,.6); }
+  .empty { padding: 4px 0; text-align: center; }
+  .empty p { margin: 4px 0 0; font: italic 500 16px var(--body); color: var(--faded); }
+  ul.rules { padding-left: 18px; margin: 0; font-size: 14px; }
+  ul.rules li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 class="title">Guild — the Quest Board</h1>
+  <p class="intro">Direction H, heroic fantasy, renamed Guild. You are the guild master. Each mission is a notice pinned to the tavern board. Each thread is a companion in that quest's party, and an agent asking for you comes as a summons sealed in red wax. The open quest unrolls as a scroll beside the board. The fantasy stays in the words, the materials, and the ornament (gilt, leather, parchment, wax). Data stays in plain Alegreya and mono so a quest can still be read at a glance. The kit ends with the lexicon from Canopy's glossary words to Guild's.</p>
+
+  <!-- ================= the main window ================= -->
+  <div class="window">
+    <aside class="rail">
+      <div class="brand">
+        <svg fill="none" height="26" viewBox="0 0 24 26" width="24" >
+          <path d="M3 2 L 21 2 L 21 13 C 21 19, 16 22, 12 24 C 8 22, 3 19, 3 13 Z" fill="#9e2a22" stroke="#e2b85a" stroke-width="1.4"/>
+          <path d="M12 6 L 12 18 M 8 10 L 16 10" stroke="#e2b85a" stroke-linecap="round" stroke-width="1.6"/>
+        </svg>
+        Guild
+      </div>
+      <div>
+        <h5>Realms</h5>
+        <a class="on" href="#"><span><span class="g">◆</span>canopy</span> <small>4</small></a>
+        <a href="#"><span><span class="g">◇</span>fern-site</span> <small>1</small></a>
+        <a href="#"><span><span class="g">◇</span>scratch</span> <small></small></a>
+      </div>
+      <div>
+        <h5>The keep</h5>
+        <a href="#">War table</a><a href="#">Rituals</a><a href="#">Lore</a><a href="#">Journal</a><a href="#">Waystones</a>
+      </div>
+      <div class="usage">
+        <h5>Reserves today</h5>
+        Claude's mana <span class="mono" style="float:right;color:#b09a70">38% left</span><div class="orb mana"><i style="width:38%"></i></div>
+        Codex stamina <span class="mono" style="float:right;color:#b09a70">82% left</span><div class="orb stam"><i style="width:82%"></i></div>
+        Gold <span class="mono" style="float:right;color:#b09a70">$12.60 left</span><div class="orb gold"><i style="width:63%"></i></div>
+      </div>
+    </aside>
+
+    <main class="board">
+      <div class="boardhead">
+        <div>
+          <div class="crumb">All realms › <b>canopy ⌄</b></div>
+          <h2>Quests</h2>
+        </div>
+        <span class="new">⚔ Post a quest</span>
+      </div>
+      <div class="cols">
+        <div class="col">
+          <h4 style="--c:var(--seal)">Summons <small>2</small></h4><div class="gl">needs you</div>
+          <div class="notice summons tilt">
+            <div class="t">Carry on after a refusal</div>
+            <div class="who">OpenCode · Sonnet · <span class="mono">fix/refusals</span></div>
+            <div class="note">"May I write beyond the realm's border?"</div>
+            <span class="wax">!</span>
+          </div>
+          <div class="notice tilt2">
+            <div class="t">Budget alerts</div>
+            <div class="who">Codex · high</div>
+            <div class="meta"><span style="color:var(--seal)">the path is lost (folder missing)</span></div>
+          </div>
+        </div>
+        <div class="col">
+          <h4 style="--c:var(--arcane)">Underway <small>2</small></h4><div class="gl">Running</div>
+          <div class="notice open">
+            <div class="t">Thread opening indicators</div>
+            <div class="who">Claude Code · Opus · <span class="mono">feat/indicators</span></div>
+            <div class="party"><span class="r">I</span><span class="r">II</span><span class="w">III</span><span class="d">IV</span></div>
+            <div class="meta"><span><span class="coin"></span>$1.84</span><span class="add">+214</span><span class="del">−38</span></div>
+          </div>
+          <div class="notice tilt">
+            <div class="t">Pairing over the relay</div>
+            <div class="who">Claude Code · Sonnet</div>
+            <div class="party"><span class="r">I</span></div>
+            <div class="meta"><span><span class="coin"></span>$0.40</span><span class="add">+31</span><span class="del">−2</span></div>
+          </div>
+          <div class="marg">↳ one rests, one awaits word</div>
+        </div>
+        <div class="col">
+          <h4 style="--c:var(--verdant)">Fulfilled <small>5</small></h4><div class="gl">Done</div>
+          <div class="notice done tilt2"><span class="ribbon">FULFILLED</span><div class="t">Five Low findings</div><div class="meta"><span><span class="coin"></span>$3.10</span><span class="add">+120</span><span class="del">−88</span></div></div>
+          <div class="notice done"><span class="ribbon">FULFILLED</span><div class="t">Quote check</div><div class="meta"><span><span class="coin"></span>$0.92</span></div></div>
+          <div class="marg">+ 3 more this week</div>
+        </div>
+      </div>
+    </main>
+
+    <section class="scroll">
+      <div class="roll"></div>
+      <div class="head">
+        <div class="k">QUEST THE FOURTEENTH</div>
+        <div class="t">Thread opening indicators</div>
+        <div class="sub"><span><b>Underway</b> · party of 4 · since <span class="mono">origin/main</span></span><span>Bring home ⌄</span></div>
+      </div>
+      <div class="tabs"><span class="on">Counsel</span><span>Spoils <span class="add mono">+214</span></span><span>Chronicle</span><span>Lore</span></div>
+      <div class="feed">
+        <div class="msg you">Show which threads are opening, without moving the list.</div>
+        <div class="fold">▸ pondered twice, studied 6 scrolls, tested 2 wards</div>
+        <div>Plan: add an <span class="mono">opening</span> state to each entry, draw it as a kindling rune, keep row height fixed.</div>
+        <div class="ask">
+          <div class="q">Do you approve the plan?</div>
+          Three files in <span class="mono">apps/app</span>, one test.
+          <div class="btns"><span class="btn pri">So be it</span><span class="btn">Change it</span></div>
+        </div>
+      </div>
+      <div class="composer">
+        <div class="ph">Send word to the party…</div>
+        <div class="foot"><span><span class="pick">Claude Code</span> · <span class="pick">Opus</span> · <span class="pick">high</span></span><span class="btn pri">Send</span></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ================= building blocks ================= -->
+  <h3 class="sec">The armory</h3>
+  <div class="grid">
+    <div class="sheet">
+      <h6>Parchment, leather, gilt, and wax</h6>
+      <div class="sw">
+        <div><i style="background:var(--wood)"></i>board</div>
+        <div><i style="background:var(--leather)"></i>leather</div>
+        <div><i style="background:var(--parch)"></i>parchment</div>
+        <div><i style="background:var(--gold)"></i>gilt · primary</div>
+        <div><i style="background:var(--arcane)"></i>arcane · Running</div>
+        <div><i style="background:var(--seal)"></i>wax · Attention</div>
+        <div><i style="background:var(--violet)"></i>Waiting</div>
+        <div><i style="background:var(--verdant)"></i>Done</div>
+        <div><i style="background:var(--fallen)"></i>Failed</div>
+      </div>
+      <div class="from">Only one thing on the board glows blue: the quest you have open. Every summons is sealed with red wax.</div>
+    </div>
+    <div class="sheet">
+      <h6>Lexicon</h6>
+      <table class="lex">
+        <tr><td>Mission</td><td>Quest</td></tr>
+        <tr><td>Thread</td><td>Companion</td></tr>
+        <tr><td>Workspace</td><td>Realm</td></tr>
+        <tr><td>Attention · Running · Done</td><td>Summons · Underway · Fulfilled</td></tr>
+        <tr><td>Changes · Trace · Intel</td><td>Spoils · Chronicle · Lore</td></tr>
+        <tr><td>Routines · Devices</td><td>Rituals · Waystones</td></tr>
+        <tr><td>Land</td><td>Bring home</td></tr>
+      </table>
+      <div class="from">Glossary words appear small under each banner so the mapping is never lost.</div>
+    </div>
+    <div class="sheet">
+      <h6>Settings, by rune</h6>
+      <div class="field"><div class="n">HARNESS</div><div class="select">Claude Code <small>sworn in ⌄</small></div></div>
+      <div class="field"><div class="n">DEFAULT MODEL</div><div class="select">Fable <small>⌄</small></div></div>
+      <div class="field"><div class="n">DEFAULT EFFORT</div>
+        <div class="runes"><span>low</span><span>med</span><span class="on">high</span><span>xhigh</span><span>max</span></div>
+      </div>
+    </div>
+
+    <div class="sheet">
+      <h6>Lore, half-remembered</h6>
+      <div class="lore"><b>Edict</b> · Never push to main without asking <small>· all realms</small></div>
+      <div class="lore f1">Prefers Effect Layers over classes <small>· this realm · fading</small></div>
+      <div class="lore f2">Relay port was 8787 <small>· forgotten</small></div>
+      <div class="from">Lore fades as it goes unused, like ink on old parchment (Rerun's fading by kind; souls.house's honest skips).</div>
+    </div>
+    <div class="sheet">
+      <h6>The chronicle</h6>
+      <div class="chron">
+        <div data-n="I">Studied <span class="mono">entries.ts</span></div>
+        <div data-n="II">Sought leave to cross the border</div>
+        <div class="now" data-n="III">Tested the wards: <span class="mono">bun test</span> · 2 broke</div>
+        <div style="color:var(--faded)" data-n="IV">What comes next…</div>
+      </div>
+      <div class="from">Every quest leaves a chronicle you can read back, step by step (Timon's idea, told as a saga).</div>
+    </div>
+    <div class="sheet">
+      <h6>Spoils, then bring home</h6>
+      <div class="diffrow"><span class="mono">apps/app/src/entries.ts</span><span class="mono"><span class="add">+120</span> <span class="del">−0</span></span></div>
+      <div class="diffrow"><span class="mono">apps/app/src/conversation.tsx</span><span class="mono"><span class="add">+42</span> <span class="del">−30</span></span></div>
+      <div class="diffrow"><span class="mono">packages/contracts/src/records.ts</span><span class="mono"><span class="add">+6</span> <span class="del">−2</span></span></div>
+      <div style="display:flex;gap:8px;margin-top:10px"><span class="btn pri">Bring home</span><span class="btn">Pass the quest on…</span></div>
+      <div class="from">Delta's changes panel; intentic's Land; Delta's full-history handover.</div>
+    </div>
+
+    <div class="sheet">
+      <h6>Empty: the party rests</h6>
+      <div class="empty">
+        <svg fill="none" height="70" viewBox="0 0 140 70" width="140" >
+          <path d="M70 18 C 80 30, 84 38, 78 48 C 82 40, 76 34, 72 30 C 74 40, 66 44, 64 50 C 58 42, 60 30, 70 18 Z" fill="#d9662b"/>
+          <path d="M70 32 C 74 38, 74 44, 70 50 C 66 46, 66 38, 70 32 Z" fill="#f2c25a"/>
+          <path d="M48 58 L 92 50 M 48 50 L 92 58" stroke="#5a3f17" stroke-linecap="round" stroke-width="5"/>
+          <path d="M30 62 C 50 58, 90 58, 110 62" stroke="#b8862b" stroke-linecap="round" stroke-width="1.5"/>
+          <circle cx="40" cy="20" fill="#b8862b" r="1"/><circle cx="104" cy="14" fill="#b8862b" r="1.2"/><circle cx="116" cy="30" fill="#b8862b" r=".8"/>
+        </svg>
+        <p>No summons tonight. The party rests.</p>
+      </div>
+    </div>
+    <div class="sheet">
+      <h6>Asking, for casual users</h6>
+      <div class="ask">
+        <div class="q">OpenCode asks to write in <span class="mono" style="font-weight:400">~/notes/todo.md</span></div>
+        It lies outside the <b>canopy</b> realm.
+        <div class="btns"><span class="btn pri">Allow once</span><span class="btn">Always here</span><span class="btn">Refuse</span></div>
+        <span class="wax" style="right:-6px;bottom:-12px;width:28px;height:28px;font-size:13px">!</span>
+      </div>
+      <div class="from">Plain words under the costume (OpenBot's permission asks).</div>
+    </div>
+    <div class="sheet">
+      <h6>Waystones</h6>
+      <div class="lore">MacBook Pro <small>· awake · 3 quests</small></div>
+      <div class="lore">iPhone <small>· bound through the relay</small></div>
+      <div style="margin-top:8px;font:700 26px var(--title);letter-spacing:6px;text-align:center;color:var(--seal)">K7 · 2Q · 9F</div>
+      <div class="from">intentic's Devices page; Paseo's encrypted relay. The pairing code is carved like runes on a waystone.</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

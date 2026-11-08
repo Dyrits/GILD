@@ -1,0 +1,385 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Brigade — Kitchen Pass Board (direction G, whole app)</title>
+<link href="https://fonts.googleapis.com" rel="preconnect" >
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@700;800&family=Kalam:wght@400;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --tile: #f1f1ee;       /* the kitchen wall */
+    --grout: #dcdcd6;
+    --thermal: #fdfcf7;    /* tickets, panels */
+    --print: #1d1d1b;      /* thermal print: text, outlines */
+    --faint: #85847d;      /* secondary text */
+    --rule: #e4e3dc;
+    --slate: #262b2c;      /* the chalkboard rail */
+    --chalk: #eceae2;
+    --flame: #2f6fdb;      /* the one accent: gas flame blue (Running, primary focus) */
+    --flame-wash: #e3ecfb;
+    --call: #c8322b;       /* second thermal color: Attention, a call from the line */
+    --hold: #d4951a;       /* Waiting: on hold */
+    --sent: #3d8a5a;       /* Done: sent */
+    --86: #8e1f1a;         /* Failed: 86'd */
+    --sign: "Big Shoulders Display", "Oswald", sans-serif;
+    --chalkf: "Kalam", "Chalkboard", cursive;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+    --zig: 7px;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 var(--sans); color: var(--print); background: #d6d6d0; }
+  .page { max-width: 1320px; padding: 28px 32px 60px; margin: 0 auto; }
+  h1.title { margin: 0; font: 800 40px/1 var(--sign); letter-spacing: .02em; text-transform: uppercase; }
+  .intro { max-width: 880px; margin: 8px 0 22px; color: #4f4f4a; }
+  .mono { font-family: var(--mono); font-size: 12px; }
+
+  /* a thermal ticket: torn zigzag bottom (an SVG edge in React Native) */
+  .ticket { position: relative; padding: 10px 12px calc(10px + var(--zig)); font: 12.5px/1.45 var(--mono); background: var(--thermal);
+    -webkit-mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / calc(2 * var(--zig)) 100%;
+            mask: conic-gradient(from -45deg at bottom, #0000, #000 1deg 89deg, #0000 90deg) 50% / calc(2 * var(--zig)) 100%; }
+  .hang { margin-bottom: 12px; filter: drop-shadow(0 2px 2px rgba(0,0,0,.14)); }
+  .hang.lift { transform: rotate(-1.2deg); }
+  .hang.lift2 { transform: rotate(.9deg); }
+  .ticket .no { display: flex; justify-content: space-between; padding-bottom: 5px; margin-bottom: 6px; font-weight: 600; border-bottom: 1.5px dashed var(--print); }
+  .ticket .t { margin-bottom: 3px; font: 600 14px/1.3 var(--sans); }
+  .ticket .who { color: var(--faint); }
+  .lines { margin: 6px 0 0; }
+  .lines div { display: flex; gap: 6px; }
+  .lines .q { width: 22px; font-weight: 600; }
+  .ticket .meta { display: flex; gap: 10px; padding-top: 5px; margin-top: 6px; color: var(--faint); border-top: 1px dotted var(--faint); }
+  .add { color: var(--sent); } .del { color: var(--call); }
+  .ticket .note { margin-top: 6px; font-weight: 600; color: var(--call); }
+  .ticket.call { padding-bottom: 40px; box-shadow: inset 4px 0 0 var(--call); }
+  .ticket.open { box-shadow: inset 0 0 0 2px var(--flame); }
+  .ticket.sent { opacity: .7; }
+  .stampc { position: absolute; right: 14px; bottom: 15px; padding: 0 6px; font: 800 16px var(--sign); letter-spacing: .08em; color: var(--call); border: 2px solid var(--call); transform: rotate(8deg); opacity: .9; }
+  .stamps { position: absolute; right: 12px; bottom: 20px; padding: 0 6px; font: 800 15px var(--sign); letter-spacing: .08em; color: var(--sent); border: 2px solid var(--sent); transform: rotate(-7deg); opacity: .85; }
+
+  /* ---------- the window ---------- */
+  .window { display: grid; grid-template-columns: 210px 1fr 370px; min-height: 700px; overflow: hidden;
+    background: var(--tile);
+    background-image: linear-gradient(var(--grout) 1px, transparent 1px), linear-gradient(90deg, var(--grout) 1px, transparent 1px);
+    background-size: 56px 28px; border: 1px solid #b9b9b2; border-radius: 12px; box-shadow: 0 18px 40px -20px rgba(0,0,0,.4); }
+
+  /* rail: the chalkboard */
+  .rail { display: flex; flex-direction: column; gap: 18px; padding: 16px 14px; color: var(--chalk); background: var(--slate);
+    background-image: radial-gradient(ellipse at 30% 20%, rgba(255,255,255,.05), transparent 60%); border-right: 6px solid #6b4b2e; }
+  .brand { display: flex; gap: 9px; align-items: center; font: 800 26px var(--sign); letter-spacing: .04em; text-transform: uppercase; }
+  .rail h5 { margin: 0 0 4px; font: 700 18px var(--chalkf); color: #b9b6aa; }
+  .rail a { display: flex; justify-content: space-between; padding: 3px 8px; font-size: 13px; color: var(--chalk); text-decoration: none; }
+  .rail a.on { font-weight: 600; box-shadow: inset 0 -2px 0 rgba(236,234,226,.7); }
+  .rail a.on::before { margin-right: 4px; font-family: var(--chalkf); content: "→"; }
+  .rail a.on { justify-content: flex-start; }
+  .rail a.on small { margin-left: auto; }
+  .rail a small { color: #9d9a90; }
+  .usage { margin-top: auto; font-size: 12px; }
+  .tally { height: 8px; margin: 4px 0 9px; border: 1.5px solid rgba(236,234,226,.6); border-radius: 2px; }
+  .tally i { display: block; height: 100%; background: repeating-linear-gradient(75deg, var(--chalk) 0 1.5px, transparent 1.5px 4px); }
+
+  /* board: the line, with a ticket rail across each column */
+  .board { padding: 16px 20px; }
+  .boardhead { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 14px; }
+  .crumb { font-size: 13px; color: var(--faint); }
+  .crumb b { font-weight: 600; color: var(--print); }
+  .boardhead h2 { margin: 0; font: 800 36px/1 var(--sign); text-transform: uppercase; }
+  .new { padding: 7px 14px; font: 800 16px var(--sign); letter-spacing: .06em; text-transform: uppercase; color: #fff; background: var(--print); border-radius: 4px; }
+  .cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; }
+  .col h4 { display: flex; gap: 8px; align-items: baseline; margin: 0 0 6px; font: 800 20px var(--sign); letter-spacing: .04em; text-transform: uppercase; }
+  .col h4 small { font: 500 11px var(--mono); color: var(--faint); text-transform: none; }
+  .col h4 .n { margin-left: auto; font: 600 12px var(--mono); color: var(--faint); }
+  .bar { height: 12px; margin-bottom: -3px; position: relative; z-index: 1; border-radius: 3px;
+    background: linear-gradient(#f4f4f2, #b9bbbd 45%, #8d9093 55%, #d3d4d5); box-shadow: 0 2px 3px rgba(0,0,0,.2); }
+  .slot { padding: 0 6px; }
+  .marg { margin-top: 2px; font: 700 17px var(--chalkf); color: var(--faint); }
+
+  /* the pass: docked mission panel under the heat lamps */
+  .pass { display: flex; flex-direction: column; background: var(--thermal); border-left: 1px solid #c9c9c2; }
+  .lamps { position: relative; display: flex; justify-content: space-around; height: 40px; padding: 0 30px; background: #2d2f31; }
+  .lamps i { width: 46px; height: 18px; margin-top: 10px; border-radius: 0 0 23px 23px; background: radial-gradient(ellipse at 50% 0, #ffb36b, #e2632b 70%); box-shadow: 0 10px 22px 6px rgba(255,140,60,.35); }
+  .glow { height: 14px; background: linear-gradient(rgba(255,150,70,.22), transparent); }
+  .pass .head { padding: 2px 16px 10px; border-bottom: 1.5px dashed var(--print); }
+  .pass .head .k { font: 600 11px var(--mono); color: var(--faint); }
+  .pass .head .t { font: 800 24px/1.05 var(--sign); text-transform: uppercase; }
+  .pass .head .sub { display: flex; justify-content: space-between; margin-top: 4px; font: 11.5px var(--mono); color: var(--faint); }
+  .pass .head .sub b { color: var(--flame); }
+  .tabs { display: flex; gap: 16px; padding: 8px 16px 0; font: 800 15px var(--sign); letter-spacing: .05em; text-transform: uppercase; color: var(--faint); border-bottom: 1px solid var(--rule); }
+  .tabs span { padding-bottom: 6px; }
+  .tabs .on { color: var(--print); box-shadow: inset 0 -3px 0 var(--flame); }
+  .feed { display: flex; flex: 1; flex-direction: column; gap: 10px; padding: 12px 16px; font-size: 13px; }
+  .msg.you { align-self: flex-end; max-width: 80%; padding: 7px 10px; background: var(--flame-wash); border-radius: 10px 10px 2px 10px; }
+  .fold { font: 11.5px var(--mono); color: var(--faint); }
+  .ask { padding: 10px 12px; background: #fff5f3; border: 2px solid var(--call); border-radius: 4px; }
+  .ask .q { margin-bottom: 4px; font-weight: 600; }
+  .ask .q::before { margin-right: 7px; padding: 0 5px; font: 800 13px var(--sign); letter-spacing: .08em; color: #fff; background: var(--call); content: "CALL"; }
+  .ask .btns { display: flex; gap: 8px; margin-top: 9px; }
+  .btn { padding: 4px 11px; font: 800 14px var(--sign); letter-spacing: .06em; text-transform: uppercase; background: #fff; border: 1.5px solid var(--print); border-radius: 4px; }
+  .btn.pri { color: #fff; background: var(--print); }
+  .composer { padding: 10px 12px; margin: 0 12px 12px; background: #fff; border: 1.5px solid var(--print); border-radius: 6px; }
+  .composer .ph { margin-bottom: 14px; font-size: 13px; color: var(--faint); }
+  .composer .foot { display: flex; align-items: center; justify-content: space-between; font: 11.5px var(--mono); }
+  .pick { border-bottom: 1.5px solid var(--print); }
+
+  /* ---------- sheets below ---------- */
+  h3.sec { margin: 40px 0 12px; font: 800 30px var(--sign); text-transform: uppercase; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .sheet { padding: 16px; background: var(--thermal); border: 1px solid #c9c9c2; border-radius: 8px; }
+  .sheet h6 { margin: 0 0 10px; font: 800 20px var(--sign); letter-spacing: .03em; text-transform: uppercase; }
+  .sheet .from { margin-top: 10px; font-size: 11.5px; color: var(--faint); }
+  .sw { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sw div { width: 66px; font-size: 11px; color: var(--faint); }
+  .sw i { display: block; height: 34px; margin-bottom: 3px; border: 1px solid rgba(0,0,0,.15); border-radius: 3px; }
+  .recipe { padding: 7px 9px; margin-bottom: 7px; font: 12px var(--mono); background: #fff; border: 1px solid var(--rule); border-top: 3px solid var(--print); }
+  .recipe small { color: var(--faint); }
+  .recipe.f1 { color: #8b8a83; border-top-color: #9a9a94; }
+  .recipe.f2 { color: #c2c1ba; border-top-color: #d3d2cc; }
+  .tape { padding: 10px 12px 14px; font: 12px/1.6 var(--mono); background: #fff; border: 1px solid var(--rule); }
+  .tape .now { font-weight: 600; color: var(--flame); }
+  .tape .now::before { content: "▶ "; }
+  .diffrow { display: flex; justify-content: space-between; padding: 4px 0; font: 12px var(--mono); border-bottom: 1px dashed var(--rule); }
+  .field { margin-bottom: 12px; font-size: 13px; }
+  .field .n { margin-bottom: 4px; font: 800 13px var(--sign); letter-spacing: .06em; text-transform: uppercase; color: var(--faint); }
+  .select { display: flex; justify-content: space-between; padding: 6px 9px; background: #fff; border: 1.5px solid var(--print); border-radius: 4px; }
+  .select small { color: var(--faint); }
+  .knobrow { display: flex; gap: 14px; align-items: center; }
+  .knob { position: relative; flex: none; width: 58px; height: 58px; border-radius: 50%; background: radial-gradient(circle at 40% 35%, #fafafa, #bfc1c3 60%, #8c8f92); box-shadow: 0 2px 4px rgba(0,0,0,.3); }
+  .knob::after { position: absolute; top: 6px; left: calc(50% - 2px); width: 4px; height: 20px; content: ""; background: var(--print); border-radius: 2px; transform-origin: 50% 23px; transform: rotate(45deg); }
+  .knobticks { font: 11px/1.55 var(--mono); color: var(--faint); }
+  .knobticks b { color: var(--flame); }
+  .empty { padding: 6px 0; text-align: center; }
+  .empty p { margin: 6px 0 0; font: 700 19px var(--chalkf); color: var(--faint); }
+  ul.rules { padding-left: 18px; margin: 0; font-size: 13px; }
+  ul.rules li { margin-bottom: 5px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 class="title">Brigade — the kitchen pass</h1>
+  <p class="intro">Direction G, with a new name. A professional kitchen is the best system people have built for running many jobs at once while one person keeps the whole picture: tickets come in, hang on a rail, cooks work them, someone calls when they need the chef, and the pass is where the chef checks each plate before it leaves. Brigade borrows all of it. Missions are thermal tickets on a steel rail; threads are the lines on the ticket; the docked mission panel is the pass under the heat lamps. Kitchen words stay in the decoration (CALL, the stamps, the pass), and the glossary's words stay on everything you act on.</p>
+
+  <!-- ================= the main window ================= -->
+  <div class="window">
+    <aside class="rail">
+      <div class="brand">
+        <svg fill="none" height="26" viewBox="0 0 26 26" width="26" >
+          <path d="M6 15 C 1 14, 2 6, 8 7 C 9 2, 17 2, 18 7 C 24 6, 25 14, 20 15 L 20 21 L 6 21 Z" fill="#eceae2"/>
+          <path d="M6 18 L 20 18" stroke="#262b2c" stroke-width="1.4"/>
+        </svg>
+        Brigade
+      </div>
+      <div>
+        <h5>Workspaces</h5>
+        <a class="on" href="#">canopy <small>4</small></a>
+        <a href="#">fern-site <small>1</small></a>
+        <a href="#">scratch <small></small></a>
+      </div>
+      <div>
+        <h5>Places</h5>
+        <a href="#">Dashboard</a><a href="#">Routines</a><a href="#">Intel</a><a href="#">Journal</a><a href="#">Devices</a>
+      </div>
+      <div class="usage">
+        <h5>Plans today</h5>
+        Claude <span style="float:right;color:#9d9a90">62%</span><div class="tally"><i style="width:62%"></i></div>
+        Codex <span style="float:right;color:#9d9a90">18%</span><div class="tally"><i style="width:18%"></i></div>
+        Budget <span style="float:right;color:#9d9a90">$7.40 / $20</span><div class="tally"><i style="width:37%"></i></div>
+      </div>
+    </aside>
+
+    <main class="board">
+      <div class="boardhead">
+        <div>
+          <div class="crumb">All workspaces › <b>canopy ⌄</b></div>
+          <h2>Missions</h2>
+        </div>
+        <span class="new">+ New mission</span>
+      </div>
+      <div class="cols">
+        <div class="col">
+          <h4>Attention <small>calling</small><span class="n">2</span></h4>
+          <div class="bar"></div>
+          <div class="slot">
+            <div class="hang lift"><div class="ticket call">
+              <div class="no"><span>#016</span><span>12:41</span></div>
+              <span class="stampc">CALL</span>
+              <div class="t">Carry on after a refusal</div>
+              <div class="who">OpenCode · Sonnet · fix/refusals</div>
+              <div class="note">! wants to edit outside the workspace</div>
+            </div></div>
+            <div class="hang lift2"><div class="ticket">
+              <div class="no"><span>#015</span><span>12:20</span></div>
+              <div class="t">Budget alerts</div>
+              <div class="who">Codex · high</div>
+              <div class="meta"><span style="color:var(--86)">folder missing</span></div>
+            </div></div>
+          </div>
+        </div>
+        <div class="col">
+          <h4>Running <small>on the fire</small><span class="n">2</span></h4>
+          <div class="bar"></div>
+          <div class="slot">
+            <div class="hang"><div class="ticket open">
+              <div class="no"><span>#014</span><span>11:58 · 43m</span></div>
+              <div class="t">Thread opening indicators</div>
+              <div class="who">Claude Code · Opus · feat/indicators</div>
+              <div class="lines">
+                <div><span class="q">2×</span><span style="color:var(--flame)">running</span></div>
+                <div><span class="q">1×</span><span style="color:var(--hold)">waiting</span></div>
+                <div><span class="q">1×</span><span style="color:var(--sent)">done</span></div>
+              </div>
+              <div class="meta"><span>$1.84</span><span class="add">+214</span><span class="del">−38</span></div>
+            </div></div>
+            <div class="hang lift2"><div class="ticket">
+              <div class="no"><span>#012</span><span>12:30 · 11m</span></div>
+              <div class="t">Pairing over the relay</div>
+              <div class="who">Claude Code · Sonnet</div>
+              <div class="lines"><div><span class="q">1×</span><span style="color:var(--flame)">running</span></div></div>
+              <div class="meta"><span>$0.40</span><span class="add">+31</span><span class="del">−2</span></div>
+            </div></div>
+          </div>
+          <div class="marg">↳ 1 idle, 1 waiting</div>
+        </div>
+        <div class="col">
+          <h4>Done <small>sent</small><span class="n">5</span></h4>
+          <div class="bar"></div>
+          <div class="slot">
+            <div class="hang"><div class="ticket sent">
+              <div class="no"><span>#011</span><span>10:12</span></div>
+              <span class="stamps">SENT</span>
+              <div class="t">Five Low findings</div>
+              <div class="meta"><span>$3.10</span><span class="add">+120</span><span class="del">−88</span></div>
+            </div></div>
+            <div class="hang lift"><div class="ticket sent">
+              <div class="no"><span>#009</span><span>09:47</span></div>
+              <span class="stamps">SENT</span>
+              <div class="t">Quote check</div>
+              <div class="meta"><span>$0.92</span></div>
+            </div></div>
+          </div>
+          <div class="marg">+ 3 more this week</div>
+        </div>
+      </div>
+    </main>
+
+    <section class="pass">
+      <div class="lamps"><i></i><i></i><i></i></div>
+      <div class="glow"></div>
+      <div class="head">
+        <div class="k">#014 · ON THE PASS</div>
+        <div class="t">Thread opening indicators</div>
+        <div class="sub"><span><b>Running</b> · 4 threads · since origin/main</span><span>Land ⌄</span></div>
+      </div>
+      <div class="tabs"><span class="on">Conversation</span><span>Changes <span class="add" style="font-family:var(--mono);font-size:12px">+214</span></span><span>Trace</span><span>Intel</span></div>
+      <div class="feed">
+        <div class="msg you">Show which threads are opening, without moving the list.</div>
+        <div class="fold">▸ thought twice · read 6 files · ran 2 tests</div>
+        <div>Plan: add an <span class="mono">opening</span> state to each entry, draw it as a small flame, keep row height fixed.</div>
+        <div class="ask">
+          <div class="q">Approve the plan?</div>
+          Three files in <span class="mono">apps/app</span>, one test.
+          <div class="btns"><span class="btn pri">Approve</span><span class="btn">Change it</span></div>
+        </div>
+      </div>
+      <div class="composer">
+        <div class="ph">Steer this mission…</div>
+        <div class="foot"><span><span class="pick">Claude Code</span> · <span class="pick">Opus</span> · <span class="pick">high</span></span><span class="btn pri">Send</span></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ================= building blocks ================= -->
+  <h3 class="sec">The kit</h3>
+  <div class="grid">
+    <div class="sheet">
+      <h6>Tile, thermal, flame, call</h6>
+      <div class="sw">
+        <div><i style="background:var(--tile)"></i>tile</div>
+        <div><i style="background:var(--thermal)"></i>thermal</div>
+        <div><i style="background:var(--print)"></i>print</div>
+        <div><i style="background:var(--slate)"></i>slate</div>
+        <div><i style="background:var(--flame)"></i>flame · Running</div>
+        <div><i style="background:var(--call)"></i>call · Attention</div>
+        <div><i style="background:var(--hold)"></i>hold · Waiting</div>
+        <div><i style="background:var(--sent)"></i>sent · Done</div>
+        <div><i style="background:var(--86)"></i>86'd · Failed</div>
+      </div>
+      <div class="from">Thermal printers print in black and red; so does Brigade. Blue is the gas flame, kept for what is cooking.</div>
+    </div>
+    <div class="sheet">
+      <h6>Type and tickets</h6>
+      <div style="font:800 34px/1 var(--sign);text-transform:uppercase">Missions</div>
+      <div style="font-weight:600;margin-top:6px">Thread opening indicators</div>
+      <div class="mono" style="color:var(--faint)">#014 · Claude Code · Opus · feat/indicators</div>
+      <ul class="rules" style="margin-top:10px">
+        <li>Big Shoulders for signage and buttons; Inter for what you read; Plex Mono for the ticket itself; Kalam for chalk notes.</li>
+        <li>Tickets tear at the bottom, hang slightly crooked, and stamp their state. Everything else is square and steel.</li>
+      </ul>
+    </div>
+    <div class="sheet">
+      <h6>Settings, on the range</h6>
+      <div class="field"><div class="n">Harness</div><div class="select">Claude Code <small>signed in ⌄</small></div></div>
+      <div class="field"><div class="n">Default model</div><div class="select">Fable <small>⌄</small></div></div>
+      <div class="field"><div class="n">Default effort</div>
+        <div class="knobrow"><div class="knob"></div><div class="knobticks">low · medium · <b>high</b> · xhigh · max<br>turn like a burner</div></div>
+      </div>
+    </div>
+
+    <div class="sheet">
+      <h6>Intel, on recipe cards</h6>
+      <div class="recipe"><b>Rule</b> · Never push to main without asking <small>· global</small></div>
+      <div class="recipe f1">Prefers Effect Layers over classes <small>· workspace · fading</small></div>
+      <div class="recipe f2">Relay port was 8787 <small>· dormant</small></div>
+      <div class="from">Thermal print really does fade; so do memories here (Rerun's fading by kind; souls.house's honest skips).</div>
+    </div>
+    <div class="sheet">
+      <h6>Trace, as the printer tape</h6>
+      <div class="tape">
+        12:04 read entries.ts<br>
+        12:05 <span style="color:var(--call)">CALL</span> edit outside workspace<br>
+        <span class="now">12:07 ran bun test · 2 failed</span><br>
+        <span style="color:var(--faint)">12:-- next step…</span>
+      </div>
+      <div class="from">Every run leaves a receipt you can step through (Timon's idea, in kitchen paper).</div>
+    </div>
+    <div class="sheet">
+      <h6>Changes, then Land</h6>
+      <div class="diffrow"><span>apps/app/src/entries.ts</span><span><span class="add">+120</span> <span class="del">−0</span></span></div>
+      <div class="diffrow"><span>apps/app/src/conversation.tsx</span><span><span class="add">+42</span> <span class="del">−30</span></span></div>
+      <div class="diffrow"><span>packages/contracts/src/records.ts</span><span><span class="add">+6</span> <span class="del">−2</span></span></div>
+      <div style="display:flex;gap:8px;margin-top:10px"><span class="btn pri">Land now</span><span class="btn">Hand over…</span></div>
+      <div class="from">Checking the plate before it leaves: Delta's changes panel, intentic's Land, Delta's handover.</div>
+    </div>
+
+    <div class="sheet">
+      <h6>Empty: the rail is clear</h6>
+      <div class="empty">
+        <svg fill="none" height="64" viewBox="0 0 150 64" width="150" >
+          <defs><linearGradient id="st" x1="0" x2="0" y1="0" y2="1"><stop offset="0" stop-color="#f4f4f2"/><stop offset=".5" stop-color="#9a9da0"/><stop offset="1" stop-color="#d3d4d5"/></linearGradient></defs>
+          <rect fill="url(#st)" height="10" rx="3" width="134" x="8" y="14"/>
+          <path d="M60 46 C 60 36, 90 36, 90 46 Z" fill="#1d1d1b"/><path d="M56 47 L 94 47" stroke="#1d1d1b" stroke-linecap="round" stroke-width="3"/><circle cx="75" cy="34" fill="#1d1d1b" r="2"/>
+        </svg>
+        <p>Nothing needs you. Service is quiet.</p>
+      </div>
+    </div>
+    <div class="sheet">
+      <h6>Asking, for casual users</h6>
+      <div class="ask">
+        <div class="q">OpenCode wants to edit <span class="mono">~/notes/todo.md</span></div>
+        It's outside the <b>canopy</b> workspace.
+        <div class="btns"><span class="btn pri">Allow once</span><span class="btn">Always here</span><span class="btn">No</span></div>
+      </div>
+      <div class="from">A cook calling for the chef, in plain words (OpenBot's permission asks).</div>
+    </div>
+    <div class="sheet">
+      <h6>Devices and pairing</h6>
+      <div class="hang"><div class="ticket" style="text-align:center">
+        <div class="no"><span>PAIR DEVICE</span><span>12:44</span></div>
+        MacBook Pro · online · 3 missions<br>iPhone · paired over relay
+        <div style="margin:8px 0 2px;font:600 26px var(--mono);letter-spacing:5px">K7 2Q 9F</div>
+        <div style="font-size:10px;letter-spacing:2px">||| | |||| || | ||| || ||||</div>
+      </div></div>
+      <div class="from">intentic's Devices page; Paseo's encrypted relay. The code prints like a ticket, to read aloud.</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

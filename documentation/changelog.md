@@ -1107,3 +1107,22 @@ References:
 
 Validation:
 - `bun run typecheck`, `bun run check` passed; `bun run test` passed 410 with 10 skipped. Driven in the window with the fake harness: Control first in the rail, Archived last under Missions, its count going to 1 after archiving a mission from its card (`verification/2026-11-08-sidebar-and-menus/archived-last-row.png`).
+
+## CHG-0071 · 2026-11-08 · Seven more art directions, kept for a theme or a later rework
+
+Type: Docs
+Event: Delivery
+Scope: Art direction
+
+Summary: seven whole-app boards beside the taken Sketchbook look (CHG-0068), each with the same window (rail, board, docked mission panel) and the same kit sheets, so they compare on look alone.
+- D Flight Deck (dark spaceship cockpit), E Flight Manual (between Sketchbook and Flight Deck), F Forest Canopy (tree canopy).
+- G Brigade (kitchen pass, renamed), H Guild (heroic fantasy, renamed, with a lexicon to the glossary), I Tower (air traffic strip board, renamed), J Copydesk (newsroom front page, renamed).
+- None replaces the Sketchbook look. Each is a candidate either as a selectable theme or as the basis of a future visual rework.
+
+Asked by the owner on 2026-11-08; the owner liked Brigade best among G to J. Not yet chosen.
+
+References:
+- documentation/art-direction/2026-11-08-{flight-deck,flight-manual,forest-canopy,brigade,guild,tower,copydesk}-board.html
+
+Validation:
+- Each page rendered with Playwright at 1400px and checked by eye; overlaps found were fixed. Not checked: React Native feasibility beyond the notes in each page.

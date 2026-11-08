@@ -1,0 +1,373 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Canopy — Flight Manual Board (direction E, whole app)</title>
+<link href="https://fonts.googleapis.com" rel="preconnect" >
+<link href="https://fonts.googleapis.com/css2?family=Barlow+Condensed:wght@600;700&family=Caveat:wght@600;700&family=Inter:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #f3efe4;      /* page: drafting paper */
+    --sheet: #fbf9f3;      /* cards, panels */
+    --grid: #d9e1ea;       /* faint blue graph lines */
+    --ink: #1c2a3c;        /* navy drafting ink: text, outlines */
+    --pencil: #7d8590;     /* secondary text, annotations */
+    --rule: #e2ddd0;
+    --blue: #2457a6;       /* the one accent: blueprint blue (Running, links, primary) */
+    --blue-wash: #e1e9f5;
+    --orange: #d9622b;     /* safety orange: Attention */
+    --green: #3f7a52;      /* Done */
+    --red: #b4412f;        /* Failed */
+    --violet: #6b5aa6;     /* Waiting */
+    --head: "Barlow Condensed", "DIN Condensed", sans-serif;
+    --hand: "Caveat", "Bradley Hand", cursive;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+    --mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace;
+    /* One chamfered corner per panel (top right), square elsewhere: a machined part, drawn in ink. */
+    --cut: polygon(0 0, calc(100% - 10px) 0, 100% 10px, 100% 100%, 0 100%);
+    --lift: 2px 2px 0 rgba(28, 42, 60, .16);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 var(--sans); color: var(--ink); background: #e2ddd1; }
+  .page { max-width: 1320px; padding: 28px 32px 60px; margin: 0 auto; }
+  h1.title { margin: 0; font: 700 32px var(--head); letter-spacing: .05em; text-transform: uppercase; }
+  .intro { max-width: 860px; margin: 4px 0 22px; color: #545a63; }
+  .hand { font-family: var(--hand); }
+  .mono { font-family: var(--mono); font-size: 12px; }
+  .ref { font: 500 10px var(--mono); color: var(--pencil); letter-spacing: .1em; text-transform: uppercase; }
+
+  /* An ink panel with one chamfered corner: an outer ink layer clipped, an inner sheet clipped 1.5px in. */
+  .part { position: relative; padding: 1.5px; background: var(--ink); clip-path: var(--cut); }
+  .part > .in { height: 100%; padding: 10px 11px; background: var(--sheet); clip-path: polygon(0 0, calc(100% - 9.4px) 0, 100% 9.4px, 100% 100%, 0 100%); }
+  .partwrap { margin-bottom: 10px; filter: drop-shadow(2px 2px 0 rgba(28,42,60,.16)); }
+
+  /* ---------- the window ---------- */
+  .window { position: relative; display: grid; grid-template-columns: 210px 1fr 360px; min-height: 690px;
+    background: var(--paper);
+    background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+    background-size: 20px 20px; background-position: -1px -1px;
+    border: 1.5px solid var(--ink); border-radius: 6px; box-shadow: 4px 5px 0 rgba(28,42,60,.18); }
+  /* registration marks at the window corners */
+  .window::before, .window::after { position: absolute; width: 14px; height: 14px; content: ""; border: 1.5px solid var(--ink); }
+  .window::before { top: -10px; left: -10px; border-right: 0; border-bottom: 0; }
+  .window::after { right: -10px; bottom: -10px; border-top: 0; border-left: 0; }
+
+  /* rail */
+  .rail { display: flex; flex-direction: column; gap: 18px; padding: 16px 14px; background: #ece7da; border-right: 1.5px solid var(--ink); }
+  .brand { display: flex; gap: 8px; align-items: center; font: 700 24px var(--head); letter-spacing: .08em; text-transform: uppercase; }
+  .rail h5 { display: flex; justify-content: space-between; margin: 0 0 6px; font: 700 14px var(--head); color: var(--pencil); letter-spacing: .1em; text-transform: uppercase; }
+  .rail h5 .ref { font-size: 9.5px; }
+  .rail a { display: flex; justify-content: space-between; padding: 4px 8px; font-size: 13px; color: var(--ink); text-decoration: none; }
+  .rail a.on { padding: 3px 7px; background: var(--sheet); border: 1.5px solid var(--ink); box-shadow: var(--lift); clip-path: polygon(0 0, calc(100% - 7px) 0, 100% 7px, 100% 100%, 0 100%); }
+  .rail a small { font-family: var(--mono); color: var(--pencil); }
+  .usage { margin-top: auto; font-size: 12px; }
+  .bar { position: relative; height: 9px; margin: 3px 0 2px; border: 1.5px solid var(--ink); }
+  .bar i { display: block; height: 100%; background: repeating-linear-gradient(-45deg, var(--ink) 0 1.5px, transparent 1.5px 5px); }
+  .scale { height: 5px; margin-bottom: 8px; background: repeating-linear-gradient(90deg, var(--pencil) 0 1px, transparent 1px 10%); }
+
+  /* board */
+  .board { padding: 18px 20px; }
+  .boardhead { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 14px; }
+  .crumb { font-size: 13px; color: var(--pencil); }
+  .crumb b { font-weight: 600; color: var(--ink); border-bottom: 1.5px dashed var(--pencil); }
+  .boardhead h2 { margin: 0; font: 700 30px var(--head); letter-spacing: .06em; text-transform: uppercase; }
+  .boardhead h2 .ref { margin-left: 8px; vertical-align: middle; }
+  .new { padding: 6px 14px; font: 700 14px var(--head); letter-spacing: .08em; text-transform: uppercase; color: var(--paper); background: var(--ink); box-shadow: var(--lift); clip-path: polygon(0 0, calc(100% - 8px) 0, 100% 8px, 100% 100%, 0 100%); }
+  .cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .col h4 { display: flex; gap: 6px; align-items: baseline; padding-bottom: 4px; margin: 0 0 9px; font: 700 17px var(--head); letter-spacing: .1em; text-transform: uppercase; border-bottom: 1.5px solid var(--ink); }
+  .col h4 small { margin-left: auto; font: 500 11px var(--mono); color: var(--pencil); }
+  .card { position: relative; font-size: 13px; }
+  .card .id { position: absolute; top: 9px; right: 16px; font: 500 9.5px var(--mono); color: var(--pencil); letter-spacing: .08em; }
+  .card .t { padding-right: 34px; margin-bottom: 4px; font-weight: 600; }
+  .card .who { font-size: 12px; color: var(--pencil); }
+  .card .meta { display: flex; gap: 10px; margin-top: 7px; font: 11px var(--mono); color: var(--pencil); }
+  .add { color: var(--green); } .del { color: var(--red); }
+  .card .note { margin-top: 4px; font: 700 18px/1.1 var(--hand); color: var(--orange); }
+  .partwrap.open .part { background: var(--blue); }
+  .partwrap.open { filter: drop-shadow(3px 3px 0 rgba(36,87,166,.35)); }
+  .partwrap.att .part { background: var(--orange); padding: 2px; }
+  .stamp { position: absolute; top: -9px; left: 10px; z-index: 1; padding: 1px 6px; font: 700 11px var(--head); letter-spacing: .12em; color: var(--orange); text-transform: uppercase; background: var(--sheet); border: 1.5px solid var(--orange); transform: rotate(-3deg); }
+  .partwrap.done { opacity: .72; }
+  .tick { font: 700 18px var(--hand); color: var(--green); }
+  .threads { display: flex; gap: 4px; margin-top: 7px; }
+  .threads span { width: 18px; height: 6px; border: 1.2px solid var(--ink); }
+  .threads .r { background: var(--blue); border-color: var(--blue); }
+  .threads .w { background: var(--violet); border-color: var(--violet); }
+  .threads .d { background: var(--green); border-color: var(--green); }
+  .marg { margin-top: 6px; font: 600 19px var(--hand); color: var(--pencil); }
+
+  /* the canopy: docked mission panel, its top drawn as a technical figure */
+  .canopy { display: flex; flex-direction: column; background: var(--sheet); border-left: 1.5px solid var(--ink); }
+  .arch { position: relative; height: 58px; background: var(--paper); background-image: linear-gradient(var(--grid) 1px, transparent 1px), linear-gradient(90deg, var(--grid) 1px, transparent 1px); background-size: 20px 20px; }
+  .arch svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .arch .fig { position: absolute; top: 4px; left: 8px; }
+  .canopy .head { padding: 4px 16px 10px; border-bottom: 1.5px solid var(--rule); }
+  .canopy .head .t { font: 700 22px var(--head); letter-spacing: .04em; line-height: 1.1; text-transform: uppercase; }
+  .canopy .head .sub { display: flex; justify-content: space-between; margin-top: 4px; font-size: 12px; color: var(--pencil); }
+  .tabs { display: flex; gap: 14px; padding: 8px 16px 0; font: 700 14px var(--head); letter-spacing: .08em; text-transform: uppercase; color: var(--pencil); }
+  .tabs span { padding-bottom: 6px; }
+  .tabs .on { color: var(--ink); box-shadow: inset 0 -2.5px 0 var(--blue); }
+  .feed { display: flex; flex: 1; flex-direction: column; gap: 10px; padding: 12px 16px; font-size: 13px; }
+  .msg.you { align-self: flex-end; max-width: 80%; padding: 7px 10px; background: var(--blue-wash); border-left: 3px solid var(--blue); }
+  .fold { font: 11.5px var(--mono); color: var(--pencil); }
+  .ask .in { background: #fff4ea; }
+  .ask .q { margin-bottom: 4px; font-weight: 600; }
+  .ask .btns { display: flex; gap: 8px; margin-top: 8px; }
+  .btn { padding: 4px 10px; font: 700 13px var(--head); letter-spacing: .08em; text-transform: uppercase; background: var(--sheet); border: 1.5px solid var(--ink); }
+  .btn.pri { color: var(--paper); background: var(--ink); }
+  .composer { margin: 0 12px 12px; }
+  .composer .ph { margin-bottom: 14px; font-size: 13px; color: var(--pencil); }
+  .composer .foot { display: flex; align-items: center; justify-content: space-between; font-size: 12px; }
+  .pick { border-bottom: 1.5px dashed var(--pencil); }
+
+  /* ---------- sheets below ---------- */
+  h3.sec { margin: 40px 0 10px; font: 700 24px var(--head); letter-spacing: .08em; text-transform: uppercase; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .grid .partwrap { margin: 0; }
+  .grid .part > .in { padding: 16px; }
+  .sheet h6 { display: flex; justify-content: space-between; align-items: baseline; margin: 0 0 10px; font: 700 17px var(--head); letter-spacing: .08em; text-transform: uppercase; }
+  .sheet .from { margin-top: 10px; font-size: 11.5px; color: var(--pencil); }
+  .sw { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sw div { width: 66px; font-size: 11px; color: var(--pencil); }
+  .sw i { display: block; height: 34px; margin-bottom: 3px; border: 1.5px solid var(--ink); }
+  .intel { padding: 7px 9px; margin-bottom: 7px; font-size: 12.5px; border: 1.5px solid var(--ink); }
+  .intel small { color: var(--pencil); }
+  .intel.fade1 { border-style: dashed; opacity: .55; }
+  .intel.fade2 { border-style: dotted; opacity: .3; }
+  .trace { position: relative; padding-left: 18px; font-size: 12.5px; }
+  .trace::before { position: absolute; top: 4px; bottom: 4px; left: 4px; content: ""; border-left: 1.5px dashed var(--pencil); }
+  .trace div { position: relative; margin-bottom: 7px; }
+  .trace div::before { position: absolute; top: 5px; left: -18px; width: 8px; height: 8px; content: ""; background: var(--sheet); border: 1.5px solid var(--ink); }
+  .trace div.now::before { background: var(--blue); border-color: var(--blue); }
+  .trace .ts { margin-right: 6px; font: 10.5px var(--mono); color: var(--pencil); }
+  .diffrow { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12.5px; border-bottom: 1px solid var(--rule); }
+  .field { margin-bottom: 12px; font-size: 13px; }
+  .field .n { margin-bottom: 4px; font: 700 12px var(--head); letter-spacing: .1em; text-transform: uppercase; color: var(--pencil); }
+  .select { display: flex; justify-content: space-between; padding: 6px 9px; border: 1.5px solid var(--ink); }
+  .select small { color: var(--pencil); }
+  .slider { position: relative; height: 22px; }
+  .slider .tr { position: absolute; top: 9px; right: 0; left: 0; border-top: 1.5px solid var(--ink); }
+  .slider .k { position: absolute; top: 2px; left: calc(50% - 7px); width: 14px; height: 18px; background: var(--blue); border: 1.5px solid var(--ink); clip-path: polygon(0 0, 100% 0, 100% 70%, 50% 100%, 0 70%); }
+  .slider .st { position: absolute; top: 5px; width: 1.5px; height: 10px; background: var(--ink); }
+  .ticks { display: flex; justify-content: space-between; font: 10.5px var(--mono); color: var(--pencil); }
+  .ticks b { font-weight: 500; color: var(--blue); }
+  .empty { padding: 6px 0; text-align: center; }
+  .empty p { margin: 6px 0 0; font: 700 20px var(--hand); color: var(--pencil); }
+  ul.rules { padding-left: 18px; margin: 0; font-size: 13px; }
+  ul.rules li { margin-bottom: 5px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 class="title">Canopy — Flight Manual Board</h1>
+  <p class="intro">Direction E, between the Sketchbook and the Flight Deck. The app reads like the pilot's manual for a small spacecraft: drafting paper with a blue grid, navy ink, condensed technical headings, part numbers, and machined panels with one chamfered corner. The sketchbook survives in the flat ink outlines, the hatched bars, and the pencil margin notes, which stay handwritten. The canopy is a technical figure: the mission panel's top is drawn as "Fig. 1, canopy open", with its centerline and radius. Light, readable, a little bit spaceship.</p>
+
+  <!-- ================= the main window ================= -->
+  <div class="window">
+    <aside class="rail">
+      <div class="brand">
+        <svg fill="none" height="22" stroke="#1c2a3c" stroke-width="1.7" viewBox="0 0 30 22" width="30" >
+          <path d="M3 18 C 4 6, 26 6, 27 18"/><path d="M1 18.5 L 29 18.5"/><path d="M15 7 L 15 18"/><path d="M15 2 L 15 5" stroke-dasharray="1.5 1.5"/>
+        </svg>
+        Canopy
+      </div>
+      <div>
+        <h5>Workspaces <span class="ref">§1</span></h5>
+        <a class="on" href="#">canopy <small>4</small></a>
+        <a href="#">fern-site <small>1</small></a>
+        <a href="#">scratch <small></small></a>
+      </div>
+      <div>
+        <h5>Places <span class="ref">§2</span></h5>
+        <a href="#">Dashboard</a><a href="#">Routines</a><a href="#">Intel</a><a href="#">Journal</a><a href="#">Devices</a>
+      </div>
+      <div class="usage">
+        <h5>Plans today <span class="ref">§3</span></h5>
+        Claude <span class="mono" style="float:right;color:var(--pencil)">62%</span><div class="bar"><i style="width:62%"></i></div><div class="scale"></div>
+        Codex <span class="mono" style="float:right;color:var(--pencil)">18%</span><div class="bar"><i style="width:18%"></i></div><div class="scale"></div>
+        Budget <span class="mono" style="float:right;color:var(--pencil)">$7.40 / $20</span><div class="bar"><i style="width:37%"></i></div><div class="scale"></div>
+      </div>
+    </aside>
+
+    <main class="board">
+      <div class="boardhead">
+        <div>
+          <div class="crumb">All workspaces › <b>canopy ⌄</b></div>
+          <h2>Missions <span class="ref">Sec. 4 · Board</span></h2>
+        </div>
+        <span class="new">+ New mission</span>
+      </div>
+      <div class="cols">
+        <div class="col">
+          <h4>Attention <small>02</small></h4>
+          <div class="partwrap att card">
+            <span class="stamp">Action required</span>
+            <div class="part"><div class="in">
+              <span class="id">M-016</span>
+              <div class="t">Carry on after a refusal</div>
+              <div class="who">OpenCode · Sonnet · <span class="mono">fix/refusals</span></div>
+              <div class="note">wants to edit outside the workspace</div>
+            </div></div>
+          </div>
+          <div class="partwrap card"><div class="part"><div class="in">
+            <span class="id">M-015</span>
+            <div class="t">Budget alerts</div>
+            <div class="who">Codex · high</div>
+            <div class="meta"><span>folder missing</span></div>
+          </div></div></div>
+        </div>
+        <div class="col">
+          <h4>Running <small>02</small></h4>
+          <div class="partwrap open card"><div class="part"><div class="in">
+            <span class="id">M-014</span>
+            <div class="t">Thread opening indicators</div>
+            <div class="who">Claude Code · Opus · <span class="mono">feat/indicators</span></div>
+            <div class="threads"><span class="r"></span><span class="r"></span><span class="w"></span><span class="d"></span></div>
+            <div class="meta"><span>$1.84</span><span class="add">+214</span><span class="del">−38</span><span>4 threads</span></div>
+          </div></div></div>
+          <div class="partwrap card"><div class="part"><div class="in">
+            <span class="id">M-012</span>
+            <div class="t">Pairing over the relay</div>
+            <div class="who">Claude Code · Sonnet</div>
+            <div class="threads"><span class="r"></span></div>
+            <div class="meta"><span>$0.40</span><span class="add">+31</span><span class="del">−2</span></div>
+          </div></div></div>
+          <div class="marg">↳ 1 idle, 1 waiting</div>
+        </div>
+        <div class="col">
+          <h4>Done <small>05</small></h4>
+          <div class="partwrap done card"><div class="part"><div class="in"><span class="id">M-011</span><div class="t"><span class="tick">✓</span> Five Low findings</div><div class="meta"><span>$3.10</span><span class="add">+120</span><span class="del">−88</span></div></div></div></div>
+          <div class="partwrap done card"><div class="part"><div class="in"><span class="id">M-009</span><div class="t"><span class="tick">✓</span> Quote check</div><div class="meta"><span>$0.92</span></div></div></div></div>
+          <div class="marg">+ 3 more this week</div>
+        </div>
+      </div>
+    </main>
+
+    <section class="canopy">
+      <div class="arch">
+        <span class="ref fig">Fig. 1 · canopy, open</span>
+        <svg preserveAspectRatio="none" viewBox="0 0 360 58" >
+          <path d="M0 58 C 40 14, 320 14, 360 58 Z" fill="#fbf9f3" stroke="#1c2a3c" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+          <path d="M180 4 L 180 58" stroke="#2457a6" stroke-dasharray="8 3 2 3" stroke-width="1" vector-effect="non-scaling-stroke"/>
+          <path d="M180 25 L 180 58" stroke="#1c2a3c" stroke-width="1.5" vector-effect="non-scaling-stroke"/>
+          <path d="M250 30 L 300 12 L 340 12" fill="none" stroke="#7d8590" stroke-width="1" vector-effect="non-scaling-stroke"/>
+        </svg>
+        <span class="ref" style="position:absolute;top:2px;right:8px">R 180</span>
+      </div>
+      <div class="head">
+        <div class="t">Thread opening indicators</div>
+        <div class="sub"><span>Running · 4 threads · since <span class="mono">origin/main</span></span><span>Land ⌄</span></div>
+      </div>
+      <div class="tabs"><span class="on">Conversation</span><span>Changes <span class="add">+214</span></span><span>Trace</span><span>Intel</span></div>
+      <div class="feed">
+        <div class="msg you">Show which threads are opening, without moving the list.</div>
+        <div class="fold">▸ thought twice · read 6 files · ran 2 tests</div>
+        <div>Plan: add an <span class="mono">opening</span> state to each entry, draw it as a ruled progress tick, keep row height fixed.</div>
+        <div class="partwrap ask"><div class="part"><div class="in">
+          <div class="q">Approve the plan?</div>
+          Three files in <span class="mono">apps/app</span>, one test.
+          <div class="btns"><span class="btn pri">Approve</span><span class="btn">Change it</span></div>
+        </div></div></div>
+      </div>
+      <div class="partwrap composer"><div class="part"><div class="in">
+        <div class="ph">Steer this mission…</div>
+        <div class="foot"><span><span class="pick">Claude Code</span> · <span class="pick">Opus</span> · <span class="pick">high</span></span><span class="btn pri">Send</span></div>
+      </div></div></div>
+    </section>
+  </div>
+
+  <!-- ================= building blocks ================= -->
+  <h3 class="sec">The kit</h3>
+  <div class="grid">
+    <div class="partwrap sheet"><div class="part"><div class="in">
+      <h6>Paper, navy ink, one blue <span class="ref">A-1</span></h6>
+      <div class="sw">
+        <div><i style="background:var(--paper)"></i>paper</div>
+        <div><i style="background:var(--grid)"></i>grid</div>
+        <div><i style="background:var(--ink)"></i>navy ink</div>
+        <div><i style="background:var(--pencil)"></i>pencil</div>
+        <div><i style="background:var(--blue)"></i>blueprint · Running</div>
+        <div><i style="background:var(--orange)"></i>safety orange · Attention</div>
+        <div><i style="background:var(--violet)"></i>Waiting</div>
+        <div><i style="background:var(--green)"></i>Done</div>
+        <div><i style="background:var(--red)"></i>Failed</div>
+      </div>
+      <div class="from">State is marked the way a manual marks it: stamped, outlined in color, ticked, or faded. No pills.</div>
+    </div></div></div>
+    <div class="partwrap sheet"><div class="part"><div class="in">
+      <h6>Type and lines <span class="ref">A-2</span></h6>
+      <div style="font:700 28px var(--head);letter-spacing:.06em;line-height:1;text-transform:uppercase">Missions</div>
+      <div style="font-weight:600;margin-top:6px">Thread opening indicators</div>
+      <div style="color:var(--pencil);font-size:12.5px">Claude Code · Opus · <span class="mono">feat/indicators</span></div>
+      <ul class="rules" style="margin-top:10px">
+        <li>Barlow Condensed for headings and buttons; Inter for everything you read; Plex Mono for part numbers, paths, numbers; Caveat only for margin notes.</li>
+        <li>1.5px navy outlines, square with one chamfered corner, a flat 2px offset shadow, blue graph paper. No blur, no glow.</li>
+      </ul>
+    </div></div></div>
+    <div class="partwrap sheet"><div class="part"><div class="in">
+      <h6>Settings, no chips <span class="ref">A-3</span></h6>
+      <div class="field"><div class="n">Harness</div><div class="select">Claude Code <small>signed in ⌄</small></div></div>
+      <div class="field"><div class="n">Default model</div><div class="select">Fable <small>⌄</small></div></div>
+      <div class="field"><div class="n">Default effort</div>
+        <div class="slider"><div class="tr"></div><span class="st" style="left:0"></span><span class="st" style="left:25%"></span><span class="st" style="left:75%"></span><span class="st" style="left:calc(100% - 1.5px)"></span><div class="k"></div></div>
+        <div class="ticks"><span>low</span><span>medium</span><b>high</b><span>xhigh</span><span>max</span></div>
+      </div>
+    </div></div></div>
+
+    <div class="partwrap sheet"><div class="part"><div class="in">
+      <h6>Intel as spec notes <span class="ref">B-1</span></h6>
+      <div class="intel"><b>Rule</b> · Never push to main without asking <small>· global</small></div>
+      <div class="intel fade1">Prefers Effect Layers over classes <small>· workspace · fading</small></div>
+      <div class="intel fade2">Relay port was 8787 <small>· dormant</small></div>
+      <div class="from">Fading memories fade like superseded revisions (Rerun's fading by kind; souls.house's honest skips).</div>
+    </div></div></div>
+    <div class="partwrap sheet"><div class="part"><div class="in">
+      <h6>Trace, as a checklist <span class="ref">B-2</span></h6>
+      <div class="trace">
+        <div><span class="ts">00:12</span>Read <span class="mono">entries.ts</span></div>
+        <div><span class="ts">00:41</span>Asked: edit outside workspace</div>
+        <div class="now"><span class="ts">01:07</span>Ran <span class="mono">bun test</span> · 2 failed</div>
+        <div style="color:var(--pencil)"><span class="ts">--:--</span>Next step…</div>
+      </div>
+      <div class="from">Every run leaves a trace you can step through, like a procedure in the manual (Timon's idea, half its spaceship look).</div>
+    </div></div></div>
+    <div class="partwrap sheet"><div class="part"><div class="in">
+      <h6>Changes, then Land <span class="ref">B-3</span></h6>
+      <div class="diffrow"><span class="mono">apps/app/src/entries.ts</span><span class="mono"><span class="add">+120</span> <span class="del">−0</span></span></div>
+      <div class="diffrow"><span class="mono">apps/app/src/conversation.tsx</span><span class="mono"><span class="add">+42</span> <span class="del">−30</span></span></div>
+      <div class="diffrow"><span class="mono">packages/contracts/src/records.ts</span><span class="mono"><span class="add">+6</span> <span class="del">−2</span></span></div>
+      <div style="display:flex;gap:8px;margin-top:10px"><span class="btn pri">Land now</span><span class="btn">Hand over…</span></div>
+      <div class="from">Delta's "since origin/main" changes panel; intentic's Land button; Delta's full-history handover.</div>
+    </div></div></div>
+
+    <div class="partwrap sheet"><div class="part"><div class="in">
+      <h6>Empty: canopy closed <span class="ref">C-1</span></h6>
+      <div class="empty">
+        <svg fill="none" height="70" viewBox="0 0 140 70" width="140" >
+          <path d="M10 56 C 14 18, 126 18, 130 56" stroke="#1c2a3c" stroke-width="1.7"/><path d="M4 57 L 136 57" stroke="#1c2a3c" stroke-width="1.7"/>
+          <path d="M70 4 L 70 66" stroke="#2457a6" stroke-dasharray="7 3 2 3" stroke-width="1"/><path d="M70 28 L 70 57" stroke="#1c2a3c" stroke-width="1.7"/>
+          <path d="M10 64 L 130 64 M 10 61 L 10 67 M 130 61 L 130 67" stroke="#7d8590" stroke-width="1"/>
+        </svg>
+        <p>Nothing needs you. Canopy's closed.</p>
+      </div>
+    </div></div></div>
+    <div class="partwrap sheet"><div class="part"><div class="in">
+      <h6>Asking, for casual users <span class="ref">C-2</span></h6>
+      <div class="partwrap ask" style="margin:0"><div class="part"><div class="in">
+        <div class="q">OpenCode wants to edit <span class="mono">~/notes/todo.md</span></div>
+        It's outside the <b>canopy</b> workspace.
+        <div class="btns"><span class="btn pri">Allow once</span><span class="btn">Always here</span><span class="btn">No</span></div>
+      </div></div></div>
+      <div class="from">OpenBot's plain-language permission asks.</div>
+    </div></div></div>
+    <div class="partwrap sheet"><div class="part"><div class="in">
+      <h6>Devices and pairing <span class="ref">C-3</span></h6>
+      <div class="intel">MacBook Pro <small>· online · 3 missions</small></div>
+      <div class="intel">iPhone <small>· paired over relay</small></div>
+      <div style="margin-top:8px;font:500 24px var(--mono);letter-spacing:5px;text-align:center">K7·2Q·9F</div>
+      <div class="from">intentic's Devices page; Paseo's encrypted relay. The pairing code is set in mono, like a serial number, to read aloud.</div>
+    </div></div></div>
+  </div>
+</div>
+</body>
+</html>

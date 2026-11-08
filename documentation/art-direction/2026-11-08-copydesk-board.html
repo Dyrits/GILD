@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Copydesk — Front Page Board (direction J, whole app)</title>
+<link href="https://fonts.googleapis.com" rel="preconnect" >
+<link href="https://fonts.googleapis.com/css2?family=UnifrakturMaguntia&family=Playfair+Display:ital,wght@0,700;0,900;1,700&family=Source+Serif+4:ital,opsz,wght@0,8..60,400;0,8..60,600;1,8..60,400&family=Courier+Prime:wght@400;700&family=Reenie+Beanie&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --news: #f3efe6;       /* newsprint */
+    --news-dark: #e8e2d4;
+    --ink: #151412;        /* text, rules */
+    --grey: #6f6a60;       /* secondary text */
+    --rule: #cfc7b6;
+    --red: #c2281d;        /* the editor's red pencil: Attention, and the one accent for what needs a decision */
+    --blue: #1f4f9a;       /* non-repro blue pencil: Running */
+    --blue-wash: #e2e8f2;
+    --amber: #b9821a;      /* Waiting: held for space */
+    --green: #2f6f45;      /* Done: went to press */
+    --killed: #8b867c;     /* Failed: killed */
+    --mast: "UnifrakturMaguntia", "Old English Text MT", serif;
+    --head: "Playfair Display", Georgia, serif;
+    --body: "Source Serif 4", Georgia, serif;
+    --type: "Courier Prime", "Courier New", monospace;
+    --pencil: "Reenie Beanie", "Bradley Hand", cursive;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14.5px/1.45 var(--body); color: var(--ink); background: #d9d3c5; }
+  .page { max-width: 1320px; padding: 28px 32px 60px; margin: 0 auto; }
+  h1.title { margin: 0; font: 900 38px var(--head); }
+  .intro { max-width: 880px; margin: 4px 0 22px; color: #4c4840; }
+  .mono { font-family: var(--type); font-size: 12.5px; }
+
+  /* ---------- the window ---------- */
+  .window { display: grid; grid-template-columns: 210px 1fr 370px; min-height: 700px; overflow: hidden; background: var(--news);
+    background-image: radial-gradient(rgba(0,0,0,.035) 1px, transparent 1.2px); background-size: 4px 4px;
+    border: 1px solid #a9a191; border-radius: 4px; box-shadow: 0 16px 40px -18px rgba(0,0,0,.45); }
+
+  /* rail: the index box of a front page */
+  .rail { display: flex; flex-direction: column; gap: 16px; padding: 16px 14px; border-right: 3px double var(--ink); }
+  .brand { padding-bottom: 6px; font: 400 30px/1 var(--mast); text-align: center; border-bottom: 1px solid var(--ink); }
+  .brand small { display: block; margin-top: 4px; font: italic 400 11px var(--body); color: var(--grey); }
+  .rail h5 { margin: 0 0 4px; padding-bottom: 2px; font: 900 12px var(--head); letter-spacing: .12em; text-transform: uppercase; border-bottom: 1px solid var(--ink); }
+  .rail a { display: flex; justify-content: space-between; padding: 2px 0; font-size: 14px; color: var(--ink); text-decoration: none; border-bottom: 1px dotted var(--rule); }
+  .rail a.on { font-weight: 600; }
+  .rail a.on::before { margin-right: 5px; content: "▸"; }
+  .rail a.on { justify-content: flex-start; }
+  .rail a.on small { margin-left: auto; }
+  .rail a small { font: 12px var(--type); color: var(--grey); }
+  .usage { margin-top: auto; font-size: 13px; }
+  .usage table { width: 100%; font: 12px var(--type); border-collapse: collapse; }
+  .usage td { padding: 2px 0; border-bottom: 1px dotted var(--rule); }
+  .usage td:last-child { text-align: right; }
+  .usage .up { color: var(--red); }
+
+  /* board: the front page */
+  .board { padding: 14px 20px; }
+  .flag { display: flex; align-items: baseline; justify-content: space-between; padding-bottom: 4px; border-bottom: 3px solid var(--ink); }
+  .flag h2 { margin: 0; font: 900 38px/1 var(--head); letter-spacing: -.01em; }
+  .flag .new { padding: 5px 12px; font: 700 12px var(--type); letter-spacing: .06em; color: var(--news); background: var(--ink); }
+  .dateline { display: flex; justify-content: space-between; padding: 3px 0; margin-bottom: 12px; font: 12px var(--type); color: var(--grey); border-bottom: 1px solid var(--ink); }
+  .dateline b { color: var(--ink); }
+  .cols { display: grid; grid-template-columns: 1fr 1fr 1fr; }
+  .col { padding: 0 14px; border-left: 1px solid var(--rule); }
+  .col:first-child { padding-left: 0; border-left: 0; }
+  .col:last-child { padding-right: 0; }
+  .col h4 { margin: 0 0 8px; padding-bottom: 3px; font: 700 12px var(--type); letter-spacing: .14em; text-transform: uppercase; border-bottom: 2px solid var(--c, var(--ink)); color: var(--c, var(--ink)); display: flex; justify-content: space-between; }
+  .story { position: relative; padding-bottom: 10px; margin-bottom: 10px; border-bottom: 1px solid var(--rule); }
+  .story .slug { font: 700 11px var(--type); color: var(--grey); letter-spacing: .06em; }
+  .story .hl { margin: 1px 0 2px; font: 700 19px/1.12 var(--head); }
+  .story.lead .hl { font-size: 24px; font-weight: 900; }
+  .story .by { font: italic 13px var(--body); color: var(--grey); }
+  .story .dek { margin-top: 3px; font-size: 13.5px; }
+  .story .meta { display: flex; gap: 10px; margin-top: 5px; font: 11.5px var(--type); color: var(--grey); }
+  .add { color: var(--green); } .del { color: var(--red); }
+  /* the editor's marks */
+  .seeme { position: absolute; top: -2px; right: -4px; font: 400 26px/1 var(--pencil); color: var(--red); transform: rotate(-6deg); }
+  .ring { position: absolute; inset: 12px -8px auto -8px; height: 50px; border: 2px solid var(--red); border-radius: 50% 46% 52% 48%; transform: rotate(-1.5deg); pointer-events: none; opacity: .8; }
+  .story.open { padding: 8px 9px 10px; margin: 0 -9px 10px; background: var(--blue-wash); box-shadow: inset 3px 0 0 var(--blue); }
+  .story.pressed .hl { color: #4a463e; }
+  .pressed-stamp { display: inline-block; margin-left: 4px; padding: 0 4px; font: 700 10px var(--type); letter-spacing: .1em; color: var(--green); border: 1.5px solid var(--green); transform: rotate(-3deg); vertical-align: 2px; }
+  .reporters { display: flex; gap: 3px; margin-top: 5px; font: 11px var(--type); color: var(--grey); align-items: center; }
+  .reporters i { width: 14px; height: 14px; border-radius: 50%; background: var(--c); border: 1.5px solid var(--news); box-shadow: 0 0 0 1px var(--c); }
+  .reporters .r { --c: var(--blue); } .reporters .w { --c: var(--amber); } .reporters .d { --c: var(--green); }
+  .jump { font: italic 13px var(--body); color: var(--grey); }
+
+  /* the proof: docked mission panel */
+  .proof { display: flex; flex-direction: column; background: #fbf9f3; border-left: 1px solid #a9a191; }
+  .proof .bar { display: flex; justify-content: space-between; padding: 6px 16px; font: 700 11px var(--type); letter-spacing: .1em; color: var(--news); background: var(--ink); }
+  .proof .head { padding: 10px 16px 9px; border-bottom: 1px solid var(--ink); }
+  .proof .head .slug { font: 700 11px var(--type); color: var(--grey); }
+  .proof .head .t { font: 900 25px/1.08 var(--head); }
+  .proof .head .sub { display: flex; justify-content: space-between; margin-top: 4px; font: italic 13px var(--body); color: var(--grey); }
+  .proof .head .sub b { font-style: normal; color: var(--blue); }
+  .tabs { display: flex; gap: 14px; padding: 7px 16px 0; font: 700 11.5px var(--type); letter-spacing: .08em; color: var(--grey); border-bottom: 1px solid var(--rule); }
+  .tabs span { padding-bottom: 5px; }
+  .tabs .on { color: var(--ink); box-shadow: inset 0 -2.5px 0 var(--ink); }
+  .feed { display: flex; flex: 1; flex-direction: column; gap: 9px; padding: 12px 16px; font-size: 14px; }
+  .msg.you { align-self: flex-end; max-width: 82%; padding: 4px 0 4px 10px; font: 400 26px/1 var(--pencil); color: var(--blue); border-left: 2px solid var(--blue); }
+  .fold { font: 11.5px var(--type); color: var(--grey); }
+  .wire { font: 13px/1.5 var(--type); }
+  .ask { position: relative; padding: 9px 11px; background: #fff; border: 1.5px solid var(--ink); box-shadow: 3px 3px 0 var(--red); }
+  .ask .q { margin-bottom: 2px; font: 700 17px var(--head); }
+  .ask .btns { display: flex; gap: 8px; margin-top: 8px; }
+  .btn { padding: 3px 11px; font: 700 12px var(--type); letter-spacing: .04em; color: var(--ink); background: #fff; border: 1.5px solid var(--ink); }
+  .btn.pri { color: #fff; background: var(--ink); }
+  .composer { padding: 9px 11px; margin: 0 12px 12px; background: #fff; border: 1.5px solid var(--ink); }
+  .composer .ph { margin-bottom: 12px; font: 13px var(--type); color: var(--grey); }
+  .composer .foot { display: flex; align-items: center; justify-content: space-between; font: 12px var(--type); }
+  .pick { border-bottom: 1.5px solid var(--ink); }
+
+  /* ---------- sheets below ---------- */
+  h3.sec { margin: 40px 0 12px; padding-bottom: 4px; font: 900 30px var(--head); border-bottom: 3px double var(--ink); }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0; }
+  .sheet { padding: 12px 16px 16px; border-left: 1px solid #a9a191; border-bottom: 1px solid #a9a191; }
+  .sheet:nth-child(3n+1) { border-left: 0; padding-left: 0; }
+  .sheet h6 { margin: 0 0 8px; font: 700 19px var(--head); }
+  .sheet .from { margin-top: 8px; font: italic 13px var(--body); color: var(--grey); }
+  .sw { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sw div { width: 66px; font: 11px var(--type); color: var(--grey); }
+  .sw i { display: block; height: 30px; margin-bottom: 3px; border: 1px solid rgba(0,0,0,.25); }
+  .style { padding: 4px 0; font-size: 13.5px; border-bottom: 1px dotted var(--rule); }
+  .style b { font-family: var(--type); font-size: 12px; }
+  .style.f1 { color: #8e897f; }
+  .style.f2 { color: #b3ad9f; text-decoration: line-through; text-decoration-color: var(--red); }
+  .log { font: 12.5px/1.65 var(--type); }
+  .log .now { font-weight: 700; color: var(--blue); }
+  .galley { font: 12.5px/1.7 var(--type); }
+  .galley ins { color: var(--green); text-decoration: none; border-bottom: 1.5px solid var(--green); }
+  .galley del { color: var(--red); }
+  .field { margin-bottom: 10px; font-size: 14px; }
+  .field .n { margin-bottom: 3px; font: 700 11px var(--type); letter-spacing: .1em; color: var(--grey); }
+  .select { display: flex; justify-content: space-between; padding: 4px 9px; background: #fff; border: 1.5px solid var(--ink); }
+  .select small { color: var(--grey); }
+  .sizes { display: flex; align-items: baseline; justify-content: space-between; padding: 4px 2px; border-bottom: 1.5px solid var(--ink); }
+  .sizes span { font-family: var(--head); font-weight: 700; color: #a9a191; }
+  .sizes span.on { color: var(--ink); text-decoration: underline 2px var(--red); text-underline-offset: 3px; }
+  .empty { padding: 4px 0; text-align: center; }
+  .empty .hl { font: 900 30px/1 var(--head); }
+  .empty p { margin: 4px 0 0; font: italic 14px var(--body); color: var(--grey); }
+  .pass { margin-top: 8px; padding: 8px; text-align: center; border: 2px solid var(--ink); }
+  .pass b { display: block; font: 700 11px var(--type); letter-spacing: .2em; }
+  .pass span { font: 700 26px var(--type); letter-spacing: 6px; }
+  ul.rules { padding-left: 18px; margin: 0; font-size: 13.5px; }
+  ul.rules li { margin-bottom: 3px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 class="title">Copydesk — the front page</h1>
+  <p class="intro">Direction J, renamed Copydesk. A newsroom runs many reporters on many stories against one deadline, and an editor decides what runs. Copydesk borrows that. The board is today's front page, with missions laid out as stories by state. The lead story is the one you have open. Each thread is a reporter working the story. When an agent needs you, the editor's red pencil circles the story and writes "see me". The docked mission panel is the proof you read before it goes to press. Newspaper conventions do the work: headline weight carries priority, and column rules carry structure, so the page needs no cards, chips, or shadows.</p>
+
+  <!-- ================= the main window ================= -->
+  <div class="window">
+    <aside class="rail">
+      <div class="brand">The Copydesk<small>All the work that's fit to land</small></div>
+      <div>
+        <h5>Workspaces</h5>
+        <a class="on" href="#">canopy <small>4</small></a>
+        <a href="#">fern-site <small>1</small></a>
+        <a href="#">scratch <small>—</small></a>
+      </div>
+      <div>
+        <h5>Inside</h5>
+        <a href="#">Dashboard <small>A1</small></a><a href="#">Routines <small>B2</small></a><a href="#">Intel <small>C1</small></a><a href="#">Journal <small>D4</small></a><a href="#">Devices <small>E1</small></a>
+      </div>
+      <div class="usage">
+        <h5>Plans today</h5>
+        <table>
+          <tr><td>Claude</td><td class="up">62% ▲</td></tr>
+          <tr><td>Codex</td><td>18%</td></tr>
+          <tr><td>Budget</td><td>$7.40 / $20</td></tr>
+        </table>
+      </div>
+    </aside>
+
+    <main class="board">
+      <div class="flag"><h2>Missions</h2><span class="new">+ NEW MISSION</span></div>
+      <div class="dateline"><span>ALL WORKSPACES › <b>CANOPY ⌄</b></span><span>SUNDAY, NOVEMBER 8 · 4 RUNNING</span></div>
+      <div class="cols">
+        <div class="col" style="--c:var(--red)">
+          <h4>Attention <span>2</span></h4>
+          <div class="story">
+            <span class="ring"></span><span class="seeme">see me!</span>
+            <div class="slug">REFUSALS · 12:41</div>
+            <div class="hl">Carry on after a refusal</div>
+            <div class="by">By OpenCode, Sonnet · <span class="mono">fix/refusals</span></div>
+            <div class="dek">Wants to edit a file outside the workspace.</div>
+          </div>
+          <div class="story">
+            <div class="slug">BUDGET-ALERTS · 12:20</div>
+            <div class="hl">Budget alerts</div>
+            <div class="by">By Codex, high</div>
+            <div class="meta"><span style="color:var(--red)">folder missing</span></div>
+          </div>
+        </div>
+        <div class="col" style="--c:var(--blue)">
+          <h4>Running <span>2</span></h4>
+          <div class="story lead open">
+            <div class="slug">INDICATORS · 43 MIN</div>
+            <div class="hl">Thread opening indicators</div>
+            <div class="by">By Claude Code, Opus · <span class="mono">feat/indicators</span></div>
+            <div class="reporters"><i class="r"></i><i class="r"></i><i class="w"></i><i class="d"></i> 4 threads on it</div>
+            <div class="meta"><span>$1.84</span><span class="add">+214</span><span class="del">−38</span></div>
+          </div>
+          <div class="story">
+            <div class="slug">RELAY · 11 MIN</div>
+            <div class="hl">Pairing over the relay</div>
+            <div class="by">By Claude Code, Sonnet</div>
+            <div class="meta"><span>$0.40</span><span class="add">+31</span><span class="del">−2</span></div>
+          </div>
+          <div class="jump">1 idle, 1 waiting. Continued on A4.</div>
+        </div>
+        <div class="col" style="--c:var(--green)">
+          <h4>Done <span>5</span></h4>
+          <div class="story pressed">
+            <div class="slug">LOW-FINDINGS · 10:12</div>
+            <div class="hl">Five Low findings <span class="pressed-stamp">LANDED</span></div>
+            <div class="meta"><span>$3.10</span><span class="add">+120</span><span class="del">−88</span></div>
+          </div>
+          <div class="story pressed">
+            <div class="slug">QUOTE · 09:47</div>
+            <div class="hl">Quote check <span class="pressed-stamp">LANDED</span></div>
+            <div class="meta"><span>$0.92</span></div>
+          </div>
+          <div class="jump">3 more this week, in the archive.</div>
+        </div>
+      </div>
+    </main>
+
+    <section class="proof">
+      <div class="bar"><span>PROOF · INDICATORS</span><span>RUNNING</span></div>
+      <div class="head">
+        <div class="slug">CLAUDE CODE · OPUS · 4 THREADS</div>
+        <div class="t">Thread opening indicators</div>
+        <div class="sub"><span><b>Running</b> · since <span class="mono">origin/main</span></span><span>Land ⌄</span></div>
+      </div>
+      <div class="tabs"><span class="on">CONVERSATION</span><span>CHANGES <span class="add">+214</span></span><span>TRACE</span><span>INTEL</span></div>
+      <div class="feed">
+        <div class="msg you">Show which threads are opening, without moving the list.</div>
+        <div class="fold">▸ thought twice · read 6 files · ran 2 tests</div>
+        <div class="wire">Plan: add an <b>opening</b> state to each entry, draw it as a ruled dash, keep row height fixed.</div>
+        <div class="ask">
+          <div class="q">Approve the plan?</div>
+          Three files in <span class="mono">apps/app</span>, one test.
+          <div class="btns"><span class="btn pri">Approve</span><span class="btn">Change it</span></div>
+        </div>
+      </div>
+      <div class="composer">
+        <div class="ph">Steer this mission…</div>
+        <div class="foot"><span><span class="pick">Claude Code</span> · <span class="pick">Opus</span> · <span class="pick">high</span></span><span class="btn pri">Send</span></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ================= building blocks ================= -->
+  <h3 class="sec">The style book</h3>
+  <div class="grid">
+    <div class="sheet">
+      <h6>Newsprint and two pencils</h6>
+      <div class="sw">
+        <div><i style="background:var(--news)"></i>newsprint</div>
+        <div><i style="background:var(--ink)"></i>ink</div>
+        <div><i style="background:var(--grey)"></i>grey</div>
+        <div><i style="background:var(--red)"></i>red pencil · Attention</div>
+        <div><i style="background:var(--blue)"></i>blue pencil · Running</div>
+        <div><i style="background:var(--amber)"></i>Waiting</div>
+        <div><i style="background:var(--green)"></i>Done</div>
+        <div><i style="background:var(--killed)"></i>Failed</div>
+      </div>
+      <div class="from">Editors mark in red and in non-repro blue; Copydesk uses the same two. Everything else is black on newsprint.</div>
+    </div>
+    <div class="sheet">
+      <h6>Type and rules</h6>
+      <div style="font:900 28px/1 var(--head)">Missions</div>
+      <div style="font:700 17px var(--head);margin-top:4px">Thread opening indicators</div>
+      <div style="font:italic 13px var(--body);color:var(--grey)">By Claude Code, Opus · <span class="mono">feat/indicators</span></div>
+      <ul class="rules" style="margin-top:8px">
+        <li>Playfair for headlines, Source Serif for reading, Courier for slugs and paths, a pencil hand for the editor's marks only.</li>
+        <li>Hairline column rules and a double rule under the flag. No cards, no shadows: the layout is the hierarchy.</li>
+      </ul>
+    </div>
+    <div class="sheet">
+      <h6>Settings, as type sizes</h6>
+      <div class="field"><div class="n">HARNESS</div><div class="select">Claude Code <small>signed in ⌄</small></div></div>
+      <div class="field"><div class="n">DEFAULT MODEL</div><div class="select">Fable <small>⌄</small></div></div>
+      <div class="field"><div class="n">DEFAULT EFFORT</div>
+        <div class="sizes"><span style="font-size:11px">low</span><span style="font-size:14px">medium</span><span class="on" style="font-size:18px">high</span><span style="font-size:22px">xhigh</span><span style="font-size:27px">max</span></div>
+      </div>
+    </div>
+
+    <div class="sheet">
+      <h6>Intel, as the style guide</h6>
+      <div class="style"><b>RULE.</b> Never push to main without asking. <i>(global)</i></div>
+      <div class="style f1"><b>PREF.</b> Effect Layers over classes. <i>(workspace, fading)</i></div>
+      <div class="style f2"><b>NOTE.</b> Relay port was 8787. <i>(dormant)</i></div>
+      <div class="from">Old entries grey out, then get struck in red pencil (Rerun's fading by kind; souls.house's honest skips).</div>
+    </div>
+    <div class="sheet">
+      <h6>Trace, as the wire log</h6>
+      <div class="log">
+        12:04 READ entries.ts<br>
+        12:05 <span style="color:var(--red)">ASKED</span> edit outside workspace<br>
+        <span class="now">12:07 RAN bun test — 2 FAILED</span><br>
+        <span style="color:var(--grey)">12:-- MORE TO COME</span>
+      </div>
+      <div class="from">Every run leaves a wire log you can step through (Timon's idea, as a news wire).</div>
+    </div>
+    <div class="sheet">
+      <h6>Changes, as a galley</h6>
+      <div class="galley">
+        entries.ts <ins>+ opening: boolean</ins><br>
+        conversation.tsx <del>spinner</del> <ins>ruled dash</ins><br>
+        records.ts <ins>+6</ins> <del>−2</del>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:10px"><span class="btn pri">Land now</span><span class="btn">Hand over…</span></div>
+      <div class="from">Read the galley, then send it to press (Delta's changes panel; intentic's Land; Delta's handover).</div>
+    </div>
+
+    <div class="sheet" style="border-bottom:0">
+      <h6>Empty: a slow news day</h6>
+      <div class="empty">
+        <div class="hl">Nothing Needs You</div>
+        <p>Slow day on the desk. Every mission has landed.</p>
+      </div>
+    </div>
+    <div class="sheet" style="border-bottom:0">
+      <h6>Asking, for casual users</h6>
+      <div class="ask">
+        <div class="q">OpenCode wants to edit <span class="mono">~/notes/todo.md</span></div>
+        It's outside the <b>canopy</b> workspace.
+        <div class="btns"><span class="btn pri">Allow once</span><span class="btn">Always here</span><span class="btn">No</span></div>
+      </div>
+      <div class="from">A question set as a headline, answered in plain words (OpenBot's permission asks).</div>
+    </div>
+    <div class="sheet" style="border-bottom:0">
+      <h6>Devices and pairing</h6>
+      <div class="style">MacBook Pro · online · 3 missions</div>
+      <div class="style">iPhone · paired over relay</div>
+      <div class="pass"><b>PRESS PASS</b><span>K7 2Q 9F</span></div>
+      <div class="from">A new device shows its press pass; read the code aloud (intentic's Devices; Paseo's encrypted relay).</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

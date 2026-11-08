@@ -27,6 +27,7 @@
 
 ## Handoffs
 
+To resume the art direction options D to J (CHG-0071; theme or future rework, awaiting the owner), read the [current handoff](.agents/handoffs/2026-11-08-1640-art-direction-options.md). Handoffs are shared and committed.
 To resume after the sidebar trim (CHG-0070 pushed; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-08-1602-sidebar-trim.md). Handoffs are shared and committed.
 To resume after the thread-opening indicators (CHG-0067 pushed; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-08-1135-thread-opening-indicators.md). Handoffs are shared and committed.
 To resume after the five Low findings (CHG-0066 uncommitted; awaiting the owner), read the [current handoff](.agents/handoffs/2026-11-08-1110-low-findings.md). Handoffs are shared and committed.

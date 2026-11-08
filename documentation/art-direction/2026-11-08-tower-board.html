@@ -1,0 +1,375 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Tower — Strip Board (direction I, whole app)</title>
+<link href="https://fonts.googleapis.com" rel="preconnect" >
+<link href="https://fonts.googleapis.com/css2?family=B612:wght@400;700&family=B612+Mono:wght@400;700&family=Permanent+Marker&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --console: #1c2023;    /* the console */
+    --bay: #2a2f33;        /* strip bays */
+    --bay-edge: #3a4146;
+    --buff: #f1e7cc;       /* the paper strip */
+    --ink: #1b1b1b;
+    --faint: #7a7464;
+    --scope: #79e08f;      /* the radar's phosphor: live things on the scope */
+    --scope-dim: #2f5b39;
+    --blue: #2c6fc4;       /* holder color: Running (the one accent) */
+    --red: #c9362c;        /* holder color: Attention */
+    --yellow: #e2b324;     /* holder color: Waiting */
+    --green: #3e8a55;      /* holder color: Done */
+    --grey: #6b6f72;       /* Failed */
+    --marker: #c9362c;     /* grease pencil */
+    --sans: "B612", "Inter", sans-serif;
+    --mono: "B612 Mono", ui-monospace, Menlo, monospace;
+    --grease: "Permanent Marker", "Marker Felt", cursive;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 13.5px/1.45 var(--sans); color: #e6e6e1; background: #111416; }
+  .page { max-width: 1320px; padding: 28px 32px 60px; margin: 0 auto; }
+  h1.title { margin: 0; font: 700 30px var(--sans); letter-spacing: .04em; }
+  .intro { max-width: 880px; margin: 6px 0 22px; color: #a3a69f; }
+  .mono { font-family: var(--mono); font-size: 12px; }
+
+  /* ---------- the window ---------- */
+  .window { display: grid; grid-template-columns: 220px 1fr 370px; min-height: 700px; overflow: hidden; background: var(--console);
+    border: 1px solid #3a4146; border-radius: 10px; box-shadow: 0 24px 60px rgba(0,0,0,.6); }
+
+  /* rail, with the scope at the bottom */
+  .rail { display: flex; flex-direction: column; gap: 18px; padding: 16px 14px; background: #171a1c; border-right: 1px solid #2c3236; }
+  .brand { display: flex; gap: 9px; align-items: center; font: 700 20px var(--sans); letter-spacing: .14em; }
+  .rail h5 { margin: 0 0 5px; font: 700 10.5px var(--mono); color: #8b9093; letter-spacing: .14em; }
+  .rail a { display: flex; justify-content: space-between; padding: 4px 8px; font-size: 13px; color: #d8d9d4; text-decoration: none; border-radius: 3px; }
+  .rail a.on { color: var(--ink); background: var(--buff); }
+  .rail a small { font-family: var(--mono); color: #8b9093; }
+  .rail a.on small { color: var(--faint); }
+  .scope { position: relative; width: 150px; height: 150px; margin: auto auto 4px; border-radius: 50%;
+    background: radial-gradient(circle, #10251a 0, #0b1711 70%); box-shadow: inset 0 0 0 2px #2c3236, inset 0 0 18px rgba(121,224,143,.15); }
+  .scope::before { position: absolute; inset: 0; content: ""; border-radius: 50%;
+    background: repeating-radial-gradient(circle, transparent 0 24px, rgba(121,224,143,.18) 24px 25px), conic-gradient(from 20deg, rgba(121,224,143,.35), transparent 60deg); }
+  .blip { position: absolute; width: 6px; height: 6px; background: var(--scope); border-radius: 50%; box-shadow: 0 0 6px var(--scope); }
+  .blip b { position: absolute; top: -4px; left: 8px; font: 700 8.5px var(--mono); color: var(--scope); white-space: nowrap; }
+  .blip.att { background: #ff7a6b; box-shadow: 0 0 6px #ff7a6b; }
+  .blip.att b { color: #ff9a8e; }
+  .usage { font-size: 12px; }
+  .usage .row { display: flex; justify-content: space-between; margin-top: 3px; font: 11.5px var(--mono); color: #b5b8b2; }
+  .usage .row b { font-weight: 400; color: var(--scope); }
+  .usage .row b.w { color: var(--yellow); }
+
+  /* board: strip bays */
+  .board { padding: 16px 18px; }
+  .boardhead { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 14px; }
+  .crumb { font: 11.5px var(--mono); color: #8b9093; }
+  .crumb b { color: #e6e6e1; }
+  .boardhead h2 { margin: 0; font: 700 24px var(--sans); letter-spacing: .08em; }
+  .new { padding: 6px 13px; font: 700 12px var(--mono); letter-spacing: .08em; color: var(--ink); background: var(--buff); border-radius: 3px; box-shadow: 0 2px 0 #000; }
+  .bays { display: flex; flex-direction: column; gap: 12px; }
+  .bayrow { display: grid; grid-template-columns: 112px 1fr; gap: 10px; }
+  .bayname { padding: 8px 10px; font: 700 12px var(--mono); letter-spacing: .1em; background: var(--bay); border-left: 4px solid var(--c); border-radius: 3px; }
+  .bayname small { display: block; margin-top: 2px; font: 400 10.5px var(--mono); color: #8b9093; letter-spacing: 0; }
+  .bayname em { display: block; margin-top: 4px; font: 400 20px var(--grease); color: var(--c); font-style: normal; }
+  .rack { display: flex; flex-direction: column; gap: 5px; padding: 6px; background: var(--bay);
+    background-image: repeating-linear-gradient(transparent 0 47px, var(--bay-edge) 47px 49px); border-radius: 3px; box-shadow: inset 0 2px 4px rgba(0,0,0,.4); }
+  /* a flight progress strip: colored holder, then boxed fields */
+  .strip { position: relative; display: grid; grid-template-columns: 8px 92px 1fr 120px 92px; min-height: 44px; font: 12px/1.3 var(--mono); color: var(--ink); background: var(--buff); border-radius: 2px; box-shadow: 0 1px 2px rgba(0,0,0,.5); }
+  .strip > div { padding: 4px 7px; border-left: 1px solid #c9bd9c; }
+  .strip > .h { padding: 0; background: var(--c); border: 0; border-radius: 2px 0 0 2px; }
+  .strip .cs { font: 700 14px var(--mono); }
+  .strip .sub { font-size: 10.5px; color: var(--faint); }
+  .strip .t { font: 700 13px var(--sans); }
+  .strip .add { color: var(--green); } .strip .del { color: var(--red); }
+  .strip.open { outline: 2px solid var(--scope); outline-offset: 2px; box-shadow: 0 0 14px rgba(121,224,143,.35); }
+  .strip.done { opacity: .62; }
+  .gp { position: absolute; font: 400 15px var(--grease); color: var(--marker); transform: rotate(-4deg); }
+  .circ { position: absolute; inset: 3px auto auto 104px; width: 80px; height: 36px; border: 2px solid var(--marker); border-radius: 50%; transform: rotate(-3deg); opacity: .85; }
+  .slash { position: absolute; top: 50%; left: 6px; right: 6px; height: 2px; background: var(--green); transform: rotate(-1.5deg); opacity: .8; }
+  .thr { display: flex; gap: 3px; margin-top: 3px; }
+  .thr i { width: 12px; height: 5px; background: var(--c); }
+  .thr .r { --c: var(--blue); } .thr .w { --c: var(--yellow); } .thr .d { --c: var(--green); }
+
+  /* the frequency: docked mission panel */
+  .freq { display: flex; flex-direction: column; background: #f4efe0; color: var(--ink); border-left: 1px solid #2c3236; }
+  .radio { display: flex; align-items: center; justify-content: space-between; padding: 9px 14px; color: var(--scope); background: #0b1711; font: 700 13px var(--mono); letter-spacing: .08em; border-bottom: 3px solid #000; }
+  .radio .lcd { padding: 2px 8px; background: #08110c; border: 1px solid var(--scope-dim); text-shadow: 0 0 6px rgba(121,224,143,.6); }
+  .radio .tx { display: inline-flex; gap: 5px; align-items: center; font-size: 10.5px; color: #8b9093; }
+  .radio .tx i { width: 7px; height: 7px; background: var(--scope); border-radius: 50%; box-shadow: 0 0 6px var(--scope); }
+  .freq .head { padding: 10px 16px; background: var(--buff); border-bottom: 1px solid #c9bd9c; border-left: 8px solid var(--blue); }
+  .freq .head .cs { font: 700 12px var(--mono); color: var(--faint); }
+  .freq .head .t { font: 700 19px/1.2 var(--sans); }
+  .freq .head .sub { display: flex; justify-content: space-between; margin-top: 3px; font: 11px var(--mono); color: var(--faint); }
+  .freq .head .sub b { color: var(--blue); }
+  .tabs { display: flex; gap: 16px; padding: 8px 16px 0; font: 700 11px var(--mono); letter-spacing: .1em; color: var(--faint); border-bottom: 1px solid #d9d0b6; }
+  .tabs span { padding-bottom: 6px; }
+  .tabs .on { color: var(--ink); box-shadow: inset 0 -2.5px 0 var(--blue); }
+  .feed { display: flex; flex: 1; flex-direction: column; gap: 9px; padding: 12px 16px; font-size: 13px; }
+  .tx-line { display: grid; grid-template-columns: 54px 1fr; gap: 6px; }
+  .tx-line .who { padding-top: 1px; font: 700 10.5px var(--mono); color: var(--faint); }
+  .tx-line.you .who { color: var(--blue); }
+  .fold { font: 11px var(--mono); color: var(--faint); }
+  .ask { padding: 9px 11px; background: #fff; border: 2px solid var(--red); border-left-width: 8px; border-radius: 2px; }
+  .ask .q { margin-bottom: 3px; font-weight: 700; }
+  .ask .q::before { margin-right: 6px; font: 700 10.5px var(--mono); color: var(--red); letter-spacing: .1em; content: "REQUEST"; }
+  .ask .btns { display: flex; gap: 8px; margin-top: 8px; }
+  .btn { padding: 4px 11px; font: 700 11.5px var(--mono); letter-spacing: .06em; color: var(--ink); background: #fff; border: 1.5px solid var(--ink); border-radius: 2px; }
+  .btn.pri { color: #fff; background: var(--ink); }
+  .composer { padding: 9px 11px; margin: 0 12px 12px; background: #fff; border: 1.5px solid var(--ink); border-radius: 3px; }
+  .composer .ph { margin-bottom: 13px; color: var(--faint); }
+  .composer .ph::before { margin-right: 6px; font: 700 10.5px var(--mono); color: var(--blue); content: "PTT"; }
+  .composer .foot { display: flex; align-items: center; justify-content: space-between; font: 11px var(--mono); }
+  .pick { border-bottom: 1.5px solid var(--ink); }
+
+  /* ---------- sheets below ---------- */
+  h3.sec { margin: 40px 0 12px; font: 700 22px var(--sans); letter-spacing: .08em; }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .sheet { padding: 15px; color: var(--ink); background: #f4efe0; border-radius: 4px; border-top: 6px solid var(--bay); }
+  .sheet h6 { margin: 0 0 10px; font: 700 13px var(--mono); letter-spacing: .1em; }
+  .sheet .from { margin-top: 10px; font-size: 11.5px; color: var(--faint); }
+  .sw { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sw div { width: 66px; font: 10.5px var(--mono); color: var(--faint); }
+  .sw i { display: block; height: 32px; margin-bottom: 3px; border: 1px solid rgba(0,0,0,.2); border-radius: 2px; }
+  .notam { padding: 6px 8px; margin-bottom: 6px; font: 11.5px var(--mono); background: #fff; border: 1px solid #d9d0b6; }
+  .notam b { color: var(--blue); }
+  .notam.f1 { opacity: .55; }
+  .notam.f2 { opacity: .3; text-decoration: line-through; }
+  .track { position: relative; height: 110px; background: #0b1711; border-radius: 4px; overflow: hidden; }
+  .track i { position: absolute; width: 5px; height: 5px; background: var(--scope); border-radius: 50%; }
+  .track span { position: absolute; font: 9.5px var(--mono); color: var(--scope); white-space: nowrap; }
+  .diffrow { display: flex; justify-content: space-between; padding: 4px 0; font: 11.5px var(--mono); border-bottom: 1px solid #e0d8c0; }
+  .add { color: var(--green); } .del { color: var(--red); }
+  .field { margin-bottom: 11px; }
+  .field .n { margin-bottom: 4px; font: 700 10.5px var(--mono); letter-spacing: .1em; color: var(--faint); }
+  .select { display: flex; justify-content: space-between; padding: 5px 9px; background: #fff; border: 1.5px solid var(--ink); border-radius: 2px; }
+  .select small { color: var(--faint); }
+  .keys { display: grid; grid-template-columns: repeat(5, 1fr); gap: 4px; }
+  .keys span { padding: 6px 0; font: 700 10.5px var(--mono); color: #9ba09e; text-align: center; background: #2a2f33; border-radius: 3px; box-shadow: inset 0 -2px 0 #000; }
+  .keys span.on { color: #0b1711; background: var(--scope); box-shadow: 0 0 8px rgba(121,224,143,.6), inset 0 -2px 0 #3e9b52; }
+  .empty { padding: 4px 0; text-align: center; }
+  .empty p { margin: 6px 0 0; font: 700 12px var(--mono); letter-spacing: .1em; color: var(--faint); }
+  .squawk { margin-top: 8px; padding: 6px; font: 700 26px var(--mono); color: var(--scope); text-align: center; letter-spacing: 6px; background: #0b1711; border-radius: 4px; text-shadow: 0 0 8px rgba(121,224,143,.6); }
+  ul.rules { padding-left: 18px; margin: 0; font-size: 12.5px; }
+  ul.rules li { margin-bottom: 4px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 class="title">TOWER — the strip board</h1>
+  <p class="intro">Direction I, renamed Tower. Air traffic controllers keep a dozen aircraft safe at once with a tool older than radar: a paper strip per flight, slid into a colored holder, racked by what it needs next, and marked in grease pencil. Tower borrows the strip board. Each mission is a strip, racked into bays by state, with its holder color showing the state from across the room. The docked mission panel is the radio frequency you are talking on, and the scope in the corner shows every live mission at once. "Land" is already a Canopy word, so here it means exactly what it says.</p>
+
+  <!-- ================= the main window ================= -->
+  <div class="window">
+    <aside class="rail">
+      <div class="brand">
+        <svg fill="none" height="26" viewBox="0 0 22 26" width="22" >
+          <path d="M3 8 L 19 8 L 17 3 L 5 3 Z" fill="#79e08f"/><path d="M7 8 L 8 24 M 15 8 L 14 24 M 5 24 L 17 24" stroke="#e6e6e1" stroke-linecap="round" stroke-width="1.8"/>
+        </svg>
+        TOWER
+      </div>
+      <div>
+        <h5>WORKSPACES</h5>
+        <a class="on" href="#">canopy <small>4</small></a>
+        <a href="#">fern-site <small>1</small></a>
+        <a href="#">scratch <small></small></a>
+      </div>
+      <div>
+        <h5>PLACES</h5>
+        <a href="#">Dashboard</a><a href="#">Routines</a><a href="#">Intel</a><a href="#">Journal</a><a href="#">Devices</a>
+      </div>
+      <div class="scope">
+        <span class="blip att" style="top:38px;left:96px"><b>016</b></span>
+        <span class="blip" style="top:84px;left:44px"><b>014</b></span>
+        <span class="blip" style="top:104px;left:98px"><b>012</b></span>
+      </div>
+      <div class="usage">
+        <h5 style="margin:0;font:700 10.5px var(--mono);color:#8b9093;letter-spacing:.14em">PLANS TODAY</h5>
+        <div class="row">CLAUDE <b class="w">62%</b></div>
+        <div class="row">CODEX <b>18%</b></div>
+        <div class="row">BUDGET <b>$7.40 / $20</b></div>
+      </div>
+    </aside>
+
+    <main class="board">
+      <div class="boardhead">
+        <div>
+          <div class="crumb">ALL WORKSPACES / <b>CANOPY ⌄</b></div>
+          <h2>MISSIONS</h2>
+        </div>
+        <span class="new">+ NEW MISSION</span>
+      </div>
+      <div class="bays">
+        <div class="bayrow">
+          <div class="bayname" style="--c:var(--red)">ATTENTION<small>2 strips</small><em>needs you</em></div>
+          <div class="rack">
+            <div class="strip" style="--c:var(--red)">
+              <div class="h"></div>
+              <div><div class="cs">CNP016</div><div class="sub">OpenCode/Son</div></div>
+              <div><div class="t">Carry on after a refusal</div><div class="sub">fix/refusals</div></div>
+              <div><div class="sub">wants to</div>edit outside</div>
+              <div><div class="sub">12:41</div>—</div>
+              <span class="gp" style="right:8px;bottom:-2px">ASK!</span>
+            </div>
+            <div class="strip" style="--c:var(--red)">
+              <div class="h"></div>
+              <div><div class="cs">CNP015</div><div class="sub">Codex/high</div></div>
+              <div><div class="t">Budget alerts</div><div class="sub" style="color:var(--red)">folder missing</div></div>
+              <div><div class="sub">holding</div>—</div>
+              <div><div class="sub">12:20</div>—</div>
+            </div>
+          </div>
+        </div>
+        <div class="bayrow">
+          <div class="bayname" style="--c:var(--blue)">RUNNING<small>2 strips</small><em>in flight</em></div>
+          <div class="rack">
+            <div class="strip open" style="--c:var(--blue)">
+              <div class="h"></div>
+              <div><div class="cs">CNP014</div><div class="sub">Claude/Opus</div></div>
+              <div><div class="t">Thread opening indicators</div><div class="sub">feat/indicators</div></div>
+              <div><div class="sub">4 threads</div><div class="thr"><i class="r"></i><i class="r"></i><i class="w"></i><i class="d"></i></div></div>
+              <div><div class="sub">$1.84</div><span class="add">+214</span> <span class="del">−38</span></div>
+            </div>
+            <div class="strip" style="--c:var(--blue)">
+              <div class="h"></div>
+              <div><div class="cs">CNP012</div><div class="sub">Claude/Son</div></div>
+              <div><div class="t">Pairing over the relay</div><div class="sub">main</div></div>
+              <div><div class="sub">1 thread</div><div class="thr"><i class="r"></i></div></div>
+              <div><div class="sub">$0.40</div><span class="add">+31</span> <span class="del">−2</span></div>
+            </div>
+          </div>
+        </div>
+        <div class="bayrow">
+          <div class="bayname" style="--c:var(--green)">DONE<small>5 strips</small><em>landed</em></div>
+          <div class="rack">
+            <div class="strip done" style="--c:var(--green)">
+              <div class="h"></div>
+              <div><div class="cs">CNP011</div><div class="sub">Claude/Opus</div></div>
+              <div><div class="t">Five Low findings</div><div class="sub">landed 10:12</div></div>
+              <div><div class="sub">—</div></div>
+              <div><div class="sub">$3.10</div><span class="add">+120</span> <span class="del">−88</span></div>
+              <span class="slash"></span>
+            </div>
+            <div class="strip done" style="--c:var(--green)">
+              <div class="h"></div>
+              <div><div class="cs">CNP009</div><div class="sub">Codex/med</div></div>
+              <div><div class="t">Quote check</div><div class="sub">landed 09:47</div></div>
+              <div><div class="sub">—</div></div>
+              <div><div class="sub">$0.92</div></div>
+              <span class="slash"></span>
+            </div>
+          </div>
+        </div>
+      </div>
+    </main>
+
+    <section class="freq">
+      <div class="radio"><span class="lcd">CNP014 · 121.40</span><span class="tx"><i></i>RX</span></div>
+      <div class="head">
+        <div class="cs">CNP014 · CLAUDE CODE / OPUS</div>
+        <div class="t">Thread opening indicators</div>
+        <div class="sub"><span><b>RUNNING</b> · 4 threads · since origin/main</span><span>LAND ⌄</span></div>
+      </div>
+      <div class="tabs"><span class="on">CONVERSATION</span><span>CHANGES <span class="add">+214</span></span><span>TRACE</span><span>INTEL</span></div>
+      <div class="feed">
+        <div class="tx-line you"><span class="who">YOU</span><span>Show which threads are opening, without moving the list.</span></div>
+        <div class="fold">▸ thought twice · read 6 files · ran 2 tests</div>
+        <div class="tx-line"><span class="who">CNP014</span><span>Plan: add an <span class="mono">opening</span> state to each entry, draw it as a blinking holder, keep row height fixed.</span></div>
+        <div class="ask">
+          <div class="q">Approve the plan?</div>
+          Three files in <span class="mono">apps/app</span>, one test.
+          <div class="btns"><span class="btn pri">APPROVE</span><span class="btn">CHANGE IT</span></div>
+        </div>
+      </div>
+      <div class="composer">
+        <div class="ph">Steer this mission…</div>
+        <div class="foot"><span><span class="pick">Claude Code</span> · <span class="pick">Opus</span> · <span class="pick">high</span></span><span class="btn pri">SEND</span></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ================= building blocks ================= -->
+  <h3 class="sec">THE KIT</h3>
+  <div class="grid">
+    <div class="sheet">
+      <h6>CONSOLE, PAPER, HOLDERS</h6>
+      <div class="sw">
+        <div><i style="background:var(--console)"></i>console</div>
+        <div><i style="background:var(--buff)"></i>strip</div>
+        <div><i style="background:var(--scope)"></i>scope · live</div>
+        <div><i style="background:var(--blue)"></i>Running</div>
+        <div><i style="background:var(--red)"></i>Attention</div>
+        <div><i style="background:var(--yellow)"></i>Waiting</div>
+        <div><i style="background:var(--green)"></i>Done</div>
+        <div><i style="background:var(--grey)"></i>Failed</div>
+      </div>
+      <div class="from">State is the holder's color and the bay it sits in, readable from across the room. Phosphor green is only for what is on the scope right now.</div>
+    </div>
+    <div class="sheet">
+      <h6>TYPE AND STRIPS</h6>
+      <div style="font:700 24px var(--sans);letter-spacing:.08em">MISSIONS</div>
+      <div style="font-weight:700;margin-top:4px">Thread opening indicators</div>
+      <div class="mono" style="color:var(--faint)">CNP014 · Claude/Opus · feat/indicators</div>
+      <ul class="rules" style="margin-top:9px">
+        <li>B612 and B612 Mono, the faces Airbus drew for cockpit screens: built to be read tired, fast, and at a glance.</li>
+        <li>Grease pencil (Permanent Marker) only for marks a person would make: circles, slashes, a word.</li>
+      </ul>
+    </div>
+    <div class="sheet">
+      <h6>SETTINGS, ON THE PANEL</h6>
+      <div class="field"><div class="n">HARNESS</div><div class="select">Claude Code <small>signed in ⌄</small></div></div>
+      <div class="field"><div class="n">DEFAULT MODEL</div><div class="select">Fable <small>⌄</small></div></div>
+      <div class="field"><div class="n">DEFAULT EFFORT</div><div class="keys"><span>LOW</span><span>MED</span><span class="on">HIGH</span><span>XHI</span><span>MAX</span></div></div>
+    </div>
+
+    <div class="sheet">
+      <h6>INTEL, AS NOTAMS</h6>
+      <div class="notam"><b>RULE</b> NEVER PUSH TO MAIN WITHOUT ASKING · GLOBAL · PERM</div>
+      <div class="notam f1">PREFERS EFFECT LAYERS OVER CLASSES · WS · EXPIRING</div>
+      <div class="notam f2">RELAY PORT 8787 · DORMANT</div>
+      <div class="from">Notices to agents: they carry a scope and an expiry, and expired ones are struck (Rerun's fading by kind; souls.house's honest skips).</div>
+    </div>
+    <div class="sheet">
+      <h6>TRACE, AS A RADAR TRACK</h6>
+      <div class="track">
+        <i style="left:20px;top:80px;opacity:.3"></i><i style="left:60px;top:66px;opacity:.45"></i><i style="left:104px;top:56px;opacity:.6"></i><i style="left:150px;top:40px;opacity:.8"></i><i style="left:200px;top:30px;box-shadow:0 0 8px var(--scope)"></i>
+        <span style="left:14px;top:88px">read entries.ts</span><span style="left:74px;top:72px">asked: edit outside</span><span style="left:178px;top:12px">ran bun test · 2 failed</span>
+      </div>
+      <div class="from">Every run leaves a track you can replay point by point (Timon's idea, as a radar playback).</div>
+    </div>
+    <div class="sheet">
+      <h6>CHANGES, THEN CLEARED TO LAND</h6>
+      <div class="diffrow"><span>apps/app/src/entries.ts</span><span><span class="add">+120</span> <span class="del">−0</span></span></div>
+      <div class="diffrow"><span>apps/app/src/conversation.tsx</span><span><span class="add">+42</span> <span class="del">−30</span></span></div>
+      <div class="diffrow"><span>packages/contracts/src/records.ts</span><span><span class="add">+6</span> <span class="del">−2</span></span></div>
+      <div style="display:flex;gap:8px;margin-top:10px"><span class="btn pri">LAND NOW</span><span class="btn">HAND OVER…</span></div>
+      <div class="from">A handover is what controllers do between sectors: the strip and the whole history pass on (Delta's handover; intentic's Land).</div>
+    </div>
+
+    <div class="sheet">
+      <h6>EMPTY: FREQUENCY QUIET</h6>
+      <div class="empty">
+        <svg height="74" viewBox="0 0 74 74" width="74" >
+          <circle cx="37" cy="37" fill="#0b1711" r="35"/><circle cx="37" cy="37" fill="none" r="22" stroke="#2f5b39"/><circle cx="37" cy="37" fill="none" r="11" stroke="#2f5b39"/>
+          <path d="M37 37 L 37 2 A 35 35 0 0 1 64 15 Z" fill="#79e08f" opacity=".3"/>
+        </svg>
+        <p>NOTHING NEEDS YOU · SCOPE CLEAR</p>
+      </div>
+    </div>
+    <div class="sheet">
+      <h6>ASKING, FOR CASUAL USERS</h6>
+      <div class="ask">
+        <div class="q">OpenCode wants to edit <span class="mono">~/notes/todo.md</span></div>
+        It's outside the <b>canopy</b> workspace.
+        <div class="btns"><span class="btn pri">ALLOW ONCE</span><span class="btn">ALWAYS HERE</span><span class="btn">NO</span></div>
+      </div>
+      <div class="from">Plain words; only the REQUEST tag is radio talk (OpenBot's permission asks).</div>
+    </div>
+    <div class="sheet">
+      <h6>DEVICES AND PAIRING</h6>
+      <div class="notam">MACBOOK PRO · ONLINE · 3 MISSIONS</div>
+      <div class="notam">IPHONE · PAIRED OVER RELAY</div>
+      <div class="squawk">SQUAWK K72Q</div>
+      <div class="from">A new device squawks a code you read back, as a pilot does (intentic's Devices page; Paseo's encrypted relay).</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
