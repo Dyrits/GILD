@@ -11,6 +11,7 @@ import { IntelIcon, IntelScreen } from "./intel";
 import { JournalScreen } from "./journal";
 import { MissionEndingActions, MissionTitle } from "./missionActions";
 import { useHasSidebar } from "./sidebar";
+import { CanopyArch } from "./sketches";
 import { styles } from "./styles";
 import { ChatterNotices, DeleteThreadAction } from "./threadActions";
 import { OpenThreadForm, ThreadTree } from "./threadTree";
@@ -264,53 +265,57 @@ export function Conversation({
       />
     );
   }
+  // The mission opens as a canopy over the page: an arched top above a sheet ruled off in ink.
   return (
-    <View style={styles.screen}>
-      <View style={styles.header}>
-        {!hasSidebar && (
-          <Pressable onPress={onBack}>
-            <Text style={styles.link}>← Missions</Text>
-          </Pressable>
-        )}
-        {data ? (
-          <MissionTitle client={client} key={data.mission.title} mission={data.mission} />
-        ) : (
-          <View style={styles.flex} />
-        )}
-        <Pressable onPress={() => setIsJournalOpen(true)}>
-          <Text style={styles.link}>Journal</Text>
-        </Pressable>
-        {data && <BudgetMeters onPress={() => setBudgetScope("Mission")} use={data.mission.budget} />}
-        <Pressable onPress={() => setBudgetScope("Mission")}>
-          <Text style={styles.link}>Budget</Text>
-        </Pressable>
-        {data && <MissionEndingActions client={client} mission={data.mission} />}
-        {data && <StateBadge state={data.mission.state} />}
-      </View>
-      {data && <Text style={styles.muted}>{usageDetail(data.mission.usage)}</Text>}
-      {error !== null && <Text style={styles.error}>{error}</Text>}
-      {data && (
-        <View style={[styles.flex, styles.split]}>
-          <ThreadTree
-            onSelect={setSelectedId}
-            selectedId={data.thread.id}
-            shouldShowAgentThreads={settings?.shouldShowAgentThreads ?? true}
-            threads={data.threads}
-          />
-          {detail && (
-            <ThreadPane
-              client={client}
-              detail={detail}
-              key={detail.thread.id}
-              onDeleted={() => (detail.thread.parentId === null ? onBack() : setSelectedId(detail.thread.parentId))}
-              onOpenBudget={() => setBudgetScope(detail.budgetStop?.scope ?? "Mission")}
-              onOpenIntel={() => setIntelThread({ id: detail.thread.id, title: detail.thread.title })}
-              onOpenMission={onOpenMission}
-              onSelect={setSelectedId}
-            />
+    <View style={styles.canopy}>
+      <CanopyArch />
+      <View style={[styles.screen, styles.canopySheet]}>
+        <View style={styles.header}>
+          {!hasSidebar && (
+            <Pressable onPress={onBack}>
+              <Text style={styles.link}>← Missions</Text>
+            </Pressable>
           )}
+          {data ? (
+            <MissionTitle client={client} key={data.mission.title} mission={data.mission} />
+          ) : (
+            <View style={styles.flex} />
+          )}
+          <Pressable onPress={() => setIsJournalOpen(true)}>
+            <Text style={styles.link}>Journal</Text>
+          </Pressable>
+          {data && <BudgetMeters onPress={() => setBudgetScope("Mission")} use={data.mission.budget} />}
+          <Pressable onPress={() => setBudgetScope("Mission")}>
+            <Text style={styles.link}>Budget</Text>
+          </Pressable>
+          {data && <MissionEndingActions client={client} mission={data.mission} />}
+          {data && <StateBadge state={data.mission.state} />}
         </View>
-      )}
+        {data && <Text style={styles.muted}>{usageDetail(data.mission.usage)}</Text>}
+        {error !== null && <Text style={styles.error}>{error}</Text>}
+        {data && (
+          <View style={[styles.flex, styles.split]}>
+            <ThreadTree
+              onSelect={setSelectedId}
+              selectedId={data.thread.id}
+              shouldShowAgentThreads={settings?.shouldShowAgentThreads ?? true}
+              threads={data.threads}
+            />
+            {detail && (
+              <ThreadPane
+                client={client}
+                detail={detail}
+                key={detail.thread.id}
+                onDeleted={() => (detail.thread.parentId === null ? onBack() : setSelectedId(detail.thread.parentId))}
+                onOpenBudget={() => setBudgetScope(detail.budgetStop?.scope ?? "Mission")}
+                onOpenIntel={() => setIntelThread({ id: detail.thread.id, title: detail.thread.title })}
+                onOpenMission={onOpenMission}
+                onSelect={setSelectedId}
+              />
+            )}
+          </View>
+        )}
+      </View>
     </View>
   );
 }

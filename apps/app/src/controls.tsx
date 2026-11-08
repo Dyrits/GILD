@@ -1,6 +1,6 @@
 import type { MissionState, ThreadState } from "@canopy/contracts";
 import { type ReactNode, useState } from "react";
-import { Pressable, ScrollView, Switch, Text, TextInput, View } from "react-native";
+import { Pressable, Switch, Text, TextInput, View } from "react-native";
 import { styles } from "./styles";
 import { colors, stateTones } from "./theme";
 
@@ -20,99 +20,24 @@ export function Toggle({ onValueChange, value }: { onValueChange: (value: boolea
   );
 }
 
-/** A state as a soft tinted pill with a dot. */
-export function StateBadge({ state }: { state: ThreadState | MissionState }) {
-  const tone = stateTones[state];
-  return (
-    <View style={[styles.badge, { backgroundColor: tone.soft }]}>
-      <View style={[styles.badgeDot, { backgroundColor: tone.color }]} />
-      <Text style={[styles.badgeText, { color: tone.color }]}>{state}</Text>
-    </View>
-  );
-}
-
-/** One choice among a few options, shown as chips. */
-export function Choice<T extends string | null>({
-  accessibilityLabel,
-  options,
-  value,
-  label,
-  onChange,
-}: {
-  accessibilityLabel?: string;
-  options: ReadonlyArray<T>;
-  value: T;
-  label: (option: T) => string;
-  onChange: (option: T) => void;
-}) {
-  return (
-    <View accessibilityLabel={accessibilityLabel} style={styles.chips}>
-      {options.map((option) => (
-        <Pressable
-          key={String(option)}
-          onPress={() => onChange(option)}
-          style={[styles.chip, option === value && styles.chipSelected]}
-        >
-          <Text numberOfLines={1} style={[styles.chipText, option === value && styles.chipTextSelected]}>
-            {label(option)}
-          </Text>
-        </Pressable>
-      ))}
-    </View>
-  );
-}
+/** The glyph before a state that ends: a tick for Done, a cross for Failed; a dot for every other state. */
+const stateGlyphs: Partial<Record<ThreadState | MissionState, string>> = { Done: "✓", Failed: "✕" };
 
 /**
- * One choice among a few options, shown as a compact pill that opens its list below it, as a composer's
- * model and effort pickers are.
+ * A state as it is marked on paper: Attention highlighted, Done ticked, Failed crossed, the others a dot of their
+ * ink; no tinted pill.
  */
-export function Menu<T extends string | null>({
-  accessibilityLabel,
-  options,
-  value,
-  label,
-  onChange,
-}: {
-  accessibilityLabel: string;
-  options: ReadonlyArray<T>;
-  value: T;
-  label: (option: T) => string;
-  onChange: (option: T) => void;
-}) {
-  const [isOpen, setIsOpen] = useState(false);
+export function StateBadge({ state }: { state: ThreadState | MissionState }) {
+  const tone = stateTones[state];
+  const glyph = stateGlyphs[state] ?? null;
   return (
-    <View style={[styles.menu, isOpen && styles.menuOpen]}>
-      <Pressable
-        accessibilityLabel={accessibilityLabel}
-        accessibilityRole="button"
-        onPress={() => setIsOpen(!isOpen)}
-        style={[styles.menuButton, isOpen && styles.menuButtonOpen]}
-      >
-        <Text numberOfLines={1} style={styles.menuButtonText}>
-          {label(value)}
-        </Text>
-        <Text style={styles.menuCaret}>▾</Text>
-      </Pressable>
-      {isOpen && (
-        <ScrollView style={styles.menuList}>
-          {options.map((option) => (
-            <Pressable
-              accessibilityRole="menuitem"
-              key={String(option)}
-              onPress={() => {
-                onChange(option);
-                setIsOpen(false);
-              }}
-              style={[styles.menuItem, option === value && styles.menuItemSelected]}
-            >
-              <Text numberOfLines={1} style={[styles.menuItemText, option === value && styles.chipTextSelected]}>
-                {label(option)}
-              </Text>
-              {option === value && <Text style={styles.chipTextSelected}>✓</Text>}
-            </Pressable>
-          ))}
-        </ScrollView>
+    <View style={[styles.badge, state === "Attention" && { backgroundColor: tone.soft }]}>
+      {glyph === null ? (
+        <View style={[styles.badgeDot, { backgroundColor: tone.color }]} />
+      ) : (
+        <Text style={[styles.badgeText, { color: tone.color }]}>{glyph}</Text>
       )}
+      <Text style={[styles.badgeText, { color: tone.color }]}>{state}</Text>
     </View>
   );
 }

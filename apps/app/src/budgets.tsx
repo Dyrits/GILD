@@ -9,9 +9,9 @@ import {
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import type { ServiceClient } from "./client";
-import { Choice } from "./controls";
 import { timeOf } from "./formatting";
 import { budgetUseTextOf, meterLevelOf, raisedLimitsOf, tokenCountOf } from "./labels";
+import { Choice } from "./pickers";
 import { styles } from "./styles";
 import { colors } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";

@@ -1031,3 +1031,31 @@ Validation:
 - `bun run typecheck`, `bun run check`, `git diff --check`, and the web export passed.
 - The app was driven in the window with the fake harness; screenshots are in the proof.
 - Not verified: live harnesses (no harness-specific path changed).
+
+## CHG-0068 · 2026-11-08 · Sketchbook look and mission board
+
+Type: Code
+Event: Delivery
+Scope: App (theme, shared controls, dashboard, sidebar, mission view, Settings, Intel)
+
+Summary: the app takes the Sketchbook Board art direction (`documentation/art-direction/2026-11-08-sketchbook-board.html`), chosen by the owner over the four directions of the same day.
+- Theme: ink on warm paper, one blue ink, a highlighter for Attention; 1.5px ink outlines, hand-cut corners, flat offset shadows. Caveat (bundled through `@expo-google-fonts/caveat`) for headings and margin notes only.
+- No more chip rows: `Choice` is a segmented control up to three options and a drop-down field past that; effort is a line of stops (`Steps`); composer pickers are underlined words. `Choice`, `Menu`, and `Steps` moved to `pickers.tsx`.
+- Dashboard: the state filter is replaced by a board of Attention (with Failed), Running (with Waiting and Idle), and Done columns; the workspace filter is a breadcrumb menu. Columns stack below 720 points of width.
+- Canopy drawings (`react-native-svg`): the logo, the mission view's arched top, and the empty board.
+- States read as marks: Attention highlighted and circled, Done ticked, Failed crossed.
+
+Not done from the mockup, for lack of data or because the conversation is too wide to dock: harness, model, branch, and diff stats on cards; plan usage in the rail; the mission docked beside the board; trace, Changes tab, and Land.
+
+Asked by the owner on 2026-11-08. Not yet accepted by the owner.
+
+References:
+- apps/app/src/theme.ts, styles.ts, pickers.tsx, board.tsx, boardColumns.ts, sketches.tsx, dashboard.tsx, sidebar.tsx, runners.tsx, intel.tsx, conversation.tsx, controls.tsx, App.tsx
+- apps/app/test/boardColumns.test.ts
+- documentation/verification/2026-11-08-sketchbook-look/
+
+Validation:
+- `bun run test` passed 403 with 10 skipped; 4 tests are new.
+- `bun run typecheck` and `bun run check` passed (the art-direction mockups are excluded from Biome).
+- Driven in the Electron window with the fake harness: empty board, board with a mission, mission view, Settings, Intel (screenshots in the verification folder).
+- Not verified: native builds; the Attention circle and Done column with real missions in those states.

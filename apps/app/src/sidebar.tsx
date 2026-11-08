@@ -1,16 +1,14 @@
 import type { MissionId, MissionSummary } from "@canopy/contracts";
 import { createContext, type ReactNode, useContext } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import type { ServiceClient } from "./client";
 import { allMissions } from "./queries";
-import { colors, fontSizes, fonts, radii, stateTones } from "./theme";
+import { CanopyMark } from "./sketches";
+import { colors, cut, fontSizes, fonts, ink, lift, radii, stateTones } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
 
 /** The places the sidebar leads to; a mission is opened from its list instead. */
 export type Place = "Missions" | "Intel" | "Archived" | "Settings";
-
-/** The app's logo, the same image as its icon. */
-const logo = require("../assets/logo.png");
 
 const SidebarShown = createContext(false);
 
@@ -95,7 +93,7 @@ function Sidebar({
   return (
     <View style={local.sidebar}>
       <View style={local.brand}>
-        <Image accessibilityLabel="Canopy logo" source={logo} style={local.logo} />
+        <CanopyMark />
         <Text style={local.brandText}>Canopy</Text>
       </View>
       <Pressable
@@ -141,8 +139,8 @@ function Sidebar({
 }
 
 /**
- * The window's frame: on a wide window the sidebar on a grey frame with the content on a raised white panel,
- * as OpenBot lays out its window; on a narrow one the content alone.
+ * The window's frame: on a wide window the sidebar on its own tinted paper, ruled off from the content by an ink
+ * line; on a narrow one the content alone.
  */
 export function Shell(props: Parameters<typeof Sidebar>[0] & { children: ReactNode }) {
   const { width } = useWindowDimensions();
@@ -159,63 +157,55 @@ export function Shell(props: Parameters<typeof Sidebar>[0] & { children: ReactNo
 
 const local = StyleSheet.create({
   attention: { backgroundColor: colors.warning, borderRadius: radii.pill, height: 7, width: 7 },
-  brand: { alignItems: "center", flexDirection: "row", gap: 8, paddingBottom: 14, paddingHorizontal: 8, paddingTop: 6 },
-  brandText: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.base, fontWeight: "700" },
+  brand: { alignItems: "center", flexDirection: "row", gap: 8, paddingBottom: 12, paddingHorizontal: 8, paddingTop: 4 },
+  brandText: { color: colors.text, fontFamily: fonts.hand, fontSize: 28, lineHeight: 32 },
   dot: { borderRadius: radii.pill, height: 7, marginHorizontal: 3, width: 7 },
   empty: { color: colors.textDim, fontFamily: fonts.sans, fontSize: fontSizes.md, paddingHorizontal: 10 },
   flex: { flex: 1 },
-  footer: { borderColor: colors.border, borderTopWidth: 1, paddingTop: 8 },
+  footer: { borderColor: colors.border, borderTopWidth: 1.5, paddingTop: 8 },
   frame: { backgroundColor: colors.frame, flex: 1, flexDirection: "row" },
   glyph: { color: colors.textMuted, fontSize: fontSizes.md, textAlign: "center", width: 16 },
-  group: { gap: 1 },
+  group: { gap: 2 },
   item: {
+    ...cut,
     alignItems: "center",
-    borderRadius: radii.md,
+    borderColor: "transparent",
+    borderWidth: 1.5,
     flexDirection: "row",
     gap: 8,
     paddingHorizontal: 8,
-    paddingVertical: 6,
+    paddingVertical: 5,
   },
   itemHovered: { backgroundColor: colors.controlHover },
-  itemSelected: { backgroundColor: colors.controlActive },
+  itemSelected: { ...ink, ...lift, backgroundColor: colors.canvas },
   itemText: { color: colors.textSecondary, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.md },
-  logo: { borderRadius: radii.md, height: 24, width: 24 },
   missionText: { fontSize: fontSizes.md },
-  narrow: { backgroundColor: colors.canvas, flex: 1 },
+  narrow: { backgroundColor: colors.paper, flex: 1 },
   newMission: {
-    backgroundColor: colors.control,
-    borderColor: colors.border,
-    borderRadius: radii.md,
-    borderWidth: 1,
-    marginBottom: 10,
+    ...ink,
+    ...cut,
+    ...lift,
+    backgroundColor: colors.text,
+    marginBottom: 12,
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
-  newMissionText: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.md, fontWeight: "500" },
+  newMissionText: { color: colors.onAccent, fontFamily: fonts.sans, fontSize: fontSizes.md, fontWeight: "600" },
   panel: {
-    backgroundColor: colors.canvas,
-    borderColor: colors.border,
-    borderRadius: radii.lg,
-    borderWidth: 1,
+    backgroundColor: colors.paper,
+    borderColor: colors.borderStrong,
+    borderLeftWidth: 1.5,
     flex: 1,
-    marginBottom: 8,
-    marginRight: 8,
-    marginTop: 8,
     overflow: "hidden",
-    shadowColor: "#000",
-    shadowOffset: { height: 1, width: 0 },
-    shadowOpacity: 0.04,
-    shadowRadius: 6,
   },
   section: {
-    color: colors.textDim,
-    fontFamily: fonts.sans,
-    fontSize: fontSizes.sm,
-    fontWeight: "600",
-    paddingBottom: 4,
+    color: colors.textMuted,
+    fontFamily: fonts.hand,
+    fontSize: 20,
+    paddingBottom: 2,
     paddingHorizontal: 8,
-    paddingTop: 16,
+    paddingTop: 14,
   },
-  sidebar: { gap: 2, padding: 10, width: 248 },
+  sidebar: { gap: 2, padding: 12, width: 236 },
   textSelected: { color: colors.text, fontWeight: "600" },
 });

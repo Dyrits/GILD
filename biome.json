@@ -19,7 +19,7 @@
     }
   },
   "files": {
-    "includes": ["**", "!**/node_modules", "!**/dist", "!**/.expo", "!**/*.md"]
+    "includes": ["**", "!**/node_modules", "!**/dist", "!**/.expo", "!**/*.md", "!documentation/art-direction"]
   },
   "formatter": {
     "indentStyle": "space",

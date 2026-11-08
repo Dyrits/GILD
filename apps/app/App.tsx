@@ -1,4 +1,5 @@
 import type { MissionId } from "@canopy/contracts";
+import { Caveat_700Bold, useFonts } from "@expo-google-fonts/caveat";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { ServiceClient } from "./src/client";
@@ -29,13 +30,16 @@ export default function App() {
   const [isIntelOpen, setIsIntelOpen] = useState(false);
   // Counts openings from the sidebar, so choosing the open mission again goes back to its threads.
   const [openCount, setOpenCount] = useState(0);
+  // Caveat's handwriting draws headings; until it loads (or fails, falling back to the system font) the
+  // connecting screen stays, so headings never jump from one face to another.
+  const [areFontsLoaded, fontError] = useFonts({ Caveat_700Bold });
   useAttentionNotice(client);
 
   useEffect(() => {
     ServiceClient.connect().then(setClient, (error: Error) => setFailure(error.message));
   }, []);
 
-  if (client === null) {
+  if (client === null || (!areFontsLoaded && fontError === null)) {
     return (
       <View style={styles.center}>
         <Text style={styles.connecting}>{failure ?? "Connecting to the local service…"}</Text>

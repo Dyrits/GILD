@@ -7,7 +7,7 @@ import {
 import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import type { ServiceClient } from "./client";
-import { Choice } from "./controls";
+import { Choice } from "./pickers";
 import { allMissions } from "./queries";
 import { QuestionLine } from "./questions";
 import { styles } from "./styles";

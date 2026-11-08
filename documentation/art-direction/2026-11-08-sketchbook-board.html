@@ -1,0 +1,338 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Canopy — Sketchbook Board (direction C, whole app)</title>
+<link href="https://fonts.googleapis.com" rel="preconnect" >
+<link href="https://fonts.googleapis.com/css2?family=Caveat:wght@500;700&family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --paper: #fbf8f1;      /* page */
+    --sheet: #fffdf8;      /* cards, panels */
+    --ink: #24221e;        /* text, outlines */
+    --pencil: #8a8478;     /* secondary text, rules */
+    --rule: #e6e0d3;       /* faint lines */
+    --blue: #2b5a8a;       /* the one accent: blue ink (Running, links, primary) */
+    --blue-wash: #dde8f3;
+    --marker: #f6d36b;     /* highlighter: Attention */
+    --green: #3f7a52;      /* Done */
+    --red: #b4412f;        /* Failed */
+    --violet: #6b5aa6;     /* Waiting */
+    --hand: "Caveat", "Bradley Hand", cursive;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, sans-serif;
+    --mono: ui-monospace, SFMono-Regular, Menlo, monospace;
+    /* A hand-cut corner: four slightly different radii. Works in React Native too. */
+    --cut: 13px 10px 12px 9px;
+    --lift: 2px 2px 0 rgba(36, 34, 30, .14);
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font: 14px/1.45 var(--sans); color: var(--ink); background: #e8e3d8; }
+  .page { max-width: 1320px; padding: 28px 32px 60px; margin: 0 auto; }
+  h1.title { margin: 0; font: 700 34px var(--hand); }
+  .intro { max-width: 860px; margin: 4px 0 22px; color: #57534b; }
+  .hand { font-family: var(--hand); }
+  .mono { font-family: var(--mono); font-size: 12px; }
+
+  /* ---------- the window ---------- */
+  .window { display: grid; grid-template-columns: 210px 1fr 360px; min-height: 690px; overflow: hidden;
+    background: var(--paper);
+    background-image: radial-gradient(circle, #ddd6c6 1px, transparent 1.2px); background-size: 18px 18px;
+    border: 1.5px solid var(--ink); border-radius: 18px; box-shadow: 4px 5px 0 rgba(36,34,30,.18); }
+
+  /* rail */
+  .rail { display: flex; flex-direction: column; gap: 18px; padding: 16px 14px; background: #f5f0e4; border-right: 1.5px solid var(--ink); }
+  .brand { display: flex; gap: 8px; align-items: center; font: 700 26px var(--hand); }
+  .rail h5 { margin: 0 0 6px; font: 700 18px var(--hand); color: var(--pencil); }
+  .rail a { display: flex; justify-content: space-between; padding: 4px 8px; font-size: 13px; color: var(--ink); text-decoration: none; border-radius: var(--cut); }
+  .rail a.on { padding: 3px 7px; background: var(--sheet); border: 1.5px solid var(--ink); box-shadow: var(--lift); }
+  .rail a small { color: var(--pencil); }
+  .usage { margin-top: auto; font-size: 12px; }
+  .bar { height: 9px; margin: 3px 0 8px; overflow: hidden; border: 1.5px solid var(--ink); border-radius: 6px; }
+  .bar i { display: block; height: 100%;
+    background: repeating-linear-gradient(-45deg, var(--ink) 0 1.5px, transparent 1.5px 5px); }
+
+  /* board */
+  .board { padding: 18px 20px; }
+  .boardhead { display: flex; align-items: baseline; justify-content: space-between; margin-bottom: 14px; }
+  .crumb { font-size: 13px; color: var(--pencil); }
+  .crumb b { font-weight: 600; color: var(--ink); border-bottom: 1.5px dashed var(--pencil); }
+  .boardhead h2 { margin: 0; font: 700 30px var(--hand); }
+  .new { padding: 6px 12px; font: 600 13px var(--sans); color: var(--paper); background: var(--ink); border-radius: var(--cut); box-shadow: var(--lift); }
+  .cols { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+  .col h4 { display: flex; gap: 6px; align-items: baseline; margin: 0 0 8px; font: 700 21px var(--hand); }
+  .col h4 small { font: 600 12px var(--sans); color: var(--pencil); }
+  .hl { padding: 0 3px; background: linear-gradient(transparent 45%, var(--marker) 45%, var(--marker) 88%, transparent 88%); }
+  .card { position: relative; padding: 10px 11px; margin-bottom: 10px; font-size: 13px; background: var(--sheet); border: 1.5px solid var(--ink); border-radius: var(--cut); box-shadow: var(--lift); }
+  .card.open { outline: 2.5px solid var(--blue); outline-offset: 3px; }
+  .card .t { margin-bottom: 4px; font-weight: 600; }
+  .card .who { font-size: 12px; color: var(--pencil); }
+  .card .meta { display: flex; gap: 10px; margin-top: 7px; font-size: 11.5px; color: var(--pencil); }
+  .add { color: var(--green); } .del { color: var(--red); }
+  .card .note { margin-top: 4px; font: 600 17px var(--hand); color: #8a5a00; }
+  .card.att::before { position: absolute; inset: -7px -6px; pointer-events: none; content: ""; border: 2px solid #d9a91c; border-radius: 22px 30px 18px 26px / 26px 18px 30px 20px; transform: rotate(-0.8deg); }
+  .card.done { opacity: .78; }
+  .tick { font: 700 18px var(--hand); color: var(--green); }
+  .threads { display: flex; gap: 4px; margin-top: 7px; }
+  .threads span { width: 18px; height: 6px; border: 1.2px solid var(--ink); border-radius: 3px; }
+  .threads .r { background: var(--blue); border-color: var(--blue); }
+  .threads .w { background: var(--violet); border-color: var(--violet); }
+  .threads .d { background: var(--green); border-color: var(--green); }
+  .marg { margin-top: 6px; font: 600 19px var(--hand); color: var(--pencil); }
+
+  /* the canopy: docked mission panel, arched top */
+  .canopy { display: flex; flex-direction: column; background: var(--sheet); border-left: 1.5px solid var(--ink); }
+  .arch { position: relative; height: 40px; background: var(--paper); }
+  .arch svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+  .canopy .head { padding: 2px 16px 10px; border-bottom: 1.5px solid var(--rule); }
+  .canopy .head .t { font: 700 24px var(--hand); line-height: 1.1; }
+  .canopy .head .sub { display: flex; justify-content: space-between; margin-top: 3px; font-size: 12px; color: var(--pencil); }
+  .tabs { display: flex; gap: 14px; padding: 8px 16px 0; font-size: 13px; color: var(--pencil); }
+  .tabs .on { padding-bottom: 6px; font-weight: 600; color: var(--ink); box-shadow: inset 0 -2.5px 0 var(--blue); }
+  .feed { display: flex; flex: 1; flex-direction: column; gap: 10px; padding: 12px 16px; font-size: 13px;
+    background-image: repeating-linear-gradient(transparent 0 23px, #efe9dc 23px 24px); }
+  .msg.you { align-self: flex-end; max-width: 80%; padding: 7px 10px; background: var(--blue-wash); border-radius: 12px 12px 3px 12px; }
+  .fold { font-size: 12px; color: var(--pencil); }
+  .ask { padding: 10px; background: #fff8dc; border: 1.5px solid var(--ink); border-radius: var(--cut); box-shadow: var(--lift); }
+  .ask .q { margin-bottom: 4px; font-weight: 600; }
+  .ask .btns { display: flex; gap: 8px; margin-top: 8px; }
+  .btn { padding: 4px 10px; font: 600 12.5px var(--sans); background: var(--sheet); border: 1.5px solid var(--ink); border-radius: var(--cut); }
+  .btn.pri { color: var(--paper); background: var(--ink); }
+  .composer { padding: 10px; margin: 0 12px 12px; background: var(--sheet); border: 1.5px solid var(--ink); border-radius: var(--cut); box-shadow: var(--lift); }
+  .composer .ph { margin-bottom: 14px; font-size: 13px; color: var(--pencil); }
+  .composer .foot { display: flex; justify-content: space-between; font-size: 12px; }
+  .pick { border-bottom: 1.5px dashed var(--pencil); }
+
+  /* ---------- sheets below ---------- */
+  h3.sec { margin: 40px 0 10px; font: 700 28px var(--hand); }
+  .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 18px; }
+  .sheet { padding: 16px; background: var(--sheet); border: 1.5px solid var(--ink); border-radius: var(--cut); box-shadow: 3px 3px 0 rgba(36,34,30,.12); }
+  .sheet h6 { margin: 0 0 10px; font: 700 20px var(--hand); }
+  .sheet .from { margin-top: 10px; font-size: 11.5px; color: var(--pencil); }
+  .sw { display: flex; flex-wrap: wrap; gap: 8px; }
+  .sw div { width: 66px; font-size: 11px; color: var(--pencil); }
+  .sw i { display: block; height: 34px; margin-bottom: 3px; border: 1.5px solid var(--ink); border-radius: var(--cut); }
+  .intel { padding: 7px 9px; margin-bottom: 7px; font-size: 12.5px; border: 1.5px solid var(--ink); border-radius: var(--cut); }
+  .intel small { color: var(--pencil); }
+  .intel.fade1 { border-style: dashed; opacity: .55; }
+  .intel.fade2 { border-style: dotted; opacity: .3; }
+  .trace { position: relative; padding-left: 18px; font-size: 12.5px; }
+  .trace::before { position: absolute; top: 4px; bottom: 4px; left: 5px; content: ""; border-left: 1.5px dashed var(--pencil); }
+  .trace div { position: relative; margin-bottom: 7px; }
+  .trace div::before { position: absolute; top: 5px; left: -17px; width: 8px; height: 8px; content: ""; background: var(--sheet); border: 1.5px solid var(--ink); border-radius: 50%; }
+  .trace div.now::before { background: var(--blue); border-color: var(--blue); }
+  .diffrow { display: flex; justify-content: space-between; padding: 4px 0; font-size: 12.5px; border-bottom: 1px solid var(--rule); }
+  .field { margin-bottom: 12px; font-size: 13px; }
+  .field .n { margin-bottom: 4px; font-size: 12px; color: var(--pencil); }
+  .select { display: flex; justify-content: space-between; padding: 6px 9px; border: 1.5px solid var(--ink); border-radius: var(--cut); }
+  .select small { color: var(--pencil); }
+  .slider { position: relative; height: 22px; }
+  .slider .tr { position: absolute; top: 9px; right: 0; left: 0; border-top: 1.5px solid var(--ink); }
+  .slider .k { position: absolute; top: 2px; left: calc(50% - 9px); width: 18px; height: 18px; background: var(--blue); border: 1.5px solid var(--ink); border-radius: 50%; }
+  .slider .st { position: absolute; top: 5px; width: 1.5px; height: 10px; background: var(--ink); }
+  .ticks { display: flex; justify-content: space-between; font-size: 11px; color: var(--pencil); }
+  .ticks b { color: var(--blue); }
+  .empty { padding: 6px 0; text-align: center; }
+  .empty p { margin: 6px 0 0; font: 600 20px var(--hand); color: var(--pencil); }
+  ul.rules { padding-left: 18px; margin: 0; font-size: 13px; }
+  ul.rules li { margin-bottom: 5px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1 class="title">Canopy — Sketchbook Board</h1>
+  <p class="intro">Direction C applied to the whole app. Work is laid out by what needs you, on paper rather than glass. The canopy appears in only three places: the logo, the docked mission panel's arched top (it opens over the board like a cockpit canopy), and the empty state. Everything else stays plain, ink on paper. Handwriting is for headings and margin notes only; all data stays in a plain sans so it reads at a glance.</p>
+
+  <!-- ================= the main window ================= -->
+  <div class="window">
+    <aside class="rail">
+      <div class="brand">
+        <svg fill="none" height="24" stroke="#24221e" stroke-linecap="round" stroke-width="1.8" viewBox="0 0 30 24" width="30" >
+          <path d="M3 19 C 4 7, 26 5, 27 19"/><path d="M1.5 19.5 L 28.5 19.2"/><path d="M15 6.5 L 15.4 19"/><circle cx="3" cy="19.3" fill="#24221e" r="1.4" />
+        </svg>
+        Canopy
+      </div>
+      <div>
+        <h5>Workspaces</h5>
+        <a class="on" href="#">canopy <small>4</small></a>
+        <a href="#">fern-site <small>1</small></a>
+        <a href="#">scratch <small></small></a>
+      </div>
+      <div>
+        <h5>Places</h5>
+        <a href="#">Dashboard</a><a href="#">Routines</a><a href="#">Intel</a><a href="#">Journal</a><a href="#">Devices</a>
+      </div>
+      <div class="usage">
+        <h5>Plans today</h5>
+        Claude <span style="float:right;color:var(--pencil)">62%</span><div class="bar"><i style="width:62%"></i></div>
+        Codex <span style="float:right;color:var(--pencil)">18%</span><div class="bar"><i style="width:18%"></i></div>
+        Budget <span style="float:right;color:var(--pencil)">$7.40 / $20</span><div class="bar"><i style="width:37%"></i></div>
+      </div>
+    </aside>
+
+    <main class="board">
+      <div class="boardhead">
+        <div>
+          <div class="crumb">All workspaces › <b>canopy ⌄</b></div>
+          <h2>Missions</h2>
+        </div>
+        <span class="new">+ New mission</span>
+      </div>
+      <div class="cols">
+        <div class="col">
+          <h4><span class="hl">Attention</span> <small>2</small></h4>
+          <div class="card att">
+            <div class="t">Carry on after a refusal</div>
+            <div class="who">OpenCode · Sonnet · <span class="mono">fix/refusals</span></div>
+            <div class="note">wants to edit outside the workspace</div>
+          </div>
+          <div class="card">
+            <div class="t">Budget alerts</div>
+            <div class="who">Codex · high</div>
+            <div class="meta"><span>folder missing</span></div>
+          </div>
+        </div>
+        <div class="col">
+          <h4>Running <small>2</small></h4>
+          <div class="card open">
+            <div class="t">Thread opening indicators</div>
+            <div class="who">Claude Code · Opus · <span class="mono">feat/indicators</span></div>
+            <div class="threads"><span class="r"></span><span class="r"></span><span class="w"></span><span class="d"></span></div>
+            <div class="meta"><span>$1.84</span><span class="add">+214</span><span class="del">−38</span><span>4 threads</span></div>
+          </div>
+          <div class="card">
+            <div class="t">Pairing over the relay</div>
+            <div class="who">Claude Code · Sonnet</div>
+            <div class="threads"><span class="r"></span></div>
+            <div class="meta"><span>$0.40</span><span class="add">+31</span><span class="del">−2</span></div>
+          </div>
+          <div class="marg">↳ 1 idle, 1 waiting</div>
+        </div>
+        <div class="col">
+          <h4>Done <small>5</small></h4>
+          <div class="card done"><div class="t"><span class="tick">✓</span> Five Low findings</div><div class="meta"><span>$3.10</span><span class="add">+120</span><span class="del">−88</span></div></div>
+          <div class="card done"><div class="t"><span class="tick">✓</span> Quote check</div><div class="meta"><span>$0.92</span></div></div>
+          <div class="marg">+ 3 more this week</div>
+        </div>
+      </div>
+    </main>
+
+    <section class="canopy">
+      <div class="arch">
+        <svg preserveAspectRatio="none" viewBox="0 0 360 40" ><path d="M0 40 C 40 4, 320 4, 360 40 Z" fill="#fffdf8" stroke="#24221e" stroke-width="1.5" vector-effect="non-scaling-stroke"/><path d="M180 13 L 180 40" stroke="#24221e" stroke-width="1.5" vector-effect="non-scaling-stroke"/></svg>
+      </div>
+      <div class="head">
+        <div class="t">Thread opening indicators</div>
+        <div class="sub"><span>Running · 4 threads · since <span class="mono">origin/main</span></span><span>Land ⌄</span></div>
+      </div>
+      <div class="tabs"><span class="on">Conversation</span><span>Changes <span class="add">+214</span></span><span>Trace</span><span>Intel</span></div>
+      <div class="feed">
+        <div class="msg you">Show which threads are opening, without moving the list.</div>
+        <div class="fold">▸ Thought twice, read 6 files, ran 2 tests</div>
+        <div>Plan: add an <span class="mono">opening</span> state to each entry, draw it as a pencil spinner, keep row height fixed.</div>
+        <div class="ask">
+          <div class="q">Approve the plan?</div>
+          Three files in <span class="mono">apps/app</span>, one test.
+          <div class="btns"><span class="btn pri">Approve</span><span class="btn">Change it</span></div>
+        </div>
+      </div>
+      <div class="composer">
+        <div class="ph">Steer this mission…</div>
+        <div class="foot"><span><span class="pick">Claude Code</span> · <span class="pick">Opus</span> · <span class="pick">high</span></span><span class="btn pri">Send</span></div>
+      </div>
+    </section>
+  </div>
+
+  <!-- ================= building blocks ================= -->
+  <h3 class="sec">The kit</h3>
+  <div class="grid">
+    <div class="sheet">
+      <h6>Paper, ink, and one blue</h6>
+      <div class="sw">
+        <div><i style="background:var(--paper)"></i>paper</div>
+        <div><i style="background:var(--sheet)"></i>sheet</div>
+        <div><i style="background:var(--ink)"></i>ink</div>
+        <div><i style="background:var(--pencil)"></i>pencil</div>
+        <div><i style="background:var(--blue)"></i>blue ink · Running</div>
+        <div><i style="background:var(--marker)"></i>marker · Attention</div>
+        <div><i style="background:var(--violet)"></i>Waiting</div>
+        <div><i style="background:var(--green)"></i>Done</div>
+        <div><i style="background:var(--red)"></i>Failed</div>
+      </div>
+      <div class="from">State is shown by how it's marked (highlighted, circled, ticked, faded), not by a row of colored pills.</div>
+    </div>
+    <div class="sheet">
+      <h6>Type and lines</h6>
+      <div class="hand" style="font-size:28px;font-weight:700;line-height:1">Missions</div>
+      <div style="font-weight:600;margin-top:6px">Thread opening indicators</div>
+      <div style="color:var(--pencil);font-size:12.5px">Claude Code · Opus · <span class="mono">feat/indicators</span></div>
+      <ul class="rules" style="margin-top:10px">
+        <li>Caveat for headings and margin notes; Inter for everything you read; mono for branches and paths.</li>
+        <li>1.5px ink outlines, hand-cut corners (four uneven radii), a flat 2px offset shadow: no blur, no gradients, no glass.</li>
+      </ul>
+    </div>
+    <div class="sheet">
+      <h6>Settings, no chips</h6>
+      <div class="field"><div class="n">Harness</div><div class="select">Claude Code <small>signed in ⌄</small></div></div>
+      <div class="field"><div class="n">Default model</div><div class="select">Fable <small>⌄</small></div></div>
+      <div class="field"><div class="n">Default effort</div>
+        <div class="slider"><div class="tr"></div><span class="st" style="left:0"></span><span class="st" style="left:25%"></span><span class="st" style="left:75%"></span><span class="st" style="left:calc(100% - 1.5px)"></span><div class="k"></div></div>
+        <div class="ticks"><span>low</span><span>medium</span><b>high</b><span>xhigh</span><span>max</span></div>
+      </div>
+    </div>
+
+    <div class="sheet">
+      <h6>Intel as index cards</h6>
+      <div class="intel"><b>Rule</b> · Never push to main without asking <small>· global</small></div>
+      <div class="intel fade1">Prefers Effect Layers over classes <small>· workspace · fading</small></div>
+      <div class="intel fade2">Relay port was 8787 <small>· dormant</small></div>
+      <div class="from">Fading memories literally fade, as pencil does (Rerun's fading by kind; souls.house's honest skips).</div>
+    </div>
+    <div class="sheet">
+      <h6>Trace, replayable</h6>
+      <div class="trace">
+        <div>Read <span class="mono">entries.ts</span></div>
+        <div>Asked: edit outside workspace</div>
+        <div class="now">Ran <span class="mono">bun test</span> · 2 failed</div>
+        <div style="color:var(--pencil)">Next step…</div>
+      </div>
+      <div class="from">Every run leaves a trace you can step through (Timon's idea, without its spaceship look).</div>
+    </div>
+    <div class="sheet">
+      <h6>Changes, then Land</h6>
+      <div class="diffrow"><span class="mono">apps/app/src/entries.ts</span><span><span class="add">+120</span> <span class="del">−0</span></span></div>
+      <div class="diffrow"><span class="mono">apps/app/src/conversation.tsx</span><span><span class="add">+42</span> <span class="del">−30</span></span></div>
+      <div class="diffrow"><span class="mono">packages/contracts/src/records.ts</span><span><span class="add">+6</span> <span class="del">−2</span></span></div>
+      <div class="btns" style="display:flex;gap:8px;margin-top:10px"><span class="btn pri">Land now</span><span class="btn">Hand over…</span></div>
+      <div class="from">Delta's "since origin/main" changes panel; intentic's Land button; Delta's full-history handover.</div>
+    </div>
+
+    <div class="sheet">
+      <h6>Empty: canopy closed</h6>
+      <div class="empty">
+        <svg fill="none" height="64" stroke="#24221e" stroke-linecap="round" stroke-width="1.8" viewBox="0 0 120 64" width="120" >
+          <path d="M8 50 C 12 18, 108 14, 112 50"/><path d="M4 51 L 116 50.5"/><path d="M60 16 L 60.5 50"/>
+          <path d="M26 34 q 6 -6 12 0" stroke="#8a8478"/><path d="M82 30 q 6 -5 12 1" stroke="#8a8478"/>
+        </svg>
+        <p>Nothing needs you. Canopy's closed.</p>
+      </div>
+    </div>
+    <div class="sheet">
+      <h6>Asking, for casual users</h6>
+      <div class="ask">
+        <div class="q">OpenCode wants to edit <span class="mono">~/notes/todo.md</span></div>
+        It's outside the <b>canopy</b> workspace.
+        <div class="btns"><span class="btn pri">Allow once</span><span class="btn">Always for edits here</span><span class="btn">No</span></div>
+      </div>
+      <div class="from">OpenBot's plain-language permission asks.</div>
+    </div>
+    <div class="sheet">
+      <h6>Devices and pairing</h6>
+      <div class="intel">MacBook Pro <small>· online · 3 missions</small></div>
+      <div class="intel">iPhone <small>· paired over relay</small></div>
+      <div class="hand" style="font-size:30px;letter-spacing:6px;text-align:center;margin-top:6px">K7 · 2Q · 9F</div>
+      <div class="from">intentic's Devices page; Paseo's encrypted relay. The pairing code is handwritten, to read aloud.</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

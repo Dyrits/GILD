@@ -14,6 +14,7 @@
     },
     "name": "Canopy",
     "orientation": "portrait",
+    "plugins": ["expo-font"],
     "slug": "canopy",
     "splash": {
       "backgroundColor": "#01081C",

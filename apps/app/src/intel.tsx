@@ -21,6 +21,7 @@ import {
   intelOriginLabelOf,
   intelProposalLineOf,
 } from "./labels";
+import { Choice } from "./pickers";
 import { useHasSidebar } from "./sidebar";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
@@ -274,31 +275,21 @@ export function IntelScreen({
               ))}
             </View>
           )}
-          <View style={[styles.chips, { marginVertical: 12 }]}>
-            {scopes.map((choice) => (
-              <Pressable
-                key={choice ?? "all"}
-                onPress={() => setScope(choice)}
-                style={[styles.chip, scope === choice && styles.chipSelected]}
-              >
-                <Text style={[styles.chipText, scope === choice && styles.chipTextSelected]}>
-                  {choice === null ? "All" : scopeNames[choice]}
-                </Text>
-              </Pressable>
-            ))}
-          </View>
-          <View style={[styles.chips, { marginBottom: 12 }]}>
-            {states.map((choice) => (
-              <Pressable
-                key={choice ?? "all"}
-                onPress={() => setState(choice)}
-                style={[styles.chip, state === choice && styles.chipSelected]}
-              >
-                <Text style={[styles.chipText, state === choice && styles.chipTextSelected]}>
-                  {choice === null ? "Any state" : choice}
-                </Text>
-              </Pressable>
-            ))}
+          <View style={[styles.filters, styles.raised]}>
+            <Choice
+              accessibilityLabel="Scope"
+              label={(choice) => (choice === null ? "All scopes" : scopeNames[choice])}
+              onChange={setScope}
+              options={scopes}
+              value={scope}
+            />
+            <Choice
+              accessibilityLabel="State"
+              label={(choice) => (choice === null ? "Any state" : choice)}
+              onChange={setState}
+              options={states}
+              value={state}
+            />
           </View>
           {data.intels.length === 0 && data.deleted.length === 0 && (
             <Text style={styles.muted}>{state === "Deleted" ? "No deleted intel." : "No intel here yet."}</Text>

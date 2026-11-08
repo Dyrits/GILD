@@ -8,9 +8,11 @@ import {
   type ModelChoice,
 } from "@canopy/contracts";
 import { useCallback, useEffect, useState } from "react";
+import { Text, View } from "react-native";
 import type { ServiceClient } from "./client";
-import { Choice, Menu } from "./controls";
 import { effortLabel, harnessLabels, modelLabelOf } from "./formatting";
+import { Choice, Menu, Steps } from "./pickers";
+import { styles } from "./styles";
 
 /** What a thread runs on: its harness, provider account (null for the computer's own sign-in), model, and effort. */
 export interface Runner {
@@ -66,7 +68,7 @@ export function RunnerPickers({
   harnesses: HarnessList | null;
   /** Whether the account can be chosen; Settings' defaults have none. */
   isAccountShown?: boolean;
-  /** Compact pills, as in a composer; chips otherwise. */
+  /** Compact underlined words, as in a composer; named fields otherwise. */
   isCompact: boolean;
   onChange: (runner: Runner) => void;
   value: Runner;
@@ -75,57 +77,111 @@ export function RunnerPickers({
   const models = harness?.models ?? [];
   const accounts = harness?.accounts ?? [];
   const accountIds = accounts.map((account) => account.id);
-  const Picker = isCompact ? Menu : Choice;
-  const ModelPicker = isCompact || modelIdsOf(harness, value.model).length > 8 ? Menu : Choice;
-  return (
-    <>
-      <Picker
-        accessibilityLabel="Harness"
-        label={(name: HarnessName) => {
-          const problem = harnesses?.harnesses.find((candidate) => candidate.name === name)?.problem ?? null;
-          return problem === null ? harnessLabels[name] : `${harnessLabels[name]} (not installed)`;
-        }}
-        onChange={(harnessName: HarnessName) =>
-          onChange(
-            harnessName === value.harness
-              ? value
-              : { accountId: null, effort: value.effort, harness: harnessName, model: "default" },
-          )
-        }
-        options={harnessNames}
-        value={value.harness}
-      />
-      {isAccountShown && accountIds.length > 1 && (
-        <Picker
-          accessibilityLabel="Account"
-          label={(id: AccountId | null) => {
-            const account = accounts.find((candidate) => candidate.id === id);
-            return account === undefined
-              ? "Removed account"
-              : account.signIn === "SignedOut"
-                ? `${account.label} (signed out)`
-                : account.label;
-          }}
-          onChange={(accountId: AccountId | null) => onChange({ ...value, accountId })}
-          options={accountIds.includes(value.accountId) ? accountIds : [...accountIds, value.accountId]}
-          value={value.accountId}
+  const harnessLabel = (name: HarnessName) => {
+    const problem = harnesses?.harnesses.find((candidate) => candidate.name === name)?.problem ?? null;
+    return problem === null ? harnessLabels[name] : `${harnessLabels[name]} (not installed)`;
+  };
+  const chooseHarness = (harnessName: HarnessName) =>
+    onChange(
+      harnessName === value.harness
+        ? value
+        : { accountId: null, effort: value.effort, harness: harnessName, model: "default" },
+    );
+  const accountLabel = (id: AccountId | null) => {
+    const account = accounts.find((candidate) => candidate.id === id);
+    return account === undefined
+      ? "Removed account"
+      : account.signIn === "SignedOut"
+        ? `${account.label} (signed out)`
+        : account.label;
+  };
+  const accountOptions = accountIds.includes(value.accountId) ? accountIds : [...accountIds, value.accountId];
+  const isAccountChosen = isAccountShown && accountIds.length > 1;
+  const modelOptions = modelIdsOf(harness, value.model);
+  if (isCompact) {
+    // In a composer, each picker is one underlined word that opens its list.
+    return (
+      <>
+        <Menu
+          accessibilityLabel="Harness"
+          label={harnessLabel}
+          onChange={chooseHarness}
+          options={harnessNames}
+          value={value.harness}
         />
+        {isAccountChosen && (
+          <Menu
+            accessibilityLabel="Account"
+            label={accountLabel}
+            onChange={(accountId: AccountId | null) => onChange({ ...value, accountId })}
+            options={accountOptions}
+            value={value.accountId}
+          />
+        )}
+        <Menu
+          accessibilityLabel="Model"
+          label={(id: ModelChoice) => modelLabelOf(id, models)}
+          onChange={(model: ModelChoice) => onChange({ ...value, model })}
+          options={modelOptions}
+          value={value.model}
+        />
+        <Menu
+          accessibilityLabel="Effort"
+          label={effortLabel}
+          onChange={(effort: EffortChoice) => onChange({ ...value, effort })}
+          options={EffortChoices.literals}
+          value={value.effort}
+        />
+      </>
+    );
+  }
+  // In a form, each picker is a named field; effort is an ordered scale, so it is a line of stops.
+  return (
+    <View style={styles.fields}>
+      <View style={styles.field}>
+        <Text style={styles.fieldName}>Harness</Text>
+        <Choice
+          accessibilityLabel="Harness"
+          label={harnessLabel}
+          onChange={chooseHarness}
+          options={harnessNames}
+          value={value.harness}
+        />
+      </View>
+      {isAccountChosen && (
+        <View style={styles.field}>
+          <Text style={styles.fieldName}>Account</Text>
+          <Menu
+            accessibilityLabel="Account"
+            isField
+            label={accountLabel}
+            onChange={(accountId: AccountId | null) => onChange({ ...value, accountId })}
+            options={accountOptions}
+            value={value.accountId}
+          />
+        </View>
       )}
-      {/* Past a few models, such as OpenCode's, chips would fill the form: a menu lists them. */}
-      <ModelPicker
-        accessibilityLabel="Model"
-        label={(id: ModelChoice) => modelLabelOf(id, models)}
-        onChange={(model: ModelChoice) => onChange({ ...value, model })}
-        options={modelIdsOf(harness, value.model)}
-        value={value.model}
-      />
-      <Picker
-        accessibilityLabel="Effort"
-        label={effortLabel}
-        onChange={(effort: EffortChoice) => onChange({ ...value, effort })}
-        options={EffortChoices.literals}
-        value={value.effort}
-      />
-    </>
+      <View style={[styles.field, styles.raised]}>
+        <Text style={styles.fieldName}>Model</Text>
+        <Menu
+          accessibilityLabel="Model"
+          isField
+          label={(id: ModelChoice) => modelLabelOf(id, models)}
+          onChange={(model: ModelChoice) => onChange({ ...value, model })}
+          options={modelOptions}
+          value={value.model}
+        />
+      </View>
+      <View style={styles.field}>
+        <Text style={styles.fieldName}>Effort</Text>
+        <Steps
+          accessibilityLabel="Effort"
+          label={(effort: EffortChoice) => (effort === "default" ? "default" : effort)}
+          onChange={(effort: EffortChoice) => onChange({ ...value, effort })}
+          options={EffortChoices.literals}
+          value={value.effort}
+        />
+      </View>
+    </View>
   );
 }

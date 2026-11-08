@@ -1,18 +1,12 @@
-import {
-  type MissionId,
-  type MissionState,
-  MissionState as MissionStates,
-  type MissionSummary,
-  type WorkspaceId,
-} from "@canopy/contracts";
+import type { MissionId, WorkspaceId } from "@canopy/contracts";
 import { useState } from "react";
-import { FlatList, Pressable, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { MissionBoard, MissionCard } from "./board";
 import { BudgetMeters, BudgetScreen, BudgetStopCard } from "./budgets";
 import { newRequestId, type ServiceClient } from "./client";
-import { Choice, Composer, StateBadge } from "./controls";
-import { timeOf, usageText } from "./formatting";
-import { threadCountOf } from "./labels";
-import { MissionEndingActions, MissionPromptCard } from "./missionActions";
+import { Composer } from "./controls";
+import { MissionPromptCard } from "./missionActions";
+import { Menu } from "./pickers";
 import { allMissions } from "./queries";
 import { QuestionCard } from "./questions";
 import { type Runner, RunnerPickers, useHarnesses } from "./runners";
@@ -22,8 +16,8 @@ import { colors } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
 import { WorkspacePicker } from "./workspaces";
 
-/** The states the dashboard filters by; Archived missions have their own view. */
-const dashboardStates = MissionStates.literals.filter((state) => state !== "Archived");
+/** The panel width from which the board's columns stand side by side. */
+const boardBreakpoint = 720;
 
 /** Starts a mission with one message, prefilled from the last mission's choices (mission-tracking). */
 function MissionStarter({ client, onOpen }: { client: ServiceClient; onOpen: (id: MissionId) => void }) {
@@ -67,36 +61,10 @@ function MissionStarter({ client, onOpen }: { client: ServiceClient; onOpen: (id
   );
 }
 
-function MissionRow({
-  client,
-  mission,
-  onOpen,
-}: {
-  client: ServiceClient;
-  mission: MissionSummary;
-  onOpen: () => void;
-}) {
-  const meta = [mission.workspaceName, threadCountOf(mission), usageText(mission.usage), timeOf(mission.lastActivityAt)]
-    .filter((part) => part !== null)
-    .join(" · ");
-  return (
-    <View style={styles.row}>
-      <Pressable accessibilityRole="button" onPress={onOpen} style={[styles.flex, styles.missionRowMain]}>
-        <Text numberOfLines={1} style={styles.title}>
-          {mission.title}
-        </Text>
-        <Text numberOfLines={1} style={styles.muted}>
-          {meta}
-        </Text>
-      </Pressable>
-      <BudgetMeters use={mission.budget} />
-      <StateBadge state={mission.state} />
-      <MissionEndingActions client={client} mission={mission} />
-    </View>
-  );
-}
-
-/** The missions list with its filters and search: the dashboard, or the Archived view. */
+/**
+ * The missions as a board by what needs the owner, with a workspace breadcrumb and search: the dashboard; or, for
+ * the Archived view, the archived missions as cards.
+ */
 export function Dashboard({
   client,
   isArchived,
@@ -117,11 +85,11 @@ export function Dashboard({
 }) {
   const hasSidebar = useHasSidebar();
   const [search, setSearch] = useState("");
-  const [state, setState] = useState<MissionState | null>(null);
+  const [width, setWidth] = useState(0);
   const [workspaceId, setWorkspaceId] = useState<WorkspaceId | null>(null);
   const [isGlobalBudgetOpen, setIsGlobalBudgetOpen] = useState(false);
   const { data: global } = useServiceQuery(client, { _tag: "ReadBudget", missionId: null }, "budget:global");
-  const request = { _tag: "ListMissions", isArchived, search, state, workspaceId } as const;
+  const request = { _tag: "ListMissions", isArchived, search, state: null, workspaceId } as const;
   const { data, error } = useServiceQuery(client, request, `missions:${JSON.stringify(request)}`);
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
   const { data: questions } = useServiceQuery(client, { _tag: "ListOpenQuestions" }, "open-questions");
@@ -140,14 +108,32 @@ export function Dashboard({
     );
   }
   return (
-    <View style={styles.screen}>
+    <ScrollView
+      contentContainerStyle={local.content}
+      onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
+      style={local.scroll}
+    >
       <View style={styles.header}>
         {isArchived && !hasSidebar && (
           <Pressable onPress={onBack}>
             <Text style={styles.link}>← Missions</Text>
           </Pressable>
         )}
-        <Text style={[styles.heading, styles.flex]}>{isArchived ? "Archived missions" : "Missions"}</Text>
+        <View style={styles.flex}>
+          {workspaceNames.size > 0 && (
+            <View style={local.crumb}>
+              {workspaceId !== null && <Text style={styles.muted}>All workspaces ›</Text>}
+              <Menu
+                accessibilityLabel="Workspace"
+                label={(id) => (id === null ? "All workspaces" : (workspaceNames.get(id) ?? ""))}
+                onChange={setWorkspaceId}
+                options={[null, ...workspaceNames.keys()]}
+                value={workspaceId}
+              />
+            </View>
+          )}
+          <Text style={styles.heading}>{isArchived ? "Archived missions" : "Missions"}</Text>
+        </View>
         {global !== null && <BudgetMeters onPress={() => setIsGlobalBudgetOpen(true)} use={global} />}
         {!isArchived && !hasSidebar && (
           <Pressable onPress={onArchived}>
@@ -204,35 +190,36 @@ export function Dashboard({
         style={styles.input}
         value={search}
       />
-      {!isArchived && (
-        <Choice
-          label={(s) => s ?? "All states"}
-          onChange={setState}
-          options={[null, ...dashboardStates]}
-          value={state}
-        />
-      )}
-      {workspaceNames.size > 0 && (
-        <Choice
-          label={(id) => (id === null ? "All workspaces" : (workspaceNames.get(id) ?? ""))}
-          onChange={setWorkspaceId}
-          options={[null, ...workspaceNames.keys()]}
-          value={workspaceId}
-        />
-      )}
       {error !== null && <Text style={styles.error}>{error}</Text>}
-      <FlatList<MissionSummary>
-        data={data?.missions ?? []}
-        keyExtractor={(mission) => mission.id}
-        ListEmptyComponent={
-          data === null ? (
-            void 0
+      {data !== null &&
+        (isArchived ? (
+          data.missions.length === 0 ? (
+            <Text style={styles.muted}>No archived missions.</Text>
           ) : (
-            <Text style={styles.muted}>{isArchived ? "No archived missions." : "No missions here."}</Text>
+            data.missions.map((mission) => (
+              <MissionCard
+                client={client}
+                column={null}
+                key={mission.id}
+                mission={mission}
+                onOpen={() => onOpen(mission.id)}
+              />
+            ))
           )
-        }
-        renderItem={({ item }) => <MissionRow client={client} mission={item} onOpen={() => onOpen(item.id)} />}
-      />
-    </View>
+        ) : (
+          <MissionBoard
+            client={client}
+            isWide={width >= boardBreakpoint}
+            missions={data.missions}
+            onOpen={(mission) => onOpen(mission.id)}
+          />
+        ))}
+    </ScrollView>
   );
 }
+
+const local = StyleSheet.create({
+  content: { gap: 14, paddingHorizontal: 28, paddingVertical: 20 },
+  crumb: { alignItems: "center", flexDirection: "row", gap: 2, zIndex: 3 },
+  scroll: { backgroundColor: colors.paper, flex: 1 },
+});
