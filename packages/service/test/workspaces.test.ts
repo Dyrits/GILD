@@ -5,6 +5,7 @@ import type { MissionDetail, MissionId, Request, RequestTag, ResultOf } from "@c
 import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { afterEach } from "vitest";
+import { isInsideFolder } from "../src/folders.ts";
 import { fakeHarnessLayer, Service, serviceLayer } from "../src/index.ts";
 
 const directories: string[] = [];
@@ -78,6 +79,30 @@ const push = {
   permission: "Push code",
 };
 const ask = `ask ${JSON.stringify(push)}`;
+
+describe("telling edits inside a workspace from edits outside it", () => {
+  it.effect("counts a new file below the folder as inside, and a climb out with `..` as outside", () => {
+    const { home, outside } = setUp();
+    return Effect.gen(function* () {
+      const app = join(home, "app");
+      expect(yield* isInsideFolder(app, "lib/new/file.ts")).toBe(true);
+      expect(yield* isInsideFolder(app, join(app, "notes.md"))).toBe(true);
+      expect(yield* isInsideFolder(app, "../app-other/file.ts")).toBe(false);
+      expect(yield* isInsideFolder(app, join(outside, "file.ts"))).toBe(false);
+    });
+  });
+
+  it.effect("counts a file reached through a link that points outside the folder as outside", () => {
+    const { home, outside } = setUp();
+    return Effect.gen(function* () {
+      const app = join(home, "app");
+      symlinkSync(outside, join(app, "linked"));
+      writeFileSync(join(outside, "existing.txt"), "");
+      expect(yield* isInsideFolder(app, "linked/existing.txt")).toBe(false);
+      expect(yield* isInsideFolder(app, "linked/new/file.txt")).toBe(false);
+    });
+  });
+});
 
 describe("browsing folders for the phone", () => {
   it.live("starts the browsable roots with the home folder", () => {

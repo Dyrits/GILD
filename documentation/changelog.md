@@ -927,3 +927,31 @@ Validation:
 - Not verified: a live Codex escalation's exact command format, or any live harness.
 
 Evidence: The owner's instruction of 2026-11-07: "Read the last handoffs, then continue with the next step. For now, we build, step by step and we verify it works. […] Don't ask any question for this session, build what is next."
+
+## CHG-0064 · 2026-11-08 · Approval fixes: OpenCode edits outside the workspace, Always allow across kinds, Codex's wrapped escalations
+
+Type: Code
+Event: Delivery
+Scope: Local service (approvals, OpenCode adapter)
+
+Summary: two Medium Specifications review findings from CHG-0062, and one bug found by the live probes, implemented test-first:
+- **OpenCode edits outside the workspace** (`opencode.ts`, `folders.ts`): OpenCode's `edit` permission is now `ask` at every level, so each edit reaches Canopy. At the default level the adapter lets an edit run unasked when every file it names (`rawInput.filePath` and each `locations[].path`) lies inside the thread's folder once `..` and symbolic links are resolved (`isInsideFolder`); any other edit, or one naming no file, goes to Approvals and becomes a question. At "Also commands and edits" every edit asks, as before. An edit inside the folder leaves no line in the thread, as with Claude Code and Codex.
+- **Always allow across kinds** (`permissions.ts`, `patterns.ts`, `approvals.ts`): a standing permission now covers only actions of its own kind: its sentence's sensitive kind, such as "Push code" (`kindOfPermission`), must equal the target's, or both are ordinary. A thread-proposed `gi*` saved for a push no longer covers `git reset --hard`, and `./*` saved for an unlisted script no longer covers `./git push`. A thread's question now stores and shows the pattern Always allow will save (`savedPatternOf`), the exact command when the proposed one does not cover it.
+- **Codex's wrapped escalations** (`patterns.ts`, found live): Codex escalates a command as `/bin/zsh -lc 'git push origin main'`. The sensitive list already recognized it (CHG-0063), but the one-time allowance and standing patterns compared the wrapped string, so the owner was asked twice for one push, and `git push *` never spared a Codex prompt. `targetOf` now names a command that is wholly one shell `-c` script in one pair of quotes by that script; anything chained outside the quotes keeps the whole command.
+- **OpenCode's real edit format** (`opencode.ts`, found live): OpenCode 2.2.0 sends `rawInput.path` (as the model wrote it, possibly relative), `locations[].path` and `content[].path` (absolute), never `filePath`. The adapter reads all of them, and the question shows the absolute path.
+
+Built under the owner's instruction without questions; live checks run with the owner's accounts at their request ("Don't hesitate to test with my account. There are free OpenCode model available."). Not yet accepted by the owner. Errors fall on the side of asking: a thread-proposed sentence equal to a sensitive kind's name, saved for an unlisted command, no longer covers that command and asks again.
+
+References:
+- documentation/verification/2026-11-08-edits-and-pattern-kinds.md
+- packages/service/src/opencode.ts, folders.ts, permissions.ts, patterns.ts, approvals.ts
+- packages/service/test/harnesses.test.ts, approvals.test.ts, workspaces.test.ts, fixtures/stand-in-opencode.mjs
+
+Validation:
+- `bun run test` passed 390 with 10 skipped, twice; 10 tests are new (2 of them live, opt-in), 1 changed (OpenCode's `edit` permission).
+- `bun run typecheck`, `bun run check`, and `git diff --check` passed.
+- 4 of 4 mutations caught; the unwrap tests failed before the fix.
+- Live, `CANOPY_LIVE_HARNESSES=1`: 5 of 5 passed, with OpenCode on `opencode/deepseek-v4.1-flash-free` and Codex on its default model. Real OpenCode wrote inside the workspace unasked and asked before writing outside it; a Codex thread's `git push` to a local remote was decided once and reached the remote.
+- Not verified: the app driven in the window.
+
+Evidence: The owner's instruction of 2026-11-08: "Read the last handoffs, then continue with the next step. For now, we build, step by step and we verify it works. […] Don't ask any question for this session, build what is next."

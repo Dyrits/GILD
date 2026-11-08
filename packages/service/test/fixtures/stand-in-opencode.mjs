@@ -1,9 +1,11 @@
 // A scripted stand-in for `opencode acp`, shaped after the Agent Client Protocol as OpenCode 2.2.0 spoke it
 // on 2026-11-07. STAND_IN_LOG receives one JSON line per process start ({ args, cwd, env, home, config }) and
 // one per request it receives ({ method, params }).
-// A prompt's text decides what it does: "run <command>" asks permission for that command first and says
-// which option was chosen; "slow <millis>" keeps the turn running; anything else is echoed.
+// A prompt's text decides what it does: "run <command>" or "edit <path>" asks permission for that command or
+// file change first and says which option was chosen; "slow <millis>" keeps the turn running; anything else
+// is echoed.
 import { appendFileSync } from "node:fs";
+import { resolve } from "node:path";
 import { createInterface } from "node:readline";
 
 const log = (entry) => {
@@ -47,20 +49,41 @@ const finish = (stopReason, text) => {
   });
 };
 
+/** Asks permission for one tool call and ends the turn saying which option was chosen. */
+const askPermission = async (prompt, subject, toolCall) => {
+  update(prompt.sessionId, {
+    kind: toolCall.kind,
+    sessionUpdate: "tool_call",
+    status: "pending",
+    toolCallId: "call-1",
+  });
+  const answer = await ask("session/request_permission", {
+    options: [
+      { kind: "allow_once", name: "Allow once", optionId: "once" },
+      { kind: "allow_always", name: "Always allow", optionId: "always" },
+      { kind: "reject_once", name: "Reject", optionId: "reject" },
+    ],
+    sessionId: prompt.sessionId,
+    toolCall: { ...toolCall, title: subject, toolCallId: "call-1" },
+  });
+  return finish("end_turn", `${subject}: ${answer.outcome.optionId ?? answer.outcome.outcome}`);
+};
+
 const runPrompt = async (prompt, text) => {
   const run = /^run (.+)$/.exec(text);
-  if (run !== null) {
-    update(prompt.sessionId, { kind: "execute", sessionUpdate: "tool_call", status: "pending", toolCallId: "call-1" });
-    const answer = await ask("session/request_permission", {
-      options: [
-        { kind: "allow_once", name: "Allow once", optionId: "once" },
-        { kind: "allow_always", name: "Always allow", optionId: "always" },
-        { kind: "reject_once", name: "Reject", optionId: "reject" },
-      ],
-      sessionId: prompt.sessionId,
-      toolCall: { kind: "execute", rawInput: { command: run[1] }, title: run[1], toolCallId: "call-1" },
+  if (run !== null) return askPermission(prompt, run[1], { kind: "execute", rawInput: { command: run[1] } });
+  // "edit <path>" asks to change that file as OpenCode's edit tool did live on 2026-11-08: the input keeps the
+  // path as the model wrote it, and the locations and diff carry it resolved against the folder.
+  const edit = /^edit (.+)$/.exec(text);
+  if (edit !== null) {
+    const resolved = resolve(process.cwd(), edit[1]);
+    return askPermission(prompt, edit[1], {
+      content: [{ newText: "new", oldText: "old", path: resolved, type: "diff" }],
+      kind: "edit",
+      locations: [{ path: resolved }],
+      name: "edit",
+      rawInput: { newString: "new", oldString: "old", path: edit[1] },
     });
-    return finish("end_turn", `${run[1]}: ${answer.outcome.optionId ?? answer.outcome.outcome}`);
   }
   // The turn's note, when there is one, precedes the messages after a "---" line.
   const slow = /(?:^|\n---\n\n)slow (\d+)$/.exec(text);

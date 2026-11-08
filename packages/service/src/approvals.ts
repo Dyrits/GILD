@@ -189,12 +189,14 @@ export const approvalsLayer = Layer.effect(
       Effect.gen(function* () {
         const missionId = yield* missionOf(threadId);
         if (missionId === null) return { isAllowed: false, text: "Unknown thread." } satisfies Decision;
+        const kind = sensitivityOf("Bash", { command: request.command })?.permission ?? null;
         const asked: Asked = {
           details: request.command,
           missionId,
-          pattern: request.pattern,
+          // The question shows the pattern Always allow will save, which falls back to the exact command.
+          pattern: savedPatternOf(request.pattern, request.command),
           // The sensitive list names the kinds it knows, so a push saves "Push code" whatever the thread called it.
-          permission: sensitivityOf("Bash", { command: request.command })?.permission ?? request.permission,
+          permission: kind ?? request.permission,
           source: "Thread",
           summary: request.action,
           threadId,
@@ -205,7 +207,7 @@ export const approvalsLayer = Layer.effect(
           yield* allowOnce(threadId, request.command);
           return { isAllowed: true, text: textOf(resolution) } satisfies Decision;
         }
-        const covering = yield* findCoveringPermission(threadId, request.command);
+        const covering = yield* findCoveringPermission(threadId, request.command, kind);
         if (covering !== null) {
           const resolution: Resolution = { message: covering.sentence, outcome: "AllowedByPermission" };
           yield* record(asked, resolution);
@@ -254,7 +256,7 @@ export const approvalsLayer = Layer.effect(
           summary: sensitivity === null ? plain : `${reason ?? sensitivity.permission}. ${sensitivity.consequence}`,
           threadId,
         };
-        const covering = yield* findCoveringPermission(threadId, target);
+        const covering = yield* findCoveringPermission(threadId, target, sensitivity?.permission ?? null);
         if (covering !== null) {
           yield* record(asked, { message: covering.sentence, outcome: "AllowedByPermission" });
           return { isAllowed: true, text: "" } satisfies Decision;

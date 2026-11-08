@@ -1,7 +1,7 @@
 // Browsing the computer's folders under the browsable roots, kept for phone browsing
 // (workspace-attachment). The desktop chooses folders in the system's dialog instead (CHG-0035).
 import { mkdirSync, readdirSync, realpathSync, statSync } from "node:fs";
-import { dirname, isAbsolute, join, sep } from "node:path";
+import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
 import type { Folder, FolderListing } from "@canopy/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
@@ -21,6 +21,23 @@ export const realFolderOf = (path: string) =>
 
 const isWithin = (root: string, path: string) =>
   path === root || path.startsWith(root.endsWith(sep) ? root : root + sep);
+
+/** A path with symbolic links resolved through its deepest existing folder, so a file not yet written still resolves. */
+const realPathOf = (path: string): string => {
+  try {
+    return realpathSync(path);
+  } catch {
+    const parent = dirname(path);
+    return parent === path ? path : join(realPathOf(parent), basename(path));
+  }
+};
+
+/**
+ * Whether a file path, relative to the folder or absolute, lies inside the folder once `..` and symbolic links
+ * are resolved: a link inside the workspace that points outside it counts as outside (workspace-attachment).
+ */
+export const isInsideFolder = (folder: string, path: string) =>
+  Effect.sync(() => isWithin(realPathOf(resolve(folder)), realPathOf(resolve(folder, path))));
 
 /** The browsable roots, in the order they were added. */
 const listBrowsableRoots = Effect.gen(function* () {

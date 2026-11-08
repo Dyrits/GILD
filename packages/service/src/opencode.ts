@@ -4,6 +4,7 @@ import { join } from "node:path";
 import type { TokenUsage } from "@canopy/contracts";
 import { Deferred, type Duration, Effect, Option, Queue, Result } from "effect";
 import { HarnessFailure, type ThreadAccess, type TurnRequest, turnMessageOf } from "./execution.ts";
+import { isInsideFolder } from "./folders.ts";
 import { accountEnvironmentOf } from "./harnessCatalog.ts";
 import {
   type HarnessConnection,
@@ -46,13 +47,14 @@ interface OpenCodeConnection extends HarnessConnection {
 const noTimeLimit = 2147483647;
 
 /**
- * OpenCode's permissions, by approval level (CHG-0031, CHG-0035). OpenCode has no sandbox here, so every
- * command asks Canopy, which lets it run unasked unless it is sensitive; at "Also commands and edits"
- * edits ask too. Its own subagents stay off: threads open threads with open_thread (ADR 0007).
+ * OpenCode's permissions (CHG-0031, CHG-0035). OpenCode has no sandbox here, so every command and edit asks
+ * Canopy: a command runs unasked unless it is sensitive, and an edit unless it leaves the thread's folder or
+ * the level is "Also commands and edits" (`isUnaskedEdit`). Its own subagents stay off: threads open threads
+ * with open_thread (ADR 0007).
  */
-const permissionsOf = (access: ThreadAccess) => [
+const permissions = [
   { action: "shell", effect: "ask", resource: "*" },
-  { action: "edit", effect: access.approvalLevel === "RiskyOnly" ? "allow" : "ask", resource: "*" },
+  { action: "edit", effect: "ask", resource: "*" },
   { action: "subagent", effect: "deny", resource: "*" },
 ];
 
@@ -68,7 +70,7 @@ const configOf = (access: ThreadAccess, instructionsPath: string) => ({
       },
     },
   },
-  permissions: permissionsOf(access),
+  permissions,
 });
 
 /** A turn's usage from the prompt's answer, whose input excludes the cached part. */
@@ -88,16 +90,47 @@ const promptOf = (toolCall: unknown) => {
   const title = textFieldOf(toolCall, "title") ?? "a tool";
   const input = fieldOf(toolCall, "rawInput");
   if (kind === "execute") return { input: { command: textFieldOf(input, "command") ?? title }, toolName: "Bash" };
-  if (kind === "edit") {
-    const locations = fieldOf(toolCall, "locations");
-    const path =
-      textFieldOf(input, "filePath") ?? (Array.isArray(locations) ? textFieldOf(locations[0], "path") : null) ?? title;
-    return { input: { file_path: path }, toolName: "Edit" };
-  }
+  // The owner sees the first file in full: OpenCode resolves the locations, while its input keeps the
+  // model's own, possibly relative, path.
+  if (kind === "edit") return { input: { file_path: editedPathsOf(toolCall)[0] ?? title }, toolName: "Edit" };
   return { input: input ?? { query: title }, toolName: textFieldOf(toolCall, "name") ?? title };
 };
 
-/** Answers one of OpenCode's permission requests by asking the owner; it may wait without a time limit. */
+/** The paths listed under a field holding an array of objects with a `path`, such as `locations` or `content`. */
+const listedPathsOf = (toolCall: unknown, key: string) => {
+  const items = fieldOf(toolCall, key);
+  return Array.isArray(items) ? items.map((item) => textFieldOf(item, "path")) : [];
+};
+
+/**
+ * Every file an edit names. OpenCode 2.2.0, probed live on 2026-11-08, sends `locations` and `content` diffs
+ * with absolute paths and `rawInput.path` as the model wrote it; `filePath` is kept for older versions.
+ */
+const editedPathsOf = (toolCall: unknown) => {
+  const input = fieldOf(toolCall, "rawInput");
+  return [
+    ...listedPathsOf(toolCall, "locations"),
+    ...listedPathsOf(toolCall, "content"),
+    textFieldOf(input, "path"),
+    textFieldOf(input, "filePath"),
+  ].filter((path) => path !== null);
+};
+
+/**
+ * Whether an edit runs without asking: at the default level, editing inside the thread's folder does, as Claude
+ * Code and Codex allow it in their sandbox; editing outside it asks (workspace-attachment). An edit naming no file
+ * asks.
+ */
+const isUnaskedEdit = (request: TurnRequest, toolCall: unknown) =>
+  Effect.gen(function* () {
+    if (request.access.approvalLevel !== "RiskyOnly" || textFieldOf(toolCall, "kind") !== "edit") return false;
+    const paths = editedPathsOf(toolCall);
+    if (paths.length === 0) return false;
+    for (const path of paths) if (!(yield* isInsideFolder(request.cwd, path))) return false;
+    return true;
+  });
+
+/** Answers one of OpenCode's permission requests, asking the owner unless it may run; it may wait without a time limit. */
 const answerRequest = (
   connection: OpenCodeConnection,
   request: TurnRequest,
@@ -106,9 +139,10 @@ const answerRequest = (
   Effect.gen(function* () {
     if (incoming.method !== "session/request_permission")
       return connection.rpc.respondError(incoming.id, `Canopy does not answer ${incoming.method}.`);
-    const { input, toolName } = promptOf(fieldOf(incoming.params, "toolCall"));
-    const answer = yield* request.askOwner({ input, toolName });
-    const wanted = answer.isAllowed ? "allow_once" : "reject_once";
+    const toolCall = fieldOf(incoming.params, "toolCall");
+    const isAllowed =
+      (yield* isUnaskedEdit(request, toolCall)) || (yield* request.askOwner(promptOf(toolCall))).isAllowed;
+    const wanted = isAllowed ? "allow_once" : "reject_once";
     const offered = fieldOf(incoming.params, "options");
     const option = Array.isArray(offered)
       ? offered.find((candidate) => textFieldOf(candidate, "kind") === wanted)

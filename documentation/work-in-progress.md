@@ -554,12 +554,16 @@ Started at HEAD `26bbb1d`, with the empty tree as the fixed point. Ran Standards
   - **High**: the quote check now requires whole words, no negation before them in their sentence, and words naming the action (a verb of its sensitive kind, or a word an unlisted command shares).
   - **High**: commands wrapped in a shell `-c` script, `eval`, `env`, variable assignments, or a launcher (`time`, `nohup`, `exec`, `nice`…) now meet the sensitive list. Still to probe live: the exact command format Codex sends.
   - **Medium**: one-time allowances end with their turn (`Approvals.endTurn`).
+- Done in CHG-0064, awaiting the owner ([proof](verification/2026-11-08-edits-and-pattern-kinds.md)):
+  - **Medium**: OpenCode asks Canopy for every edit; at the default level an edit inside the thread's folder (after `..` and links) runs unasked, any other asks. Proven live on OpenCode 2.2.0.
+  - **Medium**: a standing permission covers only actions of its own kind (`kindOfPermission`), and the question shows the pattern Always allow will save.
+  - **High, found live**: Codex escalates as `/bin/zsh -lc '…'`, which asked the owner twice for one push and escaped standing patterns; `targetOf` now unwraps one whole shell `-c` script. This also closes CHG-0063's open probe of the Codex command format.
+- **Medium, found live**: rejecting an OpenCode permission ends its whole prompt (`stopReason: "cancelled"`), so the thread stops instead of carrying on without the action, and a Deny message never reaches it.
 - **Medium**: Codex sandbox widenings ("Permissions") are granted without a question.
-- **Medium**: OpenCode edits outside the workspace run unasked (`opencode.ts:59-63`, against workspace-attachment).
 - **Medium**: Codex and OpenCode threads load the owner's own MCP servers and skills (against CHG-0022 and CHG-0031; listed as provisional above).
 - **Medium**: the widened sandbox hosts may let `git push` or `npm publish` run without a prompt. Probe first, and ask the owner before changing anything.
-- **Medium**: a thread-proposed Always allow pattern (for example `gi*`) can cover other kinds of action, and the question shows the proposed pattern rather than the one that will be saved.
 - **Low**:
+  - At "Also commands and edits", an OpenCode edit inside the folder asks with the summary "Change a file outside the workspace" (found during CHG-0064).
   - The running limit counts only Running threads, not Attention inside a turn.
   - The opener-message cap line gives no count.
   - The desktop notification fires only for approval questions.

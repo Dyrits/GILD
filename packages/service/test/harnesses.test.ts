@@ -338,7 +338,7 @@ describe("running OpenCode threads", () => {
       };
       expect(config.permissions).toEqual([
         { action: "shell", effect: "ask", resource: "*" },
-        { action: "edit", effect: "allow", resource: "*" },
+        { action: "edit", effect: "ask", resource: "*" },
         { action: "subagent", effect: "deny", resource: "*" },
       ]);
       expect(config.mcp.servers.canopy?.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\//);
@@ -357,6 +357,38 @@ describe("running OpenCode threads", () => {
       yield* answerOpen("Deny");
       const detail = yield* settle(started.missionId, idleWith(1));
       expect(replies(detail)).toEqual(["git push origin main: reject "]);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("lets an edit inside the thread's folder run without a question", () => {
+    const { layer } = withHarnesses();
+    return Effect.gen(function* () {
+      const started = yield* start({ harness: "opencode", text: "edit notes/plan.md" });
+      const detail = yield* settle(started.missionId, idleWith(1));
+      expect(replies(detail)).toEqual(["notes/plan.md: once "]);
+      expect(detail.questions).toEqual([]);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("asks the owner before an edit outside the thread's folder", () => {
+    const { directory, layer } = withHarnesses();
+    const outside = join(directory, "outside.txt");
+    return Effect.gen(function* () {
+      const started = yield* start({ harness: "opencode", text: `edit ${outside}` });
+      const answered = yield* answerOpen("Deny");
+      expect(answered.details).toBe(`Edit ${outside}`);
+      const detail = yield* settle(started.missionId, idleWith(1));
+      expect(replies(detail)).toEqual([`${outside}: reject `]);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("asks the owner before a relative edit that climbs out of the thread's folder", () => {
+    const { layer } = withHarnesses();
+    return Effect.gen(function* () {
+      const started = yield* start({ harness: "opencode", text: "edit ../../outside.txt" });
+      yield* answerOpen("Allow");
+      const detail = yield* settle(started.missionId, idleWith(1));
+      expect(replies(detail)).toEqual(["../../outside.txt: once "]);
     }).pipe(Effect.provide(layer));
   });
 

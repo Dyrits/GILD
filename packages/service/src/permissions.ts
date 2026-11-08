@@ -2,7 +2,7 @@ import type { StandingPermission } from "@canopy/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { notFound } from "./errors.ts";
-import { matchesPattern } from "./patterns.ts";
+import { kindOfPermission, matchesPattern } from "./patterns.ts";
 
 const selectPermissions = (sql: SqlClient.SqlClient) => sql`
   SELECT p.id, p.mission_id AS missionId, m.title AS missionTitle, p.sentence, p.pattern, p.created_at AS createdAt,
@@ -30,10 +30,18 @@ export const listThreadPermissions = (threadId: string) =>
       ORDER BY p.created_at`;
   });
 
-/** The first standing permission applying to a thread whose pattern covers the target, or null. */
-export const findCoveringPermission = (threadId: string, target: string) =>
+/**
+ * The first standing permission applying to a thread whose pattern covers the target and whose kind is the
+ * target's: its sensitive kind, such as "Push code", or null for an ordinary action (action-approval, Always allow).
+ */
+export const findCoveringPermission = (threadId: string, target: string, kind: string | null) =>
   listThreadPermissions(threadId).pipe(
-    Effect.map((permissions) => permissions.find((permission) => matchesPattern(permission.pattern, target)) ?? null),
+    Effect.map(
+      (permissions) =>
+        permissions.find(
+          (permission) => kindOfPermission(permission.sentence) === kind && matchesPattern(permission.pattern, target),
+        ) ?? null,
+    ),
   );
 
 /** Saves a standing permission for the thread's workspace, or its mission when it has none. Callers run it in a transaction. */

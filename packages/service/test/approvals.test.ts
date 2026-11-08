@@ -282,6 +282,16 @@ describe("harness permission prompts", () => {
     }).pipe(Effect.provide(live())),
   );
 
+  it.live("runs the action just allowed once when Codex prompts for it wrapped in a shell script", () =>
+    Effect.gen(function* () {
+      const started = yield* start(`${ask(push)}\n${prompt("/bin/zsh -lc 'git push origin main'")}`);
+      yield* answer(openQuestion(yield* settle(started.missionId, isAsking)), "Allow");
+      const detail = yield* settle(started.missionId, isReplied);
+      expect(lastReply(detail)).toContain("prompt allowed");
+      expect(detail.questions).toHaveLength(1);
+    }).pipe(Effect.provide(live())),
+  );
+
   it.live("runs a prompt the sensitive list does not recognize without a question, and leaves a line", () =>
     Effect.gen(function* () {
       const listing = 'for f in src/*.js; do echo "=== $f"; cat -n $f; done';
@@ -388,6 +398,48 @@ describe("standing permissions", () => {
       }).pipe(Effect.provide(live())),
   );
 
+  it.live("shows in the question the pattern Always allow will save, not one that does not cover the action", () =>
+    Effect.gen(function* () {
+      const started = yield* start(ask({ ...push, pattern: "npm publish *" }));
+      expect(openQuestion(yield* settle(started.missionId, isAsking)).pattern).toBe("git push origin main");
+    }).pipe(Effect.provide(live())),
+  );
+
+  it.live("never lets a broad pattern saved for one kind of action cover another kind", () =>
+    Effect.gen(function* () {
+      const started = yield* start(ask({ ...push, pattern: "gi*" }));
+      yield* answer(openQuestion(yield* settle(started.missionId, isAsking)), "AlwaysAllow");
+      yield* settle(started.missionId, isReplied);
+
+      yield* send(started.threadId, ask({ ...push, command: "git push origin feature" }));
+      const pushed = yield* settle(started.missionId, (detail) => detail.questions.length === 2 && isReplied(detail));
+      expect(pushed.questions[1]?.outcome).toBe("AllowedByPermission");
+
+      const reset = { action: "Drop the last commit", command: "git reset --hard HEAD~1" };
+      yield* send(started.threadId, ask(reset));
+      const asking = yield* settle(started.missionId, isAsking);
+      expect(openQuestion(asking)).toMatchObject({ details: reset.command, permission: "Discard work" });
+    }).pipe(Effect.provide(live())),
+  );
+
+  it.live("never lets a pattern saved for an action the sensitive list misses cover a sensitive one", () =>
+    Effect.gen(function* () {
+      const script = {
+        action: "Run the staging script",
+        command: "./staging.sh",
+        pattern: "./*",
+        permission: "Run staging scripts",
+      };
+      const started = yield* start(ask(script));
+      yield* answer(openQuestion(yield* settle(started.missionId, isAsking)), "AlwaysAllow");
+      yield* settle(started.missionId, isReplied);
+
+      yield* send(started.threadId, `prompt Bash ${JSON.stringify({ command: "./git push origin main" })}`);
+      const asking = yield* settle(started.missionId, isAsking);
+      expect(openQuestion(asking)).toMatchObject({ details: "./git push origin main", permission: "Push code" });
+    }).pipe(Effect.provide(live())),
+  );
+
   it.live("keeps every answer in the Permissions history, filterable by mission", () =>
     Effect.gen(function* () {
       const first = yield* start(ask(push));
@@ -490,6 +542,14 @@ describe("command patterns", () => {
     expect(targetOf("Bash", { command: "ls" })).toBe("ls");
     expect(targetOf("Write", { content: "x", file_path: "/etc/hosts" })).toBe("Write /etc/hosts");
     expect(targetOf("WebFetch", { url: "https://example.com" })).toBe("WebFetch https://example.com");
+  });
+
+  it("names a command Codex wraps in a shell script by the script, and keeps anything around it", () => {
+    expect(targetOf("Bash", { command: "/bin/zsh -lc 'git push origin main'" })).toBe("git push origin main");
+    expect(targetOf("Bash", { command: 'bash -c "npm publish"' })).toBe("npm publish");
+    expect(targetOf("Bash", { command: "zsh -lc 'a' ; rm -rf ~ ; echo 'b'" })).toBe(
+      "zsh -lc 'a' ; rm -rf ~ ; echo 'b'",
+    );
   });
 });
 

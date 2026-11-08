@@ -45,9 +45,23 @@ export const reasonOf = (input: unknown) => {
 export const plainActionOf = (toolName: string) =>
   Object.hasOwn(plainActions, toolName) ? (plainActions[toolName] ?? toolName) : `Use ${toolName}`;
 
-/** The exact target of a harness tool call: the command for Bash, else the tool and its file, address, or input. */
+// A whole command that is one shell's `-c` script in one pair of quotes, as Codex escalates it
+// (`/bin/zsh -lc 'git push origin main'`, probed live on 2026-11-08). A quote inside the script does not match,
+// so nothing chained after the closing quote is dropped.
+const shellScript = /^(?:\S*\/)?(?:ba|z|da|k|fi)?sh\s+(?:-\w+\s+)*-\w*c\w*\s+(?:'([^']*)'|"([^"\\$`]*)")$/;
+
+/** A command without the shell script wrapper around it, so an allowance or pattern for the command applies. */
+const unwrappedOf = (command: string) => {
+  const match = shellScript.exec(command.trim());
+  return match === null ? command : (match[1] ?? match[2] ?? command);
+};
+
+/**
+ * The exact target of a harness tool call: the command for Bash, unwrapped from a shell's `-c` script, else the
+ * tool and its file, address, or input.
+ */
 export const targetOf = (toolName: string, input: unknown) => {
-  if (toolName === "Bash") return stringField(input, "command") ?? "";
+  if (toolName === "Bash") return unwrappedOf(stringField(input, "command") ?? "");
   const subject =
     stringField(input, "file_path") ??
     stringField(input, "notebook_path") ??
@@ -228,6 +242,23 @@ const secretCommand = command(String.raw`(?:security\s+(?:find|dump|export)-|gh\
 
 // Claude Code's file tools raise a prompt only outside the working folder at the default level.
 const fileWritingTools = ["Write", "Edit", "MultiEdit", "NotebookEdit"];
+const fileChange: Sensitivity = {
+  consequence: "This changes a file that other programs on this computer may rely on.",
+  permission: "Change a file outside the workspace",
+  verbs: ["change", "edit", "write", "update", "modify"],
+};
+
+const sensitiveKinds = new Set([
+  ...sensitiveCommands.map(([, sensitivity]) => sensitivity.permission),
+  secrets.permission,
+  fileChange.permission,
+]);
+
+/**
+ * The sensitive kind a standing permission's sentence names, such as "Push code", or null for an ordinary
+ * action: a permission covers only actions of its own kind, so a broad pattern cannot reach another kind.
+ */
+export const kindOfPermission = (sentence: string) => (sensitiveKinds.has(sentence) ? sentence : null);
 
 /**
  * The sensitive action a harness tool call is, or null for ordinary work that runs without a
@@ -241,12 +272,5 @@ export const sensitivityOf = (toolName: string, input: unknown): Sensitivity | n
   }
   const path = stringField(input, "file_path") ?? stringField(input, "notebook_path") ?? stringField(input, "path");
   if (path !== null && secretPath.test(path)) return secrets;
-  if (fileWritingTools.includes(toolName)) {
-    return {
-      consequence: "This changes a file that other programs on this computer may rely on.",
-      permission: "Change a file outside the workspace",
-      verbs: ["change", "edit", "write", "update", "modify"],
-    };
-  }
-  return null;
+  return fileWritingTools.includes(toolName) ? fileChange : null;
 };

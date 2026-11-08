@@ -1,4 +1,5 @@
-import { mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { HarnessName, MissionDetail, MissionId, Request, RequestTag, ResultOf } from "@canopy/contracts";
@@ -30,8 +31,7 @@ const commands = {
   opencode: process.env.CANOPY_OPENCODE_PATH ?? "opencode",
 };
 
-const live = () => {
-  const directory = realpathSync(mkdtempSync(join(tmpdir(), "canopy-live-")));
+const live = (directory = realpathSync(mkdtempSync(join(tmpdir(), "canopy-live-")))) => {
   directories.push(directory);
   const harness = Layer.effect(
     Harness,
@@ -112,6 +112,103 @@ describe.runIf(process.env.CANOPY_LIVE_HARNESSES === "1")("live harnesses (use a
         const detail = yield* titledTurn("codex", "default");
         expect(detail.mission.usage.output).toBeGreaterThan(0);
       }).pipe(Effect.provide(live())),
+    300_000,
+  );
+
+  it.live(
+    "lets OpenCode write inside its workspace unasked and asks before it writes outside",
+    () => {
+      const directory = realpathSync(mkdtempSync(join(tmpdir(), "canopy-live-")));
+      const workspace = join(directory, "project");
+      mkdirSync(workspace);
+      const outside = join(directory, "outside.txt");
+      const isPaused = (d: MissionDetail) => d.thread.state !== "Running";
+      return Effect.gen(function* () {
+        const started = yield* call({
+          _tag: "StartMission",
+          effort: "default",
+          harness: "opencode",
+          model: process.env.CANOPY_LIVE_OPENCODE_MODEL ?? "default",
+          requestId: crypto.randomUUID(),
+          text: `Use your write tool to create notes.txt in the current folder containing "hi". Then use your write tool to create ${outside} containing "hi". Use no shell command. Then reply with exactly: done`,
+          workspacePath: workspace,
+        });
+        const asking = yield* settle(
+          started.missionId,
+          (d) => isPaused(d) || d.questions.some((q) => q.outcome === null),
+        );
+        expect(existsSync(join(workspace, "notes.txt"))).toBe(true);
+        const question = asking.questions.find((q) => q.outcome === null);
+        expect(question?.details).toBe(`Edit ${outside}`);
+        yield* call({
+          _tag: "AnswerQuestion",
+          answer: "Deny",
+          message: null,
+          questionId: question?.id ?? ("" as never),
+        });
+        const detail = yield* settle(started.missionId, isPaused);
+        expect(detail.questions.map((q) => q.outcome)).toEqual(["Denied"]);
+        expect(existsSync(outside)).toBe(false);
+      }).pipe(Effect.provide(live(directory)));
+    },
+    300_000,
+  );
+
+  it.live(
+    "recognizes a git push from a Codex thread as Push code and runs it once allowed",
+    () => {
+      const directory = realpathSync(mkdtempSync(join(tmpdir(), "canopy-live-")));
+      const workspace = join(directory, "project");
+      const remote = join(directory, "remote.git");
+      const git = (cwd: string, ...args: Array<string>) => execFileSync("git", args, { cwd, encoding: "utf8" });
+      mkdirSync(workspace);
+      git(directory, "init", "--bare", "--initial-branch=main", remote);
+      git(workspace, "init", "--initial-branch=main");
+      git(
+        workspace,
+        "-c",
+        "user.name=Canopy",
+        "-c",
+        "user.email=canopy@example.invalid",
+        "commit",
+        "--allow-empty",
+        "-m",
+        "Start",
+      );
+      git(workspace, "remote", "add", "origin", remote);
+      return Effect.gen(function* () {
+        const started = yield* call({
+          _tag: "StartMission",
+          effort: "low",
+          harness: "codex",
+          model: "default",
+          requestId: crypto.randomUUID(),
+          text: "Run exactly this shell command: git push origin main. If the sandbox blocks it, request approval to run it outside the sandbox. Then reply with exactly: done",
+          workspacePath: workspace,
+        });
+        // Every question is allowed as it opens, so the turn runs to its end.
+        const isDone = (d: MissionDetail) => d.thread.state === "Idle" || d.thread.state === "Failed";
+        let detail = yield* settle(started.missionId, (d) => isDone(d) || d.questions.some((q) => q.outcome === null));
+        while (!isDone(detail)) {
+          const open = detail.questions.find((q) => q.outcome === null);
+          if (open !== undefined)
+            yield* call({ _tag: "AnswerQuestion", answer: "Allow", message: null, questionId: open.id });
+          yield* Effect.sleep("500 millis");
+          detail = yield* settle(started.missionId, (d) => isDone(d) || d.questions.some((q) => q.outcome === null));
+        }
+        // Recorded in the verification proof: what the thread and Codex asked, in order.
+        const asked = detail.questions.map(({ details, outcome, permission, source }) => ({
+          details,
+          outcome,
+          permission,
+          source,
+        }));
+        console.log("CODEX_ESCALATION", JSON.stringify(asked));
+        // One push is decided once: the escalation Codex wraps in `/bin/zsh -lc '…'` uses the allowance just given.
+        expect(asked.filter((q) => q.permission === "Push code")).toHaveLength(1);
+        expect(git(remote, "rev-parse", "main").trim()).toBe(git(workspace, "rev-parse", "main").trim());
+      }).pipe(Effect.provide(live(directory)));
+    },
     300_000,
   );
 
