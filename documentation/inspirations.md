@@ -34,6 +34,21 @@ Review this list when starting a capability, and every few weeks: read each prod
 - **License**: Delta is closed, so ideas only. DeltaDB is not open source as of 2026-11-04.
 - **Check on**: whether DeltaDB is published as open source; it could replace Canopy's own copies ([backlog](backlog.md)).
 
+### intentic ([intentic.dev](https://intentic.dev), [source](https://github.com/intentic/intentic))
+
+- **What it is**: an open-source workspace that runs several coding agents in parallel, each in its own Docker sandbox and git branch, nothing landing until approved. Desktop app, terminal install, self-hosted server, or paid hosted sandbox. Several harnesses (Claude, Codex, Gemini, Cursor, Devin, Grok, Kimi, GLM), each through the user's plan or key.
+- **Good ideas** (from its site, 2026-11-07):
+  - the UI, which the user likes: a board with Attention, Active, and Finished columns beside a docked chat; whatever needs the user comes first;
+  - cards showing model, branch, cost so far, and diff stats;
+  - a plan with an Approve button in the chat; a review view with changes grouped by repository, a diff per file, the agent's report beside it, and a Land now button;
+  - a left rail of sandboxes and the Claude and Codex plan usage on the home view; a Devices page listing machines, status, resources, and mirrored ports;
+  - an integrations catalogue grouped by purpose, with connected services checked;
+  - automations started by a git push, Sentry, Stripe, email, Slack, Discord, or cron, with an optional filter command deciding whether to wake an agent;
+  - secrets injected only into turns that may use them, never written to disk.
+- **Taken**: none yet. Several ideas are already planned for Canopy; compare before adding to the [backlog](backlog.md).
+- **License**: MIT (sandbox, CLI, workspace, platform). Code may be reused with its notice where a decision record allows it.
+- **Check on**: its [changelog](https://intentic.dev/changelog/), [releases](https://github.com/intentic/intentic/releases), and [docs](https://intentic.dev/docs/), especially UI changes and whether it adds nested agents or threads. Its name is close to "Intent", a candidate for Canopy's mission term.
+
 ## Memory and long-running agents
 
 ### Rerun ([rerun.build](https://rerun.build), [source](https://github.com/rerun-build/rerun))
