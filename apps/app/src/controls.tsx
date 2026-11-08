@@ -1,6 +1,7 @@
 import type { MissionState, ThreadState } from "@canopy/contracts";
 import { type ReactNode, useState } from "react";
 import { Pressable, Switch, Text, TextInput, View } from "react-native";
+import Svg, { Path } from "react-native-svg";
 import { styles } from "./styles";
 import { colors, stateTones } from "./theme";
 
@@ -42,8 +43,27 @@ export function StateBadge({ state }: { state: ThreadState | MissionState }) {
   );
 }
 
+/** The send icon: an arrow drawn in paper ink, pointing up and away from the box. */
+function SendArrow() {
+  return (
+    <Svg
+      fill="none"
+      height={16}
+      stroke={colors.onAccent}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      viewBox="0 0 16 16"
+      width={16}
+    >
+      <Path d="M8 13.5 L 8.2 3" />
+      <Path d="M3.5 7.2 L 8.2 2.6 L 12.6 7" />
+    </Svg>
+  );
+}
+
 /**
- * A message box that keeps the text until the service accepts it. While a thread runs, a smaller second
+ * A message box that keeps the text until the service accepts it, sent with Enter or the arrow button. While a thread runs, a smaller second
  * button sends the other way (Steer or Queue) and Interrupt ends the thread's current turn (CHG-0039).
  */
 export function Composer({
@@ -69,6 +89,7 @@ export function Composer({
     onChangeText?.(value);
   };
   const [isSending, setIsSending] = useState(false);
+  const isEmpty = text.trim() === "";
   const [error, setError] = useState<string | null>(null);
   const send = async (handler: (text: string) => Promise<unknown>) => {
     if (text.trim() === "" || isSending) return;
@@ -122,11 +143,13 @@ export function Composer({
           </Pressable>
         )}
         <Pressable
-          disabled={isSending}
+          accessibilityLabel="Send"
+          accessibilityRole="button"
+          disabled={isSending || isEmpty}
           onPress={() => send(onSend)}
-          style={[styles.button, isSending && styles.buttonDisabled]}
+          style={[styles.sendButton, (isSending || isEmpty) && styles.buttonDisabled]}
         >
-          <Text style={styles.buttonText}>Send</Text>
+          <SendArrow />
         </Pressable>
       </View>
       {error !== null && <Text style={styles.error}>{error}</Text>}

@@ -1,4 +1,4 @@
-import { mkdirSync } from "node:fs";
+import { mkdirSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import type { MissionId, MissionList } from "@canopy/contracts";
 import { describe, expect, it } from "@effect/vitest";
@@ -158,7 +158,7 @@ describe("listing missions on the dashboard", () => {
     }).pipe(Effect.provide(make().layer)),
   );
 
-  it.effect("filters by workspace and lists the workspaces to filter by", () => {
+  it.effect("filters by workspace and lists the workspaces to filter by, with their folders", () => {
     const value = make();
     const folder = join(value.directory, "project");
     mkdirSync(folder);
@@ -168,6 +168,8 @@ describe("listing missions on the dashboard", () => {
       yield* settleTurns;
       const all = yield* list();
       expect(all.workspaces.map((w) => w.name)).toEqual(["project"]);
+      // Its folder too, so a mission started from the workspace's board starts there.
+      expect(all.workspaces.map((w) => w.path)).toEqual([realpathSync(folder)]);
       const workspaceId = all.workspaces[0]?.id ?? null;
       expect(titlesOf(yield* list({ workspaceId }))).toEqual(["In the project"]);
     }).pipe(Effect.provide(value.layer));

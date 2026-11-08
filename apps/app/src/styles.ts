@@ -89,6 +89,8 @@ export const styles = StyleSheet.create({
   draft: { opacity: 0.7 },
   error: { color: colors.dangerText, fontFamily: fonts.sans, fontSize: fontSizes.md },
   failure: { ...ink, ...cut, backgroundColor: colors.dangerSoft, gap: 6, padding: 12 },
+  /** A conversation's messages, kept clear of the scrollbar that shows over their right edge. */
+  feed: { paddingRight: 16 },
   field: { gap: 5 },
   fieldName: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.sm },
   fields: { alignSelf: "stretch", gap: 14 },
@@ -158,7 +160,6 @@ export const styles = StyleSheet.create({
     position: "absolute",
     top: "100%",
   },
-  menuOpen: { zIndex: 10 },
   message: { borderRadius: radii.xl, marginVertical: 6, maxWidth: "75%", paddingVertical: 10 },
   missionRowMain: { gap: 2 },
   muted: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.md },
@@ -194,6 +195,16 @@ export const styles = StyleSheet.create({
   },
   screen: { backgroundColor: colors.paper, flex: 1, gap: 14, paddingHorizontal: 28, paddingVertical: 20 },
   section: { gap: 8 },
+  /** The composer's send button: a round ink stamp holding an arrow. */
+  sendButton: {
+    ...ink,
+    alignItems: "center",
+    backgroundColor: colors.text,
+    borderRadius: radii.pill,
+    height: 32,
+    justifyContent: "center",
+    width: 32,
+  },
   sender: {
     color: colors.textMuted,
     fontFamily: fonts.sans,

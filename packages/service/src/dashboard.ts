@@ -33,10 +33,11 @@ const listSearchMatches = (search: string) =>
  */
 export const listMissions = (filters: MissionFilters) =>
   Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
     const summaries = yield* listViewSummaries(filters.isArchived);
-    const workspaces = new Map<WorkspaceId, string>();
-    for (const summary of summaries)
-      if (summary.workspaceId !== null) workspaces.set(summary.workspaceId, summary.workspaceName ?? "");
+    const ids = new Set(summaries.flatMap((summary) => (summary.workspaceId === null ? [] : [summary.workspaceId])));
+    const known = yield* sql<{ id: WorkspaceId; name: string; path: string }>`SELECT id, name, path FROM workspaces`;
+    const workspaces = known.filter((workspace) => ids.has(workspace.id));
     const search = filters.search?.trim().toLowerCase() ?? "";
     const matching = search === "" ? null : yield* listSearchMatches(search);
     const missions = summaries.filter(
@@ -48,6 +49,6 @@ export const listMissions = (filters: MissionFilters) =>
     const first = missions.filter((mission) => statesNeedingOwner.includes(mission.state));
     return {
       missions: [...first, ...missions.filter((mission) => !statesNeedingOwner.includes(mission.state))],
-      workspaces: [...workspaces].map(([id, name]) => ({ id, name })),
+      workspaces: workspaces.map(({ id, name, path }) => ({ id, name, path })),
     } satisfies MissionList;
   });

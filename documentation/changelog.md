@@ -1059,3 +1059,34 @@ Validation:
 - `bun run typecheck` and `bun run check` passed (the art-direction mockups are excluded from Biome).
 - Driven in the Electron window with the fake harness: empty board, board with a mission, mission view, Settings, Intel (screenshots in the verification folder).
 - Not verified: native builds; the Attention circle and Done column with real missions in those states.
+
+## CHG-0069 · 2026-11-08 · Sidebar by Control and workspaces, Idle column, send icon, menus in their own layer
+
+Type: Code
+Event: Delivery
+Scope: App (sidebar, dashboard board, composer, drop-down menus)
+
+Summary: the owner's review of CHG-0068 asked for Control on top of the sidebar, workspaces under it, a place for missions outside workspaces, a send icon, Running told apart from finished, and the composer's menus fixed.
+- Sidebar: Control on top, then Workspaces (each with its open missions counted; choosing one shows its board), then Missions with no workspace with Archived as a small link under its heading, then Intel, Settings, and Spending (the global budget's period: meters when it has limits, a token count otherwise). Control leads to the board of every mission, where Control's own thread will be pinned (mission-coordination, not built); the board's heading reads Control. The workspace chosen moved from the dashboard into the app, so the sidebar and the breadcrumb share it.
+- Board: four columns, Attention, Running (with Waiting), Idle, Done. Idle missions, with no thread at work, no longer sit under Running. The columns stand side by side from 860 points of panel width (was 720).
+- Composer: Send is a round arrow button (accessibility label "Send"), dimmed while the box is empty; Enter still sends.
+- Menus: an open list draws in a transparent modal layer placed from its button (`menuPlacement.ts`), so nothing covers it (the workspace line did), a click outside closes it, only one is open at a time, and it opens upward when there is more room above.
+- Workspace board: a mission started there starts in that workspace; the folder choice is replaced by "Starts in <workspace>", and the starter waits until the workspace's folder is known. The mission list's workspaces now carry their folder (`WorkspaceChoice.path`, contracts and service).
+- Conversation: the messages keep a 16-point gutter on the right, so the scrollbar no longer sits on the owner's messages.
+
+Not done: plan usage per harness (no harness limit is read yet; backlog entry with the Codex evidence); Control's thread itself.
+
+Asked by the owner on 2026-11-08. Not yet accepted by the owner.
+
+References:
+- apps/app/src/sidebar.tsx, dashboard.tsx, boardColumns.ts, pickers.tsx, menuPlacement.ts, controls.tsx, styles.ts, App.tsx
+- apps/app/test/boardColumns.test.ts, menuPlacement.test.ts
+- packages/contracts/src/workspaces.ts, packages/service/src/dashboard.ts, packages/service/test/dashboard.test.ts
+- documentation/verification/2026-11-08-sidebar-and-menus/
+
+Validation:
+- `bun run test` passed 410 with 10 skipped; 7 tests are new or changed (board columns, menu placement), the board ones seen failing first.
+- `bun run typecheck`, `bun run check`, `git diff --check` passed.
+- Driven in the Electron window with the fake harness (Environment as in `verification/2026-11-08-thread-opening-indicators.md`): empty Control board, harness menu drawn over the workspace line, click outside closing it, an Idle mission in the Idle column and in the sidebar's Missions, the send arrow in the mission view, a Settings drop-down field.
+- Workspace board driven with a workspace mission started over the service socket (the Finder dialog cannot be driven): the sidebar lists the workspace with its count, the starter reads "Starts in canopy-ws-demo", and a mission sent from it lands in that workspace.
+- Not verified: a menu opening upward, native builds.

@@ -160,6 +160,7 @@ function ThreadPane({
       )}
       <FlatList<Entry>
         {...followNewest.listProps}
+        contentContainerStyle={styles.feed}
         data={entriesOf(detail)}
         keyExtractor={(entry) => entry.key}
         ListFooterComponent={

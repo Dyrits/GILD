@@ -1,4 +1,4 @@
-import type { MissionId, WorkspaceId } from "@canopy/contracts";
+import type { MissionId, WorkspaceChoice, WorkspaceId } from "@canopy/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { MissionBoard, MissionCard } from "./board";
@@ -17,10 +17,22 @@ import { useServiceQuery } from "./useServiceQuery";
 import { WorkspacePicker } from "./workspaces";
 
 /** The panel width from which the board's columns stand side by side. */
-const boardBreakpoint = 720;
+const boardBreakpoint = 860;
 
-/** Starts a mission with one message, prefilled from the last mission's choices (mission-tracking). */
-function MissionStarter({ client, onOpen }: { client: ServiceClient; onOpen: (id: MissionId) => void }) {
+/**
+ * Starts a mission with one message, prefilled from the last mission's choices (mission-tracking). On a workspace's
+ * board the mission starts in that workspace, and the workspace cannot be changed there.
+ */
+function MissionStarter({
+  client,
+  onOpen,
+  workspace: lockedWorkspace,
+}: {
+  client: ServiceClient;
+  onOpen: (id: MissionId) => void;
+  /** The workspace whose board shows, or null on the board of every mission. */
+  workspace: WorkspaceChoice | null;
+}) {
   const { data: last } = useServiceQuery(client, { _tag: "ReadStartChoices" }, "start-choices");
   const { data: harnesses } = useHarnesses(client);
   // Null until the owner picks; the last mission's runner applies until then.
@@ -32,7 +44,12 @@ function MissionStarter({ client, onOpen }: { client: ServiceClient; onOpen: (id
     (last === null
       ? { accountId: null, effort: "default", harness: "claude", model: "default" }
       : { accountId: last.accountId, effort: last.effort, harness: last.harness, model: last.model });
-  const chosenWorkspace = workspace === null ? (last?.workspacePath ?? null) : workspace.path;
+  const chosenWorkspace =
+    lockedWorkspace !== null
+      ? lockedWorkspace.path
+      : workspace === null
+        ? (last?.workspacePath ?? null)
+        : workspace.path;
   return (
     // Above the list below it, so a picker's open list covers the search and the filters.
     <View style={[styles.section, styles.raised]}>
@@ -56,7 +73,13 @@ function MissionStarter({ client, onOpen }: { client: ServiceClient; onOpen: (id
         }
         placeholder="Start a mission with one message…"
       />
-      <WorkspacePicker onChange={(path) => setWorkspace({ path })} value={chosenWorkspace} />
+      {lockedWorkspace === null ? (
+        <WorkspacePicker onChange={(path) => setWorkspace({ path })} value={chosenWorkspace} />
+      ) : (
+        <Text style={styles.muted}>
+          Starts in <Text style={styles.code}>{lockedWorkspace.name}</Text>. Choose another folder from All workspaces.
+        </Text>
+      )}
     </View>
   );
 }
@@ -73,6 +96,8 @@ export function Dashboard({
   onOpen,
   onSettings,
   onIntel,
+  onWorkspace,
+  workspaceId: chosenWorkspaceId,
 }: {
   client: ServiceClient;
   isArchived: boolean;
@@ -82,11 +107,16 @@ export function Dashboard({
   onSettings: () => void;
   /** Opens the intel panel with all intel. */
   onIntel: () => void;
+  /** Shows one workspace's missions, or every mission with null. */
+  onWorkspace: (id: WorkspaceId | null) => void;
+  /** The workspace whose missions show, or null for every mission. */
+  workspaceId: WorkspaceId | null;
 }) {
   const hasSidebar = useHasSidebar();
   const [search, setSearch] = useState("");
   const [width, setWidth] = useState(0);
-  const [workspaceId, setWorkspaceId] = useState<WorkspaceId | null>(null);
+  // The Archived view keeps every workspace; the board shows the one chosen in the sidebar or the breadcrumb.
+  const workspaceId = isArchived ? null : chosenWorkspaceId;
   const [isGlobalBudgetOpen, setIsGlobalBudgetOpen] = useState(false);
   const { data: global } = useServiceQuery(client, { _tag: "ReadBudget", missionId: null }, "budget:global");
   const request = { _tag: "ListMissions", isArchived, search, state: null, workspaceId } as const;
@@ -96,6 +126,8 @@ export function Dashboard({
   // The questions cover every mission on the dashboard, whatever the filters show.
   const { data: all } = useServiceQuery(client, allMissions.request, allMissions.key);
   const asking = isArchived ? [] : (all?.missions.filter((mission) => mission.prompt !== null) ?? []);
+  // On a workspace's board, the starter waits for the workspace's folder, so a mission never starts elsewhere.
+  const openWorkspace = data?.workspaces.find((each) => each.id === workspaceId) ?? null;
   const workspaceNames = new Map((data?.workspaces ?? []).map((w) => [w.id, w.name]));
   if (isGlobalBudgetOpen) {
     return (
@@ -126,13 +158,15 @@ export function Dashboard({
               <Menu
                 accessibilityLabel="Workspace"
                 label={(id) => (id === null ? "All workspaces" : (workspaceNames.get(id) ?? ""))}
-                onChange={setWorkspaceId}
+                onChange={onWorkspace}
                 options={[null, ...workspaceNames.keys()]}
                 value={workspaceId}
               />
             </View>
           )}
-          <Text style={styles.heading}>{isArchived ? "Archived missions" : "Missions"}</Text>
+          <Text style={styles.heading}>
+            {isArchived ? "Archived missions" : workspaceId === null ? "Control" : "Missions"}
+          </Text>
         </View>
         {global !== null && <BudgetMeters onPress={() => setIsGlobalBudgetOpen(true)} use={global} />}
         {!isArchived && !hasSidebar && (
@@ -181,7 +215,9 @@ export function Dashboard({
           ))}
         </View>
       )}
-      {!isArchived && <MissionStarter client={client} onOpen={onOpen} />}
+      {!isArchived && (workspaceId === null || openWorkspace !== null) && (
+        <MissionStarter client={client} onOpen={onOpen} workspace={openWorkspace} />
+      )}
       <TextInput
         accessibilityLabel="Search missions"
         onChangeText={setSearch}

@@ -1,14 +1,16 @@
-import type { MissionId, MissionSummary } from "@canopy/contracts";
+import type { MissionId, MissionSummary, WorkspaceId } from "@canopy/contracts";
 import { createContext, type ReactNode, useContext } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { BudgetMeters } from "./budgets";
 import type { ServiceClient } from "./client";
+import { tokenCountOf } from "./labels";
 import { allMissions } from "./queries";
 import { CanopyMark } from "./sketches";
 import { colors, cut, fontSizes, fonts, ink, lift, radii, stateTones } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
 
-/** The places the sidebar leads to; a mission is opened from its list instead. */
-export type Place = "Missions" | "Intel" | "Archived" | "Settings";
+/** The places the sidebar leads to; a mission is opened from its list instead, a workspace's board from its own list. */
+export type Place = "Control" | "Intel" | "Archived" | "Settings";
 
 const SidebarShown = createContext(false);
 
@@ -18,17 +20,17 @@ export const useHasSidebar = () => useContext(SidebarShown);
 /** The window width from which the sidebar shows beside the content; narrower windows keep the screens' own links. */
 const sidebarBreakpoint = 820;
 
-const placeGlyphs = { Archived: "▤", Intel: "◆", Missions: "◎", Settings: "⚙" } as const satisfies Record<
-  Place,
-  string
->;
+const placeGlyphs = { Archived: "▤", Control: "◎", Intel: "◆", Settings: "⚙" } as const satisfies Record<Place, string>;
 
 function NavItem({
+  count,
   isSelected,
   label,
   glyph,
   onPress,
 }: {
+  /** A number shown at the end of the row, such as a workspace's open missions; none when absent. */
+  count?: number;
   isSelected: boolean;
   label: string;
   glyph: string;
@@ -44,6 +46,7 @@ function NavItem({
       <Text numberOfLines={1} style={[local.itemText, isSelected && local.textSelected]}>
         {label}
       </Text>
+      {count !== undefined && count > 0 && <Text style={local.count}>{count}</Text>}
     </Pressable>
   );
 }
@@ -72,24 +75,42 @@ function MissionItem({
   );
 }
 
-/** The left rail: the app's name, its places, and the missions not archived, most recent first. */
+/** A handwritten section label in the rail. */
+function Section({ label }: { label: string }) {
+  return <Text style={local.section}>{label}</Text>;
+}
+
+/**
+ * The left rail: the app's name, Control on top (the board of every mission, where Control's own thread will be
+ * pinned), the workspaces with their missions still open, the missions with no workspace, the other places, and
+ * the spending against the global budget.
+ */
 function Sidebar({
   client,
   onNewMission,
   onOpenMission,
   onPlace,
+  onWorkspace,
   openMission,
   place,
+  workspaceId,
 }: {
   client: ServiceClient;
   onNewMission: () => void;
   onOpenMission: (id: MissionId) => void;
   onPlace: (place: Place) => void;
+  /** Opens the board of one workspace's missions. */
+  onWorkspace: (id: WorkspaceId) => void;
   openMission: MissionId | null;
   place: Place | null;
+  /** The workspace whose board shows, or null for every mission. */
+  workspaceId: WorkspaceId | null;
 }) {
   const { data } = useServiceQuery(client, allMissions.request, allMissions.key);
   const missions = [...(data?.missions ?? [])].sort((a, b) => b.lastActivityAt - a.lastActivityAt);
+  const loose = missions.filter((mission) => mission.workspaceId === null);
+  const workspaces = [...(data?.workspaces ?? [])].sort((a, b) => a.name.localeCompare(b.name));
+  const isOnBoard = openMission === null && place === "Control";
   return (
     <View style={local.sidebar}>
       <View style={local.brand}>
@@ -103,21 +124,41 @@ function Sidebar({
       >
         <Text style={local.newMissionText}>＋ New mission</Text>
       </Pressable>
-      <View style={local.group}>
-        {(["Missions", "Intel", "Archived"] as const).map((each) => (
+      <NavItem
+        glyph={placeGlyphs.Control}
+        isSelected={isOnBoard && workspaceId === null}
+        label="Control"
+        onPress={() => onPlace("Control")}
+      />
+      <ScrollView contentContainerStyle={local.group} style={local.flex}>
+        <Section label="Workspaces" />
+        {workspaces.length === 0 && <Text style={local.empty}>No mission in a workspace yet.</Text>}
+        {workspaces.map((workspace) => (
           <NavItem
-            glyph={placeGlyphs[each]}
-            isSelected={openMission === null && place === each}
-            key={each}
-            label={each}
-            onPress={() => onPlace(each)}
+            count={
+              missions.filter((mission) => mission.workspaceId === workspace.id && mission.state !== "Done").length
+            }
+            glyph="▱"
+            isSelected={isOnBoard && workspaceId === workspace.id}
+            key={workspace.id}
+            label={workspace.name}
+            onPress={() => onWorkspace(workspace.id)}
           />
         ))}
-      </View>
-      <Text style={local.section}>Missions</Text>
-      <ScrollView contentContainerStyle={local.group} style={local.flex}>
-        {missions.length === 0 && <Text style={local.empty}>No missions yet.</Text>}
-        {missions.map((mission) => (
+        <Section label="Missions" />
+        <Pressable
+          accessibilityLabel="Archived missions"
+          accessibilityRole="button"
+          accessibilityState={{ selected: openMission === null && place === "Archived" }}
+          onPress={() => onPlace("Archived")}
+          style={local.subtitle}
+        >
+          <Text style={[local.subtitleText, openMission === null && place === "Archived" && local.subtitleSelected]}>
+            Archived ›
+          </Text>
+        </Pressable>
+        {loose.length === 0 && <Text style={local.empty}>None outside a workspace.</Text>}
+        {loose.map((mission) => (
           <MissionItem
             isSelected={mission.id === openMission}
             key={mission.id}
@@ -127,13 +168,40 @@ function Sidebar({
         ))}
       </ScrollView>
       <View style={local.footer}>
-        <NavItem
-          glyph={placeGlyphs.Settings}
-          isSelected={openMission === null && place === "Settings"}
-          label="Settings"
-          onPress={() => onPlace("Settings")}
-        />
+        {(["Intel", "Settings"] as const).map((each) => (
+          <NavItem
+            glyph={placeGlyphs[each]}
+            isSelected={openMission === null && place === each}
+            key={each}
+            label={each}
+            onPress={() => onPlace(each)}
+          />
+        ))}
+        <Spending client={client} />
       </View>
+    </View>
+  );
+}
+
+/**
+ * The spending of the global budget's current period, as meters when it has limits and as a line otherwise. The
+ * harnesses' own plan limits are not read yet (backlog), so the rail shows only what Canopy counts.
+ */
+function Spending({ client }: { client: ServiceClient }) {
+  const { data: global } = useServiceQuery(client, { _tag: "ReadBudget", missionId: null }, "budget:global");
+  if (global === null) return null;
+  const hasLimits = global.limits.cost !== null || global.limits.tokens !== null;
+  return (
+    <View style={local.spending}>
+      <Section label="Spending" />
+      {hasLimits ? (
+        <BudgetMeters use={global} />
+      ) : (
+        <Text style={local.empty}>
+          {tokenCountOf(global.spent.tokens)} tokens
+          {global.spent.cost > 0 ? ` · $${global.spent.cost.toFixed(2)}` : ""}
+        </Text>
+      )}
     </View>
   );
 }
@@ -159,6 +227,7 @@ const local = StyleSheet.create({
   attention: { backgroundColor: colors.warning, borderRadius: radii.pill, height: 7, width: 7 },
   brand: { alignItems: "center", flexDirection: "row", gap: 8, paddingBottom: 12, paddingHorizontal: 8, paddingTop: 4 },
   brandText: { color: colors.text, fontFamily: fonts.hand, fontSize: 28, lineHeight: 32 },
+  count: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.sm },
   dot: { borderRadius: radii.pill, height: 7, marginHorizontal: 3, width: 7 },
   empty: { color: colors.textDim, fontFamily: fonts.sans, fontSize: fontSizes.md, paddingHorizontal: 10 },
   flex: { flex: 1 },
@@ -207,5 +276,10 @@ const local = StyleSheet.create({
     paddingTop: 14,
   },
   sidebar: { gap: 2, padding: 12, width: 236 },
+  spending: { paddingBottom: 4 },
+  // Archived as a subtitle under the Missions heading: a small muted link, inked when its view is open.
+  subtitle: { alignSelf: "flex-start", paddingBottom: 4, paddingHorizontal: 8 },
+  subtitleSelected: { color: colors.text, fontWeight: "600", textDecorationLine: "underline" },
+  subtitleText: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.sm },
   textSelected: { color: colors.text, fontWeight: "600" },
 });

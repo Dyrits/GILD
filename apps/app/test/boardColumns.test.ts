@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { boardOf, isStateShownOn } from "../src/boardColumns";
+import { boardColumns, boardOf, isStateShownOn } from "../src/boardColumns";
 
 describe("laying missions out on the board", () => {
   it("puts failed missions with those in Attention, since both need the owner", () => {
@@ -10,14 +10,26 @@ describe("laying missions out on the board", () => {
     expect(board.Attention.map((mission) => mission.id)).toEqual(["a", "f"]);
   });
 
-  it("keeps waiting and idle missions under Running, in their order", () => {
+  it("keeps waiting missions under Running, in their order, since a thread beneath is at work", () => {
     const board = boardOf([
       { id: "w", state: "Waiting" },
       { id: "r", state: "Running" },
+    ] as const);
+    expect(board.Running.map((mission) => mission.id)).toEqual(["w", "r"]);
+    expect(board.Attention).toEqual([]);
+  });
+
+  it("puts idle missions in their own column, apart from those at work", () => {
+    const board = boardOf([
+      { id: "r", state: "Running" },
       { id: "i", state: "Idle" },
     ] as const);
-    expect(board.Running.map((mission) => mission.id)).toEqual(["w", "r", "i"]);
-    expect(board.Attention).toEqual([]);
+    expect(board.Idle.map((mission) => mission.id)).toEqual(["i"]);
+    expect(board.Running.map((mission) => mission.id)).toEqual(["r"]);
+  });
+
+  it("orders the columns by what needs the owner first, idle before done", () => {
+    expect(boardColumns).toEqual(["Attention", "Running", "Idle", "Done"]);
   });
 
   it("puts done missions in the last column", () => {
@@ -26,6 +38,7 @@ describe("laying missions out on the board", () => {
 
   it("names a card's state only when it differs from its column", () => {
     expect(isStateShownOn("Running", "Running")).toBe(false);
+    expect(isStateShownOn("Idle", "Idle")).toBe(false);
     expect(isStateShownOn("Running", "Waiting")).toBe(true);
     expect(isStateShownOn("Attention", "Failed")).toBe(true);
   });

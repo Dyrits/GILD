@@ -1,4 +1,4 @@
-import type { MissionId } from "@canopy/contracts";
+import type { MissionId, WorkspaceId } from "@canopy/contracts";
 import { Caveat_700Bold, useFonts } from "@expo-google-fonts/caveat";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
@@ -17,7 +17,7 @@ const placeOf = (open: { isArchivedOpen: boolean; isIntelOpen: boolean; isSettin
   if (open.isSettingsOpen) return "Settings";
   if (open.isIntelOpen) return "Intel";
   if (open.isArchivedOpen) return "Archived";
-  return "Missions";
+  return "Control";
 };
 
 export default function App() {
@@ -28,6 +28,8 @@ export default function App() {
   const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
   const [isArchivedOpen, setIsArchivedOpen] = useState(false);
   const [isIntelOpen, setIsIntelOpen] = useState(false);
+  // The workspace whose board Control shows, or null for every mission.
+  const [workspaceId, setWorkspaceId] = useState<WorkspaceId | null>(null);
   // Counts openings from the sidebar, so choosing the open mission again goes back to its threads.
   const [openCount, setOpenCount] = useState(0);
   // Caveat's handwriting draws headings; until it loads (or fails, falling back to the system font) the
@@ -53,9 +55,18 @@ export default function App() {
     setIsIntelOpen(place === "Intel");
     setIsArchivedOpen(place === "Archived");
     setIsSettingsOpen(place === "Settings");
+    if (place === "Control") setWorkspaceId(null);
+  };
+  const openWorkspace = (id: WorkspaceId) => {
+    goTo("Control");
+    setWorkspaceId(id);
   };
   const openMissionFromAnywhere = (id: MissionId) => {
-    goTo("Missions");
+    setOpenMission(null);
+    setIsPermissionsOpen(false);
+    setIsIntelOpen(false);
+    setIsArchivedOpen(false);
+    setIsSettingsOpen(false);
     setOpenMission(id);
     setOpenCount(openCount + 1);
   };
@@ -80,6 +91,8 @@ export default function App() {
       onIntel={() => setIsIntelOpen(true)}
       onOpen={setOpenMission}
       onSettings={() => setIsSettingsOpen(true)}
+      onWorkspace={setWorkspaceId}
+      workspaceId={workspaceId}
     />
   ) : (
     <Conversation
@@ -93,11 +106,13 @@ export default function App() {
   return (
     <Shell
       client={client}
-      onNewMission={() => goTo("Missions")}
+      onNewMission={() => goTo("Control")}
       onOpenMission={openMissionFromAnywhere}
       onPlace={goTo}
+      onWorkspace={openWorkspace}
       openMission={openMission}
       place={place}
+      workspaceId={workspaceId}
     >
       {content}
     </Shell>

@@ -1,10 +1,14 @@
-import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { type ComponentRef, useRef, useState } from "react";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { type MenuPlacement, menuPlacementOf } from "./menuPlacement";
 import { styles } from "./styles";
 import { colors, cut, fontSizes, fonts, ink } from "./theme";
 
 /** Past this many options, a choice is a drop-down field rather than a segmented control. */
 const segmentedLimit = 3;
+
+/** An open list's narrowest width; a drop-down field's list is as wide as the field. */
+const listWidth = 200;
 
 /**
  * One choice among options: a segmented control for a few short ones, a drop-down field past that, so a form never
@@ -76,13 +80,23 @@ export function Menu<T extends string | null>({
   label: (option: T) => string;
   onChange: (option: T) => void;
 }) {
-  const [isOpen, setIsOpen] = useState(false);
+  // Where the open list stands in the window, or null while closed.
+  const [placement, setPlacement] = useState<MenuPlacement | null>(null);
+  const button = useRef<ComponentRef<typeof View>>(null);
+  const window = useWindowDimensions();
+  const isOpen = placement !== null;
+  const close = () => setPlacement(null);
+  const open = () =>
+    button.current?.measureInWindow((x, y, width, height) =>
+      setPlacement(menuPlacementOf({ height, width, x, y }, window, listWidth)),
+    );
   return (
-    <View style={[styles.menu, isField && local.fieldWrap, isOpen && styles.menuOpen]}>
+    <View style={[styles.menu, isField && local.fieldWrap]}>
       <Pressable
         accessibilityLabel={accessibilityLabel}
         accessibilityRole="button"
-        onPress={() => setIsOpen(!isOpen)}
+        onPress={isOpen ? close : open}
+        ref={button}
         style={[isField ? local.field : styles.menuButton, isOpen && styles.menuButtonOpen]}
       >
         <Text numberOfLines={1} style={isField ? local.fieldText : local.compactText}>
@@ -90,26 +104,35 @@ export function Menu<T extends string | null>({
         </Text>
         <Text style={styles.menuCaret}>⌄</Text>
       </Pressable>
-      {isOpen && (
-        <ScrollView style={[styles.menuList, isField && local.fieldList]}>
-          {options.map((option) => (
-            <Pressable
-              accessibilityRole="menuitem"
-              key={String(option)}
-              onPress={() => {
-                onChange(option);
-                setIsOpen(false);
-              }}
-              style={[styles.menuItem, option === value && styles.menuItemSelected]}
-            >
-              <Text numberOfLines={1} style={[styles.menuItemText, option === value && styles.chipTextSelected]}>
-                {label(option)}
-              </Text>
-              {option === value && <Text style={styles.chipTextSelected}>✓</Text>}
-            </Pressable>
-          ))}
-        </ScrollView>
-      )}
+      {/* The list opens in its own layer over the whole window, so nothing drawn later covers it, a click
+          outside closes it, and only one menu is open at a time. */}
+      <Modal animationType="none" onRequestClose={close} transparent visible={isOpen}>
+        <Pressable accessibilityLabel="Close the menu" onPress={close} style={StyleSheet.absoluteFill} />
+        {placement !== null && (
+          <ScrollView style={[styles.menuList, local.floating, placement]}>
+            {options.map((option) => (
+              <Pressable
+                accessibilityRole="menuitem"
+                key={String(option)}
+                onPress={() => {
+                  onChange(option);
+                  close();
+                }}
+                style={({ pressed }) => [
+                  styles.menuItem,
+                  pressed && local.itemHovered,
+                  option === value && styles.menuItemSelected,
+                ]}
+              >
+                <Text numberOfLines={1} style={[styles.menuItemText, option === value && styles.chipTextSelected]}>
+                  {label(option)}
+                </Text>
+                {option === value && <Text style={styles.chipTextSelected}>✓</Text>}
+              </Pressable>
+            ))}
+          </ScrollView>
+        )}
+      </Modal>
     </View>
   );
 }
@@ -176,9 +199,11 @@ const local = StyleSheet.create({
     paddingHorizontal: 10,
     paddingVertical: 7,
   },
-  fieldList: { right: 0 },
   fieldText: { color: colors.text, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.md },
   fieldWrap: { alignSelf: "stretch", maxWidth: 420 },
+  // The list's own place comes from its button's frame; the shared style's place below the button is dropped.
+  floating: { position: "absolute", top: undefined },
+  itemHovered: { backgroundColor: colors.controlHover },
   knob: {
     ...ink,
     backgroundColor: colors.accent,

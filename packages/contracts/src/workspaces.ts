@@ -26,6 +26,6 @@ export const FolderListing = Schema.Struct({
 });
 export type FolderListing = typeof FolderListing.Type;
 
-/** One workspace the dashboard can filter by. */
-export const WorkspaceChoice = Schema.Struct({ id: WorkspaceId, name: Schema.String });
+/** One workspace the dashboard can filter by, with its folder, where a mission started from its board works. */
+export const WorkspaceChoice = Schema.Struct({ id: WorkspaceId, name: Schema.String, path: Schema.String });
 export type WorkspaceChoice = typeof WorkspaceChoice.Type;
