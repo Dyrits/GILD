@@ -182,6 +182,20 @@ describe("keeping a mission's journal", () => {
     }).pipe(Effect.provide(live())),
   );
 
+  it.live("keeps the opener's 40 latest messages and counts those left out", () =>
+    Effect.gen(function* () {
+      const { missionId, threadId } = yield* idle("Message 0");
+      for (let i = 1; i <= 21; i++) {
+        yield* send(threadId, `Message ${i}`);
+        yield* settle(missionId, (d) => d.thread.state === "Idle" && d.messages.length === 2 * (i + 1));
+      }
+      const section = (yield* contextOfChild(missionId, threadId)).split("# Your opener's messages")[1] ?? "";
+      expect(section).toContain("(4 earlier messages left out.)");
+      expect(section).toContain("Owner:\nMessage 2\n");
+      expect(section).not.toContain("Owner:\nMessage 1\n");
+    }).pipe(Effect.provide(live())),
+  );
+
   it.live("starts a top thread with no opener's messages", () =>
     Effect.gen(function* () {
       const started = yield* start("context");

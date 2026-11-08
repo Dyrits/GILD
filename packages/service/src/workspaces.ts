@@ -46,6 +46,16 @@ export const readThreadWorkspace = (threadId: string) =>
     return { id: row.id as WorkspaceId, isMissing, name: row.name, path: row.path } satisfies Workspace;
   });
 
+/** The folder a thread works in: its workspace's, or its mission's scratch folder; null for an unknown thread. */
+export const threadFolderOf = (threadId: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const [row] = yield* sql<{ missionId: string }>`SELECT mission_id AS missionId FROM threads WHERE id = ${threadId}`;
+    if (row === undefined) return null;
+    const workspace = yield* readThreadWorkspace(threadId);
+    return workspace?.path ?? join(yield* ScratchRoot, row.missionId);
+  });
+
 // Instruction files a harness started without its own settings does not read (probe, 2026-11-06:
 // Claude Code 2.1.302 with `--setting-sources ""` ignores the folder's CLAUDE.md).
 const instructionFiles = ["AGENTS.md", "CLAUDE.md"];

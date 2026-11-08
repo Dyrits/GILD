@@ -4,12 +4,22 @@ import { SqlClient, type SqlError } from "effect/sql";
 import { makeOwnerWaits } from "./attention.ts";
 import { Changes } from "./changes.ts";
 import { invalid, notFound, type ServiceFailure } from "./errors.ts";
+import { isInsideFolder } from "./folders.ts";
 import { resumeInTurn } from "./lifecycle.ts";
-import { plainActionOf, reasonOf, savedPatternOf, sensitivityOf, targetOf } from "./patterns.ts";
+import {
+  changedFilesOf,
+  isFileChange,
+  plainActionOf,
+  reasonOf,
+  savedPatternOf,
+  sensitivityOf,
+  targetOf,
+} from "./patterns.ts";
 import { findCoveringPermission, insertPermission } from "./permissions.ts";
 import { readQuestion } from "./questions.ts";
 import { isNamingQuote } from "./quotes.ts";
 import { readSettings } from "./settings.ts";
+import { ScratchRoot, threadFolderOf } from "./workspaces.ts";
 
 /** What a thread passes to `request_approval`: one action, said in plain language, with its exact target. */
 export interface ApprovalRequest {
@@ -91,6 +101,7 @@ export const approvalsLayer = Layer.effect(
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const changes = yield* Changes;
+    const scratchRoot = yield* ScratchRoot;
     const waits = makeOwnerWaits<Resolution>(sql, changes);
     const withdrawn: Resolution = { message: null, outcome: "Withdrawn" };
     // Targets approved through `request_approval` that the next matching harness prompt may run once.
@@ -220,6 +231,21 @@ export const approvalsLayer = Layer.effect(
         return { isAllowed, text: textOf(resolution) } satisfies Decision;
       }).pipe(Effect.orDie);
 
+    /**
+     * A prompt's sensitivity, where a file change inside the thread's folder is ordinary work: harnesses ask about
+     * such changes only at "Also commands and edits", whose question then names no outside change.
+     */
+    const sensitivityInFolderOf = (threadId: string, toolName: string, input: unknown) =>
+      Effect.gen(function* () {
+        const sensitivity = sensitivityOf(toolName, input);
+        const files = changedFilesOf(input);
+        if (!isFileChange(sensitivity) || files.length === 0) return sensitivity;
+        const folder = yield* threadFolderOf(threadId).pipe(Effect.provideService(ScratchRoot, scratchRoot));
+        if (folder === null) return sensitivity;
+        for (const file of files) if (!(yield* isInsideFolder(folder, file))) return sensitivity;
+        return null;
+      });
+
     const answerPrompt = (threadId: string, toolName: string, input: unknown) =>
       Effect.gen(function* () {
         const target = targetOf(toolName, input);
@@ -227,7 +253,7 @@ export const approvalsLayer = Layer.effect(
         const missionId = yield* missionOf(threadId);
         if (missionId === null) return { isAllowed: false, text: "Unknown thread." } satisfies Decision;
         const { approvalLevel } = yield* readSettings;
-        const sensitivity = sensitivityOf(toolName, input);
+        const sensitivity = yield* sensitivityInFolderOf(threadId, toolName, input);
         const reason = reasonOf(input);
         const plain = `${reason ?? plainActionOf(toolName)}.`;
         // At the default level only a sensitive action asks; anything else runs and leaves

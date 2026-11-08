@@ -3,7 +3,8 @@
 // one per request it receives ({ method, params }).
 // A prompt's text decides what it does: "run <command>" or "edit <path>" asks permission for that command or
 // file change first and says which option was chosen; "slow <millis>" keeps the turn running; anything else
-// is echoed.
+// is echoed. "fragile run <command>" asks the same way, then hangs on the next prompt and exits when cancelled,
+// as a process that dies during an interrupt.
 import { appendFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { createInterface } from "node:readline";
@@ -25,6 +26,8 @@ let nextServerId = 1000;
 const waiting = new Map();
 /** The running prompt: its request id, session, and timer. */
 let current = null;
+/** Whether the next prompt hangs and a cancel ends the process ("fragile run"). */
+let isFragile = false;
 
 const ask = (method, params) =>
   new Promise((resolve) => {
@@ -77,6 +80,12 @@ const askPermission = async (prompt, subject, toolCall) => {
 };
 
 const runPrompt = async (prompt, text) => {
+  if (isFragile) return;
+  const fragile = /^fragile run (.+)$/.exec(text);
+  if (fragile !== null) {
+    isFragile = true;
+    return askPermission(prompt, fragile[1], { kind: "execute", rawInput: { command: fragile[1] } });
+  }
   const run = /^run (.+)$/.exec(text);
   if (run !== null) return askPermission(prompt, run[1], { kind: "execute", rawInput: { command: run[1] } });
   // "edit <path>" asks to change that file as OpenCode's edit tool did live on 2026-11-08: the input keeps the
@@ -126,6 +135,6 @@ createInterface({ input: process.stdin }).on("line", (line) => {
         .at(-1),
     );
   }
-  if (method === "session/cancel") return finish("cancelled", null);
+  if (method === "session/cancel") return isFragile ? process.exit(1) : finish("cancelled", null);
   if (id !== undefined) send({ error: { code: -32601, message: `unknown method ${method}` }, id });
 });

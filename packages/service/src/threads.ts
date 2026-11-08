@@ -11,6 +11,7 @@ import { Harness, type HarnessEvent } from "./execution.ts";
 import { makeLifecycle, recoverThreadStates, releaseThread, resumeStopped, stopThread } from "./lifecycle.ts";
 import { listPending, listThreadsWithPending } from "./messaging.ts";
 import { listThreadPermissions } from "./permissions.ts";
+import { removedAccountReasonOf } from "./runners.ts";
 import { readSettings } from "./settings.ts";
 import { prepareStartingContext } from "./startingContext.ts";
 import { Suggestions } from "./suggestions.ts";
@@ -137,6 +138,11 @@ export const threadsLayer = Layer.effect(
     const run = (threadId: string, turn: Admitted): Effect.Effect<void, unknown> =>
       Effect.gen(function* () {
         if (!(yield* isCurrent(turn.turnId))) return;
+        const removed = yield* local(removedAccountReasonOf(turn));
+        if (removed !== null) {
+          yield* fail(threadId, turn, removed);
+          return yield* wakeWaiting(turn.missionId, threadId);
+        }
         const { approvalLevel, shouldStreamReplies } = yield* local(readSettings);
         const permissions = yield* local(listThreadPermissions(threadId));
         const { context, cwd, isInWorkspace, note } = yield* local(prepareStartingContext(threadId));

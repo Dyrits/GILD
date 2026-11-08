@@ -201,11 +201,15 @@ export const openerMessagesOf = (openerId: string) =>
     const since = latest?.writtenAt ?? 0;
     const rows = yield* sql<{ sender: string; fromTitle: string | null; isResult: number; text: string }>`
       SELECT sender_kind AS sender, sender_title AS fromTitle, is_result AS isResult, text FROM messages
-      WHERE thread_id = ${openerId} AND sent_at >= ${since} ORDER BY sequence DESC LIMIT ${openerMessageCount + 1}`;
+      WHERE thread_id = ${openerId} AND sent_at >= ${since} ORDER BY sequence DESC LIMIT ${openerMessageCount}`;
     if (rows.length === 0) return null;
-    const kept = rows.slice(0, openerMessageCount).toReversed();
-    const omitted = rows.length > openerMessageCount ? ["(Earlier messages left out.)"] : [];
-    return [...omitted, ...kept.map((row) => `${senderLabelOf(row)}:\n${row.text}`)].join("\n\n");
+    const [counted] = yield* sql<{ total: number }>`
+      SELECT COUNT(*) AS total FROM messages WHERE thread_id = ${openerId} AND sent_at >= ${since}`;
+    // The new thread knows how much of its opener's conversation it misses (thread-tree, Opening a thread).
+    const leftOut = (counted?.total ?? rows.length) - rows.length;
+    const omitted = leftOut > 0 ? [`(${leftOut} earlier ${leftOut === 1 ? "message" : "messages"} left out.)`] : [];
+    const kept = rows.toReversed().map((row) => `${senderLabelOf(row)}:\n${row.text}`);
+    return [...omitted, ...kept].join("\n\n");
   });
 
 /** How a thread uses the mission journal; part of its system prompt, the same every turn (mission-journal). */

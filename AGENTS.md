@@ -27,6 +27,7 @@
 
 ## Handoffs
 
+To resume after the five Low findings (CHG-0066 uncommitted; awaiting the owner), read the [current handoff](.agents/handoffs/2026-11-08-1110-low-findings.md). Handoffs are shared and committed.
 To resume after OpenCode carries on after a refusal (CHG-0065 uncommitted; awaiting the owner), read the [current handoff](.agents/handoffs/2026-11-08-0955-opencode-refusals.md). Handoffs are shared and committed.
 To resume after the live probes and the Codex wrapper fix (CHG-0064 uncommitted; awaiting the owner), read the [current handoff](.agents/handoffs/2026-11-08-0945-live-probes.md). Handoffs are shared and committed.
 To resume after the OpenCode edit and Always allow fixes (CHG-0064 uncommitted; awaiting the owner), read the [current handoff](.agents/handoffs/2026-11-08-0200-edits-and-pattern-kinds.md). Handoffs are shared and committed.

@@ -282,6 +282,18 @@ describe("limiting threads", () => {
     }).pipe(Effect.provide(live())),
   );
 
+  it.live("counts threads waiting on the owner inside their turn toward the 8 running", () =>
+    Effect.gen(function* () {
+      const push = `prompt Bash ${JSON.stringify({ command: "git push origin main" })}`;
+      const asking = Array.from({ length: 7 }, (_, i) => tool("open_thread", { request: `${push}\nTask ${i}` }));
+      const started = yield* start([...asking, "wait 300", tool("open_thread", { request: "One more" })].join("\n"));
+      const detail = yield* settle(started.missionId, (current) => lastText(current).startsWith("Echo:"));
+      expect(detail.threads.filter((thread) => thread.state === "Attention")).toHaveLength(7);
+      expect(childrenOf(detail, started.threadId)).toHaveLength(7);
+      expect(lastText(detail)).toContain("8 threads are already running");
+    }).pipe(Effect.provide(live())),
+  );
+
   it.live("holds a message while 8 threads run and delivers it once one ends", () =>
     Effect.gen(function* () {
       const started = yield* start("Stand by");

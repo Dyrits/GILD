@@ -979,3 +979,29 @@ Validation:
 - Not verified: the app driven in the window.
 
 Evidence: The owner's instruction of 2026-11-08: "Read the last handoffs, then continue with the next step. For now, we build, step by step and we verify it works. […] Don't ask any question for this session, build what is next."
+
+## CHG-0066 · 2026-11-08 · Five Low findings fixed
+
+Type: Code
+Event: Delivery
+Scope: Local service (approvals, thread tree, journal, accounts, harness processes)
+
+Summary: five Low findings from the review pass (`work-in-progress.md`), each implemented test-first.
+- **Edit summary**: a harness asking about a file change inside the thread's folder (at "Also commands and edits", on any harness) was asked as "Change a file outside the workspace". Approvals now resolves the thread's folder (`threadFolderOf`) and asks such a change as an ordinary "Change a file." with no sensitive kind; a change naming any file outside, after `..` and links, keeps the outside wording, and a key file stays "Read passwords or keys". Codex's several files in one field are each checked.
+- **Running limit**: the 8 running threads of a mission now count threads in Attention on a question inside their turn, whose harness process still runs (`runningCountOf`).
+- **Opener's messages**: the cap line now says how many were left out, for example "(4 earlier messages left out.)".
+- **Removed account**: a turn of a thread whose added account was removed (possible once its mission ended, then reopened) fails before the harness starts, with "This thread ran on a … account that was removed, with its conversation. Open a new thread to carry on."
+- **Interrupted usage**: an OpenCode prompt cancelled by an interrupt already counted the usage OpenCode reports with it (now tested); a process that dies during an interrupt now keeps the usage of the turn's earlier prompts instead of none (`harnessProcesses.ts`, for every harness).
+
+Built under the owner's instruction without questions. Not yet accepted by the owner. The specifications are unchanged: the running-limit and removed-account behaviors are provisional until the owner accepts them.
+
+References:
+- documentation/verification/2026-11-08-low-findings.md
+- packages/service/src/approvals.ts, patterns.ts, workspaces.ts, tree.ts, journal.ts, runners.ts, threads.ts, harnessProcesses.ts
+- packages/service/test/approvals.test.ts, threads.test.ts, journal.test.ts, harnesses.test.ts, fixtures/stand-in-opencode.mjs
+
+Validation:
+- `bun run test` passed 397 with 10 skipped, twice; 5 tests are new and 1 extended.
+- Each new test failed before its fix, for the reason the finding names (see the proof).
+- `bun run typecheck`, `bun run check`, and `git diff --check` passed.
+- Not verified: live harnesses (no live check covers these paths); the app driven in the window.

@@ -270,7 +270,23 @@ export const sensitivityOf = (toolName: string, input: unknown): Sensitivity | n
     if (secretPath.test(text) || secretCommand.test(text)) return secrets;
     return sensitiveCommands.find(([pattern]) => pattern.test(text))?.[1] ?? null;
   }
-  const path = stringField(input, "file_path") ?? stringField(input, "notebook_path") ?? stringField(input, "path");
+  const path = pathFieldOf(input);
   if (path !== null && secretPath.test(path)) return secrets;
   return fileWritingTools.includes(toolName) ? fileChange : null;
 };
+
+const pathFieldOf = (input: unknown) =>
+  stringField(input, "file_path") ?? stringField(input, "notebook_path") ?? stringField(input, "path");
+
+/** Whether a sensitivity is a file change, which Approvals clears when every changed file is inside the thread's folder. */
+export const isFileChange = (sensitivity: Sensitivity | null) => sensitivity === fileChange;
+
+/**
+ * The files a file-writing call names. Codex lists several in one field joined by ", " (codex.ts), so the field is
+ * split: a path holding ", " itself splits into parts that are each checked, which can only make it ask.
+ */
+export const changedFilesOf = (input: unknown) =>
+  (pathFieldOf(input) ?? "")
+    .split(", ")
+    .map((path) => path.trim())
+    .filter((path) => path !== "");

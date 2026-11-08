@@ -357,6 +357,30 @@ describe("harness permission prompts", () => {
       expect(openQuestion(yield* settle(strict.missionId, isAsking)).source).toBe("Harness");
     }).pipe(Effect.provide(live())),
   );
+
+  it.live("asks about a change inside the thread's folder at the stricter level as an ordinary change", () =>
+    Effect.gen(function* () {
+      const settings = yield* call({ _tag: "ReadSettings" });
+      yield* call({ _tag: "UpdateSettings", settings: { ...settings, approvalLevel: "CommandsAndEdits" } });
+      const inside = yield* start(`prompt Edit ${JSON.stringify({ file_path: "notes/plan.md" })}`);
+      expect(openQuestion(yield* settle(inside.missionId, isAsking))).toMatchObject({
+        permission: null,
+        summary: "Change a file.",
+      });
+      const outside = yield* start(`prompt Edit ${JSON.stringify({ file_path: "../elsewhere/plan.md" })}`);
+      expect(openQuestion(yield* settle(outside.missionId, isAsking))).toMatchObject({
+        permission: "Change a file outside the workspace",
+      });
+      const several = yield* start(`prompt Edit ${JSON.stringify({ file_path: "plan.md, /etc/hosts" })}`);
+      expect(openQuestion(yield* settle(several.missionId, isAsking))).toMatchObject({
+        permission: "Change a file outside the workspace",
+      });
+      const secret = yield* start(`prompt Edit ${JSON.stringify({ file_path: ".ssh/id_rsa" })}`);
+      expect(openQuestion(yield* settle(secret.missionId, isAsking))).toMatchObject({
+        permission: "Read passwords or keys",
+      });
+    }).pipe(Effect.provide(live())),
+  );
 });
 
 describe("standing permissions", () => {

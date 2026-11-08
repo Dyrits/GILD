@@ -39,6 +39,21 @@ export const runnerOf = (base: Runner, choice: RunnerChoice): Runner => {
   };
 };
 
+/**
+ * Why a thread's turn cannot run on its account, or null when it can. An account may be removed once its
+ * missions ended, and its folder with it; a reopened mission's thread then has neither its sign-in nor its
+ * conversation, so its turn fails with the reason rather than start the harness signed out (provider-accounts,
+ * Remove).
+ */
+export const removedAccountReasonOf = (runner: Pick<Runner, "accountId" | "harness">) =>
+  Effect.gen(function* () {
+    if (runner.accountId === null) return null;
+    const sql = yield* SqlClient.SqlClient;
+    const rows = yield* sql<{ id: string }>`SELECT id FROM accounts WHERE id = ${runner.accountId}`;
+    if (rows.length > 0) return null;
+    return `This thread ran on a ${harnessLabels[runner.harness]} account that was removed, with its conversation. Open a new thread to carry on.`;
+  });
+
 /** Refuses an account that does not exist or belongs to another harness. */
 export const checkAccount = (runner: Runner) =>
   Effect.gen(function* () {

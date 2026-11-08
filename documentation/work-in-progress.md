@@ -563,16 +563,17 @@ Started at HEAD `26bbb1d`, with the empty tree as the fixed point. Ran Standards
 - **Medium**: Codex sandbox widenings ("Permissions") are granted without a question.
 - **Medium**: Codex and OpenCode threads load the owner's own MCP servers and skills (against CHG-0022 and CHG-0031; listed as provisional above).
 - **Medium**: the widened sandbox hosts may let `git push` or `npm publish` run without a prompt. Probe first, and ask the owner before changing anything.
-- **Low**:
-  - At "Also commands and edits", an OpenCode edit inside the folder asks with the summary "Change a file outside the workspace" (found during CHG-0064).
-  - The running limit counts only Running threads, not Attention inside a turn.
-  - The opener-message cap line gives no count.
+- Done in CHG-0066, awaiting the owner ([proof](verification/2026-11-08-low-findings.md)), **Low**:
+  - a change inside the thread's folder, asked at "Also commands and edits" on any harness, is asked as "Change a file." rather than as outside the workspace;
+  - the running limit counts threads in Attention inside a turn (provisional: thread-tree's "At most 8 threads run at once" read as threads inside a turn);
+  - the opener-message cap line gives its count;
+  - a turn on a removed account fails with the reason before the harness starts (provisional: the owner may prefer refusing the reopen, or moving the thread to the harness's own sign-in);
+  - interrupted OpenCode turns count usage: already true when OpenCode answers the cancel (CHG-0065); a process dying during an interrupt now keeps the earlier prompts' usage.
+- **Low**, still open:
   - The desktop notification fires only for approval questions.
   - The depth and running limits are not adjustable.
   - Claude Code rules come from `~/.claude/settings.json` only, not from an added account's folder or the workspace's settings, and nothing tests that they are forwarded.
-  - A reopened mission can run on a removed account.
   - The model can call `answer_prompt` directly.
-  - Interrupted OpenCode turns count no usage.
 
 ### Awaiting the owner
 

@@ -167,7 +167,8 @@ export const makeHarnessProcesses = <Connection extends HarnessConnection>(
         ).pipe(Effect.result, Effect.ensuring(Effect.sync(() => (entry.turn = null))));
         if (ended._tag === "Failure") {
           close(request.threadId);
-          if (turn.isInterrupting) return interruptedOutcomeOf(sessionId);
+          // A process that dies while interrupted still spent what its earlier prompts reported.
+          if (turn.isInterrupting) return interruptedOutcomeOf(sessionId, turn.usage);
           return yield* ended.failure;
         }
         if (ended.success._tag === "Unconfirmed") {

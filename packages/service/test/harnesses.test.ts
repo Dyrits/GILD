@@ -390,6 +390,18 @@ describe("running OpenCode threads", () => {
     }).pipe(Effect.provide(layer));
   });
 
+  it.live("keeps the usage of a turn's earlier prompts when OpenCode exits during an interrupt", () => {
+    const { layer, requests } = withHarnesses();
+    return Effect.gen(function* () {
+      const started = yield* start({ harness: "opencode", text: "fragile run git push origin main" });
+      yield* answerOpen("Deny");
+      for (let i = 0; i < 100 && requests("session/prompt").length < 2; i++) yield* Effect.sleep("10 millis");
+      yield* call({ _tag: "InterruptThread", threadId: started.threadId });
+      const detail = yield* settle(started.missionId, (d) => d.thread.state === "Idle");
+      expect(detail.mission.usage).toEqual({ cacheCreation: 0, cacheRead: 40, input: 90, output: 8 });
+    }).pipe(Effect.provide(layer));
+  });
+
   it.live("lets an edit inside the thread's folder run without a question", () => {
     const { layer } = withHarnesses();
     return Effect.gen(function* () {
@@ -437,7 +449,7 @@ describe("running OpenCode threads", () => {
     }).pipe(Effect.provide(layer));
   });
 
-  it.live("cancels an interrupted prompt", () => {
+  it.live("cancels an interrupted prompt and counts the usage OpenCode reports for it", () => {
     const { layer } = withHarnesses();
     return Effect.gen(function* () {
       const started = yield* start({ harness: "opencode", text: "slow 5000" });
@@ -446,6 +458,7 @@ describe("running OpenCode threads", () => {
       yield* call({ _tag: "InterruptThread", threadId: started.threadId });
       const detail = yield* settle(started.missionId, (d) => d.thread.state === "Idle");
       expect(replies(detail)).toEqual([]);
+      expect(detail.mission.usage).toEqual({ cacheCreation: 0, cacheRead: 40, input: 90, output: 8 });
     }).pipe(Effect.provide(layer));
   });
 });
@@ -516,6 +529,25 @@ describe("managing provider accounts", () => {
       const removed = yield* call({ _tag: "RemoveAccount", accountId });
       expect(removed.harnesses[1]?.accounts).toHaveLength(1);
       expect((yield* read(started.missionId)).thread.accountLabel).toBe("Removed account");
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("fails a turn on a removed account with the reason, without starting the harness", () => {
+    const { layer, requests } = withHarnesses();
+    return Effect.gen(function* () {
+      const added = yield* call({ _tag: "AddAccount", harness: "codex", label: "Work" });
+      const accountId = added.harnesses[1]?.accounts[1]?.id as AccountId;
+      const started = yield* start({ accountId, harness: "codex", text: "Hello" });
+      yield* settle(started.missionId, idleWith(1));
+      const preview = yield* call({ _tag: "PreviewEnding", ending: "Archived", missionId: started.missionId });
+      yield* call({ _tag: "EndMission", ending: "Archived", missionId: started.missionId, snapshot: preview.snapshot });
+      yield* call({ _tag: "RemoveAccount", accountId });
+      yield* call({ _tag: "ReopenMission", missionId: started.missionId });
+      const turns = requests("turn/start").length;
+      yield* call({ _tag: "SendMessage", delivery: null, requestId: "r2", text: "two", threadId: started.threadId });
+      const failed = yield* settle(started.missionId, (detail) => detail.thread.state === "Failed");
+      expect(failed.thread.failure).toContain("removed");
+      expect(requests("turn/start")).toHaveLength(turns);
     }).pipe(Effect.provide(layer));
   });
 
