@@ -75,19 +75,50 @@ function MissionItem({
   );
 }
 
+/**
+ * The last row of the Missions list: the archived missions, as a quieter row of the same list, with a box glyph
+ * where a mission has its state dot and their count at the end.
+ */
+function ArchivedItem({
+  client,
+  isSelected,
+  onPress,
+}: {
+  client: ServiceClient;
+  isSelected: boolean;
+  onPress: () => void;
+}) {
+  const request = { _tag: "ListMissions", isArchived: true, search: null, state: null, workspaceId: null } as const;
+  const { data } = useServiceQuery(client, request, `missions:${JSON.stringify(request)}`);
+  const count = data?.missions.length ?? 0;
+  return (
+    <Pressable
+      accessibilityLabel="Archived missions"
+      accessibilityRole="button"
+      onPress={onPress}
+      style={({ pressed }) => [local.item, pressed && local.itemHovered, isSelected && local.itemSelected]}
+    >
+      <Text style={local.archivedGlyph}>▤</Text>
+      <Text numberOfLines={1} style={[local.itemText, local.archivedText, isSelected && local.textSelected]}>
+        Archived
+      </Text>
+      {count > 0 && <Text style={local.count}>{count}</Text>}
+    </Pressable>
+  );
+}
+
 /** A handwritten section label in the rail. */
 function Section({ label }: { label: string }) {
   return <Text style={local.section}>{label}</Text>;
 }
 
 /**
- * The left rail: the app's name, Control on top (the board of every mission, where Control's own thread will be
- * pinned), the workspaces with their missions still open, the missions with no workspace, the other places, and
- * the spending against the global budget.
+ * The left rail: the app's name; Control on top, the board of every mission where missions start and where
+ * Control's own thread will be pinned; the workspaces with their missions still open; the missions with no
+ * workspace; the other places; and the spending against the global budget.
  */
 function Sidebar({
   client,
-  onNewMission,
   onOpenMission,
   onPlace,
   onWorkspace,
@@ -96,7 +127,6 @@ function Sidebar({
   workspaceId,
 }: {
   client: ServiceClient;
-  onNewMission: () => void;
   onOpenMission: (id: MissionId) => void;
   onPlace: (place: Place) => void;
   /** Opens the board of one workspace's missions. */
@@ -117,13 +147,6 @@ function Sidebar({
         <CanopyMark />
         <Text style={local.brandText}>Canopy</Text>
       </View>
-      <Pressable
-        accessibilityRole="button"
-        onPress={onNewMission}
-        style={({ pressed }) => [local.newMission, pressed && local.itemHovered]}
-      >
-        <Text style={local.newMissionText}>＋ New mission</Text>
-      </Pressable>
       <NavItem
         glyph={placeGlyphs.Control}
         isSelected={isOnBoard && workspaceId === null}
@@ -146,17 +169,6 @@ function Sidebar({
           />
         ))}
         <Section label="Missions" />
-        <Pressable
-          accessibilityLabel="Archived missions"
-          accessibilityRole="button"
-          accessibilityState={{ selected: openMission === null && place === "Archived" }}
-          onPress={() => onPlace("Archived")}
-          style={local.subtitle}
-        >
-          <Text style={[local.subtitleText, openMission === null && place === "Archived" && local.subtitleSelected]}>
-            Archived ›
-          </Text>
-        </Pressable>
         {loose.length === 0 && <Text style={local.empty}>None outside a workspace.</Text>}
         {loose.map((mission) => (
           <MissionItem
@@ -166,6 +178,11 @@ function Sidebar({
             onPress={() => onOpenMission(mission.id)}
           />
         ))}
+        <ArchivedItem
+          client={client}
+          isSelected={openMission === null && place === "Archived"}
+          onPress={() => onPlace("Archived")}
+        />
       </ScrollView>
       <View style={local.footer}>
         {(["Intel", "Settings"] as const).map((each) => (
@@ -224,6 +241,9 @@ export function Shell(props: Parameters<typeof Sidebar>[0] & { children: ReactNo
 }
 
 const local = StyleSheet.create({
+  // As wide as a mission's dot with its margins, so the label lines up with the missions' titles.
+  archivedGlyph: { color: colors.textDim, fontSize: fontSizes.sm, textAlign: "center", width: 13 },
+  archivedText: { color: colors.textMuted },
   attention: { backgroundColor: colors.warning, borderRadius: radii.pill, height: 7, width: 7 },
   brand: { alignItems: "center", flexDirection: "row", gap: 8, paddingBottom: 12, paddingHorizontal: 8, paddingTop: 4 },
   brandText: { color: colors.text, fontFamily: fonts.hand, fontSize: 28, lineHeight: 32 },
@@ -250,16 +270,6 @@ const local = StyleSheet.create({
   itemText: { color: colors.textSecondary, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.md },
   missionText: { fontSize: fontSizes.md },
   narrow: { backgroundColor: colors.paper, flex: 1 },
-  newMission: {
-    ...ink,
-    ...cut,
-    ...lift,
-    backgroundColor: colors.text,
-    marginBottom: 12,
-    paddingHorizontal: 10,
-    paddingVertical: 7,
-  },
-  newMissionText: { color: colors.onAccent, fontFamily: fonts.sans, fontSize: fontSizes.md, fontWeight: "600" },
   panel: {
     backgroundColor: colors.paper,
     borderColor: colors.borderStrong,
@@ -277,9 +287,5 @@ const local = StyleSheet.create({
   },
   sidebar: { gap: 2, padding: 12, width: 236 },
   spending: { paddingBottom: 4 },
-  // Archived as a subtitle under the Missions heading: a small muted link, inked when its view is open.
-  subtitle: { alignSelf: "flex-start", paddingBottom: 4, paddingHorizontal: 8 },
-  subtitleSelected: { color: colors.text, fontWeight: "600", textDecorationLine: "underline" },
-  subtitleText: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.sm },
   textSelected: { color: colors.text, fontWeight: "600" },
 });

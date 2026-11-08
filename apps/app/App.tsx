@@ -106,7 +106,6 @@ export default function App() {
   return (
     <Shell
       client={client}
-      onNewMission={() => goTo("Control")}
       onOpenMission={openMissionFromAnywhere}
       onPlace={goTo}
       onWorkspace={openWorkspace}

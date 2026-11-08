@@ -1090,3 +1090,20 @@ Validation:
 - Driven in the Electron window with the fake harness (Environment as in `verification/2026-11-08-thread-opening-indicators.md`): empty Control board, harness menu drawn over the workspace line, click outside closing it, an Idle mission in the Idle column and in the sidebar's Missions, the send arrow in the mission view, a Settings drop-down field.
 - Workspace board driven with a workspace mission started over the service socket (the Finder dialog cannot be driven): the sidebar lists the workspace with its count, the starter reads "Starts in canopy-ws-demo", and a mission sent from it lands in that workspace.
 - Not verified: a menu opening upward, native builds.
+
+## CHG-0070 · 2026-11-08 · No New mission button beside Control, Archived at the end of Missions
+
+Type: Code
+Event: Delivery
+Scope: App (sidebar)
+
+Summary: the sidebar's "New mission" button only opened Control, where missions already start; the owner asked why both exist, and it is removed. Control is the one way to start a mission from the sidebar.
+- Archived moves from a subtitle under the Missions heading to the list's last row, shaped like a mission's row: a box glyph where a mission has its dot, a muted label, and the count of archived missions.
+
+Asked by the owner on 2026-11-08. Not yet accepted by the owner.
+
+References:
+- apps/app/src/sidebar.tsx, App.tsx
+
+Validation:
+- `bun run typecheck`, `bun run check` passed; `bun run test` passed 410 with 10 skipped. Driven in the window with the fake harness: Control first in the rail, Archived last under Missions, its count going to 1 after archiving a mission from its card (`verification/2026-11-08-sidebar-and-menus/archived-last-row.png`).
