@@ -955,3 +955,27 @@ Validation:
 - Not verified: the app driven in the window.
 
 Evidence: The owner's instruction of 2026-11-08: "Read the last handoffs, then continue with the next step. For now, we build, step by step and we verify it works. […] Don't ask any question for this session, build what is next."
+
+## CHG-0065 · 2026-11-08 · OpenCode carries on after a refusal
+
+Type: Code
+Event: Delivery
+Scope: Local service (OpenCode adapter)
+
+Summary: one Medium finding from the live probes of CHG-0064, implemented test-first. Rejecting an OpenCode permission ended its whole prompt (`stopReason: "cancelled"`), so the thread stopped instead of carrying on without the action, and a Deny message never reached it. OpenCode 2.2.0 has no setting for this (its `experimental.continue_loop_on_deny` is now a dropped legacy key) and ACP carries no message with a rejection. The adapter (`opencode.ts`, `runPrompts`) now keeps each refusal given during a prompt and, when OpenCode cancels the prompt after one and no interrupt is under way, sends the refusals as a new prompt in the same turn: "Canopy refused the command `…` / the change to `…`. <the owner's answer>", the answer being "Not approved by the owner. Do not do this action; carry on without it." or "Denied by the owner: <message>". The turn's usage adds every prompt's. Stop and Interrupt still end the turn.
+
+Built under the owner's instruction without questions; the live check ran with the owner's accounts at their earlier request. Not yet accepted by the owner. The OpenCode stand-in now cancels its prompt on a rejection, as OpenCode does live.
+
+References:
+- documentation/verification/2026-11-08-opencode-refusals.md
+- packages/service/src/opencode.ts
+- packages/service/test/harnesses.test.ts, liveHarnesses.test.ts, fixtures/stand-in-opencode.mjs
+
+Validation:
+- `bun run test` passed 392 with 10 skipped, twice; 3 stand-in tests are new or changed in behavior, 1 renamed, and the live OpenCode edit check now also requires the thread to carry on after a Deny with a message.
+- `bun run typecheck`, `bun run check`, and `git diff --check` passed.
+- The mutation that drops the follow-up prompt failed 3 stand-in checks and the live check.
+- Live, `CANOPY_LIVE_HARNESSES=1`: 5 of 5 passed, OpenCode on `opencode/deepseek-v4.1-flash-free`, Codex on its default model.
+- Not verified: the app driven in the window.
+
+Evidence: The owner's instruction of 2026-11-08: "Read the last handoffs, then continue with the next step. For now, we build, step by step and we verify it works. […] Don't ask any question for this session, build what is next."

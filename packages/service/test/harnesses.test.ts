@@ -141,12 +141,12 @@ const listTools = (threadId: string) =>
     return listed.result.tools.map((tool) => tool.name);
   });
 
-const answerOpen = (answer: "Allow" | "Deny") =>
+const answerOpen = (answer: "Allow" | "Deny", message: string | null = null) =>
   Effect.gen(function* () {
     for (let i = 0; i < 300; i++) {
       const [question] = yield* call({ _tag: "ListOpenQuestions" });
       if (question !== undefined)
-        return yield* call({ _tag: "AnswerQuestion", answer, message: null, questionId: question.id });
+        return yield* call({ _tag: "AnswerQuestion", answer, message, questionId: question.id });
       yield* Effect.sleep("20 millis");
     }
     return yield* Effect.die(new Error("no question was asked"));
@@ -350,13 +350,43 @@ describe("running OpenCode threads", () => {
     }).pipe(Effect.provide(layer));
   });
 
-  it.live("answers a permission request with the owner's refusal", () => {
-    const { layer } = withHarnesses();
+  it.live("carries on in the same turn after the owner's refusal cancels OpenCode's prompt", () => {
+    const { layer, requests } = withHarnesses();
     return Effect.gen(function* () {
       const started = yield* start({ harness: "opencode", text: "run git push origin main" });
       yield* answerOpen("Deny");
       const detail = yield* settle(started.missionId, idleWith(1));
-      expect(replies(detail)).toEqual(["git push origin main: reject "]);
+      expect(replies(detail)).toEqual([
+        "Echo: Canopy refused the command `git push origin main`. Not approved by the owner. Do not do this action; carry on without it. ",
+      ]);
+      expect(requests("session/prompt")).toHaveLength(2);
+      expect(detail.mission.usage).toEqual({ cacheCreation: 0, cacheRead: 80, input: 180, output: 16 });
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("gives OpenCode the owner's message with a refusal", () => {
+    const { directory, layer } = withHarnesses();
+    const outside = join(directory, "outside.txt");
+    return Effect.gen(function* () {
+      const started = yield* start({ harness: "opencode", text: `edit ${outside}` });
+      yield* answerOpen("Deny", "Write it in the notes folder instead.");
+      const detail = yield* settle(started.missionId, idleWith(1));
+      expect(replies(detail)).toEqual([
+        `Echo: Canopy refused the change to \`${outside}\`. Denied by the owner: Write it in the notes folder instead. `,
+      ]);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("sends no refusal after an interrupt cancels a prompt waiting on a question", () => {
+    const { layer, requests } = withHarnesses();
+    return Effect.gen(function* () {
+      const started = yield* start({ harness: "opencode", text: "run git push origin main" });
+      yield* settle(started.missionId, (detail) => detail.questions.length === 1);
+      yield* call({ _tag: "InterruptThread", threadId: started.threadId });
+      const detail = yield* settle(started.missionId, (d) => d.thread.state === "Idle");
+      yield* Effect.sleep("200 millis");
+      expect(replies(detail)).toEqual([]);
+      expect(requests("session/prompt")).toHaveLength(1);
     }).pipe(Effect.provide(layer));
   });
 
@@ -378,7 +408,9 @@ describe("running OpenCode threads", () => {
       const answered = yield* answerOpen("Deny");
       expect(answered.details).toBe(`Edit ${outside}`);
       const detail = yield* settle(started.missionId, idleWith(1));
-      expect(replies(detail)).toEqual([`${outside}: reject `]);
+      expect(replies(detail)).toEqual([
+        `Echo: Canopy refused the change to \`${outside}\`. Not approved by the owner. Do not do this action; carry on without it. `,
+      ]);
     }).pipe(Effect.provide(layer));
   });
 

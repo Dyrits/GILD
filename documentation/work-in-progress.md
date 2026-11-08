@@ -558,7 +558,8 @@ Started at HEAD `26bbb1d`, with the empty tree as the fixed point. Ran Standards
   - **Medium**: OpenCode asks Canopy for every edit; at the default level an edit inside the thread's folder (after `..` and links) runs unasked, any other asks. Proven live on OpenCode 2.2.0.
   - **Medium**: a standing permission covers only actions of its own kind (`kindOfPermission`), and the question shows the pattern Always allow will save.
   - **High, found live**: Codex escalates as `/bin/zsh -lc '…'`, which asked the owner twice for one push and escaped standing patterns; `targetOf` now unwraps one whole shell `-c` script. This also closes CHG-0063's open probe of the Codex command format.
-- **Medium, found live**: rejecting an OpenCode permission ends its whole prompt (`stopReason: "cancelled"`), so the thread stops instead of carrying on without the action, and a Deny message never reaches it.
+- Done in CHG-0065, awaiting the owner ([proof](verification/2026-11-08-opencode-refusals.md)):
+  - **Medium, found live**: rejecting an OpenCode permission ended its whole prompt (`stopReason: "cancelled"`). OpenCode 2.2.0 has no setting to continue and ACP carries no message, so the adapter now sends the refusals, with the owner's message, as a new prompt in the same turn; an interrupt still ends it. Proven live.
 - **Medium**: Codex sandbox widenings ("Permissions") are granted without a question.
 - **Medium**: Codex and OpenCode threads load the owner's own MCP servers and skills (against CHG-0022 and CHG-0031; listed as provisional above).
 - **Medium**: the widened sandbox hosts may let `git push` or `npm publish` run without a prompt. Probe first, and ask the owner before changing anything.

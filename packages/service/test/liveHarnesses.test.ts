@@ -116,7 +116,7 @@ describe.runIf(process.env.CANOPY_LIVE_HARNESSES === "1")("live harnesses (use a
   );
 
   it.live(
-    "lets OpenCode write inside its workspace unasked and asks before it writes outside",
+    "lets OpenCode write inside its workspace unasked, asks before it writes outside, and carries on after a refusal",
     () => {
       const directory = realpathSync(mkdtempSync(join(tmpdir(), "canopy-live-")));
       const workspace = join(directory, "project");
@@ -143,12 +143,18 @@ describe.runIf(process.env.CANOPY_LIVE_HARNESSES === "1")("live harnesses (use a
         yield* call({
           _tag: "AnswerQuestion",
           answer: "Deny",
-          message: null,
+          message: "Skip that file and reply with exactly: skipped",
           questionId: question?.id ?? ("" as never),
         });
-        const detail = yield* settle(started.missionId, isPaused);
+        const detail = yield* settle(
+          started.missionId,
+          (d) => d.thread.state === "Idle" || d.thread.state === "Failed",
+        );
         expect(detail.questions.map((q) => q.outcome)).toEqual(["Denied"]);
         expect(existsSync(outside)).toBe(false);
+        // OpenCode cancels its prompt on a refusal; the thread hears the owner's message and replies in the same turn.
+        expect(detail.thread.failure).toBeNull();
+        expect(detail.messages.at(-1)?.text.toLowerCase()).toContain("skipped");
       }).pipe(Effect.provide(live(directory)));
     },
     300_000,

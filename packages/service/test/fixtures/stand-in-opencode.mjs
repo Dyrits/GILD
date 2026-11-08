@@ -49,7 +49,10 @@ const finish = (stopReason, text) => {
   });
 };
 
-/** Asks permission for one tool call and ends the turn saying which option was chosen. */
+/**
+ * Asks permission for one tool call and ends the turn saying which option was chosen; a rejection cancels the
+ * whole prompt with no reply, as OpenCode 2.2.0 did live on 2026-11-08.
+ */
 const askPermission = async (prompt, subject, toolCall) => {
   update(prompt.sessionId, {
     kind: toolCall.kind,
@@ -66,6 +69,10 @@ const askPermission = async (prompt, subject, toolCall) => {
     sessionId: prompt.sessionId,
     toolCall: { ...toolCall, title: subject, toolCallId: "call-1" },
   });
+  if (answer.outcome.optionId === "reject") {
+    update(prompt.sessionId, { sessionUpdate: "tool_call_update", status: "failed", toolCallId: "call-1" });
+    return finish("cancelled", null);
+  }
   return finish("end_turn", `${subject}: ${answer.outcome.optionId ?? answer.outcome.outcome}`);
 };
 

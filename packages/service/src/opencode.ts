@@ -3,7 +3,14 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { TokenUsage } from "@canopy/contracts";
 import { Deferred, type Duration, Effect, Option, Queue, Result } from "effect";
-import { HarnessFailure, type ThreadAccess, type TurnRequest, turnMessageOf } from "./execution.ts";
+import {
+  HarnessFailure,
+  type HarnessPrompt,
+  type PromptAnswer,
+  type ThreadAccess,
+  type TurnRequest,
+  turnMessageOf,
+} from "./execution.ts";
 import { isInsideFolder } from "./folders.ts";
 import { accountEnvironmentOf } from "./harnessCatalog.ts";
 import {
@@ -130,18 +137,51 @@ const isUnaskedEdit = (request: TurnRequest, toolCall: unknown) =>
     return true;
   });
 
-/** Answers one of OpenCode's permission requests, asking the owner unless it may run; it may wait without a time limit. */
+/** The refused action, named for the model: the command, the file, or the tool. */
+const refusedActionOf = (prompt: HarnessPrompt) => {
+  const command = textFieldOf(prompt.input, "command");
+  if (prompt.toolName === "Bash" && command !== null) return `the command \`${command}\``;
+  const path = textFieldOf(prompt.input, "file_path");
+  if (prompt.toolName === "Edit" && path !== null) return `the change to \`${path}\``;
+  return `the tool ${prompt.toolName}`;
+};
+
+/** What the next prompt tells OpenCode about one refused action: what was refused and the owner's answer. */
+const refusalOf = (prompt: HarnessPrompt, answer: PromptAnswer) =>
+  `Canopy refused ${refusedActionOf(prompt)}. ${answer.text}`;
+
+/** Sums the usage of the prompts of one turn; unknown when none reported any. */
+const addUsage = (total: TokenUsage | null, usage: TokenUsage | null): TokenUsage | null =>
+  total === null || usage === null
+    ? (total ?? usage)
+    : {
+        cacheCreation: total.cacheCreation + usage.cacheCreation,
+        cacheRead: total.cacheRead + usage.cacheRead,
+        input: total.input + usage.input,
+        output: total.output + usage.output,
+      };
+
+/**
+ * Answers one of OpenCode's permission requests, asking the owner unless it may run; it may wait without a time
+ * limit. A refusal is added to `refusals` before OpenCode hears it.
+ */
 const answerRequest = (
   connection: OpenCodeConnection,
   request: TurnRequest,
   incoming: Extract<Incoming, { _tag: "Request" }>,
+  refusals: Array<string>,
 ) =>
   Effect.gen(function* () {
     if (incoming.method !== "session/request_permission")
       return connection.rpc.respondError(incoming.id, `Canopy does not answer ${incoming.method}.`);
     const toolCall = fieldOf(incoming.params, "toolCall");
-    const isAllowed =
-      (yield* isUnaskedEdit(request, toolCall)) || (yield* request.askOwner(promptOf(toolCall))).isAllowed;
+    let isAllowed = yield* isUnaskedEdit(request, toolCall);
+    if (!isAllowed) {
+      const prompt = promptOf(toolCall);
+      const answer = yield* request.askOwner(prompt);
+      isAllowed = answer.isAllowed;
+      if (!isAllowed) refusals.push(refusalOf(prompt, answer));
+    }
     const wanted = isAllowed ? "allow_once" : "reject_once";
     const offered = fieldOf(incoming.params, "options");
     const option = Array.isArray(offered)
@@ -154,16 +194,40 @@ const answerRequest = (
     );
   });
 
-/** Reads one prompt's updates until its answer, which ends the turn. */
-const readPrompt = (connection: OpenCodeConnection, request: TurnRequest, turn: PooledTurn) =>
+/**
+ * Runs one turn as OpenCode prompts. OpenCode 2.2.0 cancels its whole prompt when a permission is rejected, and
+ * ACP carries no message with a rejection (probed 2026-11-08; its `continue_loop_on_deny` setting is gone): the
+ * refusals then start another prompt, so the thread carries on without the action as on the other harnesses
+ * (action-approval, Asking). An interrupt ends the turn instead.
+ */
+const runPrompts = (connection: OpenCodeConnection, request: TurnRequest, turn: PooledTurn) =>
+  Effect.gen(function* () {
+    const refusals: Array<string> = [];
+    let text = turnMessageOf(request);
+    let usage: TokenUsage | null = null;
+    for (;;) {
+      const end = yield* readPrompt(connection, request, turn, text, refusals);
+      usage = addUsage(usage, end.usage);
+      turn.reportUsage(usage);
+      if (!end.isCancelled || refusals.length === 0 || turn.isInterrupting())
+        return { isInterrupted: end.isCancelled, usage };
+      text = refusals.splice(0).join("\n");
+    }
+  });
+
+/** Reads one prompt's updates until its answer, saying whether OpenCode cancelled it. */
+const readPrompt = (
+  connection: OpenCodeConnection,
+  request: TurnRequest,
+  turn: PooledTurn,
+  text: string,
+  refusals: Array<string>,
+) =>
   Effect.gen(function* () {
     const answer = yield* Deferred.make<Result.Result<unknown, HarnessFailure>>();
     yield* Effect.forkChild(
       connection.rpc
-        .request("session/prompt", {
-          prompt: [{ text: turnMessageOf(request), type: "text" }],
-          sessionId: connection.sessionId,
-        })
+        .request("session/prompt", { prompt: [{ text, type: "text" }], sessionId: connection.sessionId })
         .pipe(
           Effect.result,
           Effect.flatMap((result) => Deferred.succeed(answer, result)),
@@ -180,7 +244,8 @@ const readPrompt = (connection: OpenCodeConnection, request: TurnRequest, turn: 
     const read = (incoming: Incoming) =>
       Effect.gen(function* () {
         if (incoming._tag === "Exit") return yield* new HarnessFailure({ reason: incoming.reason });
-        if (incoming._tag === "Request") return yield* turn.fork(answerRequest(connection, request, incoming));
+        if (incoming._tag === "Request")
+          return yield* turn.fork(answerRequest(connection, request, incoming, refusals));
         if (incoming.method !== "session/update") return;
         if (textFieldOf(incoming.params, "sessionId") !== connection.sessionId) return;
         const update = fieldOf(incoming.params, "update");
@@ -208,7 +273,7 @@ const readPrompt = (connection: OpenCodeConnection, request: TurnRequest, turn: 
       const result = yield* Deferred.await(answer);
       if (Result.isFailure(result)) return yield* result.failure;
       const stopReason = textFieldOf(result.success, "stopReason");
-      return { isInterrupted: stopReason === "cancelled", usage: usageOf(fieldOf(result.success, "usage")) };
+      return { isCancelled: stopReason === "cancelled", usage: usageOf(fieldOf(result.success, "usage")) };
     }
   });
 
@@ -254,7 +319,7 @@ const openCodeProtocolOf = (options: OpenCodeOptions): HarnessProtocol<OpenCodeC
     restartKeyOf: (request) =>
       JSON.stringify([request.context, request.access, request.configDirectory, request.model, request.cwd]),
 
-    runTurn: readPrompt,
+    runTurn: runPrompts,
 
     start: (request) =>
       Effect.gen(function* () {
