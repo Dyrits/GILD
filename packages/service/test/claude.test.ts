@@ -211,10 +211,10 @@ describe("running Claude Code threads", () => {
 
       expect(starts()).toHaveLength(1);
       const systemPrompt = starts()[0]?.args[(starts()[0]?.args.indexOf("--append-system-prompt") ?? -2) + 1] ?? "";
-      expect(systemPrompt).toContain("# Mission journal");
+      expect(systemPrompt).toContain("# Quest journal");
       expect(systemPrompt).not.toContain("Briefing (version");
       expect(detail.messages.at(-1)?.text).toMatch(
-        /# Mission journal at this turn[\s\S]*Chose SQLite\.[\s\S]*\n---\n\nTwo$/,
+        /# Quest journal at this turn[\s\S]*Chose SQLite\.[\s\S]*\n---\n\nTwo$/,
       );
     }).pipe(Effect.provide(layer));
   });

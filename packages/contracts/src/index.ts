@@ -10,4 +10,5 @@ export * from "./journal.ts";
 export * from "./questions.ts";
 export * from "./records.ts";
 export * from "./requests.ts";
+export * from "./skills.ts";
 export * from "./workspaces.ts";

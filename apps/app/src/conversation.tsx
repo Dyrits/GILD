@@ -23,6 +23,7 @@ import { styles } from "./styles";
 import { ChatterNotices, DeleteThreadAction } from "./threadActions";
 import { OpenThreadForm, ThreadTree } from "./threadTree";
 import { useServiceQuery } from "./useServiceQuery";
+import { useSkills } from "./useSkills";
 import { MissingFolderNotice } from "./workspaces";
 
 /** The reply a thread is writing, while the service streams it. */
@@ -93,6 +94,7 @@ function ThreadPane({
   const { thread } = detail;
   const work = thread.parentId === null ? "quest" : "side-quest";
   const draft = useDraft(client, thread.id);
+  const skills = useSkills(client, thread.workspace?.path ?? null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isOpening, setIsOpening] = useState(false);
   const followNewest = useFollowNewest();
@@ -208,6 +210,7 @@ function ThreadPane({
         />
       ) : (
         <Composer
+          skills={skills}
           {...(isInTurn
             ? {
                 alternative: { label: other, onSend: sendAs(other) },

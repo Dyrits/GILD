@@ -10,6 +10,7 @@ import { foldedLabelOf, startingContextPartsOf, startingContextWarningOf } from 
 import { type Runner, RunnerPickers, useHarnesses } from "./runners";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
+import { useSkills } from "./useSkills";
 
 /** A mission's threads as an indented tree with their states; selecting one shows its conversation. */
 export function ThreadTree({
@@ -78,6 +79,7 @@ export function OpenThreadForm({
   parent: ThreadView;
 }) {
   const { data: harnesses } = useHarnesses(client);
+  const skills = useSkills(client, parent.workspace?.path ?? null);
   const [runner, setRunner] = useState<Runner>({
     accountId: parent.accountId,
     effort: parent.effort,
@@ -157,6 +159,7 @@ export function OpenThreadForm({
         </View>
       )}
       <Composer
+        skills={skills}
         {...(isOverWarning ? { alternative: { label: "Start anyway", onSend: openWith(true) } } : {})}
         onChangeText={request.change}
         onSend={openWith(false)}

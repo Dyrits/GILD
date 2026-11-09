@@ -38,6 +38,7 @@ import { listPermissions, removePermission, widenPermission } from "./permission
 import { listOpenQuestions, listQuestionHistory } from "./questions.ts";
 import { sandboxProblem } from "./sandbox.ts";
 import { readSettings, readStartChoices, writeSettings } from "./settings.ts";
+import { listSkills } from "./skills.ts";
 import { readStartingContext } from "./startingContext.ts";
 import { storeLayer } from "./store.ts";
 import { Suggestions, suggestionsLayer } from "./suggestions.ts";
@@ -177,6 +178,7 @@ const make = Effect.gen(function* () {
         ListIntel: (list) => readIntelView(list.scope, list.state, list.threadId),
         ListMissions: (filters) => listMissions(filters),
         ListOpenQuestions: () => listOpenQuestions,
+        ListSkills: (given) => listSkills(given.workspacePath),
         OpenThread: (open) =>
           nonBlank(open.text).pipe(
             Effect.andThen((text) =>

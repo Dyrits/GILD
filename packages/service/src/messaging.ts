@@ -4,6 +4,8 @@ import { SqlClient } from "effect/sql";
 import { touchMission } from "./activity.ts";
 import { resetOwnerChatter, resetResultChatter } from "./chatter.ts";
 import { notFound } from "./errors.ts";
+import { listSkills, withSkillInstructions } from "./skills.ts";
+import { readThreadWorkspace } from "./workspaces.ts";
 
 // The thread inbox: a thread's message history and what waits to be delivered to it (thread-messaging).
 // It alone writes messages, assigns their order, and marks them delivered.
@@ -75,8 +77,19 @@ export const listPending = (threadId: string, isSteering: boolean) =>
       WHERE m.thread_id = ${threadId} AND m.sender_kind IN ('user', 'thread') AND m.delivered_turn_id IS NULL
         AND ${isSteering ? sql`m.is_queued = 0` : sql`1 = 1`}
       ORDER BY m.sequence`;
+    // The owner's slash-names become pointers to the skills' instructions, as the thread's workspace sees them.
+    const skills = rows.some((row) => row.fromThreadId === null && row.text.includes("/"))
+      ? yield* listSkills((yield* readThreadWorkspace(threadId))?.path ?? null)
+      : [];
     return rows.map(
-      (row): PendingMessage => ({ id: row.id, text: deliveredTextOf({ ...row, isResult: row.isResult === 1 }) }),
+      (row): PendingMessage => ({
+        id: row.id,
+        text: deliveredTextOf({
+          ...row,
+          isResult: row.isResult === 1,
+          text: row.fromThreadId === null ? withSkillInstructions(row.text, skills) : row.text,
+        }),
+      }),
     );
   });
 

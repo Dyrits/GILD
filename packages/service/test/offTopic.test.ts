@@ -191,8 +191,8 @@ describe("suggesting where an off-topic request goes", () => {
       expect(aside.messages[0]).toMatchObject({ sender: "user", text: "context" });
       const context = lastAgentText(aside);
       expect(context).toContain("The report covers Q3 sales.");
-      expect(context).toContain("went off the mission's topic and was put aside");
-      expect(context).toContain("comes back to the mission");
+      expect(context).toContain("went off the quest's topic and was put aside");
+      expect(context).toContain("comes back to the quest");
       const refused = yield* tool(asideId, "update_journal", { entry: "Weather is fine" });
       expect(refused).toContain("aside");
       yield* tool(asideId, "report_result", { journal: "Talked about the weather", result: "Sunny" });

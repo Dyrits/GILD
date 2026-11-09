@@ -202,13 +202,13 @@ describe("assembling a thread's starting context", () => {
       const { context, cwd, isInWorkspace, note } = yield* prepareStartingContext(threadId);
       expect(isInWorkspace).toBe(false);
       expect(context).toContain(
-        `# Your working folder\nYou have no workspace. You work in your mission's scratch folder, ${cwd},`,
+        `# Your working folder\nYou have no workspace. You work in your quest's scratch folder, ${cwd},`,
       );
-      expect(context).toContain(`You are thread ${threadId} in a Gild mission`);
-      expect(context).toContain("# Mission journal\n");
+      expect(context).toContain(`You are thread ${threadId} in a Gild quest`);
+      expect(context).toContain("# Quest journal\n");
       expect(context).toContain("# Intel\n");
       expect(context).not.toContain("Release planning");
-      expect(note.startsWith('Your title: "Release planning".\n\n# Mission journal at this turn\n')).toBe(true);
+      expect(note.startsWith('Your title: "Release planning".\n\n# Quest journal at this turn\n')).toBe(true);
       expect(note).toContain("# Intel at this turn");
       expect(note).not.toContain("Budget:");
     }).pipe(Effect.provide(layer));

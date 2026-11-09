@@ -100,7 +100,7 @@ export const workingFolderOf = (workspace: Workspace | null, scratchFolder: stri
     ? Effect.succeed({
         context: [
           "# Your working folder",
-          `You have no workspace. You work in your mission's scratch folder, ${scratchFolder}, shared with the mission's other threads that have none.`,
+          `You have no workspace. You work in your quest's scratch folder, ${scratchFolder}, shared with the quest's other threads that have none.`,
         ].join("\n"),
         cwd: scratchFolder,
       })

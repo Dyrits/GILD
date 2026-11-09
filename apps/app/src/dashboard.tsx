@@ -15,6 +15,7 @@ import { BoardGrain } from "./sketches";
 import { styles } from "./styles";
 import { colors } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
+import { useSkills } from "./useSkills";
 import { WorkspacePicker } from "./workspaces";
 
 /** The panel width from which the board's columns stand side by side. */
@@ -51,6 +52,7 @@ function MissionStarter({
       : workspace === null
         ? (last?.workspacePath ?? null)
         : workspace.path;
+  const skills = useSkills(client, chosenWorkspace);
   return (
     // Above the list below it, so a picker's open list covers the search and the filters.
     <View style={[styles.section, styles.raised]}>
@@ -73,6 +75,7 @@ function MissionStarter({
           )
         }
         placeholder="Start a quest with one message…"
+        skills={skills}
       />
       {lockedWorkspace === null ? (
         <WorkspacePicker onChange={(path) => setWorkspace({ path })} value={chosenWorkspace} />

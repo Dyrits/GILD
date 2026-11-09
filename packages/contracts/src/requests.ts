@@ -35,6 +35,7 @@ import {
   StartingContext,
   Suggestion,
 } from "./records.ts";
+import { Skill } from "./skills.ts";
 import { Folder, FolderListing } from "./workspaces.ts";
 
 // Requests
@@ -247,6 +248,8 @@ export const BrowseFolders = Schema.TaggedStruct("BrowseFolders", {
   /** Whether folders whose names start with a dot are listed too (Show hidden). */
   shouldIncludeHidden: Schema.Boolean,
 });
+/** The skills a message in a workspace (or none) can name with a slash; the workspace's win over global ones. */
+export const ListSkills = Schema.TaggedStruct("ListSkills", { workspacePath: Schema.NullOr(Schema.String) });
 /** Makes a folder inside a browsable folder (New folder). */
 export const CreateFolder = Schema.TaggedStruct("CreateFolder", { name: Schema.String, parent: Schema.String });
 /** Adds an existing folder to the browsable roots (Add root). */
@@ -320,6 +323,7 @@ export const Request = Schema.Union([
   WidenPermission,
   RemovePermission,
   BrowseFolders,
+  ListSkills,
   CreateFolder,
   AddBrowsableRoot,
   ListHarnesses,
@@ -361,6 +365,7 @@ export const Results = {
   ListIntel: IntelView,
   ListMissions: MissionList,
   ListOpenQuestions: Schema.Array(Question),
+  ListSkills: Schema.Array(Skill),
   OpenThread: OpenThreadResult,
   PinIntel: Schema.Null,
   PreviewDeletion: DeletionPreview,

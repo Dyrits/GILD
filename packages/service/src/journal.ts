@@ -214,9 +214,9 @@ export const openerMessagesOf = (openerId: string) =>
 
 /** How a thread uses the mission journal; part of its system prompt, the same every turn (mission-journal). */
 export const journalInstructions = [
-  "# Mission journal",
-  "Every thread of this mission shares this journal: a briefing of where the mission stands, and a change log only ever added to. Each of your turns starts with the current briefing and latest entries.",
-  "Call read_journal for the current briefing and older entries. Call update_journal with an entry when you settle a decision, change direction, or finish a piece of work. Rewrite the briefing only when where the mission stands has changed: pass the whole new briefing and basedOn, the version you started from.",
+  "# Quest journal",
+  "Every thread of this quest shares this journal: a briefing of where the quest stands, and a change log only ever added to. Each of your turns starts with the current briefing and latest entries.",
+  "Call read_journal for the current briefing and older entries. Call update_journal with an entry when you settle a decision, change direction, or finish a piece of work. Rewrite the briefing only when where the quest stands has changed: pass the whole new briefing and basedOn, the version you started from.",
 ].join("\n");
 
 /** The mission's journal for each turn's message: the briefing and the latest entries. */
@@ -224,7 +224,7 @@ export const journalContextOf = (missionId: string) =>
   Effect.gen(function* () {
     const briefing = yield* readBriefing(missionId);
     const entries = yield* listEntries(missionId, null, latestEntryCount);
-    return ["# Mission journal at this turn", journalTextOf(briefing, entries)].join("\n");
+    return ["# Quest journal at this turn", journalTextOf(briefing, entries)].join("\n");
   });
 
 /** The opener's messages as each turn's message carries them, after the journal; null when there are none. */

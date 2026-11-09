@@ -201,7 +201,7 @@ describe("keeping a mission's journal", () => {
       const started = yield* start("context");
       const detail = yield* settle(started.missionId, (d) => d.messages.some((m) => m.sender === "agent"));
       const context = detail.messages.find((m) => m.sender === "agent")?.text ?? "";
-      expect(context).toContain("# Mission journal");
+      expect(context).toContain("# Quest journal");
       expect(context).not.toContain("opener's messages");
     }).pipe(Effect.provide(live())),
   );

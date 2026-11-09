@@ -1,4 +1,4 @@
-import type { MissionState, ThreadState } from "@gild/contracts";
+import { type MissionState, type Skill, skillTokensOf, type ThreadState } from "@gild/contracts";
 import { type ReactNode, useState } from "react";
 import { Pressable, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
@@ -62,6 +62,29 @@ function SendArrow() {
   );
 }
 
+/** The message's text drawn under the transparent input, with each slash-name of a known skill on a tinted background. */
+function SkillHighlights({ skills, text }: { skills: ReadonlyArray<Skill>; text: string }) {
+  const tokens = skillTokensOf(text).filter((token) => skills.some((skill) => skill.name === token.name));
+  if (tokens.length === 0) return null;
+  const parts: ReactNode[] = [];
+  let at = 0;
+  for (const token of tokens) {
+    parts.push(text.slice(at, token.start));
+    parts.push(
+      <Text key={token.start} style={styles.skillChip}>
+        {text.slice(token.start, token.end)}
+      </Text>,
+    );
+    at = token.end;
+  }
+  parts.push(text.slice(at));
+  return (
+    <Text pointerEvents="none" style={styles.skillOverlay}>
+      {parts}
+    </Text>
+  );
+}
+
 /**
  * A message box that keeps the text until the service accepts it, sent with Enter or the arrow button. While a thread runs, a smaller second
  * button sends the other way (Steer or Queue) and Interrupt ends the thread's current turn (CHG-0039).
@@ -73,6 +96,7 @@ export function Composer({
   onInterrupt,
   onChangeText,
   accessory,
+  skills = [],
 }: {
   placeholder: string;
   onSend: (text: string) => Promise<unknown>;
@@ -82,15 +106,26 @@ export function Composer({
   onChangeText?: (text: string) => void;
   /** Controls shown at the bottom left of the box, such as pickers for what the message starts. */
   accessory?: ReactNode;
+  /** The skills a slash offers; a slash-name matching one is highlighted. */
+  skills?: ReadonlyArray<Skill>;
 }) {
   const [text, setTextState] = useState("");
   const setText = (value: string) => {
     setTextState(value);
+    setChosen(0);
     onChangeText?.(value);
   };
   const [isSending, setIsSending] = useState(false);
   const isEmpty = text.trim() === "";
   const [error, setError] = useState<string | null>(null);
+  const partial = /(^|\s)\/([\w:.-]*)$/.exec(text)?.[2] ?? null;
+  const suggestions =
+    partial === null || skills.some((skill) => skill.name === partial)
+      ? []
+      : skills.filter((skill) => skill.name.toLowerCase().startsWith(partial.toLowerCase())).slice(0, 6);
+  const [chosen, setChosen] = useState(0);
+  const highlighted = suggestions[Math.min(chosen, suggestions.length - 1)];
+  const pick = (skill: Skill) => setText(`${text.slice(0, text.length - (partial?.length ?? 0))}${skill.name} `);
   const send = async (handler: (text: string) => Promise<unknown>) => {
     if (text.trim() === "" || isSending) return;
     setIsSending(true);
@@ -111,21 +146,58 @@ export function Composer({
     );
   return (
     <View style={styles.composer}>
-      <TextInput
-        multiline
-        onChangeText={setText}
-        onKeyPress={(event) => {
-          const native = event.nativeEvent as { key: string; shiftKey?: boolean };
-          if (native.key === "Enter" && !native.shiftKey) {
-            event.preventDefault();
-            void send(onSend);
-          }
-        }}
-        placeholder={placeholder}
-        placeholderTextColor={colors.placeholder}
-        style={styles.composerInput}
-        value={text}
-      />
+      {suggestions.length > 0 && (
+        <View style={styles.skillList}>
+          {suggestions.map((skill) => (
+            <Pressable
+              key={skill.name}
+              onPress={() => pick(skill)}
+              style={[styles.skillOption, skill === highlighted && styles.skillOptionChosen]}
+            >
+              <Text style={styles.skillName}>/{skill.name}</Text>
+              <Text numberOfLines={1} style={styles.skillDescription}>
+                {skill.description}
+              </Text>
+            </Pressable>
+          ))}
+        </View>
+      )}
+      <View>
+        <SkillHighlights skills={skills} text={text} />
+        <TextInput
+          multiline
+          onChangeText={setText}
+          onKeyPress={(event) => {
+            const native = event.nativeEvent as { key: string; shiftKey?: boolean };
+            if (highlighted !== undefined) {
+              const moves: Record<string, number> = { ArrowDown: 1, ArrowUp: -1 };
+              const move = moves[native.key];
+              if (move !== undefined) {
+                event.preventDefault();
+                setChosen((Math.min(chosen, suggestions.length - 1) + move + suggestions.length) % suggestions.length);
+                return;
+              }
+              if (native.key === "Tab" || (native.key === "Enter" && !native.shiftKey)) {
+                event.preventDefault();
+                pick(highlighted);
+                return;
+              }
+            }
+            if (native.key === "Enter" && !native.shiftKey) {
+              event.preventDefault();
+              void send(onSend);
+            }
+          }}
+          placeholder={placeholder}
+          placeholderTextColor={colors.placeholder}
+          style={[
+            styles.composerInput,
+            skillTokensOf(text).some((token) => skills.some((skill) => skill.name === token.name)) &&
+              styles.composerInputOverlaid,
+          ]}
+          value={text}
+        />
+      </View>
       <View style={styles.composerActions}>
         <View style={styles.composerAccessory}>{accessory}</View>
         {onInterrupt !== undefined && (
