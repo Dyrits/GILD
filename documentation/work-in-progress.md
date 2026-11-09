@@ -12,6 +12,8 @@ Visual check on a throwaway database with the fake harness: quest creation, echo
 The Balanced reviewer (`gpt-6.1-terra`) verified fixes for contrast, notifications, and lore scope names.
 Evidence and remaining checks: [guild-board verification](verification/2026-11-09-guild-board.md).
 Owner acceptance of the appearance remains pending.
+The owner rejected the oversized scroll roll on 2026-11-09; it is removed, along with the dark side rules, in favour of a thin gold top border and 16px of heading space.
+This targeted visual correction passes typecheck and lint; its appearance awaits the owner.
 Naming follow-up: Guildmaster replaces War table; all child threads are side-quests; Companion means the selected model; future Workflow and Routine interfaces are Craft and Ritual.
 The follow-up label suite passes 21 tests; typecheck and lint pass.
 Remaining optional naming choices: Realm, Journal, Briefing, and future Waystones / Spoils / Chronicle; none blocks the agreed vocabulary.

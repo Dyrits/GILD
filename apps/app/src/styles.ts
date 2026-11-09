@@ -167,10 +167,9 @@ export const styles = StyleSheet.create({
   panel: { backgroundColor: colors.paper, flex: 1, paddingHorizontal: 14, paddingTop: 10 },
   panelSheet: {
     backgroundColor: colors.canvas,
-    borderColor: colors.borderStrong,
-    borderLeftWidth: 1.5,
-    borderRightWidth: 1.5,
-    paddingTop: 2,
+    borderColor: colors.gold,
+    borderTopWidth: 1,
+    paddingTop: 16,
   },
   paneTitle: { color: colors.text, fontFamily: fonts.hand, fontSize: 18, lineHeight: 26 },
   question: {

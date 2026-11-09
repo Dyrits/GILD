@@ -18,7 +18,6 @@ import { effortLabel, harnessLabels, modelLabelOf, usageDetail } from "./formatt
 import { IntelIcon, IntelScreen } from "./intel";
 import { JournalScreen } from "./journal";
 import { MissionEndingActions, MissionTitle } from "./missionActions";
-import { PanelArch } from "./sketches";
 import { styles } from "./styles";
 import { ChatterNotices, DeleteThreadAction } from "./threadActions";
 import { OpenThreadForm, ThreadTree } from "./threadTree";
@@ -275,10 +274,8 @@ export function Conversation({
       />
     );
   }
-  // The quest opens on a parchment sheet beneath its scroll roll.
   return (
     <View style={styles.panel}>
-      <PanelArch />
       <View style={[styles.screen, styles.panelSheet]}>
         <View style={styles.header}>
           <Pressable onPress={onBack}>
