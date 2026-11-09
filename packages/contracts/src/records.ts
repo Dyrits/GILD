@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 import { BudgetEvent, BudgetLimits, BudgetPeriod, BudgetStop, BudgetUse, Spending } from "./budgets.ts";
+import { Crest } from "./crest.ts";
 import { HarnessName } from "./harnesses.ts";
 import { AccountId, MessageId, MissionId, SuggestionId, ThreadId, WorkspaceId } from "./ids.ts";
 import { IntelChange, IntelGauge } from "./intel.ts";
@@ -119,6 +120,7 @@ export const MissionSummary = Schema.Struct({
   topThreadId: ThreadId,
   usage: TokenUsage,
   /** The top thread's workspace; both null when it runs in the mission's scratch folder. */
+  workspaceCrest: Schema.NullOr(Crest),
   workspaceId: Schema.NullOr(WorkspaceId),
   workspaceName: Schema.NullOr(Schema.String),
 });

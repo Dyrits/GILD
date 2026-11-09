@@ -441,3 +441,110 @@ describe("standing permissions in a workspace", () => {
     }).pipe(Effect.provide(layer));
   });
 });
+
+describe("designing a realm's crest", () => {
+  const crest = {
+    band: "Chevron",
+    bandWidth: 1,
+    colors: {
+      band: "#d9ad4f",
+      edge: "#3b0f0c",
+      emblem: "#f2d98a",
+      field: "#8b1e1a",
+      secondField: "#5e1210",
+      trim: "#d9ad4f",
+    },
+    division: "PerPale",
+    edge: 0.35,
+    emblem: { _tag: "Charge", id: "lion" },
+    emblemScale: 1,
+    finish: "Sheen",
+    plate: "Shield",
+    trim: "DoubleLine",
+  } as const;
+  const listed = call({ _tag: "ListMissions", isArchived: false, search: null, state: null, workspaceId: null });
+
+  it.live("keeps the crest on the realm and on its quests, and clears it with null", () => {
+    const { home, layer } = setUp();
+    return Effect.gen(function* () {
+      const started = yield* start("Fix the build", join(home, "app"));
+      const before = yield* listed;
+      expect(before.workspaces[0]?.crest).toBeNull();
+      const workspaceId = before.workspaces[0]?.id;
+      if (workspaceId === undefined) return yield* Effect.die(new Error("no realm"));
+      yield* call({ _tag: "SetRealmCrest", crest, workspaceId });
+      const after = yield* listed;
+      expect(after.workspaces[0]?.crest).toEqual(crest);
+      expect(after.missions.find((mission) => mission.id === started.missionId)?.workspaceCrest).toEqual(crest);
+      yield* call({ _tag: "SetRealmCrest", crest: null, workspaceId });
+      expect((yield* listed).workspaces[0]?.crest).toBeNull();
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("refuses a crest for a realm that does not exist", () => {
+    const { layer } = setUp();
+    return Effect.gen(function* () {
+      const failure = yield* failureOf({ _tag: "SetRealmCrest", crest, workspaceId: "nope" as never });
+      expect(JSON.stringify(failure)).toContain("No such realm");
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live(
+    "names a new realm and gives it a crest when its first quest starts, and ignores both for an existing realm",
+    () => {
+      const { home, layer } = setUp();
+      const app = join(home, "app");
+      return Effect.gen(function* () {
+        yield* call({
+          _tag: "StartMission",
+          effort: "default",
+          model: "default",
+          realm: { crest, name: "The Orchard" },
+          requestId: crypto.randomUUID(),
+          text: "Begin",
+          workspacePath: app,
+        });
+        const first = yield* listed;
+        expect(first.workspaces[0]).toMatchObject({ crest, name: "The Orchard", path: app });
+        yield* call({
+          _tag: "StartMission",
+          effort: "default",
+          model: "default",
+          realm: { crest: null, name: "Other" },
+          requestId: crypto.randomUUID(),
+          text: "Again",
+          workspacePath: app,
+        });
+        expect((yield* listed).workspaces[0]).toMatchObject({ crest, name: "The Orchard" });
+      }).pipe(Effect.provide(layer));
+    },
+  );
+
+  it.live("renames a realm, and refuses a blank name", () => {
+    const { home, layer } = setUp();
+    return Effect.gen(function* () {
+      yield* start("Fix the build", join(home, "app"));
+      const workspaceId = (yield* listed).workspaces[0]?.id;
+      if (workspaceId === undefined) return yield* Effect.die(new Error("no realm"));
+      yield* call({ _tag: "RenameRealm", name: "  The Orchard ", workspaceId });
+      const after = yield* listed;
+      expect(after.workspaces[0]?.name).toBe("The Orchard");
+      expect(after.missions[0]?.workspaceName).toBe("The Orchard");
+      const failure = yield* failureOf({ _tag: "RenameRealm", name: "   ", workspaceId });
+      expect(JSON.stringify(failure)).toContain("needs a name");
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("lists a realm imported from a folder before any quest starts in it", () => {
+    const { home, layer } = setUp();
+    const app = join(home, "app");
+    return Effect.gen(function* () {
+      yield* call({ _tag: "CreateRealm", crest, name: "The Orchard", path: app });
+      const imported = yield* listed;
+      expect(imported.missions).toEqual([]);
+      expect(imported.workspaces[0]).toMatchObject({ crest, name: "The Orchard", path: app });
+      const failure = yield* failureOf({ _tag: "CreateRealm", crest: null, name: "Nope", path: join(home, "missing") });
+      expect(JSON.stringify(failure)).toContain("No folder");
+    }).pipe(Effect.provide(layer));
+  });
+});

@@ -27,6 +27,7 @@
 
 ## Handoffs
 
+To resume realms, crests, and the board redesign (pushed to `main`; its records still to write), read the [current handoff](.agents/handoffs/2026-11-09-2323-realms-and-crests.md). Handoffs are shared and committed.
 To resume the thread panel and context gauge (CHG-0079; the look and the live per-call usage await the owner), read the [current handoff](.agents/handoffs/2026-11-09-2000-thread-panel.md). Handoffs are shared and committed.
 To resume the quest board cards and column ribbons (committed on branch `board-cards`; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-09-1909-board-cards.md). Handoffs are shared and committed.
 To resume slash skills in the composer and quest wording for agents (committed on a branch, the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-09-1653-skills-slash.md). Handoffs are shared and committed.

@@ -69,9 +69,11 @@ export const styles = StyleSheet.create({
     fontFamily: fonts.sans,
     fontSize: fontSizes.base,
     lineHeight: 20,
+    // Web only: no ring when focused; the pill around it is the field.
+    outlineStyle: "none",
     paddingHorizontal: 8,
     paddingVertical: 6,
-  },
+  } as object,
   // The input's own text hides while the overlay draws it, so a highlighted slash-name keeps the text's exact position.
   composerInputOverlaid: { caretColor: colors.text, color: "transparent" } as object,
   composerPill: {

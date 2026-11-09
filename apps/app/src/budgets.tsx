@@ -14,7 +14,7 @@ import { timeOf } from "./formatting";
 import { budgetUseTextOf, meterLevelOf, raisedLimitsOf, reserveOf, tokenCountOf } from "./labels";
 import { Choice } from "./pickers";
 import { styles } from "./styles";
-import { colors, fontSizes, fonts, radii } from "./theme";
+import { colors, fonts, radii } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
 
 const levelColors = { normal: colors.textMuted, reached: colors.danger, warning: colors.warning } as const;
@@ -85,10 +85,10 @@ export function ReserveRows({ use }: { use: BudgetUse }) {
             <Emblem name={reserveKinds[unit].emblem} size={22} tint={reserveKinds[unit].color} />
             <View style={{ flex: 1, gap: 3 }}>
               <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                <Text style={{ color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.md }}>
+                <Text style={{ color: colors.onWood, fontFamily: fonts.sans, fontSize: 16 }}>
                   {reserveKinds[unit].name}
                 </Text>
-                <Text style={{ color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.md }}>{text}</Text>
+                <Text style={{ color: "#d0ac78", fontFamily: fonts.sans, fontSize: 15 }}>{text}</Text>
               </View>
               <View
                 style={{

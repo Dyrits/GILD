@@ -1,10 +1,49 @@
 import { mkdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import type { Workspace, WorkspaceId } from "@gild/contracts";
-import { Clock, Context, Effect } from "effect";
+import { Crest, type Workspace, type WorkspaceId } from "@gild/contracts";
+import { Clock, Context, Effect, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid } from "./errors.ts";
 import { realFolderOf } from "./folders.ts";
+
+const decodeCrest = Schema.decodeUnknownSync(Crest);
+
+/** The crest a workspace row holds, or null when none was designed or the stored text no longer fits the crest. */
+export const crestOfRow = (text: string | null): Crest | null => {
+  if (text === null) return null;
+  try {
+    return decodeCrest(JSON.parse(text));
+  } catch {
+    return null;
+  }
+};
+
+/** Imports a folder as a realm with the given name and crest; an existing realm for the folder is left as it is. */
+export const createRealm = (path: string, name: string, crest: Crest | null) =>
+  attachWorkspace(path, { crest, name }).pipe(Effect.as(null));
+
+/** Renames a realm; refused for an unknown realm or a blank name. */
+export const renameRealm = (workspaceId: WorkspaceId, name: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const trimmed = name.trim();
+    if (trimmed === "") return yield* invalid("A realm needs a name.");
+    const [row] = yield* sql<{ id: string }>`SELECT id FROM workspaces WHERE id = ${workspaceId}`;
+    if (row === undefined) return yield* invalid("No such realm.");
+    yield* sql`UPDATE workspaces SET name = ${trimmed} WHERE id = ${workspaceId}`;
+    return null;
+  });
+
+/** Keeps a realm's crest, or clears it with null; refused for an unknown realm. */
+export const setRealmCrest = (workspaceId: WorkspaceId, crest: Crest | null) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const [row] = yield* sql<{ id: string }>`SELECT id FROM workspaces WHERE id = ${workspaceId}`;
+    if (row === undefined) return yield* invalid("No such realm.");
+    const text = crest === null ? null : JSON.stringify(Schema.encodeSync(Crest)(crest));
+    yield* sql`UPDATE workspaces SET crest = ${text} WHERE id = ${workspaceId}`;
+    return null;
+  });
 
 /** Where each mission's threads with no workspace run, one scratch folder per mission. */
 export class ScratchRoot extends Context.Service<ScratchRoot, string>()("gild/ScratchRoot") {}
@@ -21,7 +60,7 @@ const requireFolder = (path: string) =>
  * The workspace for a chosen folder: the existing one for that folder, or a new one,
  * since a folder becomes a workspace the first time it is chosen. Callers run it in a transaction.
  */
-export const attachWorkspace = (path: string) =>
+export const attachWorkspace = (path: string, realm: { crest: Crest | null; name: string } | null = null) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     // Any folder the owner chose in the system's folder dialog (CHG-0035).
@@ -30,8 +69,10 @@ export const attachWorkspace = (path: string) =>
     if (existing !== undefined) return existing.id;
     const id = crypto.randomUUID();
     const now = yield* Clock.currentTimeMillis;
-    yield* sql`INSERT INTO workspaces (id, name, path, created_at)
-      VALUES (${id}, ${basename(folder) || folder}, ${folder}, ${now})`;
+    const name = realm?.name.trim() || basename(folder) || folder;
+    const crest = realm?.crest == null ? null : JSON.stringify(Schema.encodeSync(Crest)(realm.crest));
+    yield* sql`INSERT INTO workspaces (id, name, path, crest, created_at)
+      VALUES (${id}, ${name}, ${folder}, ${crest}, ${now})`;
     return id;
   });
 

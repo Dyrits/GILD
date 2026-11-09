@@ -1,4 +1,5 @@
 import { Schema } from "effect";
+import { Crest } from "./crest.ts";
 import { WorkspaceId } from "./ids.ts";
 
 // Workspaces and the folder browser (workspace-attachment).
@@ -27,5 +28,11 @@ export const FolderListing = Schema.Struct({
 export type FolderListing = typeof FolderListing.Type;
 
 /** One workspace the dashboard can filter by, with its folder, where a mission started from its board works. */
-export const WorkspaceChoice = Schema.Struct({ id: WorkspaceId, name: Schema.String, path: Schema.String });
+export const WorkspaceChoice = Schema.Struct({
+  /** The crest the owner designed for the realm, or null until then; its quests wear it. */
+  crest: Schema.NullOr(Crest),
+  id: WorkspaceId,
+  name: Schema.String,
+  path: Schema.String,
+});
 export type WorkspaceChoice = typeof WorkspaceChoice.Type;

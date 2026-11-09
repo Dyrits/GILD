@@ -38,7 +38,8 @@ export function ThreadTree({
             }}
             style={[
               styles.treeRow,
-              { paddingLeft: 8 + depth * 16 },
+              // The first level of side-quests has its own heading, so it lines up with the quest; deeper ones step in.
+              { paddingLeft: 8 + Math.max(0, depth - 1) * 16 },
               thread.id === selectedId && styles.treeRowSelected,
             ]}
           >

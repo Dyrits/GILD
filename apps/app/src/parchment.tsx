@@ -9,12 +9,27 @@ const goldDark = "#8a6320";
 const diamond = (x: number, y: number, r: number) =>
   `M${x} ${y - r} L${x + r * 0.7} ${y} L${x} ${y + r} L${x - r * 0.7} ${y}z`;
 
+/** The bookmark cloths: the dyes of the column banners. */
+export const bookmarkCloths = {
+  blue: { dark: "#192f66", light: "#3159a6" },
+  green: { dark: "#173d29", light: "#2f6a45" },
+  red: { dark: "#6f1a18", light: "#a3302b" },
+  violet: { dark: "#3c2a63", light: "#6b4b9e" },
+} as const;
+
 /**
  * The gilt frame of a parchment panel, drawn over it and never catching a press: a darkening toward the edges as on
  * old paper, a double gold line with a diamond at each corner, and a red bookmark hanging from the top edge with a
  * gilt star. It fills its parent, which must be positioned, and draws once the parent has a size.
  */
-export function ParchmentFrame({ hasBookmark = true }: { hasBookmark?: boolean }) {
+export function ParchmentFrame({
+  bookmark = "red",
+  hasBookmark = true,
+}: {
+  /** The bookmark's cloth, matching the banner of the quest's column. */
+  bookmark?: keyof typeof bookmarkCloths;
+  hasBookmark?: boolean;
+}) {
   const [size, setSize] = useState({ height: 0, width: 0 });
   const { height, width } = size;
   const outer = 8;
@@ -29,8 +44,8 @@ export function ParchmentFrame({ hasBookmark = true }: { hasBookmark?: boolean }
               <Stop offset="1" stopColor="#8a5a1e" stopOpacity={0.22} />
             </RadialGradient>
             <LinearGradient id="bookmark" x1="0" x2="0" y1="0" y2="1">
-              <Stop offset="0" stopColor="#a3302b" />
-              <Stop offset="1" stopColor="#6f1a18" />
+              <Stop offset="0" stopColor={bookmarkCloths[bookmark].light} />
+              <Stop offset="1" stopColor={bookmarkCloths[bookmark].dark} />
             </LinearGradient>
           </Defs>
           <Rect fill="url(#paper-age)" height={height} width={width} />

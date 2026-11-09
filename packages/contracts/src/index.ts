@@ -2,6 +2,7 @@
 // decode and encode functions on them (CHG-0025, ADR 0010 amendment).
 
 export * from "./budgets.ts";
+export * from "./crest.ts";
 export * from "./frames.ts";
 export * from "./harnesses.ts";
 export * from "./ids.ts";

@@ -19,6 +19,8 @@ export default function App() {
   const [openMission, setOpenMission] = useState<MissionId | null>(null);
   // The place the rail leads to; a quest, when one is open, shows in its stead.
   const [place, setPlace] = useState<Place>("Guildmaster");
+  // The quest picked on the board, shown in the side panel without opening it.
+  const [selectedMission, setSelectedMission] = useState<MissionId | null>(null);
   const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
   // The realm whose quests the Quests place shows, or null for every quest.
   const [workspaceId, setWorkspaceId] = useState<WorkspaceId | null>(null);
@@ -48,9 +50,11 @@ export default function App() {
   // The sidebar leads to one place at a time: going there closes whatever else is open.
   const goTo = (next: Place) => {
     setOpenMission(null);
+    setSelectedMission(null);
     setIsPermissionsOpen(false);
     setPlace(next);
-    if (next !== "Quests") setWorkspaceId(null);
+    // Going to a place clears the realm filter, so Quests shows every quest; a realm sets it again right after.
+    setWorkspaceId(null);
   };
   const openWorkspace = (id: WorkspaceId) => {
     goTo("Quests");
@@ -58,9 +62,16 @@ export default function App() {
   };
   const openMissionFromAnywhere = (id: MissionId) => {
     setIsPermissionsOpen(false);
+    setSelectedMission(null);
     setOpenMission(id);
     setOpenCount(openCount + 1);
   };
+  const selectMission = (id: MissionId | null) => {
+    setSelectedMission(id);
+    if (id !== null) setAreDetailsOpen(true);
+  };
+  // The quest board always has its panel open, with the overview when no quest is chosen.
+  const isBoard = openMission === null && place === "Quests";
   const content =
     openMission !== null ? (
       <Conversation
@@ -96,8 +107,10 @@ export default function App() {
         onBack={() => goTo("Keep")}
         onIntel={() => goTo("Intel")}
         onOpen={openMissionFromAnywhere}
+        onSelect={selectMission}
         onSettings={() => goTo("Settings")}
         onWorkspace={(id) => (id === null ? goTo("Quests") : openWorkspace(id))}
+        selectedId={selectedMission}
         workspaceId={workspaceId}
       />
     );
@@ -105,7 +118,11 @@ export default function App() {
     <Shell
       client={client}
       details={
-        openMission === null ? null : { isOpen: areDetailsOpen, onToggle: () => setAreDetailsOpen(!areDetailsOpen) }
+        isBoard
+          ? { isOpen: true, isPinned: true, onToggle: () => {} }
+          : openMission === null && selectedMission === null
+            ? null
+            : { isOpen: areDetailsOpen, onToggle: () => setAreDetailsOpen(!areDetailsOpen) }
       }
       onOpenMission={openMissionFromAnywhere}
       onPlace={goTo}

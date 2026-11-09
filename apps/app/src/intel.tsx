@@ -7,6 +7,7 @@ import type {
   IntelScope,
   IntelStateFilter,
   ThreadId,
+  WorkspaceId,
 } from "@gild/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
@@ -219,11 +220,14 @@ export function IntelScreen({
   onBack,
   threadId,
   title,
+  workspaceId = null,
 }: {
   client: ServiceClient;
   onBack: () => void;
   threadId: ThreadId | null;
   title: string;
+  /** Only the lore of this realm's own scope, as for the realm panel's lore. */
+  workspaceId?: WorkspaceId | null;
 }) {
   const hasSidebar = useHasSidebar();
   const [scope, setScope] = useState<IntelScope | null>(null);
@@ -231,8 +235,8 @@ export function IntelScreen({
   const [historyOf, setHistoryOf] = useState<IntelId | null>(null);
   const { data, error } = useServiceQuery(
     client,
-    { _tag: "ListIntel", scope, state, threadId },
-    `intel:${threadId ?? "all"}:${scope ?? "all"}:${state ?? "all"}`,
+    { _tag: "ListIntel", scope, state, threadId, workspaceId },
+    `intel:${threadId ?? "all"}:${scope ?? "all"}:${state ?? "all"}:${workspaceId ?? "any"}`,
   );
   if (historyOf !== null) {
     return <IntelHistoryScreen client={client} intelId={historyOf} onBack={() => setHistoryOf(null)} />;
@@ -241,12 +245,12 @@ export function IntelScreen({
     <View style={styles.screen}>
       <View style={styles.header}>
         {/* All intel is a place of the sidebar; a thread's intel goes back to its thread. */}
-        {!(hasSidebar && threadId === null) && (
+        {!(hasSidebar && threadId === null && workspaceId === null) && (
           <Pressable onPress={onBack}>
             <Text style={styles.link}>← Back</Text>
           </Pressable>
         )}
-        {!(hasSidebar && threadId === null) && (
+        {!(hasSidebar && threadId === null && workspaceId === null) && (
           <Text numberOfLines={1} style={[styles.heading, styles.flex]}>
             {title}
           </Text>

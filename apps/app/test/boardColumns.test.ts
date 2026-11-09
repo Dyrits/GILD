@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { boardColumns, boardOf, isStateShownOn } from "../src/boardColumns";
+import { boardColumns, boardOf, isStateShownOn, splitEarlier, trimmedColumns } from "../src/boardColumns";
 
 describe("laying missions out on the board", () => {
   it("puts failed missions with those in Attention, since both need the owner", () => {
@@ -41,5 +41,26 @@ describe("laying missions out on the board", () => {
     expect(isStateShownOn("Idle", "Idle")).toBe(false);
     expect(isStateShownOn("Running", "Waiting")).toBe(true);
     expect(isStateShownOn("Attention", "Failed")).toBe(true);
+  });
+});
+
+describe("folding earlier missions away", () => {
+  const noon = new Date(2026, 10, 9, 12).getTime();
+  const at = (id: string, hour: number, day = 9) => ({ id, lastActivityAt: new Date(2026, 10, day, hour).getTime() });
+
+  it("trims only the columns that grow without end", () => {
+    expect(trimmedColumns).toEqual(["Idle", "Done"]);
+  });
+
+  it("shows the missions active today and folds the others, keeping their order", () => {
+    const { earlier, shown } = splitEarlier([at("a", 9), at("b", 23, 8), at("c", 0), at("d", 11, 1)], noon, null);
+    expect(shown.map((mission) => mission.id)).toEqual(["a", "c"]);
+    expect(earlier.map((mission) => mission.id)).toEqual(["b", "d"]);
+  });
+
+  it("keeps the mission whose panel is open on view, even if it is earlier", () => {
+    const { earlier, shown } = splitEarlier([at("a", 9), at("b", 23, 8)], noon, "b");
+    expect(shown.map((mission) => mission.id)).toEqual(["a", "b"]);
+    expect(earlier).toEqual([]);
   });
 });

@@ -31,10 +31,13 @@ export function MissionEndingActions({
   client,
   isButtons = false,
   mission,
+  onOpen,
 }: {
   client: ServiceClient;
   isButtons?: boolean;
   mission: MissionSummary;
+  /** In a card: opens the quest itself, as the first of its links, when a press on the card only selects it. */
+  onOpen?: () => void;
 }) {
   const ending = useEnding(client, mission);
   const reopen = () => ending.run(() => client.request({ _tag: "ReopenMission", missionId: mission.id }));
@@ -54,6 +57,11 @@ export function MissionEndingActions({
   return (
     <View style={isButtons && { gap: 8 }}>
       <View style={[styles.inlineRow, isButtons && { gap: 10 }]}>
+        {onOpen !== undefined && !isButtons && (
+          <Pressable accessibilityRole="button" onPress={onOpen}>
+            <Text style={[styles.link, { fontWeight: "700" }]}>Open</Text>
+          </Pressable>
+        )}
         {actions.map(({ isPrimary, label, onPress }) =>
           isButtons ? (
             <GoldButton isDisabled={ending.isBusy} isPrimary={isPrimary} key={label} label={label} onPress={onPress} />

@@ -1,4 +1,5 @@
 import type {
+  Crest,
   EffortChoice,
   HarnessName,
   MissionEnding,
@@ -20,7 +21,7 @@ import { checkAccount, type RunnerChoice, runnerOf } from "./runners.ts";
 import { dayMillis, readSettings, saveStartChoices } from "./settings.ts";
 import { isReached, readGlobalBudget, tokenSum } from "./spending.ts";
 import { titleOf } from "./titles.ts";
-import { attachWorkspace } from "./workspaces.ts";
+import { attachWorkspace, crestOfRow } from "./workspaces.ts";
 
 // Ordered from most to least urgent (mission-tracking specification). Done and
 // Stopped add no urgency; Idle is the provisional fallback until it is settled.
@@ -38,6 +39,7 @@ export const insertMission = (
   choice: RunnerChoice & { readonly effort: EffortChoice; readonly model: ModelChoice },
   workspacePath: string | null,
   shouldRememberChoices = true,
+  realm: { crest: Crest | null; name: string } | null = null,
 ) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
@@ -53,7 +55,7 @@ export const insertMission = (
       ),
     );
     const { accountId, effort, harness, model } = runner;
-    const workspaceId = workspacePath === null ? null : yield* attachWorkspace(workspacePath);
+    const workspaceId = workspacePath === null ? null : yield* attachWorkspace(workspacePath, realm);
     const now = yield* Clock.currentTimeMillis;
     const missionId = crypto.randomUUID();
     const threadId = crypto.randomUUID();
@@ -94,6 +96,7 @@ type MissionRow = {
   cacheRead: number;
   cacheCreation: number;
   workspaceId: string | null;
+  workspaceCrest: string | null;
   workspaceName: string | null;
   budgetCost: number | null;
   budgetTokens: number | null;
@@ -128,6 +131,7 @@ const summaryOf = (row: MissionRow, now: number, settings: Settings): MissionSum
     title: row.title,
     topThreadId: row.topThreadId,
     usage: { cacheCreation: row.cacheCreation, cacheRead: row.cacheRead, input: row.input, output: row.output },
+    workspaceCrest: crestOfRow(row.workspaceCrest),
     workspaceId: row.workspaceId,
     workspaceName: row.workspaceName,
   } as MissionSummary;
@@ -144,7 +148,7 @@ const missionRows = (sql: SqlClient.SqlClient, where: Statement.Fragment) =>
       COALESCE(SUM(u.cache_read), 0) AS cacheRead, COALESCE(SUM(u.cache_creation), 0) AS cacheCreation,
       m.budget_cost AS budgetCost, m.budget_tokens AS budgetTokens, COALESCE(SUM(u.cost), 0) AS spentCost,
       COALESCE(SUM(${sql.literal(tokenSum)}), 0) AS spentTokens,
-      w.id AS workspaceId, w.name AS workspaceName
+      w.id AS workspaceId, w.name AS workspaceName, w.crest AS workspaceCrest
     FROM missions m
       JOIN threads top ON top.id = m.top_thread_id
       LEFT JOIN workspaces w ON w.id = top.workspace_id

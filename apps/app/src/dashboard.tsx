@@ -5,18 +5,20 @@ import { MissionBoard, MissionCard } from "./board";
 import { BudgetMeters, BudgetScreen, BudgetStopCard } from "./budgets";
 import { newRequestId, type ServiceClient } from "./client";
 import { Composer } from "./controls";
+import { CrestStudio } from "./crestStudio";
+import { IntelScreen } from "./intel";
+import { JournalScreen } from "./journal";
 import { MissionPromptCard } from "./missionActions";
-import { Menu } from "./pickers";
 import { allMissions } from "./queries";
 import { QuestionCard } from "./questions";
+import { QuestOverview, QuestPreview, RealmPanel } from "./questPanel";
 import { type Runner, RunnerPickers, useHarnesses } from "./runners";
-import { useHasSidebar } from "./sidebar";
-import { GuildDesk, GuildHero } from "./sketches";
+import { useHasSidebar, useQuestPanel } from "./sidebar";
 import { styles } from "./styles";
 import { colors, fonts } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
 import { useSkills } from "./useSkills";
-import { WorkspacePicker } from "./workspaces";
+import { RealmChooser } from "./workspaces";
 
 /** The panel width from which the board's columns stand side by side. */
 const boardBreakpoint = 560;
@@ -28,18 +30,23 @@ const boardBreakpoint = 560;
 export function MissionStarter({
   client,
   onOpen,
+  stage = false,
   workspace: lockedWorkspace,
 }: {
   client: ServiceClient;
   onOpen: (id: MissionId) => void;
+  /** The Guildmaster's layout: the realm tiles large in the middle of the screen, the message at the foot. */
+  stage?: boolean;
   /** The workspace whose board shows, or null on the board of every mission. */
   workspace: WorkspaceChoice | null;
 }) {
   const { data: last } = useServiceQuery(client, { _tag: "ReadStartChoices" }, "start-choices");
   const { data: harnesses } = useHarnesses(client);
+  // The realms that exist, to choose from under the message.
+  const { data: known } = useServiceQuery(client, allMissions.request, allMissions.key);
   // Null until the owner picks; the last mission's runner applies until then.
   const [runner, setRunner] = useState<Runner | null>(null);
-  // Null until the owner picks a workspace or none; the last mission's applies until then.
+  // Null until the owner picks a realm; a quest starts with none until then.
   const [workspace, setWorkspace] = useState<{ readonly path: string | null } | null>(null);
   const chosen: Runner =
     runner ??
@@ -49,13 +56,32 @@ export function MissionStarter({
   const chosenWorkspace =
     lockedWorkspace !== null
       ? lockedWorkspace.path
-      : workspace === null
-        ? (last?.workspacePath ?? null)
-        : workspace.path;
+      : // No realm until the owner picks one, whatever the last quest used.
+        (workspace?.path ?? null);
   const skills = useSkills(client, chosenWorkspace);
+  const chooser =
+    lockedWorkspace === null ? (
+      <RealmChooser
+        isBig={stage}
+        missions={known?.missions ?? []}
+        onChange={(path) => setWorkspace({ path })}
+        onCreate={(realm) =>
+          client
+            .request({ _tag: "CreateRealm", crest: realm.crest, name: realm.name, path: realm.path })
+            .then(() => setWorkspace({ path: realm.path }))
+        }
+        realms={known?.workspaces ?? []}
+        value={chosenWorkspace}
+      />
+    ) : (
+      <Text style={styles.muted}>
+        Starts in <Text style={styles.code}>{lockedWorkspace.name}</Text>.
+      </Text>
+    );
   return (
     // Above the list below it, so a picker's open list covers the search and the filters.
-    <View style={[styles.section, styles.raised]}>
+    <View style={[styles.section, styles.raised, stage && local.stage]}>
+      {stage && <View style={local.stageCenter}>{chooser}</View>}
       <Composer
         accessory={<RunnerPickers harnesses={harnesses} isCompact={true} onChange={setRunner} value={chosen} />}
         onSend={async (text) =>
@@ -77,13 +103,7 @@ export function MissionStarter({
         placeholder="Start a quest with one message…"
         skills={skills}
       />
-      {lockedWorkspace === null ? (
-        <WorkspacePicker onChange={(path) => setWorkspace({ path })} value={chosenWorkspace} />
-      ) : (
-        <Text style={styles.muted}>
-          Starts in <Text style={styles.code}>{lockedWorkspace.name}</Text>. Choose another folder from All realms.
-        </Text>
-      )}
+      {!stage && chooser}
     </View>
   );
 }
@@ -98,9 +118,10 @@ export function Dashboard({
   onArchived,
   onBack,
   onOpen,
+  onSelect,
   onSettings,
   onIntel,
-  onWorkspace,
+  selectedId,
   workspaceId: chosenWorkspaceId,
 }: {
   client: ServiceClient;
@@ -108,6 +129,10 @@ export function Dashboard({
   onArchived: () => void;
   onBack: () => void;
   onOpen: (id: MissionId) => void;
+  /** Selects a quest for the panel beside the board, where the window has one; null goes back to the overview. */
+  onSelect: (id: MissionId | null) => void;
+  /** The quest the panel beside the board shows, or null. */
+  selectedId: MissionId | null;
   onSettings: () => void;
   /** Opens the intel panel with all intel. */
   onIntel: () => void;
@@ -122,6 +147,8 @@ export function Dashboard({
   // The Archived view keeps every workspace; the board shows the one chosen in the sidebar or the breadcrumb.
   const workspaceId = isArchived ? null : chosenWorkspaceId;
   const [isGlobalBudgetOpen, setIsGlobalBudgetOpen] = useState(false);
+  // What the selected quest's panel opened in this screen's place: its budget or its journal.
+  const [previewScreen, setPreviewScreen] = useState<"Budget" | "Journal" | null>(null);
   const { data: global } = useServiceQuery(client, { _tag: "ReadBudget", missionId: null }, "budget:global");
   const request = { _tag: "ListMissions", isArchived, search, state: null, workspaceId } as const;
   const { data, error } = useServiceQuery(client, request, `missions:${JSON.stringify(request)}`);
@@ -131,6 +158,73 @@ export function Dashboard({
   const { data: all } = useServiceQuery(client, allMissions.request, allMissions.key);
   const asking = isArchived ? [] : (all?.missions.filter((mission) => mission.prompt !== null) ?? []);
   const workspaceNames = new Map((data?.workspaces ?? []).map((w) => [w.id, w.name]));
+  // The realm whose board shows, and whether its crest studio is open.
+  const realm = (data?.workspaces ?? []).find((w) => w.id === workspaceId) ?? null;
+  const [isDesigning, setIsDesigning] = useState(false);
+  const [isRealmLoreOpen, setIsRealmLoreOpen] = useState(false);
+  // With a sidebar a card only selects its quest, and the panel beside the board shows it; without one it opens it.
+  // Pressing the quest already chosen puts it back.
+  const press = (id: MissionId) => (hasSidebar ? onSelect(id === selectedId ? null : id) : onOpen(id));
+  const selected = data?.missions.find((mission) => mission.id === selectedId) ?? null;
+  // The panel goes to the window's frame; it leaves with this screen, like the quest screen's own.
+  const panel =
+    selectedId !== null ? (
+      <QuestPreview
+        client={client}
+        missionId={selectedId}
+        onBack={() => onSelect(null)}
+        onOpenBudget={() => setPreviewScreen("Budget")}
+        onOpenJournal={() => setPreviewScreen("Journal")}
+        onOpenQuest={() => onOpen(selectedId)}
+      />
+    ) : isArchived ? null : realm !== null ? (
+      <RealmPanel
+        missions={data?.missions ?? []}
+        onCustomize={() => setIsDesigning(true)}
+        onOpenLore={() => setIsRealmLoreOpen(true)}
+        onRename={(name) => client.request({ _tag: "RenameRealm", name, workspaceId: realm.id })}
+        onSelect={onSelect}
+        realm={realm}
+      />
+    ) : (
+      <QuestOverview
+        missions={data?.missions ?? []}
+        onSelect={onSelect}
+        realm={workspaceId === null ? null : (workspaceNames.get(workspaceId) ?? null)}
+      />
+    );
+  useQuestPanel(hasSidebar && panel);
+  if (selectedId !== null && previewScreen === "Budget") {
+    return (
+      <BudgetScreen
+        client={client}
+        missionId={selectedId}
+        onBack={() => setPreviewScreen(null)}
+        title={`Budget · ${selected?.title ?? ""}`}
+      />
+    );
+  }
+  if (selectedId !== null && previewScreen === "Journal") {
+    return (
+      <JournalScreen
+        client={client}
+        missionId={selectedId}
+        onBack={() => setPreviewScreen(null)}
+        title={selected?.title ?? ""}
+      />
+    );
+  }
+  if (isRealmLoreOpen && realm !== null) {
+    return (
+      <IntelScreen
+        client={client}
+        onBack={() => setIsRealmLoreOpen(false)}
+        threadId={null}
+        title={`Lore · ${realm.name}`}
+        workspaceId={realm.id}
+      />
+    );
+  }
   if (isGlobalBudgetOpen) {
     return (
       <BudgetScreen
@@ -143,34 +237,30 @@ export function Dashboard({
   }
   return (
     <View style={local.scroll}>
-      {!isArchived && <GuildDesk />}
+      {isDesigning && realm !== null && (
+        <CrestStudio
+          id={realm.id}
+          initial={realm.crest}
+          name={realm.name}
+          onCancel={() => setIsDesigning(false)}
+          onDone={(crest) =>
+            client.request({ _tag: "SetRealmCrest", crest, workspaceId: realm.id }).then(() => setIsDesigning(false))
+          }
+        />
+      )}
       <ScrollView
         contentContainerStyle={local.content}
         onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
         style={styles.flex}
       >
-        <GuildHero />
         <View style={styles.header}>
           {isArchived && !hasSidebar && (
             <Pressable onPress={onBack}>
               <Text style={[styles.link, { color: colors.goldHi }]}>← Quests</Text>
             </Pressable>
           )}
-          <View style={styles.flex}>
-            {workspaceNames.size > 0 && (
-              <View style={[local.crumb, { alignSelf: "flex-start", backgroundColor: colors.paper, borderRadius: 3 }]}>
-                {workspaceId !== null && <Text style={styles.muted}>All realms ›</Text>}
-                <Menu
-                  accessibilityLabel="Realm"
-                  label={(id) => (id === null ? "All realms" : (workspaceNames.get(id) ?? ""))}
-                  onChange={onWorkspace}
-                  options={[null, ...workspaceNames.keys()]}
-                  value={workspaceId}
-                />
-              </View>
-            )}
-            <Text style={local.title}>{isArchived ? "Archives" : "Quests"}</Text>
-          </View>
+          {/* The title is in the top bar and the panel, so the header only holds what sits at its right. */}
+          <View style={styles.flex} />
           {global !== null && <BudgetMeters onPress={() => setIsGlobalBudgetOpen(true)} use={global} />}
           {!isArchived && !hasSidebar && (
             <Pressable onPress={onArchived}>
@@ -237,7 +327,14 @@ export function Dashboard({
               <View style={local.archive}>
                 {data.missions.map((mission) => (
                   <View key={mission.id} style={local.archiveCard}>
-                    <MissionCard client={client} column={null} mission={mission} onOpen={() => onOpen(mission.id)} />
+                    <MissionCard
+                      client={client}
+                      column={null}
+                      isSelected={mission.id === selectedId}
+                      mission={mission}
+                      onOpen={() => press(mission.id)}
+                      onOpenQuest={() => onOpen(mission.id)}
+                    />
                   </View>
                 ))}
               </View>
@@ -245,12 +342,22 @@ export function Dashboard({
           ) : (
             <MissionBoard
               client={client}
+              isFiltered={search.trim() !== ""}
               isWide={width >= boardBreakpoint}
               missions={data.missions}
-              onOpen={(mission) => onOpen(mission.id)}
+              onOpen={(mission) => press(mission.id)}
+              onOpenQuest={(mission) => onOpen(mission.id)}
+              selectedId={selectedId}
             />
           ))}
       </ScrollView>
+      {!isArchived && realm !== null && (
+        // On a realm's board the message at the foot starts a quest in that realm. The board of every quest has none:
+        // the Guildmaster is where quests start.
+        <View style={local.footer}>
+          <MissionStarter client={client} onOpen={onOpen} workspace={realm} />
+        </View>
+      )}
     </View>
   );
 }
@@ -260,7 +367,10 @@ const local = StyleSheet.create({
   archiveCard: { maxWidth: "100%", width: 360 },
   content: { gap: 14, paddingHorizontal: 28, paddingVertical: 20 },
   crumb: { alignItems: "center", flexDirection: "row", gap: 2, zIndex: 3 },
+  footer: { paddingBottom: 18, paddingHorizontal: 28, paddingTop: 6, zIndex: 2 },
   scroll: { backgroundColor: colors.wood, flex: 1 },
+  stage: { flex: 1, gap: 0, justifyContent: "flex-end" },
+  stageCenter: { alignItems: "center", flex: 1, justifyContent: "center", paddingBottom: 40 },
   title: {
     color: colors.onWood,
     fontFamily: fonts.hand,

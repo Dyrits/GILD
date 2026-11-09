@@ -46,7 +46,7 @@ import { readThreadPanel } from "./threadPanel.ts";
 import { AccountsRoot, Threads, threadsLayer } from "./threads.ts";
 import { renameMission } from "./titles.ts";
 import { openThreadByOwner } from "./tree.ts";
-import { ScratchRoot } from "./workspaces.ts";
+import { createRealm, renameRealm, ScratchRoot, setRealmCrest } from "./workspaces.ts";
 
 /** The entry point shared by app commands and, later, MCP calls. */
 export class Service extends Context.Service<
@@ -154,6 +154,7 @@ const make = Effect.gen(function* () {
           ),
         BrowseFolders: (browse) => browseFolders(browse.path, browse.shouldIncludeHidden),
         CreateFolder: (create) => createFolder(create.parent, create.name),
+        CreateRealm: (create) => change(createRealm(create.path, create.name, create.crest)),
         DeleteIntel: (given) => change(deleteIntelByOwner(given.intelId)),
         DeleteThread: (given) =>
           deleteThread(given.threadId, given.confirmation).pipe(
@@ -176,7 +177,7 @@ const make = Effect.gen(function* () {
             Effect.provideService(HarnessTools, harnessTools),
             Effect.provideService(AccountsRoot, accountsRoot),
           ),
-        ListIntel: (list) => readIntelView(list.scope, list.state, list.threadId),
+        ListIntel: (list) => readIntelView(list.scope, list.state, list.threadId, list.workspaceId ?? null),
         ListMissions: (filters) => listMissions(filters),
         ListOpenQuestions: () => listOpenQuestions,
         ListSkills: (given) => listSkills(given.workspacePath),
@@ -228,6 +229,7 @@ const make = Effect.gen(function* () {
         RemovePermission: (remove) => change(removePermission(remove.permissionId)),
         RenameAccount: (rename) => thenListHarnesses(renameAccount(rename.accountId, rename.label)),
         RenameMission: (rename) => change(renameMission(rename.missionId, rename.title)),
+        RenameRealm: (rename) => change(renameRealm(rename.workspaceId, rename.name)),
         ReopenMission: (reopen) => commands.run(reopenMission(reopen.missionId)),
         ResolveChatter: (given) =>
           resolveChatter(given.id, given.choice).pipe(
@@ -271,6 +273,7 @@ const make = Effect.gen(function* () {
             );
           }),
         SetMissionBudget: (given) => commands.run(setMissionBudget(given.missionId, given.limits)),
+        SetRealmCrest: (set) => change(setRealmCrest(set.workspaceId, set.crest)),
         SignInAccount: (given) =>
           signInAccount(given.harness, given.accountId).pipe(
             Effect.provideService(HarnessTools, harnessTools),
@@ -288,6 +291,8 @@ const make = Effect.gen(function* () {
                     text,
                     { accountId: start.accountId, effort: start.effort, harness: start.harness, model: start.model },
                     start.workspacePath,
+                    true,
+                    start.realm ?? null,
                   ).pipe(Effect.map((started) => changed(started, { threadsToWake: [started.threadId] }))),
                   (started) => wakingOnly(started.threadId),
                 ),

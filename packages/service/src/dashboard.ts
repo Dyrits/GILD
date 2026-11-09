@@ -2,6 +2,7 @@ import type { MissionList, MissionState, WorkspaceId } from "@gild/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { listViewSummaries } from "./missions.ts";
+import { crestOfRow } from "./workspaces.ts";
 
 // The dashboard's list of missions: filters, search, and order (mission-tracking, Dashboard).
 
@@ -36,8 +37,14 @@ export const listMissions = (filters: MissionFilters) =>
     const sql = yield* SqlClient.SqlClient;
     const summaries = yield* listViewSummaries(filters.isArchived);
     const ids = new Set(summaries.flatMap((summary) => (summary.workspaceId === null ? [] : [summary.workspaceId])));
-    const known = yield* sql<{ id: WorkspaceId; name: string; path: string }>`SELECT id, name, path FROM workspaces`;
-    const workspaces = known.filter((workspace) => ids.has(workspace.id));
+    const known = yield* sql<{
+      crest: string | null;
+      id: WorkspaceId;
+      name: string;
+      path: string;
+    }>`SELECT id, name, path, crest FROM workspaces`;
+    // Every realm shows on the board, even with no quest yet; the Archived view lists only the realms it has quests in.
+    const workspaces = filters.isArchived ? known.filter((workspace) => ids.has(workspace.id)) : known;
     const search = filters.search?.trim().toLowerCase() ?? "";
     const matching = search === "" ? null : yield* listSearchMatches(search);
     const missions = summaries.filter(
@@ -49,6 +56,6 @@ export const listMissions = (filters: MissionFilters) =>
     const first = missions.filter((mission) => statesNeedingOwner.includes(mission.state));
     return {
       missions: [...first, ...missions.filter((mission) => !statesNeedingOwner.includes(mission.state))],
-      workspaces: workspaces.map(({ id, name, path }) => ({ id, name, path })),
+      workspaces: workspaces.map(({ crest, id, name, path }) => ({ crest: crestOfRow(crest), id, name, path })),
     } satisfies MissionList;
   });

@@ -71,7 +71,12 @@ export const listThreadIntelChanges = (threadId: string) =>
  * The intel panel: one thread's scope or all intel, filtered by scope and state, and every change awaiting
  * approval.
  */
-export const readIntelView = (scope: IntelScope | null, state: IntelStateFilter | null, threadId: string | null) =>
+export const readIntelView = (
+  scope: IntelScope | null,
+  state: IntelStateFilter | null,
+  threadId: string | null,
+  workspaceId: string | null = null,
+) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const fading = yield* readFading;
@@ -87,10 +92,15 @@ export const readIntelView = (scope: IntelScope | null, state: IntelStateFilter 
       state === null || (state === "Pinned" ? row.isPinned === 1 : stateOfIntel(row, fading) === state);
     return {
       awaiting: yield* listAwaitingChanges,
-      deleted: deleted.filter((intel) => scope === null || intel.scope === scope),
+      deleted: deleted.filter((intel) => (scope === null || intel.scope === scope) && workspaceId === null),
       gauge: threadId === null ? null : yield* readGauge(threadId),
       intels: rows
-        .filter((row) => (scope === null || row.scope === scope) && isOfState(row))
+        .filter(
+          (row) =>
+            (scope === null || row.scope === scope) &&
+            (workspaceId === null || (row.scope === "Workspace" && row.workspaceId === workspaceId)) &&
+            isOfState(row),
+        )
         .map((row) => intelOf(row, fading)),
       proposals: yield* listIntelProposals,
     } satisfies IntelView;

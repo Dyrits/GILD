@@ -1,18 +1,15 @@
-import type { MissionSummary } from "@gild/contracts";
+import type { MissionId, MissionSummary } from "@gild/contracts";
 import { useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { Banner } from "./banner";
-import { type BoardColumn, boardColumns, boardOf, isStateShownOn } from "./boardColumns";
+import { type BoardColumn, boardColumns, boardOf, isStateShownOn, splitEarlier, trimmedColumns } from "./boardColumns";
 import { BudgetMeters } from "./budgets";
 import type { ServiceClient } from "./client";
 import { StateBadge } from "./controls";
-import { Badge } from "./emblems";
-import { harnessLabels, modelLabelOf, timeOf, usageText } from "./formatting";
-import { threadCountOf } from "./labels";
+import { CrestBadge } from "./crest";
+import { tokenCountOf } from "./labels";
 import { MissionEndingActions } from "./missionActions";
-import { EmptyBoard } from "./sketches";
-import { styles } from "./styles";
-import { colors, cut, fontSizes, fonts, ink, lift, stateLabels } from "./theme";
+import { colors, cut, fonts, ink, lift, stateLabels } from "./theme";
 
 /** A card's slight, steady tilt (between -1.8 and 1.8 degrees), taken from its id so it does not change between renders. */
 const tiltOf = (id: string) => {
@@ -25,27 +22,28 @@ const tiltOf = (id: string) => {
 export function MissionCard({
   client,
   column,
+  isSelected = false,
   mission,
   onOpen,
+  onOpenQuest,
 }: {
   client: ServiceClient;
   /** The column it sits in, or null outside the board (the Archived view). */
   column: BoardColumn | null;
+  /** Whether the quest panel beside the board shows this quest. */
+  isSelected?: boolean;
   mission: MissionSummary;
+  /** Pressing the card: opens the quest, or selects it for the panel beside the board. */
   onOpen: () => void;
+  /** Opens the quest itself, from the Open link on the card. */
+  onOpenQuest: () => void;
 }) {
-  const place = [
-    harnessLabels[mission.harness],
-    modelLabelOf(mission.model),
-    mission.workspaceName,
-    threadCountOf(mission),
-  ]
-    .filter((part) => part !== null)
-    .join(" · ");
   const isCircled = mission.state === "Attention";
   // A card under the pointer straightens and rises a little, so the board answers the hand.
   const [isHovered, setIsHovered] = useState(false);
   const cost = mission.budget.spent.cost;
+  const { usage } = mission;
+  const tokens = usage.input + usage.cacheRead + usage.cacheCreation + usage.output;
   return (
     <View
       onPointerEnter={() => setIsHovered(true)}
@@ -55,6 +53,7 @@ export function MissionCard({
         mission.state === "Done" && local.cardDone,
         isCircled && local.cardAttention,
         isHovered && local.cardHovered,
+        isSelected && local.cardSelected,
         {
           transform: [
             { rotate: isHovered || column === null ? "0deg" : `${tiltOf(mission.id)}deg` },
@@ -64,7 +63,7 @@ export function MissionCard({
       ]}
     >
       <View pointerEvents="none" style={local.inner} />
-      {mission.state === "Done" && (
+      {mission.state === "Done" && column === null && (
         <View pointerEvents="none" style={local.ribbon}>
           <Text style={local.ribbonText}>{stateLabels.Done}</Text>
         </View>
@@ -76,43 +75,39 @@ export function MissionCard({
       )}
       <Pressable accessibilityRole="button" onPress={onOpen} style={local.cardMain}>
         <View style={local.titleRow}>
-          <Badge id={mission.id} isChip size={28} />
-          <Text numberOfLines={2} style={[local.cardTitle, local.titleText]}>
+          <CrestBadge
+            crest={mission.workspaceCrest}
+            id={mission.workspaceId ?? mission.id}
+            isLoose={mission.workspaceId === null}
+            size={38}
+          />
+          <Text numberOfLines={3} style={[local.cardTitle, local.titleText]}>
             {mission.state === "Done" && <Text style={local.tick}>✓ </Text>}
             {mission.title}
           </Text>
         </View>
-        {place !== "" && (
-          <Text numberOfLines={1} style={styles.muted}>
-            {place}
-          </Text>
-        )}
-        <Text numberOfLines={1} style={local.cardMeta}>
-          {usageText(mission.usage)} · {timeOf(mission.lastActivityAt)}
-        </Text>
-        {cost > 0 && (
-          <View accessibilityLabel={`API cost $${cost.toFixed(2)}`} style={local.costRow}>
-            <View style={local.coin} />
-            <Text style={local.cost}>${cost.toFixed(2)}</Text>
-          </View>
-        )}
+        <View
+          accessibilityLabel={`${cost > 0 ? `API cost $${cost.toFixed(2)}, ` : ""}${tokens} tokens`}
+          style={local.costRow}
+        >
+          <View style={local.coin} />
+          {cost > 0 && <Text style={local.cost}>${cost.toFixed(2)}</Text>}
+          <Text style={local.tokens}>{tokenCountOf(tokens)} tokens</Text>
+        </View>
       </Pressable>
       {mission.state !== "Done" && (column === null || isStateShownOn(column, mission.state)) && (
         <StateBadge state={mission.state} />
       )}
       <BudgetMeters use={mission.budget} />
-      <MissionEndingActions client={client} mission={mission} />
+      <MissionEndingActions client={client} mission={mission} onOpen={onOpenQuest} />
     </View>
   );
 }
 
-/** What each column means, in one italic line under its ribbon. */
-const columnCaptions = { Attention: "needs you", Done: "Done", Idle: "Resting", Running: "Running" } as const;
-
 /** A column's banner, its cloth the color of what the column means. */
-function ColumnHeading({ column, count }: { column: BoardColumn; count: number }) {
+function ColumnHeading({ column }: { column: BoardColumn }) {
   const cloth = column === "Attention" ? "red" : column === "Done" ? "green" : column === "Idle" ? "violet" : "blue";
-  return <Banner caption={columnCaptions[column]} cloth={cloth} count={count} title={stateLabels[column]} />;
+  return <Banner cloth={cloth} title={stateLabels[column]} />;
 }
 
 /**
@@ -121,36 +116,81 @@ function ColumnHeading({ column, count }: { column: BoardColumn; count: number }
  */
 export function MissionBoard({
   client,
+  isFiltered = false,
   isWide,
   missions,
   onOpen,
+  onOpenQuest,
+  selectedId = null,
 }: {
   client: ServiceClient;
+  /** Whether a search narrows the missions, so every match shows and none is folded away. */
+  isFiltered?: boolean;
   isWide: boolean;
   missions: ReadonlyArray<MissionSummary>;
   onOpen: (mission: MissionSummary) => void;
+  /** Opens a quest itself, from the Open link on its card. */
+  onOpenQuest: (mission: MissionSummary) => void;
+  /** The quest the panel beside the board shows, if any. */
+  selectedId?: MissionId | null;
 }) {
-  if (missions.length === 0) return <EmptyBoard line="No quests here yet." />;
+  // The columns whose earlier quests the owner asked to see.
+  const [unfolded, setUnfolded] = useState<ReadonlySet<BoardColumn>>(new Set());
   const board = boardOf(missions);
+  const toggle = (column: BoardColumn) => {
+    const next = new Set(unfolded);
+    if (!next.delete(column)) next.add(column);
+    setUnfolded(next);
+  };
   return (
     <View style={isWide ? local.columns : local.stacked}>
-      {boardColumns.map((column) => (
-        <View key={column} style={isWide ? local.column : null}>
-          <ColumnHeading column={column} count={board[column].length} />
-          {board[column].length === 0 && (
-            <Text style={local.note}>{column === "Attention" ? "Nothing needs you." : "None."}</Text>
-          )}
-          {board[column].map((mission) => (
-            <MissionCard
-              client={client}
-              column={column}
-              key={mission.id}
-              mission={mission}
-              onOpen={() => onOpen(mission)}
-            />
-          ))}
-        </View>
-      ))}
+      {boardColumns.map((column) => {
+        // Resting and Fulfilled show what was touched today; the rest wait behind a line under the cards.
+        const { earlier, shown } =
+          trimmedColumns.includes(column) && !isFiltered
+            ? splitEarlier(board[column], Date.now(), selectedId)
+            : { earlier: [], shown: board[column] };
+        const isOpen = unfolded.has(column);
+        const visible = isOpen ? board[column] : shown;
+        return (
+          <View key={column} style={isWide ? local.column : null}>
+            <ColumnHeading column={column} />
+            {board[column].length === 0 && (
+              <Text accessibilityLabel={column === "Attention" ? "Nothing needs you" : "None"} style={local.empty}>
+                ✧
+              </Text>
+            )}
+            {board[column].length > 0 && visible.length === 0 && (
+              <Text accessibilityLabel="Nothing today" style={local.empty}>
+                ✧
+              </Text>
+            )}
+            {visible.map((mission) => (
+              <MissionCard
+                client={client}
+                column={column}
+                isSelected={mission.id === selectedId}
+                key={mission.id}
+                mission={mission}
+                onOpen={() => onOpen(mission)}
+                onOpenQuest={() => onOpenQuest(mission)}
+              />
+            ))}
+            {earlier.length > 0 && (
+              <Pressable
+                accessibilityRole="button"
+                accessibilityState={{ expanded: isOpen }}
+                onPress={() => toggle(column)}
+                style={local.earlier}
+              >
+                <Text style={local.earlierRule}>── ✧ ──</Text>
+                <Text style={local.earlierText}>{isOpen ? "Hide earlier" : `+ ${earlier.length} earlier`}</Text>
+                <Text style={local.earlierRule}>── ✧ ──</Text>
+              </Pressable>
+            )}
+          </View>
+        );
+      })}
     </View>
   );
 }
@@ -163,10 +203,10 @@ const local = StyleSheet.create({
     backgroundColor: colors.canvas,
     borderColor: "#9b7544",
     borderWidth: 2,
-    gap: 8,
-    marginBottom: 18,
+    gap: 10,
+    marginBottom: 22,
     padding: 16,
-    paddingTop: 18,
+    paddingTop: 22,
     shadowOffset: { height: 4, width: 2 },
     shadowOpacity: 0.5,
     shadowRadius: 7,
@@ -176,15 +216,15 @@ const local = StyleSheet.create({
   cardAttention: { borderColor: colors.danger, borderWidth: 2.5 },
   cardDone: { opacity: 0.8 },
   cardHovered: { borderColor: colors.goldHi, opacity: 1 },
-  cardMain: { gap: 2 },
-  cardMeta: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.sm },
+  cardMain: { gap: 4 },
+  cardSelected: { borderColor: colors.goldHi, borderWidth: 3 },
   cardTitle: {
     color: colors.text,
     fontFamily: fonts.hand,
-    fontSize: fontSizes.lg,
+    fontSize: 19,
     fontWeight: "700",
     letterSpacing: 0.3,
-    lineHeight: 21,
+    lineHeight: 24,
     textTransform: "uppercase",
   },
   circle: {
@@ -199,16 +239,18 @@ const local = StyleSheet.create({
     width: 30,
     zIndex: 1,
   },
-  coin: { backgroundColor: colors.gold, borderRadius: 6, height: 11, width: 11 },
+  coin: { backgroundColor: colors.gold, borderRadius: 8, height: 15, width: 15 },
   column: {
     borderRightColor: "rgba(184,134,43,0.22)",
     borderRightWidth: 1,
-    flex: 1,
+    flexBasis: 220,
+    flexGrow: 1,
     minWidth: 0,
     paddingRight: 16,
   },
-  columns: { alignItems: "stretch", flexDirection: "row", gap: 16 },
-  cost: { color: colors.text, fontFamily: fonts.mono, fontSize: fontSizes.sm },
+  // The columns wrap when the board is narrow, as beside the quest panel, so a card never gets too thin to read.
+  columns: { alignItems: "stretch", flexDirection: "row", flexWrap: "wrap", gap: 16 },
+  cost: { color: colors.text, fontFamily: fonts.mono, fontSize: 15 },
   costRow: {
     alignItems: "center",
     borderTopColor: colors.border,
@@ -218,6 +260,11 @@ const local = StyleSheet.create({
     marginTop: 6,
     paddingTop: 8,
   },
+  earlier: { alignItems: "center", gap: 2, marginBottom: 12, paddingVertical: 6 },
+  earlierRule: { color: colors.gold, fontFamily: fonts.sans, fontSize: 13, opacity: 0.8 },
+  earlierText: { color: colors.goldHi, fontFamily: fonts.sans, fontSize: 16, fontStyle: "italic" },
+  // An empty column shows a lone gilt ornament, not a sentence.
+  empty: { color: colors.gold, fontSize: 22, marginBottom: 12, opacity: 0.6, textAlign: "center" },
   highlighted: { backgroundColor: colors.marker },
   inner: {
     borderColor: colors.border,
@@ -230,7 +277,6 @@ const local = StyleSheet.create({
     right: 3,
     top: 3,
   },
-  note: { color: colors.onWood, fontFamily: fonts.sans, fontSize: 15, marginBottom: 12 },
   ribbon: {
     backgroundColor: colors.success,
     borderBottomLeftRadius: 4,
@@ -254,4 +300,5 @@ const local = StyleSheet.create({
   tick: { color: colors.success },
   titleRow: { alignItems: "center", flexDirection: "row", gap: 8 },
   titleText: { flex: 1 },
+  tokens: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: 15 },
 });

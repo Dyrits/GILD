@@ -1,10 +1,7 @@
-import type { MissionState } from "@gild/contracts";
-import { StyleSheet, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
-import { colors, radii, stateTones } from "./theme";
 
 /** The strokes of each emblem, drawn on a 24 by 24 grid. */
-const emblemPaths = {
+export const emblemPaths = {
   anchor: ["M12 3v14", "M8 7h8", "M5 13c0 4 3 7 7 7s7-3 7-7", "M3 13h4", "M17 13h4"],
   bolt: ["M13 3 6 13h5l-1 8 8-11h-5z"],
   castle: ["M4 20V8h3v3h3V8h4v3h3V8h3v12z", "M10 20v-5h4v5"],
@@ -25,26 +22,6 @@ const emblemPaths = {
 
 /** The names of the emblems a realm or a quest can wear. */
 export type EmblemName = keyof typeof emblemPaths;
-const emblemNames = Object.keys(emblemPaths) as EmblemName[];
-
-/** The tints an emblem takes, light enough to read on the rail's leather and dark enough on parchment. */
-const tints = ["#e2b85a", "#9fc6e8", "#e59a85", "#a9d49b", "#c9a6e6", "#f0c7b4", "#8fd1c6", "#d9d18a"] as const;
-
-const hashOf = (id: string) => {
-  let hash = 7;
-  for (const char of id) hash = (hash * 33 + char.charCodeAt(0)) % 1_000_003;
-  return hash;
-};
-
-/** The emblem and tint of a realm or a quest, taken from its id so they stay the same between renders and sessions. */
-export const emblemOf = (id: string): { name: EmblemName; tint: string } => {
-  const hash = hashOf(id);
-  return {
-    name: emblemNames[hash % emblemNames.length] ?? "star",
-    tint: tints[Math.floor(hash / 17) % tints.length] ?? tints[0],
-  };
-};
-
 /** One emblem as a stroked line drawing. */
 export function Emblem({ name, size = 18, tint }: { name: EmblemName; size?: number; tint: string }) {
   return (
@@ -62,39 +39,6 @@ export function Emblem({ name, size = 18, tint }: { name: EmblemName; size?: num
         <Path d={d} key={d} />
       ))}
     </Svg>
-  );
-}
-
-/**
- * The emblem of one realm or quest, by its id; a quest adds a corner dot in the color of its state. With `isChip` it
- * sits on a round leather disc, so its tint reads on parchment.
- */
-export function Badge({
-  id,
-  isChip = false,
-  size = 18,
-  state,
-}: {
-  id: string;
-  isChip?: boolean;
-  size?: number;
-  state?: MissionState;
-}) {
-  const { name, tint } = emblemOf(id);
-  const chip = isChip
-    ? {
-        backgroundColor: colors.leather,
-        borderColor: colors.gold,
-        borderRadius: radii.pill,
-        borderWidth: 1,
-        padding: size * 0.2,
-      }
-    : null;
-  return (
-    <View style={[chip, { height: size, width: size }]}>
-      <Emblem name={name} size={isChip ? size * 0.6 : size} tint={tint} />
-      {state !== undefined && <View style={[local.dot, { backgroundColor: stateTones[state].color }]} />}
-    </View>
   );
 }
 
@@ -118,16 +62,3 @@ export function RealmsIcon({ size = 18, tint }: { size?: number; tint: string })
     </Svg>
   );
 }
-
-const local = StyleSheet.create({
-  dot: {
-    borderColor: colors.leather,
-    borderRadius: radii.pill,
-    borderWidth: 1.5,
-    bottom: -3,
-    height: 9,
-    position: "absolute",
-    right: -3,
-    width: 9,
-  },
-});

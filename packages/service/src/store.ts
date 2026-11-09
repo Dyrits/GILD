@@ -387,6 +387,11 @@ const migrations = {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`ALTER TABLE usage ADD COLUMN context INTEGER`;
   }),
+  // A realm's crest, designed by the owner: JSON, null until then (the quests of a realm wear it).
+  "0023_realm_crest": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE workspaces ADD COLUMN crest TEXT`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

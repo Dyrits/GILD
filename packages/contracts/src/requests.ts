@@ -1,5 +1,6 @@
 import { Schema } from "effect";
 import { BudgetLimits, BudgetWindow } from "./budgets.ts";
+import { Crest } from "./crest.ts";
 import { HarnessList, HarnessName } from "./harnesses.ts";
 import {
   AccountId,
@@ -51,6 +52,16 @@ export const StartMission = Schema.TaggedStruct("StartMission", {
   /** Absent starts on the Settings default harness. */
   harness: Schema.optionalKey(HarnessName),
   model: ModelChoice,
+  /**
+   * The name and crest the owner gave a folder that is not a realm yet; used when this mission turns it into one, and
+   * ignored when the folder already is a realm. Absent names it after its folder, with no crest of its own.
+   */
+  realm: Schema.optionalKey(
+    Schema.Struct({
+      crest: Schema.NullOr(Crest),
+      name: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(80)),
+    }),
+  ),
   requestId: RequestId,
   text: MessageText,
   /** An existing folder, chosen in the system's folder dialog, or null for the mission's scratch folder. */
@@ -167,6 +178,8 @@ export const ListIntel = Schema.TaggedStruct("ListIntel", {
   scope: Schema.NullOr(IntelScope),
   state: Schema.NullOr(IntelStateFilter),
   threadId: Schema.NullOr(ThreadId),
+  /** Only the lore of this realm's own scope; absent shows the lore the other filters give. */
+  workspaceId: Schema.optionalKey(Schema.NullOr(WorkspaceId)),
 });
 /** The owner pins an intel so it never fades, or unpins it. */
 export const PinIntel = Schema.TaggedStruct("PinIntel", { intelId: IntelId, isPinned: Schema.Boolean });
@@ -206,6 +219,22 @@ export const AnswerQuestion = Schema.TaggedStruct("AnswerQuestion", {
 export const ListOpenQuestions = Schema.TaggedStruct("ListOpenQuestions", {});
 /** The owner sets, changes, or removes a mission's budget; raising past the spending resumes stopped threads. */
 export const SetMissionBudget = Schema.TaggedStruct("SetMissionBudget", { limits: BudgetLimits, missionId: MissionId });
+/** The owner imports a folder as a realm, named and given a crest, before any quest starts in it. */
+export const CreateRealm = Schema.TaggedStruct("CreateRealm", {
+  crest: Schema.NullOr(Crest),
+  name: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(80)),
+  path: Schema.String,
+});
+/** The owner renames a realm; refused when the name is blank. */
+export const RenameRealm = Schema.TaggedStruct("RenameRealm", {
+  name: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(80)),
+  workspaceId: WorkspaceId,
+});
+/** The owner designs a realm's crest, or clears it with null to go back to the one its id gives. */
+export const SetRealmCrest = Schema.TaggedStruct("SetRealmCrest", {
+  crest: Schema.NullOr(Crest),
+  workspaceId: WorkspaceId,
+});
 /** Reads a mission's budget window, or the global one with null. */
 export const ReadBudget = Schema.TaggedStruct("ReadBudget", { missionId: Schema.NullOr(MissionId) });
 /** The owner answers Stop (or Stop all) to a reached budget: its threads stay stopped. */
@@ -314,6 +343,9 @@ export const Request = Schema.Union([
   AnswerQuestion,
   AnswerSuggestion,
   SetMissionBudget,
+  SetRealmCrest,
+  RenameRealm,
+  CreateRealm,
   ReadBudget,
   StopAtBudget,
   ListOpenQuestions,
@@ -359,6 +391,7 @@ export const Results = {
   AnswerSuggestion: Suggestion,
   BrowseFolders: FolderListing,
   CreateFolder: Folder,
+  CreateRealm: Schema.Null,
   DeleteIntel: Schema.Null,
   DeleteThread: Schema.Null,
   DismissMissionPrompt: Schema.Null,
@@ -387,6 +420,7 @@ export const Results = {
   RemovePermission: Schema.Null,
   RenameAccount: HarnessList,
   RenameMission: Schema.Null,
+  RenameRealm: Schema.Null,
   ReopenMission: Schema.Null,
   ResolveChatter: Schema.Null,
   ResolveIntelChange: Schema.Null,
@@ -397,6 +431,7 @@ export const Results = {
   RewriteBriefing: JournalView,
   SendMessage: SendMessageResult,
   SetMissionBudget: Schema.Null,
+  SetRealmCrest: Schema.Null,
   SignInAccount: Schema.Null,
   StartMission: StartMissionResult,
   StopAtBudget: Schema.Null,

@@ -1,12 +1,21 @@
-import type { MissionId, MissionSummary, WorkspaceId } from "@gild/contracts";
+import type { MissionId, MissionSummary, Crest as RealmCrest, WorkspaceId } from "@gild/contracts";
 import { type ComponentRef, createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
-import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import {
+  PanResponder,
+  Platform,
+  Pressable,
+  ScrollView,
+  StyleSheet,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { ReserveRows } from "./budgets";
 import type { ServiceClient } from "./client";
-import { Badge, Emblem, type EmblemName, RealmsIcon } from "./emblems";
+import { CrestBadge } from "./crest";
+import { Emblem, type EmblemName } from "./emblems";
 import { tokenCountOf } from "./labels";
 import { allMissions } from "./queries";
-import { GildMark } from "./sketches";
 import { colors, cut, fontSizes, fonts, ink, lift, radii } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
 
@@ -19,9 +28,18 @@ const SidebarShown = createContext(false);
 export const useHasSidebar = () => useContext(SidebarShown);
 
 /** The rail's width with its labels and as icons only; the collapse handle sits on its edge. */
-const expandedWidth = 215;
-const collapsedWidth = 56;
+const expandedWidth = 264;
+/** The widths the owner can drag the open rail between. */
+const minRailWidth = 232;
+const maxRailWidth = 380;
+const collapsedWidth = 72;
 const handleSize = 26;
+
+/** How many quests the rail lists under Quests before "+ N more", which lists the rest in place. */
+const railQuestLimit = 8;
+
+/** Style properties only the web build understands (gradients, clipping); native keeps the plain colors beside them. */
+const onWeb = (style: object): object => (Platform.OS === "web" ? style : {});
 
 const TopBarShown = createContext(false);
 
@@ -41,7 +59,8 @@ export const useQuestPanel = (panel: ReactNode) => {
 };
 
 /** The quest's side panel as the top bar offers it: whether it shows, and how to show or hide it. */
-export type DetailsToggle = { isOpen: boolean; onToggle: () => void };
+/** `isPinned` keeps the panel open with no way to hide it, as on the quest board, where it always has something to show. */
+export type DetailsToggle = { isOpen: boolean; isPinned?: boolean; onToggle: () => void };
 
 /** The window width from which the sidebar shows beside the content; narrower windows keep the screens' own links. */
 const sidebarBreakpoint = 820;
@@ -81,7 +100,7 @@ function NavItem({
   /** A drawn icon for the row, in place of the text glyph. */
   emblem?: EmblemName;
   /** The id of the realm the row stands for, whose emblem replaces the glyph. */
-  realm?: string;
+  realm?: { crest: RealmCrest | null; id: string };
   /** A number shown at the end of the row, such as a workspace's open missions; none when absent. */
   count?: number;
   /** Whether the rail shows icons only, so the label and the count leave the row. */
@@ -105,12 +124,18 @@ function NavItem({
         isCollapsed && local.itemCollapsed,
         (state.pressed || (state as { hovered?: boolean }).hovered === true) && local.itemHovered,
         isSelected && local.itemSelected,
+        isSelected && isCollapsed && local.itemSelectedCollapsed,
       ]}
     >
+      {isSelected && !isCollapsed && <Text style={local.pointer}>◆</Text>}
       {realm !== undefined ? (
-        <Badge id={realm} />
+        <CrestBadge crest={realm.crest} id={realm.id} size={isCollapsed ? 40 : 30} />
       ) : emblem !== undefined ? (
-        <Emblem name={emblem} tint={isSelected ? colors.gold : colors.onWood} />
+        <Emblem
+          name={emblem}
+          size={isCollapsed ? 28 : 18}
+          tint={isSelected ? (isCollapsed ? colors.goldHi : colors.text) : colors.onWood}
+        />
       ) : (
         <Text style={[local.glyph, isSelected && local.textSelected]}>{glyph}</Text>
       )}
@@ -119,7 +144,9 @@ function NavItem({
           {label}
         </Text>
       )}
-      {!isCollapsed && count !== undefined && count > 0 && <Text style={local.count}>{count}</Text>}
+      {!isCollapsed && count !== undefined && count > 0 && (
+        <Text style={[local.count, isSelected && local.countSelected]}>{count}</Text>
+      )}
     </Pressable>
   );
 }
@@ -145,9 +172,17 @@ function MissionItem({
         isCollapsed && local.itemCollapsed,
         (state.pressed || (state as { hovered?: boolean }).hovered === true) && local.itemHovered,
         isSelected && local.itemSelected,
+        isSelected && isCollapsed && local.itemSelectedCollapsed,
       ]}
     >
-      <Badge id={mission.id} state={mission.state} />
+      {isSelected && !isCollapsed && <Text style={local.pointer}>◆</Text>}
+      <CrestBadge
+        crest={mission.workspaceCrest}
+        id={mission.workspaceId ?? mission.id}
+        isLoose={mission.workspaceId === null}
+        size={isCollapsed ? 40 : 30}
+        state={mission.state}
+      />
       {!isCollapsed && (
         <Text numberOfLines={1} style={[local.itemText, local.missionText, isSelected && local.textSelected]}>
           {mission.title}
@@ -190,15 +225,20 @@ function ArchivedItem({
         isCollapsed && local.itemCollapsed,
         (state.pressed || (state as { hovered?: boolean }).hovered === true) && local.itemHovered,
         isSelected && local.itemSelected,
+        isSelected && isCollapsed && local.itemSelectedCollapsed,
       ]}
     >
-      <Emblem name="tower" tint={isSelected ? colors.gold : colors.onWood} />
+      <Emblem
+        name="tower"
+        size={isCollapsed ? 28 : 18}
+        tint={isSelected ? (isCollapsed ? colors.goldHi : colors.text) : colors.onWood}
+      />
       {!isCollapsed && (
         <Text numberOfLines={1} style={[local.itemText, local.archivedText, isSelected && local.textSelected]}>
           Archives
         </Text>
       )}
-      {!isCollapsed && count > 0 && <Text style={local.count}>{count}</Text>}
+      {!isCollapsed && count > 0 && <Text style={[local.count, isSelected && local.countSelected]}>{count}</Text>}
     </Pressable>
   );
 }
@@ -216,7 +256,7 @@ function PanelIcon({ side = "left" }: { side?: "left" | "right" }) {
 function Section({ emblem, label }: { emblem?: EmblemName; label: string }) {
   return (
     <View style={local.sectionHeading}>
-      {emblem !== undefined && <Emblem name={emblem} size={16} tint={colors.goldHi} />}
+      {emblem !== undefined && <Emblem name={emblem} size={22} tint={colors.goldHi} />}
       <Text style={local.sectionTitle}>{label}</Text>
     </View>
   );
@@ -259,13 +299,14 @@ function Category({
       style={(state) => [
         local.sectionHeading,
         local.categoryHeading,
-        !hasRule && local.unruled,
+        local.unruled,
         (state.pressed || (state as { hovered?: boolean }).hovered === true) && local.itemHovered,
         isSelected && local.categorySelected,
       ]}
     >
-      <Emblem name={emblem} size={16} tint={colors.goldHi} />
+      <Emblem name={emblem} size={22} tint={isSelected ? colors.text : colors.goldHi} />
       <Text style={[local.sectionTitle, isSelected && local.categoryTitleSelected]}>{label}</Text>
+      {hasRule && <View style={local.headingRule} />}
       {onFold !== undefined && (
         <Pressable
           accessibilityLabel={`${isFolded === true ? "Unfold" : "Fold"} ${label}`}
@@ -283,98 +324,6 @@ function Category({
 }
 
 /**
- * The collapsed rail's one Realms button: a rail of icons cannot name every realm, so they gather in a list that opens
- * beside the button, each with its own emblem, the open ones counted, and the realm whose board shows marked.
- */
-function RealmsMenu({
-  isSelected,
-  onAll,
-  realms,
-  selected,
-  onWorkspace,
-}: {
-  /** Whether the Realms place shows. */
-  isSelected: boolean;
-  /** Opens the Realms place, every realm at once. */
-  onAll: () => void;
-  realms: readonly { count: number; id: WorkspaceId; name: string }[];
-  /** The realm whose board shows, if any. */
-  selected: WorkspaceId | null;
-  onWorkspace: (id: WorkspaceId) => void;
-}) {
-  const [frame, setFrame] = useState<{ x: number; y: number } | null>(null);
-  const tip = useRailTip("Realms", frame === null);
-  const { height } = useWindowDimensions();
-  const close = () => setFrame(null);
-  const open = () => tip.ref.current?.measureInWindow((x, y, width) => setFrame({ x: x + width + 10, y }));
-  const isOpen = frame !== null;
-  return (
-    <>
-      <Pressable
-        accessibilityLabel="Realms"
-        accessibilityRole="button"
-        accessibilityState={{ expanded: isOpen }}
-        onHoverIn={tip.onHoverIn}
-        onHoverOut={tip.onHoverOut}
-        onPress={isOpen ? close : open}
-        ref={tip.ref}
-        style={(state) => [
-          local.item,
-          local.itemCollapsed,
-          (state.pressed || isOpen || (state as { hovered?: boolean }).hovered === true) && local.itemHovered,
-          (selected !== null || isSelected) && local.itemSelected,
-        ]}
-      >
-        <RealmsIcon tint={colors.onWood} />
-        {realms.length > 0 && <Text style={local.menuCount}>{realms.length}</Text>}
-      </Pressable>
-      <Modal animationType="none" onRequestClose={close} transparent visible={isOpen}>
-        <Pressable accessibilityLabel="Close the realms" onPress={close} style={StyleSheet.absoluteFill} />
-        {frame !== null && (
-          <View
-            style={[local.flyout, { left: frame.x, maxHeight: Math.max(160, height - frame.y - 16), top: frame.y }]}
-          >
-            <Pressable
-              accessibilityRole="menuitem"
-              onPress={() => {
-                close();
-                onAll();
-              }}
-            >
-              <Text style={[local.flyoutTitle, local.flyoutLink]}>All realms ›</Text>
-            </Pressable>
-            <ScrollView>
-              {realms.length === 0 && <Text style={local.flyoutEmpty}>No quest in a realm yet.</Text>}
-              {realms.map((realm) => (
-                <Pressable
-                  accessibilityRole="menuitem"
-                  key={realm.id}
-                  onPress={() => {
-                    close();
-                    onWorkspace(realm.id);
-                  }}
-                  style={(state) => [
-                    local.flyoutItem,
-                    (state.pressed || (state as { hovered?: boolean }).hovered === true) && local.flyoutItemHovered,
-                    realm.id === selected && local.flyoutItemSelected,
-                  ]}
-                >
-                  <Badge id={realm.id} size={20} />
-                  <Text numberOfLines={1} style={local.flyoutText}>
-                    {realm.name}
-                  </Text>
-                  {realm.count > 0 && <Text style={local.flyoutCount}>{realm.count}</Text>}
-                </Pressable>
-              ))}
-            </ScrollView>
-          </View>
-        )}
-      </Modal>
-    </>
-  );
-}
-
-/**
  * The left rail: the app's name; Control on top, the board of every mission where missions start and where
  * Control's own thread will be pinned; the realms with their open quests and the quests with no realm, each with its
  * own emblem; the other places; and the spending against the global budget. Collapsed to icons, the rail gathers the
@@ -383,6 +332,7 @@ function RealmsMenu({
 function Sidebar({
   client,
   isCollapsed,
+  width,
   onOpenMission,
   onPlace,
   onWorkspace,
@@ -393,6 +343,8 @@ function Sidebar({
   client: ServiceClient;
   /** Whether the rail shows icons only. */
   isCollapsed: boolean;
+  /** The open rail's width, as dragged. */
+  width: number;
   onOpenMission: (id: MissionId) => void;
   onPlace: (place: Place) => void;
   /** Opens the board of one workspace's missions. */
@@ -404,10 +356,13 @@ function Sidebar({
 }) {
   const { data } = useServiceQuery(client, allMissions.request, allMissions.key);
   const missions = [...(data?.missions ?? [])].sort((a, b) => b.lastActivityAt - a.lastActivityAt);
-  const loose = missions.filter((mission) => mission.workspaceId === null);
+  // The rail lists the latest quests of every realm; "+ N more" unfolds the rest.
+  const [areAllQuestsShown, setAreAllQuestsShown] = useState(false);
+  const railQuests = areAllQuestsShown ? missions : missions.slice(0, railQuestLimit);
   const workspaces = [...(data?.workspaces ?? [])].sort((a, b) => a.name.localeCompare(b.name));
   const realms = workspaces.map((workspace) => ({
     count: missions.filter((mission) => mission.workspaceId === workspace.id && mission.state !== "Done").length,
+    crest: workspace.crest,
     id: workspace.id,
     name: workspace.name,
   }));
@@ -421,19 +376,8 @@ function Sidebar({
   };
   const props = (category: Foldable) => ({ isFolded: folded.has(category), onFold: () => fold(category) });
   return (
-    <View style={[local.sidebar, isCollapsed && local.sidebarCollapsed]}>
-      <View style={[local.brand, isCollapsed && local.brandCollapsed]}>
-        {isCollapsed ? (
-          <GildMark />
-        ) : (
-          <>
-            <View style={local.crest}>
-              <GildMark size={38} />
-            </View>
-            <Text style={local.brandText}>Gild</Text>
-          </>
-        )}
-      </View>
+    <View style={[local.sidebar, isCollapsed ? local.sidebarCollapsed : { width }]}>
+      <View pointerEvents="none" style={local.sidebarInner} />
       <ScrollView contentContainerStyle={local.group} style={local.flex}>
         <Category
           emblem="crown"
@@ -444,12 +388,12 @@ function Sidebar({
           onPress={() => onPlace("Guildmaster")}
         />
         {isCollapsed ? (
-          <RealmsMenu
-            isSelected={isHere("Realms")}
-            onAll={() => onPlace("Realms")}
-            onWorkspace={onWorkspace}
-            realms={realms}
-            selected={isHere("Quests") ? workspaceId : null}
+          <Category
+            emblem="compass"
+            isCollapsed
+            isSelected={isHere("Realms") || (isHere("Quests") && workspaceId !== null)}
+            label="Realms"
+            onPress={() => onPlace("Realms")}
           />
         ) : (
           <>
@@ -474,7 +418,7 @@ function Sidebar({
                   key={realm.id}
                   label={realm.name}
                   onPress={() => onWorkspace(realm.id)}
-                  realm={realm.id}
+                  realm={realm}
                 />
               ))}
           </>
@@ -487,12 +431,12 @@ function Sidebar({
           onPress={() => onPlace("Quests")}
           {...props("Quests")}
         />
-        {!isCollapsed && !folded.has("Quests") && loose.length === 0 && (
-          <Text style={local.empty}>None outside a realm.</Text>
+        {!isCollapsed && !folded.has("Quests") && missions.length === 0 && (
+          <Text style={local.empty}>No quests yet.</Text>
         )}
         {!isCollapsed &&
           !folded.has("Quests") &&
-          loose.map((mission) => (
+          railQuests.map((mission) => (
             <MissionItem
               isCollapsed={false}
               isSelected={mission.id === openMission}
@@ -501,6 +445,17 @@ function Sidebar({
               onPress={() => onOpenMission(mission.id)}
             />
           ))}
+        {!isCollapsed && !folded.has("Quests") && missions.length > railQuestLimit && (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityState={{ expanded: areAllQuestsShown }}
+            onPress={() => setAreAllQuestsShown(!areAllQuestsShown)}
+          >
+            <Text style={[local.empty, local.moreQuests]}>
+              {areAllQuestsShown ? "Show fewer" : `+ ${missions.length - railQuestLimit} more`}
+            </Text>
+          </Pressable>
+        )}
         <Category
           emblem="castle"
           isCollapsed={isCollapsed}
@@ -572,6 +527,8 @@ function Spending({ client }: { client: ServiceClient }) {
 const hasOwnTitleBar = typeof window !== "undefined" && window.gild?.hasOwnTitleBar === true;
 
 // Electron drags the window by a region marked this way; react-native-web passes the property to the page.
+// The pointer shows it can be dragged sideways.
+const resizeCursor = { cursor: "col-resize" } as object;
 const dragRegion = { WebkitAppRegion: "drag" } as object;
 const noDragRegion = { WebkitAppRegion: "no-drag" } as object;
 
@@ -586,6 +543,59 @@ const readCollapsed = (): boolean => {
     return false;
   }
 };
+
+/** The key under which the browser remembers how wide the open rail is. */
+const widthKey = "gild:sidebar-width";
+
+const clampRailWidth = (width: number) => Math.min(maxRailWidth, Math.max(minRailWidth, Math.round(width)));
+
+/** Reads the remembered rail width; a platform without browser storage starts at the default. */
+const readRailWidth = (): number => {
+  try {
+    const stored = Number(globalThis.localStorage?.getItem(widthKey));
+    return Number.isFinite(stored) && stored > 0 ? clampRailWidth(stored) : expandedWidth;
+  } catch {
+    return expandedWidth;
+  }
+};
+
+/**
+ * A thin strip on the open rail's edge that the owner drags to widen or narrow it, between a least and a most width; the
+ * width is remembered.
+ */
+function RailResizer({ onChange, width }: { onChange: (width: number) => void; width: number }) {
+  const start = useRef(width);
+  const latest = useRef(width);
+  latest.current = width;
+  const responder = useRef(
+    PanResponder.create({
+      onMoveShouldSetPanResponder: () => true,
+      onPanResponderGrant: () => {
+        start.current = latest.current;
+        // No text is picked up by the pointer while the rail is dragged.
+        if (typeof document !== "undefined") document.body.style.userSelect = "none";
+      },
+      onPanResponderMove: (_, gesture) => onChange(clampRailWidth(start.current + gesture.dx)),
+      onPanResponderRelease: () => {
+        if (typeof document !== "undefined") document.body.style.userSelect = "";
+        try {
+          globalThis.localStorage?.setItem(widthKey, String(latest.current));
+        } catch {}
+      },
+      onPanResponderTerminate: () => {
+        if (typeof document !== "undefined") document.body.style.userSelect = "";
+      },
+      onStartShouldSetPanResponder: () => true,
+    }),
+  ).current;
+  return (
+    <View
+      accessibilityLabel="Resize the sidebar"
+      {...responder.panHandlers}
+      style={[local.resizer, { left: width - 4 }, resizeCursor]}
+    />
+  );
+}
 
 /** Remembers the rail state where the platform allows; a refusal only loses the memory. */
 const rememberCollapsed = (isCollapsed: boolean) => {
@@ -671,7 +681,7 @@ function TopBar({
         })}
       </View>
       <SpendingLine client={client} />
-      {details !== null && (
+      {details !== null && details.isPinned !== true && (
         <Pressable
           accessibilityLabel={details.isOpen ? "Hide quest panel" : "Show quest panel"}
           accessibilityRole="button"
@@ -743,19 +753,30 @@ function SpendingLine({ client }: { client: ServiceClient }) {
  * The quest panel's column: a header with the close button, level with the top bar, over the panel. On a wide window
  * it spans the window's height beside the top bar; on a narrow one it takes the content's place.
  */
-function QuestColumn({ children, isWide, onClose }: { children: ReactNode; isWide: boolean; onClose: () => void }) {
+function QuestColumn({
+  children,
+  isWide,
+  onClose,
+}: {
+  children: ReactNode;
+  isWide: boolean;
+  /** Hides the panel; none when the panel is pinned open. */
+  onClose: (() => void) | null;
+}) {
   return (
     <View style={isWide ? local.questColumn : local.questColumnNarrow}>
       <View style={local.topBar}>
-        <Pressable
-          accessibilityLabel="Hide quest panel"
-          accessibilityRole="button"
-          onPress={onClose}
-          style={noDragRegion}
-        >
-          <Text style={local.questClose}>✕</Text>
-        </Pressable>
-        <Text style={[local.crumbText, local.crumbCurrent]}>Quest</Text>
+        {onClose !== null && (
+          <Pressable
+            accessibilityLabel="Hide quest panel"
+            accessibilityRole="button"
+            onPress={onClose}
+            style={noDragRegion}
+          >
+            <Text style={local.questClose}>✕</Text>
+          </Pressable>
+        )}
+        <Text style={[local.crumbText, local.crumbCurrent, onClose === null && local.crumbPinned]}>Quest</Text>
       </View>
       <View style={local.questBody}>{children}</View>
     </View>
@@ -767,10 +788,14 @@ function QuestColumn({ children, isWide, onClose }: { children: ReactNode; isWid
  * a narrow one the content alone.
  */
 export function Shell(
-  props: Omit<Parameters<typeof Sidebar>[0], "isCollapsed"> & { children: ReactNode; details: DetailsToggle | null },
+  props: Omit<Parameters<typeof Sidebar>[0], "isCollapsed" | "width"> & {
+    children: ReactNode;
+    details: DetailsToggle | null;
+  },
 ) {
   const { width } = useWindowDimensions();
   const [isCollapsed, setIsCollapsed] = useState(readCollapsed);
+  const [railWidth, setRailWidth] = useState(readRailWidth);
   const [questPanel, setQuestPanel] = useState<ReactNode>(null);
   const { data } = useServiceQuery(props.client, allMissions.request, allMissions.key);
   const hasRail = width >= sidebarBreakpoint;
@@ -807,7 +832,7 @@ export function Shell(
   const { details } = props;
   const isPanelShown = details?.isOpen === true && questPanel !== null;
   const panelColumn = isPanelShown && details !== null && (
-    <QuestColumn isWide={hasRail} onClose={details.onToggle}>
+    <QuestColumn isWide={hasRail} onClose={details.isPinned === true ? null : details.onToggle}>
       {questPanel}
     </QuestColumn>
   );
@@ -835,14 +860,15 @@ export function Shell(
               <View style={local.windowMain}>
                 <TopBar client={props.client} crumbs={crumbs} details={details} />
                 <View style={local.frame}>
-                  <Sidebar {...props} isCollapsed={isCollapsed} />
+                  <Sidebar {...props} isCollapsed={isCollapsed} width={railWidth} />
+                  {!isCollapsed && <RailResizer onChange={setRailWidth} width={railWidth} />}
                   <Pressable
                     accessibilityLabel={isCollapsed ? "Expand sidebar (⌘B)" : "Collapse sidebar (⌘B)"}
                     accessibilityRole="button"
                     onPress={toggle}
                     style={({ pressed }) => [
                       local.handle,
-                      { left: (isCollapsed ? collapsedWidth : expandedWidth) - handleSize / 2 },
+                      { left: (isCollapsed ? collapsedWidth : railWidth) - handleSize / 2 },
                       pressed && local.handlePressed,
                     ]}
                   >
@@ -865,39 +891,31 @@ export function Shell(
   );
 }
 
+/** The chosen row: parchment cut to a point at its right end, as a signpost. */
+const pointedRow = {
+  backgroundColor: "#efdcae",
+  borderColor: "transparent",
+  paddingLeft: 18,
+  ...onWeb({
+    backgroundImage: "linear-gradient(#f5e8c8, #e7ca97)",
+    clipPath: "polygon(0 0, 96% 0, 100% 50%, 96% 100%, 0 100%)",
+  }),
+};
+
 const local = StyleSheet.create({
   archivedText: { color: colors.onWood },
   attention: { backgroundColor: colors.warning, borderRadius: radii.pill, height: 7, width: 7 },
-  brand: { alignItems: "center", gap: 6, paddingBottom: 10, paddingTop: 2 },
-  brandCollapsed: { justifyContent: "center", paddingHorizontal: 0 },
-  brandText: {
-    color: colors.goldHi,
-    fontFamily: fonts.hand,
-    fontSize: 30,
-    fontWeight: "700",
-    letterSpacing: 5,
-    lineHeight: 34,
-    textTransform: "uppercase",
-  },
   categoryHeading: { borderRadius: radii.sm, marginTop: 10 },
-  categorySelected: { backgroundColor: colors.canvas },
+  categorySelected: { ...pointedRow, paddingLeft: 6 },
   categoryTitleSelected: { color: colors.text },
-  count: { color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.sm },
-  crest: {
-    alignItems: "center",
-    backgroundColor: colors.danger,
-    height: 62,
-    justifyContent: "flex-start",
-    paddingTop: 8,
-    width: 56,
-    // The swallowtail notch is web-only; native shows a plain banner.
-    ...(Platform.OS === "web" ? ({ clipPath: "polygon(0 0, 100% 0, 100% 100%, 50% 82%, 0 100%)" } as object) : {}),
-  },
+  count: { color: "#cbb793", fontFamily: fonts.sans, fontSize: 15 },
+  countSelected: { color: "#382b19" },
   crumb: { alignItems: "center", flexDirection: "row", flexShrink: 0, gap: 8 },
   crumbCurrent: { color: colors.onWood },
   crumbGlyph: { color: colors.onWood, fontSize: fontSizes.md },
   crumbLast: { flexShrink: 1 },
   crumbLink: { color: colors.goldHi },
+  crumbPinned: { paddingLeft: 6 },
   crumbPressed: { opacity: 0.7 },
   crumbSeparator: { color: colors.gold, fontFamily: fonts.sans, fontSize: fontSizes.lg },
   crumbs: { alignItems: "center", flex: 1, flexDirection: "row", gap: 8, overflow: "hidden" },
@@ -950,6 +968,12 @@ const local = StyleSheet.create({
     width: handleSize,
   },
   handlePressed: { backgroundColor: colors.wood },
+  headingRule: {
+    backgroundColor: "#7a4e2b",
+    flex: 1,
+    height: 1,
+    ...onWeb({ backgroundImage: "linear-gradient(90deg, #7a4e2b, transparent)" }),
+  },
   hidden: { display: "none" },
   item: {
     ...cut,
@@ -961,10 +985,18 @@ const local = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
   },
-  itemCollapsed: { justifyContent: "center", paddingHorizontal: 0 },
+  itemCollapsed: { justifyContent: "center", paddingHorizontal: 0, paddingVertical: 10 },
   itemHovered: { backgroundColor: colors.wood },
-  itemSelected: { ...ink, ...lift, backgroundColor: colors.canvas },
-  itemText: { color: colors.onWood, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.md },
+  itemSelected: pointedRow,
+  // Collapsed to an icon, the chosen row is a soft rounded square behind a gilt icon, nothing more.
+  itemSelectedCollapsed: {
+    backgroundColor: "rgba(226,184,90,0.18)",
+    borderColor: "transparent",
+    borderRadius: 12,
+    paddingLeft: 0,
+    ...onWeb({ backgroundImage: "none", clipPath: "none" }),
+  },
+  itemText: { color: colors.onWood, flex: 1, fontFamily: fonts.sans, fontSize: 17 },
   menuCount: {
     backgroundColor: colors.gold,
     borderRadius: radii.pill,
@@ -979,7 +1011,8 @@ const local = StyleSheet.create({
     textAlign: "center",
     top: 1,
   },
-  missionText: { fontSize: fontSizes.md },
+  missionText: { fontSize: 17 },
+  moreQuests: { color: colors.goldHi, fontStyle: "italic", paddingVertical: 4 },
   narrow: { backgroundColor: colors.paper, flex: 1 },
   narrowContent: { flex: 1 },
   panel: {
@@ -1001,10 +1034,12 @@ const local = StyleSheet.create({
   panelIconEnd: { borderColor: colors.onWood, borderLeftWidth: 1.5, marginLeft: "auto", width: 5 },
   panelIconLeft: { borderColor: colors.onWood, borderRightWidth: 1.5, width: 5 },
   panelIconRight: { justifyContent: "flex-end" },
+  pointer: { color: "#805625", fontSize: 8, left: 5, marginTop: -6, position: "absolute", top: "50%" },
   questBody: { backgroundColor: colors.paper, flex: 1 },
   questClose: { color: colors.goldHi, fontSize: fontSizes.base, paddingHorizontal: 4 },
   questColumn: { borderColor: colors.gold, borderLeftWidth: 1, width: 360 },
   questColumnNarrow: { flex: 1 },
+  resizer: { bottom: 0, position: "absolute", top: 0, width: 8, zIndex: 3 },
   sectionHeading: {
     alignItems: "center",
     borderBottomColor: colors.gold,
@@ -1020,20 +1055,33 @@ const local = StyleSheet.create({
   sectionTitle: {
     color: colors.goldHi,
     fontFamily: fonts.hand,
-    fontSize: 13,
+    fontSize: 16,
     fontWeight: "700",
-    letterSpacing: 1.6,
+    letterSpacing: 1.2,
     textTransform: "uppercase",
   },
   sidebar: {
     backgroundColor: colors.leather,
-    borderColor: colors.gold,
-    borderRightWidth: 1,
+    borderColor: "#94652d",
+    borderRightWidth: 5,
     gap: 2,
     padding: 12,
+    paddingHorizontal: 14,
     width: expandedWidth,
+    ...onWeb({
+      backgroundImage: "radial-gradient(ellipse at 40% 45%, #5a3329 0%, #3b1f1a 55%, #25130f 100%)",
+    }),
   },
   sidebarCollapsed: { paddingHorizontal: 6, width: collapsedWidth },
+  sidebarInner: {
+    borderColor: "#714c29",
+    borderWidth: 1,
+    bottom: 4,
+    left: 4,
+    position: "absolute",
+    right: 3,
+    top: 4,
+  },
   spending: { paddingBottom: 4 },
   textSelected: { color: colors.text, fontWeight: "600" },
   tip: {
