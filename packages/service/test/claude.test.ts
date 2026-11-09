@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { MissionDetail, MissionId, Request, RequestTag, ResultOf } from "@canopy/contracts";
 import { describe, expect, it } from "@effect/vitest";
+import type { MissionDetail, MissionId, Request, RequestTag, ResultOf } from "@gild/contracts";
 import { type Duration, Effect, PubSub } from "effect";
 import { SqlClient } from "effect/sql";
 import { afterEach } from "vitest";
@@ -16,7 +16,7 @@ const withoutNote = (text: string | undefined) => text?.replace(/ to: [\s\S]*?\n
 
 const directories: string[] = [];
 const temporary = () => {
-  const directory = mkdtempSync(join(tmpdir(), "canopy-claude-"));
+  const directory = mkdtempSync(join(tmpdir(), "gild-claude-"));
   directories.push(directory);
   return directory;
 };
@@ -32,7 +32,7 @@ const withClaude = (options: { idleTimeout?: Duration.Input; sandboxProblem?: st
   const log = join(directory, "starts.jsonl");
   process.env.STAND_IN_LOG = log;
   const layer = serviceLayer({
-    filename: join(directory, "canopy.sqlite"),
+    filename: join(directory, "gild.sqlite"),
     harness: claudeHarnessLayer({
       command: process.execPath,
       idleTimeout: options.idleTimeout ?? "10 minutes",
@@ -78,7 +78,7 @@ const idleWith = (count: number) => (detail: MissionDetail) =>
   detail.thread.state === "Idle" && detail.messages.filter((m) => m.sender === "agent").length === count;
 
 describe("running Claude Code threads", () => {
-  it.live("runs the thread's model and effort sandboxed, prompts sent to Canopy, and no Canopy secrets", () => {
+  it.live("runs the thread's model and effort sandboxed, prompts sent to Gild, and no Gild secrets", () => {
     const { layer, starts } = withClaude();
     return Effect.gen(function* () {
       const started = yield* call({
@@ -100,17 +100,17 @@ describe("running Claude Code threads", () => {
       expect(args).toContain("--input-format stream-json --output-format stream-json");
       expect(args).toContain("--model opus");
       expect(args).toContain("--effort high");
-      expect(args).toContain("--permission-prompts host --permission-prompt-tool mcp__canopy__answer_prompt");
-      expect(args).toContain("--allowedTools mcp__canopy__request_approval");
+      expect(args).toContain("--permission-prompts host --permission-prompt-tool mcp__gild__answer_prompt");
+      expect(args).toContain("--allowedTools mcp__gild__request_approval");
       expect(args).toContain("--strict-mcp-config");
       expect(args).toContain("--permission-mode acceptEdits");
       expect(start?.args[start.args.indexOf("--tools") + 1]).toBe("default");
       const settings = JSON.parse(start?.args[start.args.indexOf("--settings") + 1] ?? "{}");
       expect(settings).toEqual({ sandbox: { autoAllowBashIfSandboxed: true, enabled: true } });
       const mcp = JSON.parse(start?.args[start.args.indexOf("--mcp-config") + 1] ?? "{}");
-      expect(mcp.mcpServers.canopy.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/mcp\/[0-9a-f]{48}$/);
+      expect(mcp.mcpServers.gild.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/mcp\/[0-9a-f]{48}$/);
       // Claude Code aborts a silent call after 300 seconds unless the server sets its own timeout.
-      expect(mcp.mcpServers.canopy.timeout).toBe(2147483647);
+      expect(mcp.mcpServers.gild.timeout).toBe(2147483647);
       expect(args).toMatch(/--session-id [0-9a-f-]{36}/);
       expect(start?.env).toEqual([]);
     }).pipe(Effect.provide(layer));
@@ -136,7 +136,7 @@ describe("running Claude Code threads", () => {
       const prompt = start?.args[start.args.indexOf("--append-system-prompt") + 1] ?? "";
       expect(prompt).toContain(`You work in the workspace "app" at ${app}.`);
       expect(prompt).toContain("## AGENTS.md\nUse Bun, never pnpm.");
-      expect(prompt).toContain("# Approvals in Canopy");
+      expect(prompt).toContain("# Approvals in Gild");
     }).pipe(Effect.provide(layer));
   });
 
@@ -559,7 +559,7 @@ describe("reading and saving settings", () => {
   it.live("starts from defaults and persists updates", () => {
     const directory = temporary();
     const options = {
-      filename: join(directory, "canopy.sqlite"),
+      filename: join(directory, "gild.sqlite"),
       harness: claudeHarnessLayer({
         command: process.execPath,
         idleTimeout: "1 minute",
@@ -646,7 +646,7 @@ describe("reading and saving settings", () => {
   });
 });
 
-describe.runIf(process.env.CANOPY_LIVE_CLAUDE === "1")("live Claude Code (uses a few tokens)", () => {
+describe.runIf(process.env.GILD_LIVE_CLAUDE === "1")("live Claude Code (uses a few tokens)", () => {
   it.live(
     "answers through the installed claude",
     () => {
@@ -667,9 +667,9 @@ describe.runIf(process.env.CANOPY_LIVE_CLAUDE === "1")("live Claude Code (uses a
       }).pipe(
         Effect.provide(
           serviceLayer({
-            filename: join(directory, "canopy.sqlite"),
+            filename: join(directory, "gild.sqlite"),
             harness: claudeHarnessLayer({
-              command: process.env.CANOPY_CLAUDE_PATH ?? "claude",
+              command: process.env.GILD_CLAUDE_PATH ?? "claude",
               idleTimeout: "1 minute",
               sandboxProblem: null,
             }),
@@ -729,9 +729,9 @@ describe.runIf(process.env.CANOPY_LIVE_CLAUDE === "1")("live Claude Code (uses a
       }).pipe(
         Effect.provide(
           serviceLayer({
-            filename: join(directory, "canopy.sqlite"),
+            filename: join(directory, "gild.sqlite"),
             harness: claudeHarnessLayer({
-              command: process.env.CANOPY_CLAUDE_PATH ?? "claude",
+              command: process.env.GILD_CLAUDE_PATH ?? "claude",
               idleTimeout: "1 minute",
               sandboxProblem: null,
             }),
@@ -773,9 +773,9 @@ describe.runIf(process.env.CANOPY_LIVE_CLAUDE === "1")("live Claude Code (uses a
       }).pipe(
         Effect.provide(
           serviceLayer({
-            filename: join(directory, "canopy.sqlite"),
+            filename: join(directory, "gild.sqlite"),
             harness: claudeHarnessLayer({
-              command: process.env.CANOPY_CLAUDE_PATH ?? "claude",
+              command: process.env.GILD_CLAUDE_PATH ?? "claude",
               idleTimeout: "1 minute",
               sandboxProblem: null,
             }),
@@ -790,9 +790,9 @@ describe.runIf(process.env.CANOPY_LIVE_CLAUDE === "1")("live Claude Code (uses a
 
   const liveLayer = (directory: string) =>
     serviceLayer({
-      filename: join(directory, "canopy.sqlite"),
+      filename: join(directory, "gild.sqlite"),
       harness: claudeHarnessLayer({
-        command: process.env.CANOPY_CLAUDE_PATH ?? "claude",
+        command: process.env.GILD_CLAUDE_PATH ?? "claude",
         idleTimeout: "1 minute",
         sandboxProblem: null,
       }),

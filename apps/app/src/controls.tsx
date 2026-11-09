@@ -1,4 +1,4 @@
-import type { MissionState, ThreadState } from "@canopy/contracts";
+import type { MissionState, ThreadState } from "@gild/contracts";
 import { type ReactNode, useState } from "react";
 import { Pressable, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";

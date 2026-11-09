@@ -1,4 +1,4 @@
-import type { IntelActor, IntelHistoryKind, IntelKind, IntelOrigin, IntelScope } from "@canopy/contracts";
+import type { IntelActor, IntelHistoryKind, IntelKind, IntelOrigin, IntelScope } from "@gild/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { type Fading, fadingStepsOf } from "./intelFading.ts";

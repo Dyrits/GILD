@@ -1,4 +1,4 @@
-import type { IntelHistoryKind, IntelKind, IntelOrigin } from "@canopy/contracts";
+import type { IntelHistoryKind, IntelKind, IntelOrigin } from "@gild/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import type { Placement } from "./intel.ts";

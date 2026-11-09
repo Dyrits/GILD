@@ -1,4 +1,4 @@
-import type { MissionSummary } from "@canopy/contracts";
+import type { MissionSummary } from "@gild/contracts";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { type BoardColumn, boardColumns, boardOf, isStateShownOn } from "./boardColumns";
 import { BudgetMeters } from "./budgets";
@@ -7,7 +7,7 @@ import { StateBadge } from "./controls";
 import { timeOf, usageText } from "./formatting";
 import { threadCountOf } from "./labels";
 import { MissionEndingActions } from "./missionActions";
-import { ClosedCanopy } from "./sketches";
+import { EmptyBoard } from "./sketches";
 import { styles } from "./styles";
 import { colors, cut, fontSizes, fonts, ink, lift } from "./theme";
 
@@ -75,7 +75,7 @@ export function MissionBoard({
   missions: ReadonlyArray<MissionSummary>;
   onOpen: (mission: MissionSummary) => void;
 }) {
-  if (missions.length === 0) return <ClosedCanopy line="No missions here. Canopy's closed." />;
+  if (missions.length === 0) return <EmptyBoard line="No missions here yet." />;
   const board = boardOf(missions);
   return (
     <View style={isWide ? local.columns : local.stacked}>

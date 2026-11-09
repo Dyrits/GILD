@@ -1,4 +1,4 @@
-import type { BudgetEvent, BudgetPart, BudgetStop, BudgetWindow } from "@canopy/contracts";
+import type { BudgetEvent, BudgetPart, BudgetStop, BudgetWindow } from "@gild/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { stopScopeOf } from "./budgets.ts";

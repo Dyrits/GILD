@@ -17,7 +17,7 @@ export interface AccessOptions {
 }
 
 // Tools behind approval (CHG-0031): built-in tools only, none of the owner's MCP
-// servers, skills, or settings; every permission prompt goes to Canopy.
+// servers, skills, or settings; every permission prompt goes to Gild.
 /** The arguments every Claude Code process starts with. */
 export const baseArgs = [
   "-p",

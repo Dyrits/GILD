@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import type { IntelId, IntelProposal, ThreadId } from "@canopy/contracts";
 import { describe, expect, it } from "@effect/vitest";
+import type { IntelId, IntelProposal, ThreadId } from "@gild/contracts";
 import { Effect } from "effect";
 import { TestClock } from "effect/testing";
 import { afterEach } from "vitest";

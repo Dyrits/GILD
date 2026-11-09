@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "canopy",
+      "name": "gild",
       "devDependencies": {
         "@biomejs/biome": "2.6.5",
         "@effect/vitest": "4.1.2",
@@ -16,7 +16,7 @@
       "name": "app",
       "version": "1.0.0",
       "dependencies": {
-        "@canopy/contracts": "workspace:*",
+        "@gild/contracts": "workspace:*",
         "@expo-google-fonts/caveat": "^0.4.2",
         "@expo/metro-runtime": "~58.0.17",
         "effect": "4.1.2",
@@ -43,15 +43,15 @@
       },
     },
     "packages/contracts": {
-      "name": "@canopy/contracts",
+      "name": "@gild/contracts",
       "dependencies": {
         "effect": "4.1.2",
       },
     },
     "packages/service": {
-      "name": "@canopy/service",
+      "name": "@gild/service",
       "dependencies": {
-        "@canopy/contracts": "workspace:*",
+        "@gild/contracts": "workspace:*",
         "@effect/sql-sqlite-node": "4.1.2",
         "effect": "4.1.2",
         "ws": "8.22.1",
@@ -219,9 +219,9 @@
 
     "@biomejs/cli-win32-x64": ["@biomejs/cli-win32-x64@2.6.5", "", { "os": "win32", "cpu": "x64" }, "sha512-07LaCeN9vvmbAAMOMsUjMfL5UbsCDkvVeyMJIgwNRc0xYqhizBGkjVzx05LYEwCXl2AiHcdzqVPR4IOYAsI1QQ=="],
 
-    "@canopy/contracts": ["@canopy/contracts@workspace:packages/contracts"],
+    "@gild/contracts": ["@gild/contracts@workspace:packages/contracts"],
 
-    "@canopy/service": ["@canopy/service@workspace:packages/service"],
+    "@gild/service": ["@gild/service@workspace:packages/service"],
 
     "@effect/sql-sqlite-node": ["@effect/sql-sqlite-node@4.1.2", "", { "peerDependencies": { "effect": "^4.1.2" } }, "sha512-fTmI8Ol1Lf8rGITtdIW285nuT9G46ETOPZ48CxlZ7vkfWDYgipYnH0dILxPGcZ6f/BMLeybmLRKKBcRWStShfQ=="],
 

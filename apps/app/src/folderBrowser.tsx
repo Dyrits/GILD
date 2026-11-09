@@ -1,4 +1,4 @@
-// Canopy's own folder browser and the browsable roots, kept for phone browsing
+// Gild's own folder browser and the browsable roots, kept for phone browsing
 // (workspace-attachment). Not shown on the desktop, which uses the system's folder dialog (CHG-0035).
 import { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";

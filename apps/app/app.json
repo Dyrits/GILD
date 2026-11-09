@@ -2,7 +2,7 @@
   "expo": {
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#01081C",
+        "backgroundColor": "#000216",
         "backgroundImage": "./assets/android-icon-background.png",
         "foregroundImage": "./assets/android-icon-foreground.png"
       },
@@ -12,12 +12,12 @@
     "ios": {
       "supportsTablet": true
     },
-    "name": "Canopy",
+    "name": "Gild",
     "orientation": "portrait",
     "plugins": ["expo-font"],
-    "slug": "canopy",
+    "slug": "gild",
     "splash": {
-      "backgroundColor": "#01081C",
+      "backgroundColor": "#000216",
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain"
     },

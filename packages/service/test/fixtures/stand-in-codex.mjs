@@ -14,7 +14,7 @@ const accountKeys = ["CODEX_HOME", "CLAUDE_CONFIG_DIR", "XDG_DATA_HOME"];
 log({
   args: process.argv.slice(2),
   cwd: process.cwd(),
-  env: Object.keys(process.env).filter((key) => key.startsWith("CANOPY_")),
+  env: Object.keys(process.env).filter((key) => key.startsWith("GILD_")),
   home: Object.fromEntries(accountKeys.filter((key) => process.env[key]).map((key) => [key, process.env[key]])),
   pid: process.pid,
 });
@@ -107,7 +107,7 @@ createInterface({ input: process.stdin }).on("line", (line) => {
   const { id, method, params } = message;
   if (method === "initialize") return send({ id, result: { userAgent: "stand-in" } });
   if (method === "initialized") return;
-  if (method === "thread/start" || method === "thread/resume") mcpUrl = params.config["mcp_servers.canopy.url"];
+  if (method === "thread/start" || method === "thread/resume") mcpUrl = params.config["mcp_servers.gild.url"];
   if (method === "thread/start") {
     threadId = `codex-thread-${process.pid}`;
     return send({ id, result: { thread: { id: threadId } } });

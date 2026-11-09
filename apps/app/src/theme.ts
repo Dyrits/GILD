@@ -1,4 +1,4 @@
-import type { MissionState, ThreadState } from "@canopy/contracts";
+import type { MissionState, ThreadState } from "@gild/contracts";
 
 /**
  * The palette every screen draws from: the Sketchbook look (art direction of 2026-11-08), ink on warm paper with

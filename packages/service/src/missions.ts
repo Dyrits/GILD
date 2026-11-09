@@ -8,7 +8,7 @@ import type {
   StartChoices,
   StartMissionResult,
   ThreadState,
-} from "@canopy/contracts";
+} from "@gild/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient, type Statement } from "effect/sql";
 import { applyDefaultBudget } from "./budgets.ts";

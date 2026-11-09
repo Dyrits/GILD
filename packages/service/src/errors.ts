@@ -1,4 +1,4 @@
-import { ErrorKind } from "@canopy/contracts";
+import { ErrorKind } from "@gild/contracts";
 import { Schema } from "effect";
 
 /** A refusal or failure reported to the caller with one of the contract's error kinds. */

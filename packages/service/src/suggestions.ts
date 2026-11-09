@@ -1,4 +1,4 @@
-import type { Suggestion, SuggestionAnswer, SuggestionOutcome } from "@canopy/contracts";
+import type { Suggestion, SuggestionAnswer, SuggestionOutcome } from "@gild/contracts";
 import { Clock, Context, Effect, Layer, Match } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
 import { makeOwnerWaits } from "./attention.ts";
@@ -57,7 +57,7 @@ export class Suggestions extends Context.Service<
     ) => Effect.Effect<WithFollowUps<Suggested>>;
     readonly withdraw: (threadId: string) => Effect.Effect<void>;
   }
->()("canopy/Suggestions") {}
+>()("gild/Suggestions") {}
 
 /** Owns off-topic suggestions; a restart withdraws those left open. */
 export const suggestionsLayer = Layer.effect(

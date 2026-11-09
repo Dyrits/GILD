@@ -1,4 +1,4 @@
-import type { BudgetLimits } from "@canopy/contracts";
+import type { BudgetLimits } from "@gild/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { changed } from "./commands.ts";

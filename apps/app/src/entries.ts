@@ -6,7 +6,7 @@ import type {
   Question,
   Suggestion,
   ThreadSummary,
-} from "@canopy/contracts";
+} from "@gild/contracts";
 
 /** One entry of a thread's conversation, with the key the list keeps it by. */
 export type Entry = { key: string; at: number } & (

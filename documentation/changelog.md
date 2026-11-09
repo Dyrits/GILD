@@ -1126,3 +1126,21 @@ References:
 
 Validation:
 - Each page rendered with Playwright at 1400px and checked by eye; overlaps found were fixed. Not checked: React Native feasibility beyond the notes in each page.
+
+## CHG-0072 · 2026-11-09 · Renamed to Gild, with the owner's logo
+
+Type: Code and documentation
+Event: Delivery
+Scope: Whole product
+
+Summary: Canopy is now Gild. The domain terms stay as they are (mission, thread, Control, journal, briefing, dashboard, intel). The owner's logo replaces the drawn canopy mark and every app icon, for now.
+- The app, window, sidebar, Expo `name` and `slug`, packages (`gild`, `@gild/contracts`, `@gild/service`), environment variables (`GILD_*`), the desktop bridge (`window.gild`, `gild:*` channels), service keys (`gild/…`), temporary folder prefixes, the database file (`gild.sqlite`), and the thread tools' MCP server name (`mcp__gild__…`) carry the new name.
+- On first launch without `GILD_DATA_DIR`, the desktop app moves the newest former user-data folder (`Canopy`, else `OpenMission`) into its profile folder, renames the database with its write-ahead files, and renames Claude Code's session folders for scratch folders (the computer's sign-in and each added account), so threads with no workspace still resume. It now joins a profile folder Electron made before the move, and does nothing once `gild.sqlite` exists.
+- Logo: the owner's gold G on deep navy `#000216` (`documentation/brand/gild-logo-2026-11-09.png`) becomes the 1024-point app icon and splash, the 48-point favicon, the 128-point `logo.png`, the Android adaptive foreground and background and monochrome icon, and the 1024-point desktop icon with rounded corners. The G is keyed out of its background as `gild-mark.png` for the sidebar. The splash and adaptive backgrounds change from `#01081C` to `#000216`.
+- Sketches: the drawn canopy logo (`CanopyMark`) is gone in favour of the image; the mission panel's arch stays (`PanelArch`); the empty board is an empty gilt frame (`EmptyBoard`).
+- Living documents use the new name; dated records (handoffs, verification, earlier changelog records, architecture decisions, audits, art-direction boards) keep the name they were written with. The GitHub repository is `Dyrits/GILD` (was `Dyrits/CANOPY`), and `origin` follows it.
+References: apps/app/assets/, apps/desktop/assets/icon.png, apps/app/app.json, apps/app/src/sketches.tsx, apps/app/src/styles.ts, apps/desktop/src/formerData.ts, apps/desktop/src/main.ts, apps/desktop/test/formerData.test.ts, package.json files, bun.lock, README.md, AGENTS.md, documentation/, documentation/brand/, documentation/verification/2026-11-09-gild-rename/
+
+Validation: `bun run test` passed 414 with 10 skipped; `bun run typecheck`, `bun run check`, `git diff --check`, and the desktop build passed. `leftovers.sh` reports 0 brand uses of the former name in living files. The probe moved a copy of the owner's install (11 missions) into a profile folder that already existed, renamed the database and a Claude session folder, and the built service listed all 11. The window was driven with the fake harness: title Gild, the gold G and name in the sidebar, the gilt empty board, and the mission panel's arch (`verification/2026-11-09-gild-rename/window-control.png`, `window-mission.png`). Not verified: the owner's real install moving (it happens on the next launch), the dock icon, native phone builds.
+
+Evidence: The owner's instruction of 2026-11-09: "We'll do another rebranding. We'll rename the solution 'Gild' instead of Canopy. Use this logo for now."

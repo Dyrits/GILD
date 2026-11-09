@@ -1,4 +1,4 @@
-import type { ModelChoice, ThreadId, ThreadSummary, ThreadView } from "@canopy/contracts";
+import type { ModelChoice, ThreadId, ThreadSummary, ThreadView } from "@gild/contracts";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { newRequestId, type ServiceClient } from "./client";

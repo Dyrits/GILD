@@ -1,4 +1,4 @@
-import type { Question } from "@canopy/contracts";
+import type { Question } from "@gild/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 

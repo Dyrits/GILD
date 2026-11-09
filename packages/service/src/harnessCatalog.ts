@@ -1,6 +1,6 @@
-import type { HarnessName, ModelOption } from "@canopy/contracts";
+import type { HarnessName, ModelOption } from "@gild/contracts";
 
-// What Canopy knows of each harness without running it (provider-accounts). The registry (harnesses.ts)
+// What Gild knows of each harness without running it (provider-accounts). The registry (harnesses.ts)
 // adds how each one runs; these facts stay apart so the modules a harness's adapter needs can read them.
 
 /** The harness's own default model, first in every list. */
@@ -15,7 +15,7 @@ export const claudeModels: ReadonlyArray<ModelOption> = [
   { id: "haiku", label: "Haiku" },
 ];
 
-/** What Canopy knows of one harness without running it. */
+/** What Gild knows of one harness without running it. */
 export interface HarnessFacts {
   /** What a command approved through `request_approval` needs on this harness, appended to that rule. */
   readonly approvedCommandAdvice: string;
@@ -74,5 +74,5 @@ export const harnessNames: ReadonlyArray<HarnessName> = ["claude", "codex", "ope
 export const accountEnvironmentOf = (harness: HarnessName, configDirectory: string | null): Record<string, string> =>
   configDirectory === null ? {} : { [harnessFacts[harness].configVariable]: configDirectory };
 
-/** The label of a harness's own sign-in on this computer, outside Canopy. */
+/** The label of a harness's own sign-in on this computer, outside Gild. */
 export const ownAccountLabel = "This computer";

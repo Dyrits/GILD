@@ -1,4 +1,4 @@
-import type { DeletedIntel, IntelHistoryEntry, IntelHistoryEntryId, IntelId } from "@canopy/contracts";
+import type { DeletedIntel, IntelHistoryEntry, IntelHistoryEntryId, IntelId } from "@gild/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import type { ServiceClient } from "./client";

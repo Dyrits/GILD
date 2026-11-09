@@ -1,4 +1,4 @@
-import type { MissionEnding, MissionSummary } from "@canopy/contracts";
+import type { MissionEnding, MissionSummary } from "@gild/contracts";
 import { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import type { ServiceClient } from "./client";

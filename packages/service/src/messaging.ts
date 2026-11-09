@@ -1,4 +1,4 @@
-import { MessageId, type SendMessageResult } from "@canopy/contracts";
+import { MessageId, type SendMessageResult } from "@gild/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { touchMission } from "./activity.ts";

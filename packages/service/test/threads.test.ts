@@ -1,6 +1,7 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
+import { describe, expect, it } from "@effect/vitest";
 import type {
   MissionDetail,
   MissionId,
@@ -10,17 +11,16 @@ import type {
   ResultOf,
   ThreadId,
   ThreadSummary,
-} from "@canopy/contracts";
-import { describe, expect, it } from "@effect/vitest";
+} from "@gild/contracts";
 import { Effect } from "effect";
 import { afterEach } from "vitest";
 import { fakeHarnessLayer, Service, serviceLayer } from "../src/index.ts";
 
 const directories: string[] = [];
 const databaseFile = () => {
-  const directory = mkdtempSync(join(tmpdir(), "canopy-threads-"));
+  const directory = mkdtempSync(join(tmpdir(), "gild-threads-"));
   directories.push(directory);
-  return join(directory, "canopy.sqlite");
+  return join(directory, "gild.sqlite");
 };
 afterEach(() => {
   for (const directory of directories.splice(0)) rmSync(directory, { force: true, recursive: true });

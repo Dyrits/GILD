@@ -9,7 +9,7 @@ import type {
   RequestTag,
   ResultOf,
   ThreadId,
-} from "@canopy/contracts";
+} from "@gild/contracts";
 import { Effect } from "effect";
 import { Endpoints } from "../../src/endpoints.ts";
 import { callThreadTool } from "../../src/fakeHarness.ts";
@@ -17,7 +17,7 @@ import { fakeHarnessLayer, Service, serviceLayer } from "../../src/index.ts";
 
 /** An isolated service with the scripted fake harness and real temporary SQLite. */
 export const fixture = () => {
-  const directory = mkdtempSync(join(tmpdir(), "canopy-service-"));
+  const directory = mkdtempSync(join(tmpdir(), "gild-service-"));
   return {
     directory,
     layer: serviceLayer({

@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import type { HarnessName } from "@canopy/contracts";
+import type { HarnessName } from "@gild/contracts";
 import { Effect, Exit, Layer, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { Approvals } from "./approvals.ts";
@@ -11,8 +11,8 @@ import { Threads } from "./threads.ts";
 import { callerRefusalOf, makeToolHandlers } from "./threadToolHandlers.ts";
 import { answerToolCall, isThreadToolName, toolListingOf, unaskedToolNamesOf } from "./threadTools.ts";
 
-/** The server name Claude Code prefixes to tool names (`mcp__canopy__…`). */
-export const toolServerName = "canopy";
+/** The server name Claude Code prefixes to tool names (`mcp__gild__…`). */
+export const toolServerName = "gild";
 /** The tool name Claude Code's `--permission-prompt-tool` takes. */
 export const promptToolName = `mcp__${toolServerName}__answer_prompt`;
 /** The approval tool's name as Claude Code lists it. */

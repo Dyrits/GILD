@@ -8,15 +8,15 @@ import { moveFormerData } from "./formerData.ts";
 const here = dirname(fileURLToPath(import.meta.url));
 /** The app's icon, beside `dist` in the desktop app's own `assets`. */
 const iconPath = join(here, "..", "assets", "icon.png");
-const appUrl = process.env.CANOPY_APP_URL ?? "http://localhost:8081";
+const appUrl = process.env.GILD_APP_URL ?? "http://localhost:8081";
 // Lets checks run against a throwaway folder instead of the owner's data.
-const dataDirectory = () => process.env.CANOPY_DATA_DIR ?? app.getPath("userData");
+const dataDirectory = () => process.env.GILD_DATA_DIR ?? app.getPath("userData");
 
-app.setName("Canopy");
+app.setName("Gild");
 
 // Runs before Electron creates the new user-data folder at ready, so an install from before the rename keeps its data.
 const formerDataMoved = Promise.resolve().then(() => {
-  if (process.env.CANOPY_DATA_DIR !== undefined) return;
+  if (process.env.GILD_DATA_DIR !== undefined) return;
   const claudeFolder = process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), ".claude");
   moveFormerData(app.getPath("appData"), app.getPath("userData"), claudeFolder);
 });
@@ -26,10 +26,10 @@ const startService = (token: string) => {
   const service = utilityProcess.fork(join(here, "service.js"), [], {
     env: {
       ...process.env,
-      CANOPY_DATA_DIR: dataDirectory(),
-      CANOPY_TOKEN: token,
+      GILD_DATA_DIR: dataDirectory(),
+      GILD_TOKEN: token,
     },
-    serviceName: "Canopy service",
+    serviceName: "Gild service",
     stdio: "inherit",
   });
   app.on("will-quit", () => service.kill());
@@ -59,7 +59,7 @@ const load = async (window: BrowserWindow) => {
 
 /** Startup failures end here: the owner sees why, and the app quits instead of leaving an empty window. */
 const quitWith = (reason: string) => {
-  dialog.showErrorBox("Canopy could not start", reason);
+  dialog.showErrorBox("Gild could not start", reason);
   app.quit();
 };
 
@@ -69,19 +69,19 @@ app
   .then(async () => {
     const token = randomBytes(32).toString("base64url");
     const endpoint = await startService(token);
-    ipcMain.handle("canopy:endpoint", () => endpoint);
+    ipcMain.handle("gild:endpoint", () => endpoint);
 
     // macOS shows the dock icon of the running app; a packaged build will carry its own icon file.
     app.dock?.setIcon(iconPath);
     const window = new BrowserWindow({
       height: 800,
       icon: iconPath,
-      title: "Canopy",
+      title: "Gild",
       webPreferences: { contextIsolation: true, preload: join(here, "preload.cjs"), sandbox: true },
       width: 1200,
     });
     // Choose folder… opens the system's own dialog, Finder or Explorer (CHG-0035); null when cancelled.
-    ipcMain.handle("canopy:chooseFolder", async () => {
+    ipcMain.handle("gild:chooseFolder", async () => {
       const chosen = await dialog.showOpenDialog(window, {
         buttonLabel: "Use this folder",
         properties: ["openDirectory", "createDirectory"],

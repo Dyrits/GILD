@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import type { HarnessName, ModelChoice, ModelOption, StartingContext } from "@canopy/contracts";
+import type { HarnessName, ModelChoice, ModelOption, StartingContext } from "@gild/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { notFound } from "./errors.ts";

@@ -1,16 +1,16 @@
 import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { HarnessName, ModelOption, SignInState } from "@canopy/contracts";
+import type { HarnessName, ModelOption, SignInState } from "@gild/contracts";
 import { Clock, Context, Effect, Layer } from "effect";
 import { invalid, type ServiceFailure } from "./errors.ts";
 import { accountEnvironmentOf, defaultModel, harnessFacts } from "./harnessCatalog.ts";
 import { harnesses } from "./harnesses.ts";
 import { runHarnessCommand } from "./lineProcess.ts";
 
-// What Canopy asks each harness's own command-line tool about itself: its version, who is signed in,
+// What Gild asks each harness's own command-line tool about itself: its version, who is signed in,
 // and its models; and how the owner signs in, always through the tool's own sign-in (requirements, Comply
-// with provider terms). Canopy never reads or stores the credentials.
+// with provider terms). Gild never reads or stores the credentials.
 
 /** Who a harness says is signed in to one account's folder. */
 export interface SignInStatus {
@@ -37,7 +37,7 @@ export class HarnessTools extends Context.Service<
     readonly openSignIn: (harness: HarnessName, configDirectory: string | null) => Effect.Effect<void, ServiceFailure>;
     readonly readSignIn: (harness: HarnessName, configDirectory: string | null) => Effect.Effect<SignInStatus>;
   }
->()("canopy/HarnessTools") {}
+>()("gild/HarnessTools") {}
 
 /** The executable each harness runs as. */
 export type HarnessCommands = Record<HarnessName, string>;
@@ -91,7 +91,7 @@ export const liveHarnessToolsLayer = (commands: HarnessCommands) =>
         const line = configDirectory === null ? command : `${variable}=${quoted(configDirectory)} ${command}`;
         if (process.platform !== "darwin") return yield* invalid(`Open a terminal on this computer and run: ${line}`);
         // A .command file opens in Terminal, which runs the harness's own sign-in where the owner answers it.
-        const folder = join(tmpdir(), "canopy-sign-in");
+        const folder = join(tmpdir(), "gild-sign-in");
         const script = join(folder, `${harness}-${crypto.randomUUID()}.command`);
         yield* Effect.sync(() => {
           mkdirSync(folder, { recursive: true });
@@ -100,7 +100,7 @@ export const liveHarnessToolsLayer = (commands: HarnessCommands) =>
             script,
             [
               "#!/bin/sh",
-              `echo ${quoted(`Signing in to ${harnessFacts[harness].label} for Canopy. Close this window when done.`)}`,
+              `echo ${quoted(`Signing in to ${harnessFacts[harness].label} for Gild. Close this window when done.`)}`,
               ...exports,
               command,
               `rm -f ${quoted(script)}`,

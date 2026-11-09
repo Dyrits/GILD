@@ -1,4 +1,4 @@
-import type { DeletedIntel, IntelHistory, IntelHistoryEntry, IntelHistoryEntryId, IntelId } from "@canopy/contracts";
+import type { DeletedIntel, IntelHistory, IntelHistoryEntry, IntelHistoryEntryId, IntelId } from "@gild/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { notFound } from "./errors.ts";

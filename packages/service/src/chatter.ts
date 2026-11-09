@@ -1,4 +1,4 @@
-import type { ChatterNotice } from "@canopy/contracts";
+import type { ChatterNotice } from "@gild/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { Commands, changed, unchanged } from "./commands.ts";

@@ -1,4 +1,4 @@
-import type { MissionState } from "@canopy/contracts";
+import type { MissionState } from "@gild/contracts";
 
 /** The dashboard board's columns, left to right: what needs the owner first (art direction of 2026-11-08). */
 export type BoardColumn = "Attention" | "Running" | "Idle" | "Done";

@@ -1,4 +1,4 @@
-import type { Answer, Question, QuestionOutcome, QuestionSource } from "@canopy/contracts";
+import type { Answer, Question, QuestionOutcome, QuestionSource } from "@gild/contracts";
 import { Clock, Context, Effect, Layer } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
 import { makeOwnerWaits } from "./attention.ts";
@@ -63,7 +63,7 @@ export class Approvals extends Context.Service<
     readonly endTurn: (threadId: string) => Effect.Effect<void>;
     readonly withdraw: (threadId: string) => Effect.Effect<void>;
   }
->()("canopy/Approvals") {}
+>()("gild/Approvals") {}
 
 const outcomeOfAnswer = {
   Allow: "Allowed",

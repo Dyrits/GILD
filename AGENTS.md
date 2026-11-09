@@ -1,4 +1,4 @@
-# Canopy
+# Gild
 
 ## Documents
 
@@ -10,7 +10,7 @@
 - `documentation/capabilities/<capability>/specifications.md`: each capability's agreed behavior and acceptance. Read before changing that capability.
 - `documentation/first-slice-design.md` and `documentation/capabilities/<capability>/blueprint.md`: proposed modules, interfaces, and staged acceptance. Read before implementing or reviewing the first slice; settle the listed review decisions before production code.
 - `documentation/backlog.md`: candidate work and deferrals. Read when choosing what to do next.
-- `documentation/inspirations.md`: products Canopy follows, their good ideas, what was taken, and what to check on. Read before designing a capability one of them covers; add new findings with their date.
+- `documentation/inspirations.md`: products Gild follows, their good ideas, what was taken, and what to check on. Read before designing a capability one of them covers; add new findings with their date.
 - `documentation/work-in-progress.md`: the current batch, its checks, and open questions. Read first when resuming; work proceeds in batches with the iterate skill.
 - `documentation/changelog.md`: authorized agreements and verified deliveries. Append a record for each.
 - `documentation/verification/`: reproducible proofs that delivered work behaves as claimed, with their scripts and screenshots. Read before re-verifying a batch or trusting its claims.
@@ -27,6 +27,7 @@
 
 ## Handoffs
 
+To resume after the rename to Gild and the owner's logo (CHG-0072; the next launch moves the install; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-09-0900-renamed-to-gild.md). Handoffs are shared and committed.
 To resume the art direction options D to J (CHG-0071; theme or future rework, awaiting the owner), read the [current handoff](.agents/handoffs/2026-11-08-1640-art-direction-options.md). Handoffs are shared and committed.
 To resume after the sidebar trim (CHG-0070 pushed; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-08-1602-sidebar-trim.md). Handoffs are shared and committed.
 To resume after the thread-opening indicators (CHG-0067 pushed; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-08-1135-thread-opening-indicators.md). Handoffs are shared and committed.

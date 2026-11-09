@@ -1,8 +1,8 @@
 import { mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { AccountId, MissionDetail, MissionId, Request, RequestTag, ResultOf } from "@canopy/contracts";
 import { describe, expect, it } from "@effect/vitest";
+import type { AccountId, MissionDetail, MissionId, Request, RequestTag, ResultOf } from "@gild/contracts";
 import { type Duration, Effect, Layer } from "effect";
 import { afterEach } from "vitest";
 import { Endpoints } from "../src/endpoints.ts";
@@ -39,7 +39,7 @@ interface Logged {
 
 /** A service whose three adapters run stand-ins, all logging to one file. */
 const withHarnesses = (idleTimeout: Duration.Input = "10 minutes") => {
-  const directory = realpathSync(mkdtempSync(join(tmpdir(), "canopy-harnesses-")));
+  const directory = realpathSync(mkdtempSync(join(tmpdir(), "gild-harnesses-")));
   directories.push(directory);
   const log = join(directory, "log.jsonl");
   process.env.STAND_IN_LOG = log;
@@ -72,7 +72,7 @@ const withHarnesses = (idleTimeout: Duration.Input = "10 minutes") => {
   );
   const layer = serviceLayer({
     accountsRoot,
-    filename: join(directory, "canopy.sqlite"),
+    filename: join(directory, "gild.sqlite"),
     harness,
     harnessTools: fakeHarnessToolsLayer(signIns),
     homeFolder: directory,
@@ -182,7 +182,7 @@ describe("choosing a thread's runner", () => {
 });
 
 describe("running Codex threads", () => {
-  it.live("runs a thread through the app server with its model, effort, tools, and no Canopy secrets", () => {
+  it.live("runs a thread through the app server with its model, effort, tools, and no Gild secrets", () => {
     const { layer, logged, requests } = withHarnesses();
     return Effect.gen(function* () {
       const started = yield* start({ effort: "high", harness: "codex", model: "gpt-x", text: "Hello" });
@@ -198,8 +198,8 @@ describe("running Codex threads", () => {
         model: "gpt-x",
         sandbox: "workspace-write",
       });
-      expect(JSON.stringify(thread?.params?.config)).toMatch(/"mcp_servers\.canopy\.url":"http:\/\/127\.0\.0\.1:\d+\//);
-      expect(String(thread?.params?.developerInstructions)).toContain("# Approvals in Canopy");
+      expect(JSON.stringify(thread?.params?.config)).toMatch(/"mcp_servers\.gild\.url":"http:\/\/127\.0\.0\.1:\d+\//);
+      expect(String(thread?.params?.developerInstructions)).toContain("# Approvals in Gild");
       expect(String(thread?.params?.developerInstructions)).not.toContain("dangerouslyDisableSandbox");
       expect(requests("turn/start")[0]?.params).toMatchObject({ effort: "high", model: "gpt-x" });
       expect(logged().find((entry) => entry.pid !== undefined)?.env).toEqual([]);
@@ -231,13 +231,13 @@ describe("running Codex threads", () => {
       const failure = yield* harness
         .runTurn(
           turnRequestOf({
-            askOwner: () => Effect.fail(new HarnessFailure({ reason: "Canopy could not ask about Bash." })),
+            askOwner: () => Effect.fail(new HarnessFailure({ reason: "Gild could not ask about Bash." })),
             harness: "codex",
             text: "run git push origin main",
           }),
         )
         .pipe(Effect.flip);
-      expect(failure.reason).toBe("Canopy could not ask about Bash.");
+      expect(failure.reason).toBe("Gild could not ask about Bash.");
     }).pipe(Effect.scoped),
   );
 
@@ -322,7 +322,7 @@ describe("running Codex threads", () => {
 });
 
 describe("running OpenCode threads", () => {
-  it.live("runs a thread over ACP with Canopy's tools, permissions, context, and model", () => {
+  it.live("runs a thread over ACP with Gild's tools, permissions, context, and model", () => {
     const { layer, logged, requests } = withHarnesses();
     return Effect.gen(function* () {
       const started = yield* start({ harness: "opencode", model: "provider/model-a", text: "Hello" });
@@ -341,8 +341,8 @@ describe("running OpenCode threads", () => {
         { action: "edit", effect: "ask", resource: "*" },
         { action: "subagent", effect: "deny", resource: "*" },
       ]);
-      expect(config.mcp.servers.canopy?.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\//);
-      expect(readFileSync(config.instructions[0] ?? "", "utf8")).toContain("# Threads in Canopy");
+      expect(config.mcp.servers.gild?.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\//);
+      expect(readFileSync(config.instructions[0] ?? "", "utf8")).toContain("# Threads in Gild");
       expect(requests("session/set_config_option")[0]?.params).toMatchObject({
         configId: "model",
         value: "provider/model-a",
@@ -357,7 +357,7 @@ describe("running OpenCode threads", () => {
       yield* answerOpen("Deny");
       const detail = yield* settle(started.missionId, idleWith(1));
       expect(replies(detail)).toEqual([
-        "Echo: Canopy refused the command `git push origin main`. Not approved by the owner. Do not do this action; carry on without it. ",
+        "Echo: Gild refused the command `git push origin main`. Not approved by the owner. Do not do this action; carry on without it. ",
       ]);
       expect(requests("session/prompt")).toHaveLength(2);
       expect(detail.mission.usage).toEqual({ cacheCreation: 0, cacheRead: 80, input: 180, output: 16 });
@@ -372,7 +372,7 @@ describe("running OpenCode threads", () => {
       yield* answerOpen("Deny", "Write it in the notes folder instead.");
       const detail = yield* settle(started.missionId, idleWith(1));
       expect(replies(detail)).toEqual([
-        `Echo: Canopy refused the change to \`${outside}\`. Denied by the owner: Write it in the notes folder instead. `,
+        `Echo: Gild refused the change to \`${outside}\`. Denied by the owner: Write it in the notes folder instead. `,
       ]);
     }).pipe(Effect.provide(layer));
   });
@@ -421,7 +421,7 @@ describe("running OpenCode threads", () => {
       expect(answered.details).toBe(`Edit ${outside}`);
       const detail = yield* settle(started.missionId, idleWith(1));
       expect(replies(detail)).toEqual([
-        `Echo: Canopy refused the change to \`${outside}\`. Not approved by the owner. Do not do this action; carry on without it. `,
+        `Echo: Gild refused the change to \`${outside}\`. Not approved by the owner. Do not do this action; carry on without it. `,
       ]);
     }).pipe(Effect.provide(layer));
   });

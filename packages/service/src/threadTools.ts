@@ -1,4 +1,4 @@
-import { EffortChoice, HarnessName, ModelChoice } from "@canopy/contracts";
+import { EffortChoice, HarnessName, ModelChoice } from "@gild/contracts";
 import { Effect, Exit, Schema } from "effect";
 import { latestEntryCount, nothingToRecord } from "./journal.ts";
 

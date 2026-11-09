@@ -1,34 +1,19 @@
-import { StyleSheet, Text, View } from "react-native";
-import Svg, { Circle, Path } from "react-native-svg";
+import { Image, StyleSheet, Text, View } from "react-native";
+import Svg, { Path, Rect } from "react-native-svg";
 import { colors, fonts } from "./theme";
 
 /**
- * The drawings behind the Canopy look (art direction of 2026-11-08): a cockpit canopy drawn in ink, as a sketchbook
- * would, never as a spaceship. It appears in three places only: the logo, a panel's arched top, and the empty board.
+ * The drawings behind the Gild look (art direction of 2026-11-08): an arch drawn in ink, as a sketchbook would,
+ * and a gilt frame for a place with nothing in it. The brand mark itself is the owner's logo, for now.
  */
 
-/** The logo: a canopy arch on its sill with one strut and a hinge. */
-export function CanopyMark({ size = 30 }: { size?: number }) {
-  return (
-    <Svg
-      fill="none"
-      height={(size * 24) / 30}
-      stroke={colors.text}
-      strokeLinecap="round"
-      strokeWidth={1.8}
-      viewBox="0 0 30 24"
-      width={size}
-    >
-      <Path d="M3 19 C 4 7, 26 5, 27 19" />
-      <Path d="M1.5 19.5 L 28.5 19.2" />
-      <Path d="M15 6.5 L 15.4 19" />
-      <Circle cx={3} cy={19.3} fill={colors.text} r={1.4} />
-    </Svg>
-  );
+/** The logo: the owner's gold G, its dark background keyed out so it sits on paper. */
+export function GildMark({ size = 30 }: { size?: number }) {
+  return <Image source={require("../assets/gild-mark.png")} style={{ height: size, width: size }} />;
 }
 
-/** A panel's arched top, as if the panel were a canopy opened over the page. */
-export function CanopyArch() {
+/** A panel's arched top, as if the panel were a sheet hung under a sketchbook arch. */
+export function PanelArch() {
   return (
     <View style={local.arch}>
       <Svg height="100%" preserveAspectRatio="none" viewBox="0 0 360 34" width="100%">
@@ -45,24 +30,15 @@ export function CanopyArch() {
   );
 }
 
-/** The empty state of a place with nothing for the owner: a closed canopy and a handwritten line. */
-export function ClosedCanopy({ line }: { line: string }) {
+/** The empty state of a place with nothing for the owner: an empty gilt frame and a handwritten line. */
+export function EmptyBoard({ line }: { line: string }) {
   return (
     <View style={local.empty}>
-      <Svg
-        fill="none"
-        height={64}
-        stroke={colors.text}
-        strokeLinecap="round"
-        strokeWidth={1.8}
-        viewBox="0 0 120 64"
-        width={120}
-      >
-        <Path d="M8 50 C 12 18, 108 14, 112 50" />
-        <Path d="M4 51 L 116 50.5" />
-        <Path d="M60 16 L 60.5 50" />
-        <Path d="M26 34 q 6 -6 12 0" stroke={colors.textMuted} />
-        <Path d="M82 30 q 6 -5 12 1" stroke={colors.textMuted} />
+      <Svg fill="none" height={64} strokeLinecap="round" viewBox="0 0 120 64" width={120}>
+        <Rect height={44} rx={2} stroke={colors.text} strokeWidth={1.8} width={100} x={10} y={8} />
+        <Rect height={34} rx={1} stroke={colors.warning} strokeWidth={1.4} width={88} x={16} y={13} />
+        <Path d="M34 30 q 6 -6 12 0" stroke={colors.textMuted} />
+        <Path d="M74 27 q 6 -5 12 1" stroke={colors.textMuted} />
       </Svg>
       <Text style={local.emptyText}>{line}</Text>
     </View>

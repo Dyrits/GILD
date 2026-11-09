@@ -1,4 +1,4 @@
-import type { TokenUsage } from "@canopy/contracts";
+import type { TokenUsage } from "@gild/contracts";
 import { type Duration, Effect, Layer, Queue } from "effect";
 import { type AccessOptions, accessArgsOf, baseArgs, noTimeLimit } from "./claudeArgs.ts";
 import { Harness, HarnessFailure, turnMessageOf } from "./execution.ts";

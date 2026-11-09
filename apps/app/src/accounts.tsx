@@ -1,4 +1,4 @@
-import type { AccountId, AccountStatus, HarnessInfo, HarnessList, HarnessName } from "@canopy/contracts";
+import type { AccountId, AccountStatus, HarnessInfo, HarnessList, HarnessName } from "@gild/contracts";
 import { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
 import type { ServiceClient } from "./client";
@@ -125,7 +125,7 @@ function HarnessAccounts({
 
 /**
  * Each harness's accounts: the computer's own sign-in and those added here, each signed in through the
- * harness's own sign-in in a Terminal window; Canopy never sees the credentials (provider-accounts).
+ * harness's own sign-in in a Terminal window; Gild never sees the credentials (provider-accounts).
  */
 export function AccountsSection({
   client,

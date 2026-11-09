@@ -7,7 +7,7 @@ import {
   type ServerFrame,
   ServerFrameJson,
   type ThreadId,
-} from "@canopy/contracts";
+} from "@gild/contracts";
 import { Effect, Exit, PubSub, Schema } from "effect";
 import { WebSocket, WebSocketServer } from "ws";
 import { Changes } from "./changes.ts";

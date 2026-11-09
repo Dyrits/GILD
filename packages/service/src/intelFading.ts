@@ -1,4 +1,4 @@
-import type { IntelKind, IntelState, Settings } from "@canopy/contracts";
+import type { IntelKind, IntelState, Settings } from "@gild/contracts";
 import { Clock, Effect } from "effect";
 import { dayMillis, readSettings } from "./settings.ts";
 

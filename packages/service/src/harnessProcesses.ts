@@ -1,4 +1,4 @@
-import type { TokenUsage } from "@canopy/contracts";
+import type { TokenUsage } from "@gild/contracts";
 import { Deferred, Duration, Effect } from "effect";
 import {
   type HarnessAdapter,

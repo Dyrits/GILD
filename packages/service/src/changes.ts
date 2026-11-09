@@ -15,7 +15,7 @@ export class Changes extends Context.Service<
     readonly pubsub: PubSub.PubSub<number>;
     readonly drafts: PubSub.PubSub<DraftUpdate>;
   }
->()("canopy/Changes") {}
+>()("gild/Changes") {}
 
 /** Changes as an in-memory broadcast to every connected screen. */
 export const changesLayer = Layer.effect(

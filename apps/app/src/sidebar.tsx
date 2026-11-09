@@ -1,11 +1,11 @@
-import type { MissionId, MissionSummary, WorkspaceId } from "@canopy/contracts";
+import type { MissionId, MissionSummary, WorkspaceId } from "@gild/contracts";
 import { createContext, type ReactNode, useContext } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { BudgetMeters } from "./budgets";
 import type { ServiceClient } from "./client";
 import { tokenCountOf } from "./labels";
 import { allMissions } from "./queries";
-import { CanopyMark } from "./sketches";
+import { GildMark } from "./sketches";
 import { colors, cut, fontSizes, fonts, ink, lift, radii, stateTones } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
 
@@ -144,8 +144,8 @@ function Sidebar({
   return (
     <View style={local.sidebar}>
       <View style={local.brand}>
-        <CanopyMark />
-        <Text style={local.brandText}>Canopy</Text>
+        <GildMark />
+        <Text style={local.brandText}>Gild</Text>
       </View>
       <NavItem
         glyph={placeGlyphs.Control}
@@ -202,7 +202,7 @@ function Sidebar({
 
 /**
  * The spending of the global budget's current period, as meters when it has limits and as a line otherwise. The
- * harnesses' own plan limits are not read yet (backlog), so the rail shows only what Canopy counts.
+ * harnesses' own plan limits are not read yet (backlog), so the rail shows only what Gild counts.
  */
 function Spending({ client }: { client: ServiceClient }) {
   const { data: global } = useServiceQuery(client, { _tag: "ReadBudget", missionId: null }, "budget:global");

@@ -11,7 +11,7 @@ Version 1 serves the installation's owner. In future hosted missions, only the h
 ### Asking
 
 - At the default level a thread works on its own and asks only before a **sensitive action**: one that leaves the computer or cannot be undone (CHG-0035). Sensitive actions are pushing code, publishing, deploying, sending a message to a person, submitting a form, paying, deleting anything outside the workspace or discarding uncommitted work, changing the system or its settings, and reaching passwords, keys, or other secrets. Everything else runs without a question, including reading, editing inside the workspace, local git, installing dependencies, and running the project's checks; the thread's instructions carry this list.
-- A thread asks through `request_approval`, as a question in its own conversation. Each harness runs in its sandbox where one exists. When the harness itself asks for permission, Canopy decides: a prompt matching the action just allowed in that thread, or a standing permission's pattern, runs; a prompt that Canopy's own list of sensitive commands recognizes becomes a question; any other prompt runs without a question and leaves a line in the thread saying what ran. This holds with or without a sandbox (CHG-0035).
+- A thread asks through `request_approval`, as a question in its own conversation. Each harness runs in its sandbox where one exists. When the harness itself asks for permission, Gild decides: a prompt matching the action just allowed in that thread, or a standing permission's pattern, runs; a prompt that Gild's own list of sensitive commands recognizes becomes a question; any other prompt runs without a question and leaves a line in the thread saying what ran. This holds with or without a sandbox (CHG-0035).
 - Each question covers exactly one action. A thread that needs three actions asks three questions.
 - A thread does not ask when the action is already approved:
   - the user's message names it, for example "push it" or "send this to Alice", which approves that one action in that thread;
@@ -45,7 +45,7 @@ Version 1 serves the installation's owner. In future hosted missions, only the h
 ### Approval level
 
 - One approval setting has two levels: **Sensitive actions only** (the default) and **Also commands and edits**, which turns the harnesses' own permission prompts back on, each one answered with the same buttons.
-- At **Also commands and edits**, Canopy follows the allow and deny rules the user set in each harness's own settings.
+- At **Also commands and edits**, Gild follows the allow and deny rules the user set in each harness's own settings.
 
 ### Permissions page
 

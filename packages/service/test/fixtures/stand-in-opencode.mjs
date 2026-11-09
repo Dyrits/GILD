@@ -16,7 +16,7 @@ log({
   args: process.argv.slice(2),
   config: JSON.parse(process.env.OPENCODE_CONFIG_CONTENT ?? "null"),
   cwd: process.cwd(),
-  env: Object.keys(process.env).filter((key) => key.startsWith("CANOPY_")),
+  env: Object.keys(process.env).filter((key) => key.startsWith("GILD_")),
   home: process.env.XDG_DATA_HOME ?? null,
   pid: process.pid,
 });

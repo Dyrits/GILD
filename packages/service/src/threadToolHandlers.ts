@@ -1,4 +1,4 @@
-import type { SuggestionOutcome } from "@canopy/contracts";
+import type { SuggestionOutcome } from "@gild/contracts";
 import { Effect, Match } from "effect";
 import { SqlClient } from "effect/sql";
 import type { Approvals } from "./approvals.ts";
@@ -44,7 +44,7 @@ export const askOwnerFor =
       Effect.catchDefect((defect) =>
         Effect.fail(
           new HarnessFailure({
-            reason: `Canopy could not ask about ${prompt.toolName}: ${defect instanceof Error ? defect.message : String(defect)}`,
+            reason: `Gild could not ask about ${prompt.toolName}: ${defect instanceof Error ? defect.message : String(defect)}`,
           }),
         ),
       ),
@@ -70,7 +70,7 @@ const suggestedAnswerOf = (suggested: Suggested): ToolAnswer =>
     }),
     OpenedWithoutAsking: ({ resolution }) => ({
       isError: false,
-      text: `No mission fits, so Canopy opened it as a new mission "${resolution.targetTitle}" (id ${resolution.targetMissionId}), as the owner's settings ask. ${carryOn}`,
+      text: `No mission fits, so Gild opened it as a new mission "${resolution.targetTitle}" (id ${resolution.targetMissionId}), as the owner's settings ask. ${carryOn}`,
     }),
     Resolved: ({ resolution }) => ({
       isError: resolution.outcome === "Withdrawn",

@@ -1,4 +1,4 @@
-import type { MissionDetail, ThreadSummary } from "@canopy/contracts";
+import type { MissionDetail, ThreadSummary } from "@gild/contracts";
 import { describe, expect, it } from "vitest";
 import { entriesOf } from "../src/entries";
 

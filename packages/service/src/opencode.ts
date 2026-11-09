@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { TokenUsage } from "@canopy/contracts";
+import type { TokenUsage } from "@gild/contracts";
 import { Deferred, type Duration, Effect, Option, Queue, Result } from "effect";
 import {
   HarnessFailure,
@@ -32,7 +32,7 @@ import {
 import { toolServerName } from "./mcp.ts";
 
 // OpenCode through the Agent Client Protocol (ADR 0008; `opencode acp` of OpenCode 2.2.0, probed 2026-11-07):
-// one process per thread, one ACP session per Canopy thread.
+// one process per thread, one ACP session per Gild thread.
 
 /** How the OpenCode adapter starts its harness. */
 export interface OpenCodeOptions {
@@ -55,7 +55,7 @@ const noTimeLimit = 2147483647;
 
 /**
  * OpenCode's permissions (CHG-0031, CHG-0035). OpenCode has no sandbox here, so every command and edit asks
- * Canopy: a command runs unasked unless it is sensitive, and an edit unless it leaves the thread's folder or
+ * Gild: a command runs unasked unless it is sensitive, and an edit unless it leaves the thread's folder or
  * the level is "Also commands and edits" (`isUnaskedEdit`). Its own subagents stay off: threads open threads
  * with open_thread (ADR 0007).
  */
@@ -65,7 +65,7 @@ const permissions = [
   { action: "subagent", effect: "deny", resource: "*" },
 ];
 
-/** The configuration OpenCode adds to the owner's own: Canopy's tools, permissions, and starting context. */
+/** The configuration OpenCode adds to the owner's own: Gild's tools, permissions, and starting context. */
 const configOf = (access: ThreadAccess, instructionsPath: string) => ({
   instructions: [instructionsPath],
   mcp: {
@@ -148,7 +148,7 @@ const refusedActionOf = (prompt: HarnessPrompt) => {
 
 /** What the next prompt tells OpenCode about one refused action: what was refused and the owner's answer. */
 const refusalOf = (prompt: HarnessPrompt, answer: PromptAnswer) =>
-  `Canopy refused ${refusedActionOf(prompt)}. ${answer.text}`;
+  `Gild refused ${refusedActionOf(prompt)}. ${answer.text}`;
 
 /** Sums the usage of the prompts of one turn; unknown when none reported any. */
 const addUsage = (total: TokenUsage | null, usage: TokenUsage | null): TokenUsage | null =>
@@ -173,7 +173,7 @@ const answerRequest = (
 ) =>
   Effect.gen(function* () {
     if (incoming.method !== "session/request_permission")
-      return connection.rpc.respondError(incoming.id, `Canopy does not answer ${incoming.method}.`);
+      return connection.rpc.respondError(incoming.id, `Gild does not answer ${incoming.method}.`);
     const toolCall = fieldOf(incoming.params, "toolCall");
     let isAllowed = yield* isUnaskedEdit(request, toolCall);
     if (!isAllowed) {
@@ -277,9 +277,9 @@ const readPrompt = (
     }
   });
 
-/** OpenCode's ACP protocol: one ACP session per Canopy thread, one prompt per turn. */
+/** OpenCode's ACP protocol: one ACP session per Gild thread, one prompt per turn. */
 const openCodeProtocolOf = (options: OpenCodeOptions): HarnessProtocol<OpenCodeConnection> => {
-  const instructionsFolder = options.instructionsFolder ?? join(tmpdir(), "canopy-opencode");
+  const instructionsFolder = options.instructionsFolder ?? join(tmpdir(), "gild-opencode");
 
   /** The starting context and approval rules, as the file OpenCode reads them from. */
   const writeInstructions = (request: TurnRequest) =>

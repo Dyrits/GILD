@@ -6,7 +6,7 @@ import {
   type HarnessList,
   type HarnessName,
   type ModelChoice,
-} from "@canopy/contracts";
+} from "@gild/contracts";
 import { useCallback, useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import type { ServiceClient } from "./client";

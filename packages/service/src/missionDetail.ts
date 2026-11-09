@@ -1,4 +1,4 @@
-import type { Message, MissionDetail, ThreadSummary } from "@canopy/contracts";
+import type { Message, MissionDetail, ThreadSummary } from "@gild/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { listBudgetEvents, readHeldStop } from "./budgetViews.ts";

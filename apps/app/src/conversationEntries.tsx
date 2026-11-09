@@ -1,4 +1,4 @@
-import type { Message, MissionId, ThreadId } from "@canopy/contracts";
+import type { Message, MissionId, ThreadId } from "@gild/contracts";
 import { Pressable, Text, View } from "react-native";
 import type { ServiceClient } from "./client";
 import type { Entry } from "./entries";

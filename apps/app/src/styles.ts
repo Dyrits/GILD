@@ -45,14 +45,6 @@ export const styles = StyleSheet.create({
   },
   buttonSecondaryText: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.md, fontWeight: "500" },
   buttonText: { color: colors.onAccent, fontFamily: fonts.sans, fontSize: fontSizes.md, fontWeight: "600" },
-  canopy: { backgroundColor: colors.paper, flex: 1, paddingHorizontal: 14, paddingTop: 10 },
-  canopySheet: {
-    backgroundColor: colors.canvas,
-    borderColor: colors.borderStrong,
-    borderLeftWidth: 1.5,
-    borderRightWidth: 1.5,
-    paddingTop: 2,
-  },
   chip: {
     backgroundColor: colors.control,
     borderColor: colors.border,
@@ -172,6 +164,14 @@ export const styles = StyleSheet.create({
     padding: 14,
   },
   pane: { gap: 10 },
+  panel: { backgroundColor: colors.paper, flex: 1, paddingHorizontal: 14, paddingTop: 10 },
+  panelSheet: {
+    backgroundColor: colors.canvas,
+    borderColor: colors.borderStrong,
+    borderLeftWidth: 1.5,
+    borderRightWidth: 1.5,
+    paddingTop: 2,
+  },
   paneTitle: { color: colors.text, fontFamily: fonts.hand, fontSize: 24, lineHeight: 28 },
   question: {
     ...ink,

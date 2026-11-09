@@ -3,7 +3,7 @@ import {
   MessageDelivery as MessageDeliveries,
   type MessageDelivery,
   type Settings,
-} from "@canopy/contracts";
+} from "@gild/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { AccountsSection } from "./accounts";
@@ -66,7 +66,7 @@ function NumberSetting({
   );
 }
 
-/** The Settings page, where the owner chooses how Canopy runs their threads. */
+/** The Settings page, where the owner chooses how Gild runs their threads. */
 export function SettingsScreen({
   client,
   onBack,

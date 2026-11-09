@@ -1,4 +1,4 @@
-import type { EffortChoice, HarnessName, ModelChoice, ModelOption, TokenUsage } from "@canopy/contracts";
+import type { EffortChoice, HarnessName, ModelChoice, ModelOption, TokenUsage } from "@gild/contracts";
 
 /** Each harness by the name the owner reads. */
 export const harnessLabels = {

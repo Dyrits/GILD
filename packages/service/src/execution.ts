@@ -1,4 +1,4 @@
-import type { ApprovalLevel, EffortChoice, HarnessName, ModelChoice, TokenUsage } from "@canopy/contracts";
+import type { ApprovalLevel, EffortChoice, HarnessName, ModelChoice, TokenUsage } from "@gild/contracts";
 import { Context, Effect, Schema } from "effect";
 
 /** What a harness reports while a turn runs. */
@@ -39,7 +39,7 @@ export interface PromptAnswer {
   readonly text: string;
 }
 
-/** Everything one turn of a thread needs from Canopy. */
+/** Everything one turn of a thread needs from Gild. */
 export interface TurnRequest {
   readonly access: ThreadAccess;
   /**
@@ -112,7 +112,7 @@ export interface HarnessAdapter {
 }
 
 /** The harness seam: runs one turn of a thread, reports its events, and lets it be steered and interrupted. */
-export class Harness extends Context.Service<Harness, HarnessAdapter>()("canopy/Harness") {}
+export class Harness extends Context.Service<Harness, HarnessAdapter>()("gild/Harness") {}
 
 /**
  * Sends each turn to the adapter of its thread's harness, and steering and interrupts to the adapter running

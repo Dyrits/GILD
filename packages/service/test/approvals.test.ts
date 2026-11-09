@@ -1,8 +1,8 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { MissionDetail, MissionId, Question, Request, RequestTag, ResultOf } from "@canopy/contracts";
 import { describe, expect, it } from "@effect/vitest";
+import type { MissionDetail, MissionId, Question, Request, RequestTag, ResultOf } from "@gild/contracts";
 import { Effect, Fiber, Layer, Option } from "effect";
 import { afterEach } from "vitest";
 import { Approvals } from "../src/approvals.ts";
@@ -12,9 +12,9 @@ import { isNamingQuote } from "../src/quotes.ts";
 
 const directories: string[] = [];
 const databaseFile = () => {
-  const directory = mkdtempSync(join(tmpdir(), "canopy-approvals-"));
+  const directory = mkdtempSync(join(tmpdir(), "gild-approvals-"));
   directories.push(directory);
-  return join(directory, "canopy.sqlite");
+  return join(directory, "gild.sqlite");
 };
 afterEach(() => {
   for (const directory of directories.splice(0)) rmSync(directory, { force: true, recursive: true });

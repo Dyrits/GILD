@@ -2,14 +2,14 @@
 
 ## Licensing
 
-- **Fully open source**: all Canopy code is published under an OSI-approved open-source license.
+- **Fully open source**: all Gild code is published under an OSI-approved open-source license.
   Source: the user. Reason: product decision.
-- **Respect upstream licenses**: Canopy takes ideas from OpenBot, MausBot, Rerun, and Delta, and complies with each one's license and terms. No OpenBot code is included, because its PolyForm Noncommercial 1.0.0 license cannot be relicensed as open source; Delta is closed, so only its ideas are used; MausBot code, if used, keeps its Apache 2.0 license and notices, and nothing comes from its `enterprise/` folder, which is under a separate source-available license.
+- **Respect upstream licenses**: Gild takes ideas from OpenBot, MausBot, Rerun, and Delta, and complies with each one's license and terms. No OpenBot code is included, because its PolyForm Noncommercial 1.0.0 license cannot be relicensed as open source; Delta is closed, so only its ideas are used; MausBot code, if used, keeps its Apache 2.0 license and notices, and nothing comes from its `enterprise/` folder, which is under a separate source-available license.
   Source: the user, and the upstream licenses. Reason: legal compliance.
 
 ## Budget
 
-- **Nearly free to run**: running Canopy costs the project and each user nearly nothing beyond their own provider use; the project pays for no other user's infrastructure.
+- **Nearly free to run**: running Gild costs the project and each user nearly nothing beyond their own provider use; the project pays for no other user's infrastructure.
   Source: the user. Reason: an open-source project with no revenue cannot carry others' costs.
   Check: a single user's phone traffic fits within a free tier of the services it relies on.
 
@@ -18,9 +18,9 @@
 - **Local data**: missions, threads, intel, and workspace contents stay on the user's computer; nothing leaves it except what a harness, provider, or connected service needs for the work, and the encrypted traffic to a paired device.
   Source: the user. Reason: product decision.
   Hosted multiplayer exception (CHG-0021): invited guests may receive shared mission conversations and results. The first hosted version keeps mission documents and data on the host. Future guest local copies require a separate design for their scope, synchronization, and retention. Removing access cannot erase information a guest has already saved or copied.
-- **Bring your own provider**: users connect their own provider subscriptions or API keys; Canopy resells no model use.
+- **Bring your own provider**: users connect their own provider subscriptions or API keys; Gild resells no model use.
   Source: the user. Reason: product decision.
-- **Comply with provider terms**: Canopy never offers a provider's sign-in as its own, nor collects, stores, or relays provider credentials or session tokens; each harness signs in through its own unmodified tool and the provider's own flow, and the documentation states each provider's terms plainly.
+- **Comply with provider terms**: Gild never offers a provider's sign-in as its own, nor collects, stores, or relays provider credentials or session tokens; each harness signs in through its own unmodified tool and the provider's own flow, and the documentation states each provider's terms plainly.
   Source: the providers' terms (for example Anthropic's Claude Code legal and compliance page). Reason: a provider can limit or close accounts that break them.
 - **End-to-end encrypted phone traffic**: any service relaying traffic between the computer and a paired device cannot read it.
   Source: the user. Reason: product decision.
@@ -35,7 +35,7 @@
 
 - **Single user**: one installation serves one user; sharing missions between people is out of scope for now.
   Source: the user. Reason: product scope.
-- **Future multiplayer**: Canopy must eventually support both invited people joining one host's missions and people collaborating from their own installations. The first build may be single-user, but architecture and technical design must identify assumptions that would block either form before committing to them. The [hosted agreements](architecture.md#future-multiplayer-open-architecture-questions) define guest access, host execution and authority, spending, resource sharing, and data location (CHG-0014 and CHG-0016 through CHG-0021). Execution across installations and synchronization remain undesigned.
+- **Future multiplayer**: Gild must eventually support both invited people joining one host's missions and people collaborating from their own installations. The first build may be single-user, but architecture and technical design must identify assumptions that would block either form before committing to them. The [hosted agreements](architecture.md#future-multiplayer-open-architecture-questions) define guest access, host execution and authority, spending, resource sharing, and data location (CHG-0014 and CHG-0016 through CHG-0021). Execution across installations and synchronization remain undesigned.
   Source: the user, 2026-11-04. Reason: multiplayer is a product goal, not a permanent exclusion.
-- **Pair by QR code from anywhere**: a phone pairs by scanning one pairing code, and then reaches Canopy from any network.
+- **Pair by QR code from anywhere**: a phone pairs by scanning one pairing code, and then reaches Gild from any network.
   Source: the user. Reason: product decision.

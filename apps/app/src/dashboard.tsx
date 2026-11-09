@@ -1,4 +1,4 @@
-import type { MissionId, WorkspaceChoice, WorkspaceId } from "@canopy/contracts";
+import type { MissionId, WorkspaceChoice, WorkspaceId } from "@gild/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { MissionBoard, MissionCard } from "./board";

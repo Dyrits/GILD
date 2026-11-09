@@ -5,7 +5,7 @@ import {
   type BudgetStop,
   type BudgetUse,
   type MissionId,
-} from "@canopy/contracts";
+} from "@gild/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import type { ServiceClient } from "./client";

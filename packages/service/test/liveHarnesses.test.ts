@@ -2,8 +2,8 @@ import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { HarnessName, MissionDetail, MissionId, Request, RequestTag, ResultOf } from "@canopy/contracts";
 import { describe, expect, it } from "@effect/vitest";
+import type { HarnessName, MissionDetail, MissionId, Request, RequestTag, ResultOf } from "@gild/contracts";
 import { Effect, Layer } from "effect";
 import { afterEach } from "vitest";
 import {
@@ -18,7 +18,7 @@ import {
 } from "../src/index.ts";
 
 // Opt-in checks against the installed Codex and OpenCode (provider-accounts). Each uses a few tokens of the
-// owner's own sign-in: CANOPY_LIVE_HARNESSES=1, and CANOPY_LIVE_OPENCODE_MODEL for OpenCode's model.
+// owner's own sign-in: GILD_LIVE_HARNESSES=1, and GILD_LIVE_OPENCODE_MODEL for OpenCode's model.
 
 const directories: string[] = [];
 afterEach(() => {
@@ -26,12 +26,12 @@ afterEach(() => {
 });
 
 const commands = {
-  claude: process.env.CANOPY_CLAUDE_PATH ?? "claude",
-  codex: process.env.CANOPY_CODEX_PATH ?? "codex",
-  opencode: process.env.CANOPY_OPENCODE_PATH ?? "opencode",
+  claude: process.env.GILD_CLAUDE_PATH ?? "claude",
+  codex: process.env.GILD_CODEX_PATH ?? "codex",
+  opencode: process.env.GILD_OPENCODE_PATH ?? "opencode",
 };
 
-const live = (directory = realpathSync(mkdtempSync(join(tmpdir(), "canopy-live-")))) => {
+const live = (directory = realpathSync(mkdtempSync(join(tmpdir(), "gild-live-")))) => {
   directories.push(directory);
   const harness = Layer.effect(
     Harness,
@@ -44,7 +44,7 @@ const live = (directory = realpathSync(mkdtempSync(join(tmpdir(), "canopy-live-"
     }),
   );
   return serviceLayer({
-    filename: join(directory, "canopy.sqlite"),
+    filename: join(directory, "gild.sqlite"),
     harness,
     harnessTools: liveHarnessToolsLayer(commands),
     homeFolder: directory,
@@ -90,7 +90,7 @@ const titledTurn = (harness: HarnessName, model: string) =>
     return detail;
   });
 
-describe.runIf(process.env.CANOPY_LIVE_HARNESSES === "1")("live harnesses (use a few tokens)", () => {
+describe.runIf(process.env.GILD_LIVE_HARNESSES === "1")("live harnesses (use a few tokens)", () => {
   it.live(
     "lists the installed harnesses, their sign-ins, and their models",
     () =>
@@ -118,7 +118,7 @@ describe.runIf(process.env.CANOPY_LIVE_HARNESSES === "1")("live harnesses (use a
   it.live(
     "lets OpenCode write inside its workspace unasked, asks before it writes outside, and carries on after a refusal",
     () => {
-      const directory = realpathSync(mkdtempSync(join(tmpdir(), "canopy-live-")));
+      const directory = realpathSync(mkdtempSync(join(tmpdir(), "gild-live-")));
       const workspace = join(directory, "project");
       mkdirSync(workspace);
       const outside = join(directory, "outside.txt");
@@ -128,7 +128,7 @@ describe.runIf(process.env.CANOPY_LIVE_HARNESSES === "1")("live harnesses (use a
           _tag: "StartMission",
           effort: "default",
           harness: "opencode",
-          model: process.env.CANOPY_LIVE_OPENCODE_MODEL ?? "default",
+          model: process.env.GILD_LIVE_OPENCODE_MODEL ?? "default",
           requestId: crypto.randomUUID(),
           text: `Use your write tool to create notes.txt in the current folder containing "hi". Then use your write tool to create ${outside} containing "hi". Use no shell command. Then reply with exactly: done`,
           workspacePath: workspace,
@@ -163,7 +163,7 @@ describe.runIf(process.env.CANOPY_LIVE_HARNESSES === "1")("live harnesses (use a
   it.live(
     "recognizes a git push from a Codex thread as Push code and runs it once allowed",
     () => {
-      const directory = realpathSync(mkdtempSync(join(tmpdir(), "canopy-live-")));
+      const directory = realpathSync(mkdtempSync(join(tmpdir(), "gild-live-")));
       const workspace = join(directory, "project");
       const remote = join(directory, "remote.git");
       const git = (cwd: string, ...args: Array<string>) => execFileSync("git", args, { cwd, encoding: "utf8" });
@@ -173,9 +173,9 @@ describe.runIf(process.env.CANOPY_LIVE_HARNESSES === "1")("live harnesses (use a
       git(
         workspace,
         "-c",
-        "user.name=Canopy",
+        "user.name=Gild",
         "-c",
-        "user.email=canopy@example.invalid",
+        "user.email=gild@example.invalid",
         "commit",
         "--allow-empty",
         "-m",
@@ -220,7 +220,7 @@ describe.runIf(process.env.CANOPY_LIVE_HARNESSES === "1")("live harnesses (use a
 
   it.live(
     "runs an OpenCode turn that uses its thread tools",
-    () => titledTurn("opencode", process.env.CANOPY_LIVE_OPENCODE_MODEL ?? "default").pipe(Effect.provide(live())),
+    () => titledTurn("opencode", process.env.GILD_LIVE_OPENCODE_MODEL ?? "default").pipe(Effect.provide(live())),
     300_000,
   );
 });

@@ -1,13 +1,13 @@
 import { mkdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import type { Workspace, WorkspaceId } from "@canopy/contracts";
+import type { Workspace, WorkspaceId } from "@gild/contracts";
 import { Clock, Context, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid } from "./errors.ts";
 import { realFolderOf } from "./folders.ts";
 
 /** Where each mission's threads with no workspace run, one scratch folder per mission. */
-export class ScratchRoot extends Context.Service<ScratchRoot, string>()("canopy/ScratchRoot") {}
+export class ScratchRoot extends Context.Service<ScratchRoot, string>()("gild/ScratchRoot") {}
 
 /** The existing folder at the path, with links resolved; refused otherwise. */
 const requireFolder = (path: string) =>

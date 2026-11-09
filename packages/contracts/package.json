@@ -1,5 +1,5 @@
 {
-  "name": "@canopy/contracts",
+  "name": "@gild/contracts",
   "private": true,
   "type": "module",
   "exports": {

@@ -1,4 +1,4 @@
-import type { EndingPreview, MissionEnding, MissionSummary } from "@canopy/contracts";
+import type { EndingPreview, MissionEnding, MissionSummary } from "@gild/contracts";
 import { useState } from "react";
 import type { ServiceClient } from "./client";
 

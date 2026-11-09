@@ -1,17 +1,33 @@
-import { existsSync, readdirSync, renameSync } from "node:fs";
+import { existsSync, readdirSync, renameSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-/** The app's name before it became Canopy (CHG-0061), which named its user-data folder and database. */
-const formerName = "OpenMission";
+/** The names the app had before Gild (CHG-0061, CHG-0072), newest first: each named its user-data folder and database. */
+const formerNames = ["Canopy", "OpenMission"] as const;
 
 /** Claude Code's folder name for a working folder's sessions: every character but letters and digits becomes `-`. */
 const claudeProjectNameOf = (folder: string) => folder.replace(/[^a-zA-Z0-9]/g, "-");
 
 /** Renames the database and its write-ahead files, which SQLite finds only beside a database of the same name. */
-const renameDatabase = (folder: string) => {
+const renameDatabase = (folder: string, formerName: string) => {
+  const formerDatabase = `${formerName.toLowerCase()}.sqlite`;
   for (const suffix of ["", "-wal", "-shm"]) {
-    const former = join(folder, `openmission.sqlite${suffix}`);
-    if (existsSync(former)) renameSync(former, join(folder, `canopy.sqlite${suffix}`));
+    const former = join(folder, `${formerDatabase}${suffix}`);
+    if (existsSync(former)) renameSync(former, join(folder, `gild.sqlite${suffix}`));
+  }
+};
+
+/**
+ * Moves what the former folder holds into the new one, leaving alone anything the app has already put there.
+ * Electron may make its profile folder before this runs, so the data still has to join it.
+ */
+const mergeInto = (former: string, folder: string) => {
+  if (!existsSync(folder)) {
+    renameSync(former, folder);
+    return;
+  }
+  if (!statSync(former).isDirectory() || !statSync(folder).isDirectory()) return;
+  for (const entry of readdirSync(former)) {
+    mergeInto(join(former, entry), join(folder, entry));
   }
 };
 
@@ -35,13 +51,17 @@ const renameClaudeSessions = (formerFolder: string, folder: string, claudeFolder
 };
 
 /**
- * Moves an install's data from the former user-data folder into `folder` once, when only the former exists,
- * so missions, threads, accounts, and their harness sessions carry over to Canopy.
+ * Moves an install's data from the newest former user-data folder into `folder` once, when it holds no
+ * database yet, so missions, threads, accounts, and their harness sessions carry over to Gild.
  */
 export const moveFormerData = (applicationData: string, folder: string, claudeFolder: string) => {
-  const formerFolder = join(applicationData, formerName);
-  if (!existsSync(formerFolder) || existsSync(folder)) return;
-  renameSync(formerFolder, folder);
-  renameDatabase(folder);
-  renameClaudeSessions(formerFolder, folder, claudeFolder);
+  if (existsSync(join(folder, "gild.sqlite"))) return;
+  for (const formerName of formerNames) {
+    const formerFolder = join(applicationData, formerName);
+    if (!existsSync(formerFolder)) continue;
+    mergeInto(formerFolder, folder);
+    renameDatabase(folder, formerName);
+    renameClaudeSessions(formerFolder, folder, claudeFolder);
+    return;
+  }
 };

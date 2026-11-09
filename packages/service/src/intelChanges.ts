@@ -1,4 +1,4 @@
-import type { IntelChangeKind, IntelChangeStatus, IntelKind, IntelOrigin } from "@canopy/contracts";
+import type { IntelChangeKind, IntelChangeStatus, IntelKind, IntelOrigin } from "@gild/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import {

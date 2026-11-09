@@ -1,8 +1,8 @@
 import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { MissionDetail, MissionId, Request, RequestTag, ResultOf } from "@canopy/contracts";
 import { describe, expect, it } from "@effect/vitest";
+import type { MissionDetail, MissionId, Request, RequestTag, ResultOf } from "@gild/contracts";
 import { Effect } from "effect";
 import { afterEach } from "vitest";
 import { isInsideFolder } from "../src/folders.ts";
@@ -15,7 +15,7 @@ afterEach(() => {
 
 /** A service with folders to choose as workspaces, and its data beside them. */
 const setUp = () => {
-  const base = realpathSync(mkdtempSync(join(tmpdir(), "canopy-workspaces-")));
+  const base = realpathSync(mkdtempSync(join(tmpdir(), "gild-workspaces-")));
   directories.push(base);
   const home = join(base, "home");
   const outside = join(base, "outside");
@@ -23,7 +23,7 @@ const setUp = () => {
     mkdirSync(folder, { recursive: true });
   }
   const layer = serviceLayer({
-    filename: join(base, "canopy.sqlite"),
+    filename: join(base, "gild.sqlite"),
     harness: fakeHarnessLayer("10 millis"),
     homeFolder: home,
     scratchRoot: join(base, "data", "missions"),

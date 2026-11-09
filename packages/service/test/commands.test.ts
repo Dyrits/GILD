@@ -1,8 +1,8 @@
 import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { MissionDetail } from "@canopy/contracts";
 import { describe, expect, it } from "@effect/vitest";
+import type { MissionDetail } from "@gild/contracts";
 import { Effect, Exit, Option } from "effect";
 import { SqlClient } from "effect/sql";
 import { afterEach } from "vitest";
@@ -22,7 +22,7 @@ afterEach(() => {
 
 /** A bare store in a temporary folder, with no threads behind it. */
 const bareStore = () => {
-  const directory = mkdtempSync(join(tmpdir(), "canopy-commands-"));
+  const directory = mkdtempSync(join(tmpdir(), "gild-commands-"));
   directories.push(directory);
   return storeLayer(join(directory, "store.sqlite"));
 };

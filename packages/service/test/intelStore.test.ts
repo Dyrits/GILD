@@ -31,7 +31,7 @@ afterEach(() => {
 });
 /** Runs a test against a fresh migrated store. */
 const inStore = <A, E>(test: Effect.Effect<A, E, SqlClient.SqlClient>) => {
-  const directory = mkdtempSync(join(tmpdir(), "canopy-intel-store-"));
+  const directory = mkdtempSync(join(tmpdir(), "gild-intel-store-"));
   directories.push(directory);
   return test.pipe(Effect.provide(storeLayer(join(directory, "store.sqlite"))));
 };

@@ -5,12 +5,12 @@ import {
   Results,
   ServerFrameJson,
   type ServiceError,
-} from "@canopy/contracts";
+} from "@gild/contracts";
 import { Schema } from "effect";
 
 declare global {
   interface Window {
-    canopy?: { chooseFolder(): Promise<string | null>; endpoint(): Promise<string> };
+    gild?: { chooseFolder(): Promise<string | null>; endpoint(): Promise<string> };
   }
 }
 
@@ -36,8 +36,8 @@ export class ServiceClient {
   private constructor(private readonly endpoint: string) {}
 
   static async connect(): Promise<ServiceClient> {
-    if (window.canopy === undefined) return Promise.reject(new Error("Open Canopy through the desktop app."));
-    const client = new ServiceClient(await window.canopy.endpoint());
+    if (window.gild === undefined) return Promise.reject(new Error("Open Gild through the desktop app."));
+    const client = new ServiceClient(await window.gild.endpoint());
     await client.open();
     return client;
   }

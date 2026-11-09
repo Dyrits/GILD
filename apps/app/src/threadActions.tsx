@@ -1,4 +1,4 @@
-import type { ChatterNotice, DeletionPreview, ThreadId } from "@canopy/contracts";
+import type { ChatterNotice, DeletionPreview, ThreadId } from "@gild/contracts";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import type { ServiceClient } from "./client";

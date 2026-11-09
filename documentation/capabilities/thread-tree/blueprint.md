@@ -36,7 +36,7 @@ Thread, Turn, and configuration records live in SQLite. Tree queries return view
 | --- | --- |
 | Approval per action | Thread session identity is service-bound. An opener's approvals never enter a new thread as authority. Live execution waits for the approval gate in the shared design. |
 | Nearly free to run | Local service and processes require no project infrastructure. |
-| Bring your own provider | Adapter invokes the user's harness; no provider credentials enter Canopy storage. |
+| Bring your own provider | Adapter invokes the user's harness; no provider credentials enter Gild storage. |
 | Future multiplayer | Stable thread/workspace identities and separate host/actor identity avoid tying execution authority to a display name or local path. Synchronization remains undesigned. |
 
 ## Open

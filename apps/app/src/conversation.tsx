@@ -1,4 +1,4 @@
-import type { BudgetScope, MessageDelivery, MissionDetail, MissionId, ThreadId } from "@canopy/contracts";
+import type { BudgetScope, MessageDelivery, MissionDetail, MissionId, ThreadId } from "@gild/contracts";
 import { useEffect, useRef, useState } from "react";
 import { FlatList, type NativeScrollEvent, type NativeSyntheticEvent, Pressable, Text, View } from "react-native";
 import { BudgetMeters, BudgetScreen, BudgetStopCard } from "./budgets";
@@ -11,7 +11,7 @@ import { IntelIcon, IntelScreen } from "./intel";
 import { JournalScreen } from "./journal";
 import { MissionEndingActions, MissionTitle } from "./missionActions";
 import { useHasSidebar } from "./sidebar";
-import { CanopyArch } from "./sketches";
+import { PanelArch } from "./sketches";
 import { styles } from "./styles";
 import { ChatterNotices, DeleteThreadAction } from "./threadActions";
 import { OpenThreadForm, ThreadTree } from "./threadTree";
@@ -266,11 +266,11 @@ export function Conversation({
       />
     );
   }
-  // The mission opens as a canopy over the page: an arched top above a sheet ruled off in ink.
+  // The mission opens under an arched top, on a sheet ruled off in ink.
   return (
-    <View style={styles.canopy}>
-      <CanopyArch />
-      <View style={[styles.screen, styles.canopySheet]}>
+    <View style={styles.panel}>
+      <PanelArch />
+      <View style={[styles.screen, styles.panelSheet]}>
         <View style={styles.header}>
           {!hasSidebar && (
             <Pressable onPress={onBack}>

@@ -1,6 +1,6 @@
 # Inspirations
 
-Products Canopy follows for ideas. For each: what it does well, what Canopy took or may take, and what to check on at the next review. Ideas are written independently and follow [Respect upstream licenses](requirements.md); code is reused only where a decision record allows it.
+Products Gild follows for ideas. For each: what it does well, what Gild took or may take, and what to check on at the next review. Ideas are written independently and follow [Respect upstream licenses](requirements.md); code is reused only where a decision record allows it.
 
 Review this list when starting a capability, and every few weeks: read each product's changelog, releases, or documentation, and add what is new below with its date. Record a taken idea in the capability's specifications and the changelog; put a candidate in the [backlog](backlog.md).
 
@@ -11,14 +11,14 @@ Review this list when starting a capability, and every few weeks: read each prod
 - **Good ideas**: an agent panel per agent; installing and updating each harness's command-line tool from its official package, checked against the published hash; how permissions are asked of casual users.
 - **Taken**: harness installs and updates ([architecture](architecture.md)); the thread panel idea ([backlog](backlog.md)); built-in safe git (CHG-0032 in the [changelog](changelog.md)); (2026-11-07) the window's look: a sidebar on a grey frame beside a raised panel, a neutral palette with one blue accent, tinted state pills, and a composer with its pickers inside (CHG-0056).
 - **License**: PolyForm Noncommercial 1.0.0. Ideas only, no code ([0001](architecture-decision-record/0001-new-codebase-not-a-fork.md)).
-- **Check on**: its memory, routine, and approval features, as the closest product to Canopy.
+- **Check on**: its memory, routine, and approval features, as the closest product to Gild.
 
 ### MausBot
 
 - **Good ideas**: runtime event and driver contracts, an ACP client and vendor adapters, Claude Code and Codex drivers, a delegation-tree state machine, process and recovery helpers.
 - **Taken**: these modules may be cherry-picked under Apache 2.0 with their notices ([0001](architecture-decision-record/0001-new-codebase-not-a-fork.md)).
 - **License**: Apache 2.0, except its `enterprise/` folder, which is not used. Its brand is not reused.
-- **Check on**: new versions of the drivers Canopy takes code from.
+- **Check on**: new versions of the drivers Gild takes code from.
 
 ### Paseo
 
@@ -32,7 +32,7 @@ Review this list when starting a capability, and every few weeks: read each prod
 - **Good ideas**: a handover that replays the full history to the new harness; version control for agent edits and conversations (DeltaDB).
 - **Taken**: full-history handover ([0006](architecture-decision-record/0006-handover-replays-full-history.md)).
 - **License**: Delta is closed, so ideas only. DeltaDB is not open source as of 2026-11-04.
-- **Check on**: whether DeltaDB is published as open source; it could replace Canopy's own copies ([backlog](backlog.md)).
+- **Check on**: whether DeltaDB is published as open source; it could replace Gild's own copies ([backlog](backlog.md)).
 
 ### intentic ([intentic.dev](https://intentic.dev), [source](https://github.com/intentic/intentic))
 
@@ -45,9 +45,58 @@ Review this list when starting a capability, and every few weeks: read each prod
   - an integrations catalogue grouped by purpose, with connected services checked;
   - automations started by a git push, Sentry, Stripe, email, Slack, Discord, or cron, with an optional filter command deciding whether to wake an agent;
   - secrets injected only into turns that may use them, never written to disk.
-- **Taken**: none yet. Several ideas are already planned for Canopy; compare before adding to the [backlog](backlog.md).
+- **Taken**: none yet. Several ideas are already planned for Gild; compare before adding to the [backlog](backlog.md).
 - **License**: MIT (sandbox, CLI, workspace, platform). Code may be reused with its notice where a decision record allows it.
-- **Check on**: its [changelog](https://intentic.dev/changelog/), [releases](https://github.com/intentic/intentic/releases), and [docs](https://intentic.dev/docs/), especially UI changes and whether it adds nested agents or threads. Its name is close to "Intent", a candidate for Canopy's mission term.
+- **Check on**: its [changelog](https://intentic.dev/changelog/), [releases](https://github.com/intentic/intentic/releases), and [docs](https://intentic.dev/docs/), especially UI changes and whether it adds nested agents or threads. Its name is close to "Intent", a candidate for Gild's mission term.
+
+### Rakazo ([rakazo.com](https://rakazo.com), [source](https://github.com/elie222/rakazo))
+
+- **What it is**: an open-source platform of AI agents ("bots") that each hold a job, such as Inbox Manager, Sales Outbound, Coding Agent, Bug Triage, or Chief of Staff. It comes as a web, desktop (macOS, Windows, Linux), and mobile (iOS, Android) app. It can be self-hosted for free with every feature, or hosted with a cloud computer billed in computer hours. Models come from the user's own Claude or ChatGPT subscription, an API key, OpenRouter, or a local server (Ollama, LM Studio). From the team behind Inbox Zero.
+- **Good ideas** (from its site, 2026-11-09):
+  - a bot learns a task by watching the user do it once, then saves the steps as a reusable skill;
+  - memory a bot keeps and shares with the team, such as a preference ("Prefers short replies");
+  - work started by a schedule, a webhook, a GitHub event, or a change the bot watches, carrying on while the user's computer is off;
+  - bots handing work to each other and working in groups;
+  - the user choosing which actions need sign-off; a "held pile" of drafts awaiting approval; a bot that calls the user in the app when it needs them;
+  - a different model per bot;
+  - reachable from Slack, and when self-hosted from iMessage or SMS, WhatsApp, and Telegram;
+  - a summary per run (archived, replied, drafted, flagged) and a mobile inbox showing which rows wait on the user.
+- **Taken**: none yet. Its approvals, a model per agent, and delegation are already in Gild. Learning by demonstration, event triggers, and the held pile of drafts are candidates; compare them before adding to the [backlog](backlog.md).
+- **License**: Apache 2.0 according to its site; not checked in the repository. Ideas only until it is checked.
+- **Check on**: its [docs](https://rakazo.com/docs/), [releases](https://github.com/elie222/rakazo/releases), and [integrations](https://rakazo.com/integrations/), especially how skills learned by demonstration are stored and how approvals are configured.
+
+### Turnstone ([myturnstone.ai](https://myturnstone.ai))
+
+- **What it is**: a Mac app (Apple silicon and Intel) of AI teammates ("Agents") that run on the subscriptions the user already pays for: OpenAI, Claude, Gemini, Grok, OpenRouter, Cursor, or Ollama. Free on the Mac; Turnstone Cloud, announced as coming soon at $49 a month, keeps Agents running while the Mac is closed and reachable from a phone.
+- **Good ideas** (from its site, 2026-11-09):
+  - a first Agent, the Chief of Staff, that sets up the other Agents for each part of the work;
+  - switching models in the middle of a conversation while the Agent keeps its context;
+  - memory of how the user likes the work done, and a writing style learned from sent emails;
+  - recurring jobs saved from plain language, such as "every weekday at 9";
+  - any Agent handing a task to another, with the result coming back to the user's chat;
+  - each Agent working in its own tab of a built-in browser;
+  - drafts reviewed before sending: "Nothing goes out until you send it";
+  - connected apps (Gmail, Slack, Granola, Google Calendar, WhatsApp) read on a schedule the user chooses, with updates shared across Agents;
+  - Agents, chats, and memory kept on the Mac "in a folder you can open".
+- **Taken**: none yet. Results coming back to the opener's chat, a model per agent, and local data are already in Gild. A model switch keeping context is close to the staged thread-handover ([0006](architecture-decision-record/0006-handover-replays-full-history.md)); a setup agent, plain-language schedules, and scheduled context sync are candidates; compare them before adding to the [backlog](backlog.md).
+- **License**: closed, as far as its site shows: no source or license is published. Ideas only.
+- **Check on**: its [changelog](https://myturnstone.ai/changelog), [how-to](https://myturnstone.ai/howto) and [academy](https://myturnstone.ai/academy) pages, especially how a model switch carries context and how the Chief of Staff sets up Agents; and whether Cloud ships.
+
+### Cindy ([cindy.app](https://www.cindy.app), [source](https://github.com/makecindy/cindy))
+
+- **What it is**: an open-source AI agent running on the user's own computers and phone (macOS, Windows, Linux, iOS, Android), bringing existing agents and subscriptions together. Harnesses: Claude Code, Codex, or Pi; "A harness is an execution engine; models are a separate choice." Models from the user's subscriptions or keys (Claude, ChatGPT, SuperGrok, Kimi Code, MiniMax, GitHub Copilot…), Cindy's paid model service, or local models (beta: Ollama, llama.cpp, LM Studio). Free with every capability when bringing one's own key; Plus from $20 a month for its model service; Team and Enterprise coming.
+- **Good ideas** (from its site, 2026-11-09):
+  - one task carried across screens: the same task, conversation, and files on every device, with file preview and transfer, and remote desktop to operate a connected computer from the phone;
+  - harness and model chosen separately, in one place;
+  - a task split into planning, parallel workers, and a review step, each on its own harness and model;
+  - requests needing confirmation waiting for the user, on the phone too; diffs, Git worktrees, checkpoints, and stopping a task;
+  - memory of preferences, project context, and methods; installable skills from a SkillHub; plugins and MCP;
+  - named teammates with a role, memory, and skills, scheduled routines, and teammates called from Slack or Feishu;
+  - usage controls and cost attribution for teams;
+  - an honest local-first statement: "Local-first does not mean no data ever leaves your device", naming what leaves (model requests, sync, remote access, plugins).
+- **Taken**: none yet. Separate harness and model choice, a thread per worker on its own runner, approvals answered from the phone, and budgets are already in Gild. A planning, workers, and review split as a mission template, checkpoints, and its local-first statement are candidates; compare them before adding to the [backlog](backlog.md).
+- **License**: Apache 2.0 according to its site; not checked in the repository. Code may be reused with its notice where a decision record allows it, once checked.
+- **Check on**: its [docs](https://github.com/makecindy/cindy/tree/main/docs) and [releases](https://github.com/makecindy/cindy/releases), especially its Pi harness, how it moves a task between devices, and how the review step is wired; as the open-source product closest to Gild's multi-harness tree.
 
 ## Memory and long-running agents
 

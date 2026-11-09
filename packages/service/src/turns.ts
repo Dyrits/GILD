@@ -1,4 +1,4 @@
-import type { EffortChoice, HarnessName, ModelChoice } from "@canopy/contracts";
+import type { EffortChoice, HarnessName, ModelChoice } from "@gild/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { touchMission } from "./activity.ts";

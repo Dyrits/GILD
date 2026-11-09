@@ -2,7 +2,7 @@
 
 ## Problem and outcome
 
-A thread needs the tools and instructions in scope for its work, even when its harness changes. Canopy gives each harness the selected skills, external MCP servers, and its own thread tools. The user can see what a thread receives and where it came from.
+A thread needs the tools and instructions in scope for its work, even when its harness changes. Gild gives each harness the selected skills, external MCP servers, and its own thread tools. The user can see what a thread receives and where it came from.
 
 ## Agreed behavior
 
@@ -18,7 +18,7 @@ A thread needs the tools and instructions in scope for its work, even when its h
 - Settings lists global skills and MCP servers. Each workspace lists its own. Each thread shows its effective list, sources, disabled entries, and which copy won a name conflict.
 - Global skills come from the existing skill folders, including `~/.agents/skills` and `~/.claude/skills`. Workspace skills come from its `.agents/skills`, `.claude/skills`, and equivalent supported harness folders.
 - Global skills are available to every thread. Workspace skills apply to threads attached to that workspace. Skills installed in a thread apply to it and the threads beneath it, as defined in the [glossary](../../glossary.md).
-- Version 1 manages MCP configuration specifically in Canopy, at global and workspace scope. It does not import existing harness MCP configuration. This replaces the earlier proposal to read each harness's configuration.
+- Version 1 manages MCP configuration specifically in Gild, at global and workspace scope. It does not import existing harness MCP configuration. This replaces the earlier proposal to read each harness's configuration.
 - The same configured MCP servers are available regardless of the chosen harness.
 - Installation of skills through the app is deferred. Existing skill folders supply skills in version 1.
 
@@ -43,7 +43,7 @@ A thread needs the tools and instructions in scope for its work, even when its h
 - The user can disable external MCP servers per thread. Threads opened beneath it inherit that selection.
 - MCP configuration changes take effect on the next turn; a current turn keeps its starting configuration.
 - A failed external MCP server is reported in the thread as a warning. The other servers load and the turn continues.
-- Canopy's own thread tools stay enabled. If they fail to load, the thread waits in Attention with **Retry**.
+- Gild's own thread tools stay enabled. If they fail to load, the thread waits in Attention with **Retry**.
 - The local service enforces thread-tool access, regardless of what instructions a harness received. See [0005](../../architecture-decision-record/0005-thread-tools-over-mcp.md).
 
 ### Another workspace
@@ -55,7 +55,7 @@ A thread needs the tools and instructions in scope for its work, even when its h
 ## External contract
 
 - Every supported harness receives the effective skills and MCP servers through its adapter.
-- Canopy's thread tools remain available over its local MCP server. Their individual contracts belong to the capabilities that define them.
+- Gild's thread tools remain available over its local MCP server. Their individual contracts belong to the capabilities that define them.
 - This capability adds no new thread tool contract in version 1.
 
 ## Acceptance and validation
@@ -68,10 +68,10 @@ A thread needs the tools and instructions in scope for its work, even when its h
   - invalid or unreadable skill entries and failures to load requested instructions put the thread in Attention until fixed or disabled and retried;
   - a thread opened beneath another inherits its selections; choosing another workspace replaces workspace entries while preserving global and thread-scoped entries;
   - configuration and skill edits affect the next turn without changing the current turn;
-  - a failed external server produces a warning and allows the turn to continue; failed Canopy thread tools produce Attention with Retry;
+  - a failed external server produces a warning and allows the turn to continue; failed Gild thread tools produce Attention with Retry;
   - thread-tool access stays enforced by the local service;
-  - Canopy uses its own MCP configuration without changing or importing existing harness configuration.
-- **Human acceptance**: inspect a thread's effective list from desktop and phone; disable a skill and an external MCP server; start a turn and check the selection; invoke a skill and check that its instructions load then; edit a skill and check its use on the following turn; change harness and check the preferred skill copy; fail an external server and then Canopy's thread tools and check the different outcomes.
+  - Gild uses its own MCP configuration without changing or importing existing harness configuration.
+- **Human acceptance**: inspect a thread's effective list from desktop and phone; disable a skill and an external MCP server; start a turn and check the selection; invoke a skill and check that its instructions load then; edit a skill and check its use on the following turn; change harness and check the preferred skill copy; fail an external server and then Gild's thread tools and check the different outcomes.
 
 The user accepted the scope, validation plan, and agent additions on 2026-11-05 (CHG-0022). These checks are agreed acceptance criteria; they have not been run against an implementation.
 
@@ -93,5 +93,5 @@ The user accepted the scope, validation plan, and agent additions on 2026-11-05 
 
 - Importing existing harness MCP configuration in version 1.
 - Installing skills through the app in version 1.
-- Disabling Canopy's own thread tools.
+- Disabling Gild's own thread tools.
 - Changing a running turn's tools or instructions.

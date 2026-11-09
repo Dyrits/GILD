@@ -16,9 +16,9 @@ export interface LineProcessOptions {
   readonly label: string;
 }
 
-/** The environment of a harness's process: Canopy's own variables, such as the owner token, left out. */
+/** The environment of a harness's process: Gild's own variables, such as the owner token, left out. */
 export const harnessEnvironmentOf = (extra: Record<string, string>) => ({
-  ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("CANOPY_"))),
+  ...Object.fromEntries(Object.entries(process.env).filter(([key]) => !key.startsWith("GILD_"))),
   ...extra,
 });
 

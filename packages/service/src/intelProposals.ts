@@ -1,4 +1,4 @@
-import type { IntelProposal, IntelProposalId, ProposedIntel } from "@canopy/contracts";
+import type { IntelProposal, IntelProposalId, ProposedIntel } from "@gild/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid } from "./errors.ts";

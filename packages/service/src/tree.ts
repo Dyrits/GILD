@@ -1,4 +1,4 @@
-import type { HarnessName, OpenThreadResult, ThreadId } from "@canopy/contracts";
+import type { HarnessName, OpenThreadResult, ThreadId } from "@gild/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { changed, unchanged } from "./commands.ts";

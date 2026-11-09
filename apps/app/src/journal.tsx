@@ -1,4 +1,4 @@
-import type { JournalView, MissionId } from "@canopy/contracts";
+import type { JournalView, MissionId } from "@gild/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { newRequestId, type ServiceClient } from "./client";

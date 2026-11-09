@@ -1,5 +1,5 @@
-import type { MissionId, ThreadId } from "@canopy/contracts";
 import { describe, expect, it } from "@effect/vitest";
+import type { MissionId, ThreadId } from "@gild/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { afterEach } from "vitest";
