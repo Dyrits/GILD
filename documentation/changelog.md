@@ -1387,3 +1387,15 @@ Summary: The owner asked for Realms, Quests, and The Keep to be unfoldable. Each
 References: apps/app/src/sidebar.tsx.
 Validation: typecheck, lint, and tests pass; seen in the fake-harness render at 1600px (folded Realms and The Keep, then Realms unfolded).
 Evidence: Baseline `4e76098`; not proven: keyboard use of the chevron, the narrow window, and the owner's acceptance.
+
+
+## CHG-0091 · 2026-11-09 · The rule under every category again
+
+Type: Code
+Event: Delivery
+Scope: Guild interface
+
+Summary: The owner asked for the gilt underline back under every category, reversing CHG-0089. Guildmaster and Settings have their rule again, so all five headings carry one.
+References: apps/app/src/sidebar.tsx.
+Validation: typecheck, lint, and tests pass; not seen in a render this time.
+Evidence: Baseline `4ee119e`; the code returns to the state before CHG-0089 for this point.
