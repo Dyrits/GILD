@@ -21,7 +21,7 @@ const tiltOf = (id: string) => {
   return Math.round(((hash % 37) / 36 - 0.5) * 3.6 * 10) / 10;
 };
 
-/** One mission as a card: its title, where and how much, its budget, and its ending actions. */
+/** One mission as a card: its title, where and how much, its budget, and its ending actions. Cards on the board tilt slightly; those outside it (the archives) lie straight. */
 export function MissionCard({
   client,
   column,
@@ -55,7 +55,12 @@ export function MissionCard({
         mission.state === "Done" && local.cardDone,
         isCircled && local.cardAttention,
         isHovered && local.cardHovered,
-        { transform: [{ rotate: isHovered ? "0deg" : `${tiltOf(mission.id)}deg` }, { scale: isHovered ? 1.02 : 1 }] },
+        {
+          transform: [
+            { rotate: isHovered || column === null ? "0deg" : `${tiltOf(mission.id)}deg` },
+            { scale: isHovered ? 1.02 : 1 },
+          ],
+        },
       ]}
     >
       <View pointerEvents="none" style={local.inner} />

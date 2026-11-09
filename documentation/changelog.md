@@ -1311,3 +1311,15 @@ Summary: The owner shared a reference of hanging banners and asked for banners a
 References: apps/app/src/banner.tsx, apps/app/src/board.tsx.
 Validation: typecheck, lint, and 431 tests pass.
 Evidence: Baseline `3302f7b`; [screenshot](verification/2026-11-09-guild-mockup/board-banners.png), fake harness at 1600px. Not proven: narrow widths and the owner's acceptance of the look. The reference's velvet texture, the frayed green fringe, and the shadow under the rod are not drawn.
+
+
+## CHG-0085 · 2026-11-09 · Straight archive cards
+
+Type: Code
+Event: Correction
+Scope: Mission board
+
+Summary: The owner reported the Archives view as broken: its cards were tilted across the full width and the search field looked cut short. Cards outside the board (the archives) no longer tilt and lie in a wrapping row, 360px wide each; the board's cards keep their tilt. The search field was hidden on its right by the heading's castle, which was drawn over the page; the castle now sits behind it.
+References: apps/app/src/{board,dashboard,sketches}.tsx.
+Validation: typecheck, lint, and 431 tests pass.
+Evidence: Baseline `12b0908`; [screenshot](verification/2026-11-09-guild-mockup/archives-1600.png), fake harness with two archived quests. Not proven: narrow widths.

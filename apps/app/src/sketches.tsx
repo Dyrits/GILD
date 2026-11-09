@@ -67,5 +67,5 @@ export function EmptyBoard({ line }: { line: string }) {
 const local = StyleSheet.create({
   empty: { alignItems: "center", gap: 6, paddingVertical: 28 },
   emptyText: { color: colors.onWood, fontFamily: fonts.hand, fontSize: 21 },
-  hero: { height: 150, position: "absolute", right: 0, top: 0, width: "70%" },
+  hero: { height: 150, position: "absolute", right: 0, top: 0, width: "70%", zIndex: -1 },
 });

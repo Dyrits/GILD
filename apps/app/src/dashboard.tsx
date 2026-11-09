@@ -238,15 +238,13 @@ export function Dashboard({
             data.missions.length === 0 ? (
               <Text style={[styles.muted, { color: colors.onWood }]}>No archived quests.</Text>
             ) : (
-              data.missions.map((mission) => (
-                <MissionCard
-                  client={client}
-                  column={null}
-                  key={mission.id}
-                  mission={mission}
-                  onOpen={() => onOpen(mission.id)}
-                />
-              ))
+              <View style={local.archive}>
+                {data.missions.map((mission) => (
+                  <View key={mission.id} style={local.archiveCard}>
+                    <MissionCard client={client} column={null} mission={mission} onOpen={() => onOpen(mission.id)} />
+                  </View>
+                ))}
+              </View>
             )
           ) : (
             <MissionBoard
@@ -262,6 +260,8 @@ export function Dashboard({
 }
 
 const local = StyleSheet.create({
+  archive: { alignItems: "flex-start", flexDirection: "row", flexWrap: "wrap", gap: 16 },
+  archiveCard: { maxWidth: "100%", width: 360 },
   content: { gap: 14, paddingHorizontal: 28, paddingVertical: 20 },
   crumb: { alignItems: "center", flexDirection: "row", gap: 2, zIndex: 3 },
   scroll: { backgroundColor: colors.wood, flex: 1 },
