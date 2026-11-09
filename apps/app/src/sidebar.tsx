@@ -532,7 +532,7 @@ function Sidebar({
           hasRule={false}
           isCollapsed={isCollapsed}
           isSelected={isHere("Settings")}
-          label="Settings"
+          label="Workshop"
           onPress={() => onPlace("Settings")}
         />
       </ScrollView>
@@ -720,7 +720,7 @@ const crumbsOf = ({
   if (place === "Intel") return [to("The Keep", "Keep"), here("Lore")];
   if (place === "Archived") return [to("The Keep", "Keep"), here("Archives", "▤")];
   if (place === "Keep") return [here("The Keep")];
-  if (place === "Settings") return [here("Settings")];
+  if (place === "Settings") return [here("Workshop")];
   if (place === "Realms") return [here("Realms")];
   if (place === "Quests" && realm !== null) return [to("Realms", "Realms"), here(realm.name)];
   if (place === "Quests") return [here("Quests")];

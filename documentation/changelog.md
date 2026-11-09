@@ -1399,3 +1399,15 @@ Summary: The owner asked for the rule back under every category (CHG-0089 undone
 References: apps/app/src/sidebar.tsx.
 Validation: typecheck, lint, and tests pass; the same code as CHG-0089, which was seen in a render.
 Evidence: Baseline `f64b270`; a revert of that commit.
+
+
+## CHG-0092 · 2026-11-09 · Settings is the Workshop
+
+Type: Code
+Event: Agreement
+Scope: Guild interface
+
+Summary: The owner chose Workshop as the interface name for Settings, from the options offered (Charter, Statutes, Workshop). The rail row, the breadcrumb, the page heading, the dashboard link, the Permissions back link, and the messages that send the owner there (global budget reached, folder outside the browsable roots, harness not found, settings still loading) say Workshop. The place, the contracts (`ReadSettings`, `UpdateSettings`), the stored table, and the glossary's technical term stay Settings.
+References: apps/app/src/{sidebar,settings,dashboard,permissions,budgets,folderBrowser}.tsx, packages/service/src/{missions,folders,harnessTools}.ts, documentation/glossary.md.
+Validation: typecheck, lint, and tests pass.
+Evidence: Baseline `9ddcddb`; not proven: the owner's acceptance of the look.

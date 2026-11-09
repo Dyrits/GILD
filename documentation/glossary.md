@@ -25,6 +25,7 @@ User-authored text and historical service messages are not rewritten.
 | Idle | Resting |
 | Waiting | Awaiting word |
 | Done | Fulfilled |
+| Settings | Workshop |
 
 Journal, briefing, harness, effort, budget, approval, and archive keep their meanings and names.
 Companion means the selected model doing the work, not a conversation or a distinct saved agent definition; selectors say Companion (model) to make this explicit.
@@ -79,7 +80,7 @@ A folder or repository on the user's computer, chosen by the user or cloned by G
 _Avoid_: Project, repo, directory
 
 **Browsable root**:
-A folder set in Settings under which the user and threads can browse and choose workspaces.
+A folder set in the Workshop (Settings) under which the user and threads can browse and choose workspaces.
 _Avoid_: Allowed folder, sandbox
 
 **Scratch folder**:

@@ -88,7 +88,7 @@ function NewFolder({
   );
 }
 
-/** The browsable roots in Settings, with Add root. */
+/** The browsable roots in the Workshop, with Add root. */
 export function BrowsableRoots({ client }: { client: ServiceClient }) {
   const { data: roots, error } = useServiceQuery(
     client,

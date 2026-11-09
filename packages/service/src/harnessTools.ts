@@ -60,7 +60,7 @@ export const liveHarnessToolsLayer = (commands: HarnessCommands) =>
           return code === 0 && version !== ""
             ? { problem: null, version }
             : {
-                problem: `${harnessFacts[harness].label} was not found at "${commands[harness]}". Install it, then reopen Settings.`,
+                problem: `${harnessFacts[harness].label} was not found at "${commands[harness]}". Install it, then reopen the Workshop.`,
                 version: null,
               };
         }),

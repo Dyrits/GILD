@@ -95,7 +95,7 @@ export function SettingsScreen({
             <Text style={styles.link}>← Quests</Text>
           </Pressable>
         )}
-        {!hasSidebar && <Text style={styles.heading}>Settings</Text>}
+        {!hasSidebar && <Text style={styles.heading}>Workshop</Text>}
       </View>
       {error !== null && <Text style={styles.error}>{error}</Text>}
       {saveError !== null && <Text style={styles.error}>{saveError}</Text>}

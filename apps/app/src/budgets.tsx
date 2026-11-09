@@ -249,7 +249,7 @@ export function BudgetScreen({
     missionId !== null
       ? client.request({ _tag: "SetMissionBudget", limits, missionId })
       : settings === null
-        ? Promise.reject(new Error("Settings are still loading."))
+        ? Promise.reject(new Error("The Workshop is still loading."))
         : client.request({ _tag: "UpdateSettings", settings: { ...settings, globalBudget: limits } });
   const savePeriod = (period: BudgetPeriod) =>
     settings === null
