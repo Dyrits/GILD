@@ -191,6 +191,8 @@ describe("running Codex threads", () => {
       expect(detail.thread).toMatchObject({ accountId: null, accountLabel: "This computer", harness: "codex" });
       // The input counts Codex reports include the cached part, which is counted apart.
       expect(detail.mission.usage).toEqual({ cacheCreation: 1, cacheRead: 30, input: 69, output: 7 });
+      // The context is the latest call's input, which includes the cached part, and its output.
+      expect((yield* call({ _tag: "ReadThreadPanel", threadId: started.threadId })).context?.tokens).toBe(107);
       const [thread] = requests("thread/start");
       expect(thread?.params).toMatchObject({
         approvalPolicy: "on-request",
@@ -329,6 +331,7 @@ describe("running OpenCode threads", () => {
       const detail = yield* settle(started.missionId, idleWith(1));
       expect(replies(detail)).toEqual(["Echo: Hello "]);
       expect(detail.mission.usage).toEqual({ cacheCreation: 0, cacheRead: 40, input: 90, output: 8 });
+      expect((yield* call({ _tag: "ReadThreadPanel", threadId: started.threadId })).context?.tokens).toBe(138);
       const process = logged().find((entry) => entry.pid !== undefined);
       expect(process?.env).toEqual([]);
       const config = process?.config as {

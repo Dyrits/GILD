@@ -381,6 +381,12 @@ const migrations = {
       created_at INTEGER NOT NULL
     )`;
   }),
+  // What a thread's context held after its latest model call in each turn, for the context gauge
+  // (thread-panel); earlier turns did not record it.
+  "0022_usage_context": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE usage ADD COLUMN context INTEGER`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

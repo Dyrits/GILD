@@ -135,13 +135,13 @@ export const completeTurn = (threadId: string, turn: Admitted, outcome: TurnOutc
     return yield* sql.withTransaction(
       Effect.gen(function* () {
         if (!(yield* isCurrentTurn(turn.turnId))) return [];
-        const { cost, isInterrupted, sessionId, usage } = outcome;
+        const { context, cost, isInterrupted, sessionId, usage } = outcome;
         const now = yield* Clock.currentTimeMillis;
         if (usage !== null) {
           const endedAt = yield* Clock.currentTimeMillis;
-          yield* sql`INSERT INTO usage (turn_id, mission_id, thread_id, ended_at, input, output, cache_read, cache_creation, cost)
+          yield* sql`INSERT INTO usage (turn_id, mission_id, thread_id, ended_at, input, output, cache_read, cache_creation, cost, context)
             VALUES (${turn.turnId}, ${turn.missionId}, ${threadId}, ${endedAt}, ${usage.input}, ${usage.output},
-              ${usage.cacheRead}, ${usage.cacheCreation}, ${cost})`;
+              ${usage.cacheRead}, ${usage.cacheCreation}, ${cost}, ${context ?? null})`;
         }
         const status = isInterrupted ? "interrupted" : "completed";
         yield* sql`UPDATE turns SET status = ${status}, ended_at = ${now} WHERE id = ${turn.turnId}`;

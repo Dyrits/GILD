@@ -34,6 +34,7 @@ import {
   StartChoices,
   StartingContext,
   Suggestion,
+  ThreadPanel,
 } from "./records.ts";
 import { Skill } from "./skills.ts";
 import { Folder, FolderListing } from "./workspaces.ts";
@@ -95,6 +96,8 @@ export const ReadMission = Schema.TaggedStruct("ReadMission", {
   missionId: MissionId,
   threadId: Schema.NullOr(ThreadId),
 });
+/** Reads what the thread panel shows of a thread: its context gauge and what it spent (thread-panel). */
+export const ReadThreadPanel = Schema.TaggedStruct("ReadThreadPanel", { threadId: ThreadId });
 /** The owner opens a thread beneath any thread of a mission, with its first message (thread-tree, Opening a thread). */
 export const OpenThread = Schema.TaggedStruct("OpenThread", {
   /** Absent keeps the parent's account when the harness is the parent's, else the computer's own sign-in. */
@@ -293,6 +296,7 @@ export const Request = Schema.Union([
   ReopenMission,
   DismissMissionPrompt,
   ReadMission,
+  ReadThreadPanel,
   ReadSettings,
   UpdateSettings,
   ReadJournal,
@@ -378,6 +382,7 @@ export const Results = {
   ReadPermissions: PermissionsView,
   ReadSettings: Settings,
   ReadStartChoices: StartChoices,
+  ReadThreadPanel: ThreadPanel,
   RemoveAccount: HarnessList,
   RemovePermission: Schema.Null,
   RenameAccount: HarnessList,

@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import {
   briefingSizeOf,
   budgetUseTextOf,
+  contextLevelOf,
+  contextPartLabels,
+  contextUseTextOf,
   deletionQuestionOf,
   foldedLabelOf,
   intelChangeLineOf,
@@ -18,6 +21,7 @@ import {
   startingContextWarningOf,
   suggestionLabels,
   threadCountOf,
+  threadSpendingTextOf,
 } from "../src/labels";
 
 describe("tree and deletion labels", () => {
@@ -226,5 +230,30 @@ describe("starting context labels", () => {
     expect(startingContextPartsOf(context.parts)).toBe(
       "Request 100 · Journal 50 · Lore 20 · Opener's messages 71,800 · Realm 580 · Instructions 2,400 · Title and budget 50 tokens",
     );
+  });
+});
+
+describe("thread panel labels", () => {
+  it("turns the context gauge orange from 80% and red from 95%", () => {
+    expect(contextLevelOf(159_999, 200_000)).toBe("normal");
+    expect(contextLevelOf(160_000, 200_000)).toBe("warning");
+    expect(contextLevelOf(189_999, 200_000)).toBe("warning");
+    expect(contextLevelOf(190_000, 200_000)).toBe("reached");
+  });
+
+  it("says the gauge against the window with its share", () => {
+    expect(contextUseTextOf({ tokens: 75_000, windowTokens: 200_000 })).toBe("75,000 of 200,000 tokens · 37.5%");
+  });
+
+  it("names the part that holds tool calls and their results in words", () => {
+    expect(contextPartLabels.ToolsAndResults).toBe("Tools and results");
+  });
+
+  it("says what a thread spent in the units it used, leaving out an unused one", () => {
+    expect(threadSpendingTextOf({ spending: { cost: 1.5, tokens: 0 }, turnCount: 1 })).toBe("1 turn · $1.50");
+    expect(threadSpendingTextOf({ spending: { cost: 0, tokens: 12_000 }, turnCount: 3 })).toBe(
+      "3 turns · 12,000 tokens",
+    );
+    expect(threadSpendingTextOf({ spending: { cost: 0, tokens: 0 }, turnCount: 0 })).toBe("0 turns");
   });
 });

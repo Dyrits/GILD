@@ -268,6 +268,25 @@ describe("running Claude Code threads", () => {
     }).pipe(Effect.provide(layer));
   });
 
+  it.live("takes the thread's context from the latest call, not the turn's summed usage", () => {
+    const { layer } = withClaude();
+    return Effect.gen(function* () {
+      const started = yield* call({
+        _tag: "StartMission",
+        effort: "low",
+        model: "haiku",
+        requestId: "r1",
+        text: "One",
+        workspacePath: null,
+      });
+      yield* settle(started.missionId, idleWith(1));
+      const panel = yield* call({ _tag: "ReadThreadPanel", threadId: started.threadId });
+
+      expect(panel.context?.tokens).toBe(75);
+      expect(panel.turnCount).toBe(1);
+    }).pipe(Effect.provide(layer));
+  });
+
   it.live("records each turn's own cost from the running total Claude Code reports", () => {
     process.env.STAND_IN_COST = "1";
     const { layer } = withClaude();

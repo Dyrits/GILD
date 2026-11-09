@@ -1,5 +1,5 @@
 import { Schema } from "effect";
-import { BudgetEvent, BudgetLimits, BudgetPeriod, BudgetStop, BudgetUse } from "./budgets.ts";
+import { BudgetEvent, BudgetLimits, BudgetPeriod, BudgetStop, BudgetUse, Spending } from "./budgets.ts";
 import { HarnessName } from "./harnesses.ts";
 import { AccountId, MessageId, MissionId, SuggestionId, ThreadId, WorkspaceId } from "./ids.ts";
 import { IntelChange, IntelGauge } from "./intel.ts";
@@ -318,6 +318,38 @@ export const StartingContext = Schema.Struct({
   windowTokens: Schema.Number,
 });
 export type StartingContext = typeof StartingContext.Type;
+
+/** What fills a thread's context window (thread-panel, The context gauge). */
+export const ContextPartKind = Schema.Literals(["Instructions", "Lore", "Journal", "Messages", "ToolsAndResults"]);
+export type ContextPartKind = typeof ContextPartKind.Type;
+
+/** One part of a thread's context and its tokens. */
+export const ContextPart = Schema.Struct({ kind: ContextPartKind, tokens: Schema.Number });
+export type ContextPart = typeof ContextPart.Type;
+
+/** How full a thread's context window is and what fills it (thread-panel, The context gauge). */
+export const ContextGauge = Schema.Struct({
+  /** What fills the context, in the order the gauge draws it; the tokens add up to `tokens`. */
+  parts: Schema.Array(ContextPart),
+  /** What the harness reported for the thread's latest model call: its input, cached input, and output. */
+  tokens: Schema.Number,
+  /** The chosen model's context window, in tokens. */
+  windowTokens: Schema.Number,
+});
+export type ContextGauge = typeof ContextGauge.Type;
+
+/** What the thread panel shows beyond the thread itself (thread-panel, The panel). */
+export const ThreadPanel = Schema.Struct({
+  /** The mission's budget and its spending, as the quest panel shows them. */
+  budget: BudgetUse,
+  /** Null until a turn reported usage: shown as "Not measured yet", never guessed. */
+  context: Schema.NullOr(ContextGauge),
+  /** What this thread alone spent. */
+  spending: Spending,
+  /** Turns this thread has run with usage reported. */
+  turnCount: Schema.Number,
+});
+export type ThreadPanel = typeof ThreadPanel.Type;
 
 /** A mission with its thread tree and one selected thread's conversation. */
 export const MissionDetail = Schema.Struct({

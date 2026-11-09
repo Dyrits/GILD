@@ -27,6 +27,7 @@
 
 ## Handoffs
 
+To resume the thread panel and context gauge (CHG-0079; the look and the live per-call usage await the owner), read the [current handoff](.agents/handoffs/2026-11-09-2000-thread-panel.md). Handoffs are shared and committed.
 To resume the quest board cards and column ribbons (committed on branch `board-cards`; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-09-1909-board-cards.md). Handoffs are shared and committed.
 To resume slash skills in the composer and quest wording for agents (committed on a branch, the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-09-1653-skills-slash.md). Handoffs are shared and committed.
 To resume after the rename to Gild and the owner's logo (CHG-0072; the next launch moves the install; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-09-0900-renamed-to-gild.md). Handoffs are shared and committed.

@@ -26,6 +26,8 @@ Card cost batch (CHG-0077): tilted cards with API cost; Claude's `total_cost_usd
 
 Board batch (CHG-0078): ribbon column headings and harness and model on cards; typecheck, lint, and tests pass; the look awaits the owner.
 
+Thread panel batch (CHG-0079): a panel beside each thread with its context gauge, built unattended; typecheck, lint, and 430 tests pass; the look, live per-call usage, and the unsettled points of the specification await the owner ([proof](verification/2026-11-09-thread-panel.md)).
+
 ## Goal
 
 Build the first slice iteratively (CHG-0025): each batch leaves a runnable application with its checks. Design under review: [first-slice-design.md](first-slice-design.md) and the mission-tracking, thread-tree, and thread-messaging blueprints. Starting revision: `e445b44`.

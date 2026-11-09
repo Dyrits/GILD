@@ -11,7 +11,7 @@ import { styles } from "./styles";
 import { colors, fontSizes, fonts, ink, radii } from "./theme";
 
 /** A labelled group of rows in the card, as in the quest's side panel. */
-function Group({ children, label }: { children: ReactNode; label: string }) {
+export function Group({ children, label }: { children: ReactNode; label: string }) {
   return (
     <View style={local.group}>
       <Text style={local.groupLabel}>{label}</Text>
@@ -21,7 +21,7 @@ function Group({ children, label }: { children: ReactNode; label: string }) {
 }
 
 /** One row of a group: its name, a short value, and a chevron when pressing it opens something. */
-function Row({ onPress, label, value }: { label: string; onPress?: () => void; value?: string }) {
+export function Row({ onPress, label, value }: { label: string; onPress?: () => void; value?: string }) {
   const content = (
     <>
       <Text style={local.rowLabel}>{label}</Text>
@@ -47,7 +47,7 @@ function Row({ onPress, label, value }: { label: string; onPress?: () => void; v
 }
 
 /** What a quest's budget shows as a row value: what is spent against the limit, or that there is none. */
-const budgetValueOf = (budget: MissionDetail["mission"]["budget"]) => {
+export const budgetValueOf = (budget: MissionDetail["mission"]["budget"]) => {
   const { limits, spent } = budget;
   if (limits.tokens !== null) return `${tokenCountOf(spent.tokens)} of ${tokenCountOf(limits.tokens)} tokens`;
   if (limits.cost !== null) return `$${spent.cost.toFixed(2)} of $${limits.cost.toFixed(2)}`;

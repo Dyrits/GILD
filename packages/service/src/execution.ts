@@ -73,6 +73,11 @@ export interface TurnRequest {
 /** How a turn ended, with what it cost. */
 export interface TurnOutcome {
   /**
+   * What the thread's context held after the turn's latest model call (input, cached input, and output
+   * tokens), for the context gauge (thread-panel); absent or null when the harness did not report it.
+   */
+  readonly context?: number | null;
+  /**
    * The turn's API-key cost when the harness reports one; null counts the turn's tokens as subscription
    * spending (budget-control, Budgets; provisional, work-in-progress Batch 11).
    */

@@ -53,6 +53,10 @@ const usageOf = (usage: unknown): TokenUsage | null =>
         output: countOf(usage, "output_tokens"),
       };
 
+/** What a model call's prompt and reply held, or null when the call reported no usage. */
+const contextOf = (usage: TokenUsage | null) =>
+  usage === null ? null : usage.input + usage.cacheRead + usage.cacheCreation + usage.output;
+
 const textOf = (content: unknown) =>
   Array.isArray(content)
     ? content
@@ -101,6 +105,8 @@ const claudeProtocolOf = (options: ClaudeOptions): HarnessProtocol<ClaudeConnect
       connection.process.write({ message: { content: turnMessageOf(request), role: "user" }, type: "user" });
       let draft = "";
       let reportedError: string | null = null;
+      // The latest call's own usage is the context then; the result's usage sums every call of the turn.
+      let context: number | null = null;
       for (;;) {
         const item = yield* Queue.take(connection.process.incoming);
         if (item._tag === "Exit") return yield* new HarnessFailure({ reason: item.reason });
@@ -122,6 +128,9 @@ const claudeProtocolOf = (options: ClaudeOptions): HarnessProtocol<ClaudeConnect
         } else if (type === "assistant") {
           const text = textOf(fieldOf(fieldOf(event, "message"), "content"));
           const error = fieldOf(event, "error");
+          const call = contextOf(usageOf(fieldOf(fieldOf(event, "message"), "usage")));
+          // A synthetic message reports zeros, which are no measure.
+          if (call !== null && call > 0) context = call;
           draft = "";
           // A synthetic assistant message carrying `error` reports a failure, not a reply.
           if (error !== undefined && error !== null) reportedError = text || String(error);
@@ -130,10 +139,10 @@ const claudeProtocolOf = (options: ClaudeOptions): HarnessProtocol<ClaudeConnect
           // An interrupted turn ends with an error result, which is no failure (probe of 2026-11-06).
           const usage = usageOf(fieldOf(event, "usage"));
           const cost = turnCostOf(connection, fieldOf(event, "total_cost_usd"));
-          if (turn.isInterrupting()) return { cost, isInterrupted: true, usage };
+          if (turn.isInterrupting()) return { context, cost, isInterrupted: true, usage };
           if (fieldOf(event, "is_error") === true || reportedError !== null)
             return yield* new HarnessFailure({ reason: failureReasonOf(event, reportedError) });
-          return { cost, isInterrupted: false, usage };
+          return { context, cost, isInterrupted: false, usage };
         }
       }
     }),

@@ -36,6 +36,8 @@ export interface PooledTurn {
 
 /** How a turn ended, as the harness reported it. */
 export interface TurnEnd {
+  /** What the thread's context held after the turn's latest model call; absent or null when unreported. */
+  readonly context?: number | null;
   /** The turn's own cost in dollars when the harness reported one; absent or null counts its tokens. */
   readonly cost?: number | null;
   readonly isInterrupted: boolean;
@@ -182,8 +184,9 @@ export const makeHarnessProcesses = <Connection extends HarnessConnection>(
         // (CHG-0039, provisional).
         if (turn.untaken.size > 0) close(request.threadId);
         else entry.idleTimer = setTimeout(() => close(request.threadId), idleMillis);
-        const { cost, isInterrupted, usage } = ended.success.end;
+        const { context, cost, isInterrupted, usage } = ended.success.end;
         return {
+          context: context ?? null,
           cost: cost ?? null,
           isInterrupted: isInterrupted || turn.isInterrupting,
           sessionId,

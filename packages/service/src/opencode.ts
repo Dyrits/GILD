@@ -150,6 +150,10 @@ const refusedActionOf = (prompt: HarnessPrompt) => {
 const refusalOf = (prompt: HarnessPrompt, answer: PromptAnswer) =>
   `Gild refused ${refusedActionOf(prompt)}. ${answer.text}`;
 
+/** What a prompt's input, cached input, and output held, or null when it reported no usage. */
+const contextOf = (usage: TokenUsage | null) =>
+  usage === null ? null : usage.input + usage.cacheRead + usage.cacheCreation + usage.output;
+
 /** Sums the usage of the prompts of one turn; unknown when none reported any. */
 const addUsage = (total: TokenUsage | null, usage: TokenUsage | null): TokenUsage | null =>
   total === null || usage === null
@@ -210,7 +214,8 @@ const runPrompts = (connection: OpenCodeConnection, request: TurnRequest, turn: 
       usage = addUsage(usage, end.usage);
       turn.reportUsage(usage);
       if (!end.isCancelled || refusals.length === 0 || turn.isInterrupting())
-        return { isInterrupted: end.isCancelled, usage };
+        // The latest prompt's own usage stands for the context: the sum covers every prompt of the turn.
+        return { context: contextOf(end.usage), isInterrupted: end.isCancelled, usage };
       text = refusals.splice(0).join("\n");
     }
   });

@@ -1227,3 +1227,18 @@ References: apps/app/src/board.tsx, packages/contracts/src/records.ts, packages/
 Validation: typecheck, lint, and 419 tests pass.
 Evidence: Baseline `6d7804d`; not proven: the look was not seen in the running window and awaits the owner. Branch and diff stats stay on the backlog.
 
+## CHG-0079 · 2026-11-09 · Thread panel and context gauge
+
+Type: Code
+Event: Delivery
+Scope: Thread panel
+
+Summary: The owner asked to implement the next big feature unattended; the backlog's "Thread panel and context gauge" was built.
+Each thread has a 300px panel beside its conversation, shown by a "Thread panel" link in its header (closed at first, remembered, not below 820px): harness, account, model, effort, realm, state, the context gauge, lore and skills, this thread's spending, and the quest's budget.
+The context gauge shows the latest model call's tokens against the model's window, split into Instructions, Lore, Journal, Messages, and Tools and results; the first four are counted from what Gild sends and the last is the remainder, with the counted parts scaled down when they exceed the reported total.
+Each harness now reports the context of the turn's latest call (`TurnEnd.context`), stored in `usage.context` (migration 0022); a thread with none shows "Not measured yet".
+New request `ReadThreadPanel`; new capability [thread-panel](capabilities/thread-panel/specifications.md), written by the agent: its behavior is provisional until the owner reviews it.
+References: documentation/capabilities/thread-panel/specifications.md, packages/service/src/threadPanel.ts, packages/service/src/startingContext.ts, packages/service/src/{claude,codex,opencode}.ts, apps/app/src/threadPanel.tsx, apps/app/src/conversation.tsx.
+Validation: typecheck, lint, and 430 tests pass; the panel was rendered with the fake harness.
+Evidence: Baseline `24ccaaf`; [proof](verification/2026-11-09-thread-panel.md). Not proven: per-call usage from the live harnesses, other widths, and the owner's acceptance of the look.
+

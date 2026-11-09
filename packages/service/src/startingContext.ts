@@ -85,12 +85,12 @@ const noteOf = (sections: Sections) =>
     .filter((part) => part !== null)
     .join("\n\n");
 
-/** The thread's starting context for its next turn, with its scratch folder made when it has no workspace. */
-export const prepareStartingContext = (threadId: string) =>
+/** Who a thread's turn context is for, and where it works. */
+const readThreadSubject = (threadId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const scratchRoot = yield* ScratchRoot;
     const [row] = yield* sql<{
+      harness: HarnessName;
       isAside: number;
       missionId: string;
       openerMessages: string | null;
@@ -98,19 +98,29 @@ export const prepareStartingContext = (threadId: string) =>
       parentTitle: string | null;
       title: string;
     }>`
-      SELECT t.mission_id AS missionId, t.title, t.parent_id AS parentId, p.title AS parentTitle,
+      SELECT t.mission_id AS missionId, t.harness, t.title, t.parent_id AS parentId, p.title AS parentTitle,
         t.is_aside AS isAside, t.opener_messages AS openerMessages
       FROM threads t LEFT JOIN threads p ON p.id = t.parent_id WHERE t.id = ${threadId}`;
     if (row === undefined) return yield* notFound("No such thread.");
-    const workspace = yield* readThreadWorkspace(threadId);
-    const folder = yield* prepareWorkingFolder(workspace, join(scratchRoot, row.missionId));
     const position = {
       isAside: row.isAside === 1,
       parent: row.parentId === null ? null : { id: row.parentId, title: row.parentTitle ?? "" },
       threadId,
       title: row.title,
     };
-    const subject = { intelThreadId: threadId, missionId: row.missionId, openerMessages: row.openerMessages, position };
+    return {
+      harness: row.harness,
+      subject: { intelThreadId: threadId, missionId: row.missionId, openerMessages: row.openerMessages, position },
+      workspace: yield* readThreadWorkspace(threadId),
+    };
+  });
+
+/** The thread's starting context for its next turn, with its scratch folder made when it has no workspace. */
+export const prepareStartingContext = (threadId: string) =>
+  Effect.gen(function* () {
+    const scratchRoot = yield* ScratchRoot;
+    const { subject, workspace } = yield* readThreadSubject(threadId);
+    const folder = yield* prepareWorkingFolder(workspace, join(scratchRoot, subject.missionId));
     const sections = yield* readSections(subject, folder.context);
     return {
       context: systemPartOf(sections),
@@ -196,3 +206,28 @@ export const startingContextRefusalOf = (context: StartingContext) =>
   context.isOverWarning
     ? `Not started: its starting context takes about ${Math.round((context.tokens * 100) / context.windowTokens)}% of the model's context window, over the warning at ${context.warningPercent}%. Choose a model with a larger window, trim intel, or start it anyway.`
     : null;
+
+/**
+ * The tokens of what Gild sends a thread each turn, by the parts of the context gauge (thread-panel): the
+ * instructions with the working folder, approval rules, and position; the intel; the journal; and the opener's
+ * messages. Counted from the text, so they are estimates. Nothing is made on disk.
+ */
+export const readSentContextSize = (threadId: string) =>
+  Effect.gen(function* () {
+    const scratchRoot = yield* ScratchRoot;
+    const { harness, subject, workspace } = yield* readThreadSubject(threadId);
+    const folder = yield* workingFolderOf(workspace, join(scratchRoot, subject.missionId));
+    const sections = yield* readSections(subject, folder.context);
+    const approvals = yield* readApprovalInstructions(threadId, workspace !== null, harness);
+    return {
+      instructions:
+        tokensOf(sections.instructions) +
+        tokensOf(approvals) +
+        tokensOf(sections.workspace) +
+        tokensOf(sections.position) +
+        (sections.budget === null ? 0 : tokensOf(sections.budget)),
+      journal: tokensOf(sections.journal),
+      lore: tokensOf(sections.intel),
+      openerMessages: sections.openerMessages === null ? 0 : tokensOf(sections.openerMessages),
+    };
+  });

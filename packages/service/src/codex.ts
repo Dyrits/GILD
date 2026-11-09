@@ -83,6 +83,12 @@ const usageOf = (calls: ReadonlyArray<unknown>): TokenUsage | null => {
   };
 };
 
+/** What the thread's context held after the latest call, whose input includes the cached part. */
+const contextOf = (calls: ReadonlyArray<unknown>): number | null => {
+  const last = calls.at(-1);
+  return last === undefined ? null : countOf(last, "inputTokens") + countOf(last, "outputTokens");
+};
+
 /** The files of a file change item, for its approval question. */
 const changedPathsOf = (item: unknown) => {
   const changes = fieldOf(item, "changes");
@@ -171,13 +177,14 @@ const readTurn = (connection: CodexConnection, request: TurnRequest, turn: Poole
         const completed = fieldOf(params, "turn");
         if (textFieldOf(completed, "id") !== codexTurnId) continue;
         const status = textFieldOf(completed, "status");
-        if (status === "interrupted" || turn.isInterrupting()) return { isInterrupted: true, usage: usageOf(calls) };
+        if (status === "interrupted" || turn.isInterrupting())
+          return { context: contextOf(calls), isInterrupted: true, usage: usageOf(calls) };
         if (status === "failed") {
           return yield* new HarnessFailure({
             reason: textFieldOf(fieldOf(completed, "error"), "message") ?? "Codex reported a failed turn.",
           });
         }
-        return { isInterrupted: false, usage: usageOf(calls) };
+        return { context: contextOf(calls), isInterrupted: false, usage: usageOf(calls) };
       }
     }
   });

@@ -110,6 +110,8 @@ export const fakeHarnessLayer = (replyDelay: Duration.Input) =>
           ).pipe(Effect.ensuring(Effect.sync(() => running.delete(request.threadId))));
           const { cost, isReported, tokens } = turn.spent;
           return {
+            // The fake's context is what it was told to spend: its latest call's whole prompt.
+            context: isReported ? tokens : null,
             cost: isReported ? cost : null,
             isInterrupted,
             sessionId: request.sessionId ?? `fake-${request.threadId}`,

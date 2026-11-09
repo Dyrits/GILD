@@ -1,5 +1,7 @@
 import type {
   BudgetLimits,
+  ContextGauge,
+  ContextPartKind,
   Intel,
   IntelChange,
   IntelChangeStatus,
@@ -11,6 +13,7 @@ import type {
   StartingContext,
   StartingContextParts,
   SuggestionOutcome,
+  ThreadPanel,
 } from "@gild/contracts";
 
 const sideQuestsOf = (count: number) => (count === 1 ? "1 side-quest" : `${count} side-quests`);
@@ -87,6 +90,34 @@ export const suggestionLabels = {
 export const meterLevelOf = (spent: number, limit: number): "normal" | "warning" | "reached" =>
   spent >= limit ? "reached" : spent >= limit * 0.8 ? "warning" : "normal";
 
+/** How full a thread's context window is: orange from 80%, red from 95% (thread-panel, The context gauge). */
+export const contextLevelOf = (tokens: number, windowTokens: number): "normal" | "warning" | "reached" =>
+  tokens >= windowTokens * 0.95 ? "reached" : tokens >= windowTokens * 0.8 ? "warning" : "normal";
+
+/** What each part of the context gauge is called. */
+export const contextPartLabels = {
+  Instructions: "Instructions",
+  Journal: "Journal",
+  Lore: "Lore",
+  Messages: "Messages",
+  ToolsAndResults: "Tools and results",
+} as const satisfies Record<ContextPartKind, string>;
+
+/** The gauge in words, for example "75,000 of 200,000 tokens · 37.5%". */
+export const contextUseTextOf = (gauge: Pick<ContextGauge, "tokens" | "windowTokens">) =>
+  `${tokenCountOf(gauge.tokens)} of ${tokenCountOf(gauge.windowTokens)} tokens · ${percentOf(gauge.tokens, gauge.windowTokens)}%`;
+
+/** What a thread alone spent, for example "3 turns · $1.50 · 12,000 tokens"; a unit with nothing is left out. */
+export const threadSpendingTextOf = (panel: Pick<ThreadPanel, "spending" | "turnCount">) => {
+  const { cost, tokens } = panel.spending;
+  const turns = panel.turnCount === 1 ? "1 turn" : `${panel.turnCount} turns`;
+  return [
+    turns,
+    ...(cost > 0 ? [`$${cost.toFixed(2)}`] : []),
+    ...(tokens > 0 ? [`${tokenCountOf(tokens)} tokens`] : []),
+  ].join(" · ");
+};
+
 /** A limit's use in short words, for example "$1.20 of $5.00" or "12,000 of 50,000 tokens". */
 export const budgetUseTextOf = (unit: "cost" | "tokens", spent: number, limit: number) =>
   unit === "cost"
@@ -141,9 +172,12 @@ const percentOf = (part: number, whole: number) => {
 };
 
 /** The intel icon's text: the count and its share of the model's context window, for example "Intel · 3 · 0.2%". */
-export const intelGaugeLabelOf = (gauge: Pick<IntelGauge, "count" | "tokens" | "windowTokens">) => {
-  return `Lore · ${gauge.count} · ${percentOf(gauge.tokens, gauge.windowTokens)}%`;
-};
+export const intelGaugeLabelOf = (gauge: Pick<IntelGauge, "count" | "tokens" | "windowTokens">) =>
+  `Lore · ${intelGaugeValueOf(gauge)}`;
+
+/** The lore gauge without its name, for example "3 · 0.2%". */
+export const intelGaugeValueOf = (gauge: Pick<IntelGauge, "count" | "tokens" | "windowTokens">) =>
+  `${gauge.count} · ${percentOf(gauge.tokens, gauge.windowTokens)}%`;
 
 /** How often threads used an intel, for example "used 3 times". */
 const usesLabelOf = (uses: number) => {

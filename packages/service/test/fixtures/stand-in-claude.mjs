@@ -46,7 +46,15 @@ const reply = (text) => {
       type: "stream_event",
     });
   }
-  emit({ message: { content: [{ text, type: "text" }], role: "assistant" }, type: "assistant" });
+  // The latest call's own usage, smaller than the result's sum over the turn's calls.
+  emit({
+    message: {
+      content: [{ text, type: "text" }],
+      role: "assistant",
+      usage: { cache_creation_input_tokens: 5, cache_read_input_tokens: 60, input_tokens: 3, output_tokens: 7 },
+    },
+    type: "assistant",
+  });
   emit({
     is_error: false,
     result: text,

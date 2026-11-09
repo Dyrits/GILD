@@ -42,6 +42,7 @@ import { listSkills } from "./skills.ts";
 import { readStartingContext } from "./startingContext.ts";
 import { storeLayer } from "./store.ts";
 import { Suggestions, suggestionsLayer } from "./suggestions.ts";
+import { readThreadPanel } from "./threadPanel.ts";
 import { AccountsRoot, Threads, threadsLayer } from "./threads.ts";
 import { renameMission } from "./titles.ts";
 import { openThreadByOwner } from "./tree.ts";
@@ -222,6 +223,7 @@ const make = Effect.gen(function* () {
           }),
         ReadSettings: () => readSettings,
         ReadStartChoices: () => readStartChoices,
+        ReadThreadPanel: (read) => readThreadPanel(read.threadId).pipe(Effect.provideService(ScratchRoot, scratchRoot)),
         RemoveAccount: (remove) => thenListHarnesses(removeAccount(remove.accountId)),
         RemovePermission: (remove) => change(removePermission(remove.permissionId)),
         RenameAccount: (rename) => thenListHarnesses(renameAccount(rename.accountId, rename.label)),
