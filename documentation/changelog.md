@@ -1242,3 +1242,14 @@ References: documentation/capabilities/thread-panel/specifications.md, packages/
 Validation: typecheck, lint, and 430 tests pass; the panel was rendered with the fake harness.
 Evidence: Baseline `24ccaaf`; [proof](verification/2026-11-09-thread-panel.md). Not proven: per-call usage from the live harnesses, other widths, and the owner's acceptance of the look.
 
+
+## CHG-0080 · 2026-11-09 · Plain board background
+
+Type: Code
+Event: Delivery
+Scope: Mission board
+
+Summary: The owner asked for a simpler board background. The repeating timber seams and grain are removed; the board is the flat wood color.
+References: apps/app/src/dashboard.tsx, apps/app/src/sketches.tsx.
+Validation: typecheck, lint, and 430 tests pass.
+Evidence: Baseline `7caf116`; not proven: the look was not seen in the running window and awaits the owner.

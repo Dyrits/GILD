@@ -11,7 +11,6 @@ import { allMissions } from "./queries";
 import { QuestionCard } from "./questions";
 import { type Runner, RunnerPickers, useHarnesses } from "./runners";
 import { useHasSidebar } from "./sidebar";
-import { BoardGrain } from "./sketches";
 import { styles } from "./styles";
 import { colors } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
@@ -145,7 +144,6 @@ export function Dashboard({
   }
   return (
     <View style={local.scroll}>
-      <BoardGrain />
       <ScrollView
         contentContainerStyle={local.content}
         onLayout={(event) => setWidth(event.nativeEvent.layout.width)}

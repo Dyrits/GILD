@@ -1,5 +1,5 @@
 import { Image, StyleSheet, Text, View } from "react-native";
-import Svg, { Defs, Path, Pattern, Rect } from "react-native-svg";
+import Svg, { Path, Rect } from "react-native-svg";
 import { colors, fonts } from "./theme";
 
 /** The logo: the owner's gold G, its dark background keyed out so it sits on paper. */
@@ -26,20 +26,3 @@ const local = StyleSheet.create({
   empty: { alignItems: "center", gap: 6, paddingVertical: 28 },
   emptyText: { color: colors.onWood, fontFamily: fonts.hand, fontSize: 21 },
 });
-
-/** Repeating timber seams and grain behind the quest notices, rendered on native and web. */
-export function BoardGrain() {
-  return (
-    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
-      <Svg height="100%" width="100%">
-        <Defs>
-          <Pattern height="7" id="timber" patternUnits="userSpaceOnUse" width="120">
-            <Rect fill="#ffffff" height="2" opacity="0.025" width="120" />
-            <Path d="M119 0V7" opacity="0.5" stroke="#1d140c" strokeWidth="2" />
-          </Pattern>
-        </Defs>
-        <Rect fill="url(#timber)" height="100%" width="100%" />
-      </Svg>
-    </View>
-  );
-}
