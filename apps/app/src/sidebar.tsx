@@ -228,6 +228,7 @@ function Section({ emblem, label }: { emblem?: EmblemName; label: string }) {
  */
 function Category({
   emblem,
+  hasRule = true,
   isCollapsed,
   isFolded,
   isSelected,
@@ -236,6 +237,8 @@ function Category({
   onPress,
 }: {
   emblem: EmblemName;
+  /** Whether a gilt rule runs under the heading: only a category with rows beneath it has one. */
+  hasRule?: boolean;
   isCollapsed: boolean;
   /** Whether its rows are folded away; only a category with rows has this and `onFold`. */
   isFolded?: boolean;
@@ -256,6 +259,7 @@ function Category({
       style={(state) => [
         local.sectionHeading,
         local.categoryHeading,
+        !hasRule && local.unruled,
         (state.pressed || (state as { hovered?: boolean }).hovered === true) && local.itemHovered,
         isSelected && local.categorySelected,
       ]}
@@ -433,6 +437,7 @@ function Sidebar({
       <ScrollView contentContainerStyle={local.group} style={local.flex}>
         <Category
           emblem="crown"
+          hasRule={false}
           isCollapsed={isCollapsed}
           isSelected={isHere("Guildmaster")}
           label="Guildmaster"
@@ -524,6 +529,7 @@ function Sidebar({
         )}
         <Category
           emblem="key"
+          hasRule={false}
           isCollapsed={isCollapsed}
           isSelected={isHere("Settings")}
           label="Settings"
@@ -1055,6 +1061,7 @@ const local = StyleSheet.create({
   topIcon: { alignItems: "center", borderRadius: radii.sm, height: 28, justifyContent: "center", width: 28 },
   topIconActive: { backgroundColor: colors.wood },
   topSpending: { color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.sm },
+  unruled: { borderBottomColor: "transparent" },
   window: { backgroundColor: colors.wood, flex: 1, flexDirection: "row" },
   windowMain: { flex: 1 },
 });

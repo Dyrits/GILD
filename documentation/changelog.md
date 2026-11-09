@@ -1389,13 +1389,13 @@ Validation: typecheck, lint, and tests pass; seen in the fake-harness render at 
 Evidence: Baseline `4e76098`; not proven: keyboard use of the chevron, the narrow window, and the owner's acceptance.
 
 
-## CHG-0091 · 2026-11-09 · The rule under every category again
+## CHG-0091 · 2026-11-09 · The rule under Guildmaster and Settings removed again
 
 Type: Code
 Event: Delivery
 Scope: Guild interface
 
-Summary: The owner asked for the gilt underline back under every category, reversing CHG-0089. Guildmaster and Settings have their rule again, so all five headings carry one.
+Summary: The owner asked for the rule back under every category (CHG-0089 undone), then preferred it without one under Guildmaster and Settings, which have no rows beneath them. Those two headings are bare again; Realms, Quests, and The Keep keep their rule and fold.
 References: apps/app/src/sidebar.tsx.
-Validation: typecheck, lint, and tests pass; not seen in a render this time.
-Evidence: Baseline `4ee119e`; the code returns to the state before CHG-0089 for this point.
+Validation: typecheck, lint, and tests pass; the same code as CHG-0089, which was seen in a render.
+Evidence: Baseline `f64b270`; a revert of that commit.
