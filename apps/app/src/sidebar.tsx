@@ -363,6 +363,15 @@ function Sidebar({
           </>
         )}
       </View>
+      <NavItem
+        emblem="crown"
+        glyph={placeGlyphs.Control}
+        isCollapsed={isCollapsed}
+        isSelected={isOnBoard && workspaceId === null}
+        label="Guildmaster"
+        onPress={() => onPlace("Control")}
+      />
+      <View style={local.topRule} />
       <ScrollView contentContainerStyle={local.group} style={local.flex}>
         {isCollapsed ? (
           <RealmsMenu onWorkspace={onWorkspace} realms={realms} selected={isOnBoard ? workspaceId : null} />
@@ -396,14 +405,6 @@ function Sidebar({
           </>
         )}
         <Section emblem="castle" isCollapsed={isCollapsed} label="The Keep" />
-        <NavItem
-          emblem="crown"
-          glyph={placeGlyphs.Control}
-          isCollapsed={isCollapsed}
-          isSelected={isOnBoard && workspaceId === null}
-          label="Guildmaster"
-          onPress={() => onPlace("Control")}
-        />
         <NavItem
           emblem="scroll"
           glyph={placeGlyphs.Intel}
@@ -910,6 +911,7 @@ const local = StyleSheet.create({
   topBarTitle: { paddingLeft: 82 },
   topIcon: { alignItems: "center", borderRadius: radii.sm, height: 28, justifyContent: "center", width: 28 },
   topIconActive: { backgroundColor: colors.wood },
+  topRule: { borderBottomColor: colors.gold, borderBottomWidth: 1, marginBottom: 2, marginTop: 6 },
   topSpending: { color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.sm },
   window: { backgroundColor: colors.wood, flex: 1, flexDirection: "row" },
   windowMain: { flex: 1 },

@@ -1323,3 +1323,15 @@ Summary: The owner reported the Archives view as broken: its cards were tilted a
 References: apps/app/src/{board,dashboard,sketches}.tsx.
 Validation: typecheck, lint, and 431 tests pass.
 Evidence: Baseline `12b0908`; [screenshot](verification/2026-11-09-guild-mockup/archives-1600.png), fake harness with two archived quests. Not proven: narrow widths.
+
+
+## CHG-0086 · 2026-11-09 · Guildmaster on top
+
+Type: Code
+Event: Delivery
+Scope: Guild interface
+
+Summary: The owner asked for Guildmaster to be its own category on top. It leaves The Keep and stands alone under the crest, over a gilt rule, in the expanded and the collapsed rail; The Keep keeps Lore, Archives, and Settings.
+References: apps/app/src/sidebar.tsx.
+Validation: typecheck and lint pass; seen in the fake-harness render, expanded and collapsed.
+Evidence: Baseline `6d07d55`; not proven: the owner's acceptance of the look.
