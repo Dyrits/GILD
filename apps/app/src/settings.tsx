@@ -127,7 +127,7 @@ export function SettingsScreen({
             onChanged={harnesses.setData}
             onRefresh={harnesses.refresh}
           />
-          <Text style={styles.label}>Send, while a companion is running</Text>
+          <Text style={styles.label}>Send, while work is underway</Text>
           <Choice
             label={(delivery) => deliveryLabels[delivery]}
             onChange={(defaultDelivery) => save({ defaultDelivery })}
@@ -139,10 +139,10 @@ export function SettingsScreen({
               onValueChange={(shouldShowAgentThreads) => save({ shouldShowAgentThreads })}
               value={settings.shouldShowAgentThreads}
             />
-            <Text style={styles.body}>Show companions opened by agents</Text>
+            <Text style={styles.body}>Show side-quests opened by agents</Text>
           </View>
           <NumberSetting
-            label="Chatter guard · messages between two companions"
+            label="Chatter guard · messages between quests and side-quests"
             minimum={2}
             onInvalid={setSaveError}
             onSave={(chatterThreshold) => save({ chatterThreshold })}
@@ -156,7 +156,7 @@ export function SettingsScreen({
             value={settings.briefingLimit}
           />
           <NumberSetting
-            label="Lore warning · percent of a model's context window before a companion's lore icon turns red"
+            label="Lore warning · percent of a model's context window before a quest or side-quest's lore icon turns red"
             minimum={1}
             onInvalid={setSaveError}
             onSave={(intelWarningPercent) => save({ intelWarningPercent: Math.min(intelWarningPercent, 100) })}

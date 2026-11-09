@@ -4,7 +4,7 @@
 
 The owner selected [the Guild direction](art-direction/2026-11-08-guild-board.html) and requested its naming through iterate.
 Starting revision: `63bc425d28bb4ee054e4d0e91c77bdc3c85551a8`.
-Scope: Gild keeps its brand and logo, adopts leather, timber, parchment, gold controls, bundled Cinzel/Alegreya, guild display vocabulary, a collapsible Post a quest form, and a docked conversation from 1280px.
+Scope: Gild keeps its brand and logo, adopts leather, timber, parchment, gold controls, bundled Cinzel/Alegreya, guild display vocabulary (refined in CHG-0074), a collapsible Post a quest form, and a docked conversation from 1280px.
 Existing resting quests retain their own column; no subscription data, Rituals, Waystones, Spoils, or Chronicle features are fabricated.
 Contracts, persisted identifiers, capability paths, harness tools, user-authored content, and service-generated historical text retain their existing terms.
 Checks: typecheck and lint pass; full tests passed 413 with one stale label expectation, corrected and verified by all 20 label tests; desktop build passes.
@@ -12,6 +12,9 @@ Visual check on a throwaway database with the fake harness: quest creation, echo
 The Balanced reviewer (`gpt-6.1-terra`) verified fixes for contrast, notifications, and lore scope names.
 Evidence and remaining checks: [guild-board verification](verification/2026-11-09-guild-board.md).
 Owner acceptance of the appearance remains pending.
+Naming follow-up: Guildmaster replaces War table; all child threads are side-quests; Companion means the selected model; future Workflow and Routine interfaces are Craft and Ritual.
+The follow-up label suite passes 21 tests; typecheck and lint pass.
+Remaining optional naming choices: Realm, Journal, Briefing, and future Waystones / Spoils / Chronicle; none blocks the agreed vocabulary.
 
 ## Goal
 

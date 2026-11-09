@@ -1156,3 +1156,17 @@ Reason: The owner chose this art direction and explicitly requested the naming c
 References: [Mockup](art-direction/2026-11-08-guild-board.html), [vocabulary](glossary.md#guild-interface-vocabulary), [current batch](work-in-progress.md).
 Validation: Direct user request on 2026-11-09; appearance acceptance is pending on the implemented app.
 Evidence: Starting revision `63bc425d28bb4ee054e4d0e91c77bdc3c85551a8`; verification recorded in working state.
+
+## CHG-0074 · 2026-11-09 · Quest vocabulary refined
+
+Type: Code
+Event: Delivery
+Scope: Interface vocabulary
+
+Summary: The owner confirmed Mission → Quest, Intel → Lore, child thread → Side-quest, Workflow → Craft, Routine → Ritual, and Control / War table → Guildmaster.
+Companion names the selected model doing the work, not its conversation; model selectors say Companion (model), and messages use Companion as their sender label.
+Quest cards count the root quest and its side-quests separately, and child creation, folded groups, deletion, scope labels, and composer wording use the work's name.
+Craft and Ritual are recorded for future automation interfaces; no new automation behavior was added.
+References: [Glossary](glossary.md#guild-interface-vocabulary), apps/app/src/, apps/app/test/labels.test.ts.
+Validation: The owner's naming instructions and explicit clarification that Companion is the selected model; 21 label tests, typecheck, lint, and whitespace checks pass.
+Evidence: Baseline `41cc1f5`; presentation-only changes preserve protocol and storage identifiers.

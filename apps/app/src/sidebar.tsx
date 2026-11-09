@@ -150,7 +150,7 @@ function Sidebar({
       <NavItem
         glyph={placeGlyphs.Control}
         isSelected={isOnBoard && workspaceId === null}
-        label="War table"
+        label="Guildmaster"
         onPress={() => onPlace("Control")}
       />
       <ScrollView contentContainerStyle={local.group} style={local.flex}>

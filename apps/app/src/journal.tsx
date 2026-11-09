@@ -132,7 +132,7 @@ export function JournalScreen({
     <View style={styles.screen}>
       <View style={styles.header}>
         <Pressable onPress={onBack}>
-          <Text style={styles.link}>← Companions</Text>
+          <Text style={styles.link}>← Quest</Text>
         </Pressable>
         <Text numberOfLines={1} style={[styles.heading, styles.flex]}>
           Journal · {title}

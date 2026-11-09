@@ -11,18 +11,26 @@ User-authored text and historical service messages are not rewritten.
 | Technical term | Interface name |
 | --- | --- |
 | Mission | Quest |
-| Thread | Companion |
+| Top-level mission thread | Quest |
+| Model selected to do the work | Companion |
+| Thread opened beneath another thread | Side-quest |
 | Workspace | Realm |
-| Control | War table |
+| Control | Guildmaster |
 | Intel | Lore |
+| Workflow | Craft |
+| Workflow run | Craft run |
+| Routine | Ritual |
 | Attention | Summons |
 | Running | Underway |
 | Idle | Resting |
 | Waiting | Awaiting word |
 | Done | Fulfilled |
 
-Journal, briefing, harness, model, effort, budget, approval, and archive keep their meanings and names.
-The mockup's Rituals, Waystones, Spoils, and Chronicle are reserved for their corresponding future interfaces.
+Journal, briefing, harness, effort, budget, approval, and archive keep their meanings and names.
+Companion means the selected model doing the work, not a conversation or a distinct saved agent definition; selectors say Companion (model) to make this explicit.
+Craft and Ritual are the agreed names for the future automation interfaces.
+Waystones, Spoils, and Chronicle remain mockup suggestions for devices, changes, and traces.
+A side-quest may contain further side-quests; this name covers every child thread, including an aside, whose off-topic behavior stays distinct.
 
 ## Work
 

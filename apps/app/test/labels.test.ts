@@ -21,27 +21,37 @@ import {
 } from "../src/labels";
 
 describe("tree and deletion labels", () => {
-  it("names one folded companion in the singular", () => {
-    expect(foldedLabelOf(1)).toBe("+1 companion");
-    expect(foldedLabelOf(3)).toBe("+3 companions");
+  it("names one folded side-quest in the singular", () => {
+    expect(foldedLabelOf(1)).toBe("+1 side-quest");
+    expect(foldedLabelOf(3)).toBe("+3 side-quests");
   });
 
-  it("asks about the companions beneath, naming running ones only when some run", () => {
-    expect(deletionQuestionOf({ descendantCount: 0, runningCount: 0 })).toBe("Delete this companion?");
-    expect(deletionQuestionOf({ descendantCount: 0, runningCount: 1 })).toBe("Delete this companion (running)?");
-    expect(deletionQuestionOf({ descendantCount: 1, runningCount: 0 })).toBe(
-      "Delete this companion and 1 companion beneath it?",
+  it("names the top-level work as a quest in deletion confirmation", () => {
+    expect(deletionQuestionOf({ descendantCount: 1, isMission: true, runningCount: 0 })).toBe(
+      "Delete this quest and 1 side-quest beneath it?",
     );
-    expect(deletionQuestionOf({ descendantCount: 5, runningCount: 2 })).toBe(
-      "Delete this companion and 5 companions beneath it (2 running)?",
+  });
+
+  it("asks about the side-quests beneath, naming running ones only when some run", () => {
+    expect(deletionQuestionOf({ descendantCount: 0, isMission: false, runningCount: 0 })).toBe(
+      "Delete this side-quest?",
+    );
+    expect(deletionQuestionOf({ descendantCount: 0, isMission: false, runningCount: 1 })).toBe(
+      "Delete this side-quest (running)?",
+    );
+    expect(deletionQuestionOf({ descendantCount: 1, isMission: false, runningCount: 0 })).toBe(
+      "Delete this side-quest and 1 side-quest beneath it?",
+    );
+    expect(deletionQuestionOf({ descendantCount: 5, isMission: false, runningCount: 2 })).toBe(
+      "Delete this side-quest and 5 side-quests beneath it (2 running)?",
     );
   });
 });
 
 describe("journal labels", () => {
-  it("names the owner as You and a companion by its title", () => {
+  it("names the owner as You and work by its title", () => {
     expect(journalAuthorOf({ authorKind: "user", authorTitle: null })).toBe("You");
-    expect(journalAuthorOf({ authorKind: "thread", authorTitle: "Count files" })).toBe('Companion "Count files"');
+    expect(journalAuthorOf({ authorKind: "thread", authorTitle: "Count files" })).toBe('"Count files"');
   });
 
   it("shows the briefing's size against its limit, and when it is over", () => {
@@ -51,9 +61,9 @@ describe("journal labels", () => {
 });
 
 describe("dashboard labels", () => {
-  it("counts a mission's companions, naming running ones only when some run", () => {
-    expect(threadCountOf({ runningCount: 0, threadCount: 1 })).toBe("1 companion");
-    expect(threadCountOf({ runningCount: 2, threadCount: 5 })).toBe("5 companions · 2 running");
+  it("counts a quest and its side-quests, naming running ones only when some run", () => {
+    expect(threadCountOf({ runningCount: 0, threadCount: 1 })).toBe("1 quest · 0 side-quests");
+    expect(threadCountOf({ runningCount: 2, threadCount: 5 })).toBe("1 quest · 4 side-quests · 2 running");
   });
 
   it("asks Mark as done after a result, and about inactivity in days", () => {
@@ -206,9 +216,9 @@ describe("starting context labels", () => {
     windowTokens: 200_000,
   } as const;
 
-  it("says how much of the context window a new companion would start with", () => {
+  it("says how much of the context window a new side-quest would start with", () => {
     expect(startingContextWarningOf(context)).toBe(
-      "This companion would start with about 75,000 tokens, 38% of the model's 200,000-token context window; the warning is at 25%.",
+      "This side-quest would start with about 75,000 tokens, 38% of the model's 200,000-token context window; the warning is at 25%.",
     );
   });
 

@@ -111,7 +111,7 @@ export function OpenThreadForm({
     <View style={styles.openForm}>
       <View style={styles.header}>
         <Text numberOfLines={1} style={[styles.label, styles.flex]}>
-          New companion beneath "{parent.title}"
+          New side-quest beneath "{parent.title}"
         </Text>
         <Pressable onPress={onCancel}>
           <Text style={styles.link}>Cancel</Text>
@@ -153,7 +153,7 @@ export function OpenThreadForm({
         {...(isOverWarning ? { alternative: { label: "Start anyway", onSend: openWith(true) } } : {})}
         onChangeText={request.change}
         onSend={openWith(false)}
-        placeholder="The new companion's first message…"
+        placeholder="The side-quest's first message…"
       />
     </View>
   );

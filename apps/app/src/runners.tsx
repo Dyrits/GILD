@@ -119,7 +119,7 @@ export function RunnerPickers({
           />
         )}
         <Menu
-          accessibilityLabel="Model"
+          accessibilityLabel="Companion (model)"
           label={(id: ModelChoice) => modelLabelOf(id, models)}
           onChange={(model: ModelChoice) => onChange({ ...value, model })}
           options={modelOptions}
@@ -162,9 +162,9 @@ export function RunnerPickers({
         </View>
       )}
       <View style={[styles.field, styles.raised]}>
-        <Text style={styles.fieldName}>Model</Text>
+        <Text style={styles.fieldName}>Companion (model)</Text>
         <Menu
-          accessibilityLabel="Model"
+          accessibilityLabel="Companion (model)"
           isField
           label={(id: ModelChoice) => modelLabelOf(id, models)}
           onChange={(model: ModelChoice) => onChange({ ...value, model })}

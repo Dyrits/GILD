@@ -13,28 +13,32 @@ import type {
   SuggestionOutcome,
 } from "@gild/contracts";
 
-const threadsOf = (count: number) => (count === 1 ? "1 companion" : `${count} companions`);
+const sideQuestsOf = (count: number) => (count === 1 ? "1 side-quest" : `${count} side-quests`);
 
-/** The mark on a thread that folds agent-opened threads beneath it, for example "+3 threads". */
-export const foldedLabelOf = (count: number) => `+${threadsOf(count)}`;
+/** The mark on a thread that folds agent-opened threads beneath it, for example "+3 side-quests". */
+export const foldedLabelOf = (count: number) => `+${sideQuestsOf(count)}`;
 
 /** The one deletion confirmation: the threads beneath, and the running ones only when some run. */
-export const deletionQuestionOf = (preview: { readonly descendantCount: number; readonly runningCount: number }) => {
-  const beneath = preview.descendantCount === 0 ? "" : ` and ${threadsOf(preview.descendantCount)} beneath it`;
+export const deletionQuestionOf = (preview: {
+  readonly descendantCount: number;
+  readonly runningCount: number;
+  readonly isMission: boolean;
+}) => {
+  const beneath = preview.descendantCount === 0 ? "" : ` and ${sideQuestsOf(preview.descendantCount)} beneath it`;
   const running =
     preview.runningCount === 0
       ? ""
       : preview.descendantCount === 0
         ? " (running)"
         : ` (${preview.runningCount} running)`;
-  return `Delete this companion${beneath}${running}?`;
+  return `Delete this ${preview.isMission ? "quest" : "side-quest"}${beneath}${running}?`;
 };
 
 /** Who wrote a journal entry, as the Journal view names it. */
 export const journalAuthorOf = (entry: {
   readonly authorKind: "thread" | "user";
   readonly authorTitle: string | null;
-}) => (entry.authorKind === "user" ? "You" : `Companion "${entry.authorTitle ?? ""}"`);
+}) => (entry.authorKind === "user" ? "You" : `"${entry.authorTitle ?? ""}"`);
 
 const countOf = (value: number) => value.toLocaleString("en-US");
 
@@ -47,7 +51,7 @@ export const briefingSizeOf = (tokens: number, limit: number) =>
 
 /** The warning before a thread starts with too large a starting context (thread-tree, Opening a thread). */
 export const startingContextWarningOf = (context: StartingContext) =>
-  `This companion would start with about ${tokenCountOf(context.tokens)} tokens, ${Math.round((context.tokens * 100) / context.windowTokens)}% of the model's ${countOf(context.windowTokens)}-token context window; the warning is at ${context.warningPercent}%.`;
+  `This side-quest would start with about ${tokenCountOf(context.tokens)} tokens, ${Math.round((context.tokens * 100) / context.windowTokens)}% of the model's ${countOf(context.windowTokens)}-token context window; the warning is at ${context.warningPercent}%.`;
 
 /** Each part of a starting context with its tokens, for example "Request 100 · Journal 50 · … tokens". */
 export const startingContextPartsOf = (parts: StartingContextParts) =>
@@ -61,9 +65,9 @@ export const startingContextPartsOf = (parts: StartingContextParts) =>
     `Title and budget ${tokenCountOf(parts.position + parts.budget)} tokens`,
   ].join(" · ");
 
-/** A dashboard row's thread count, for example "5 threads · 2 running". */
+/** A dashboard row's thread count, for example "1 quest · 4 side-quests · 2 running". */
 export const threadCountOf = (mission: { readonly runningCount: number; readonly threadCount: number }) =>
-  `${threadsOf(mission.threadCount)}${mission.runningCount === 0 ? "" : ` · ${mission.runningCount} running`}`;
+  `1 quest · ${sideQuestsOf(Math.max(0, mission.threadCount - 1))}${mission.runningCount === 0 ? "" : ` · ${mission.runningCount} running`}`;
 
 /** What the dashboard asks of a mission (mission-tracking, Ending a mission). */
 export const promptQuestionOf = (prompt: "MarkDone" | "Inactive", inactivityDays: number) =>
@@ -180,7 +184,7 @@ const intelActorLabelOf = (entry: Pick<IntelHistoryEntry, "actor" | "actorTitle"
   const actors = {
     Fading: "fading",
     Owner: "you",
-    Thread: `"${entry.actorTitle ?? "a companion"}"`,
+    Thread: `"${entry.actorTitle ?? "a quest"}"`,
   } satisfies Record<IntelHistoryEntry["actor"], string>;
   return actors[entry.actor];
 };
@@ -230,5 +234,5 @@ export const intelProposalLineOf = (
 export const scopeNameOf = (label: string) =>
   label.replace(
     /^(Mission|Thread|Workspace)(?= |$)/,
-    (term) => ({ Mission: "Quest", Thread: "Companion", Workspace: "Realm" })[term] ?? term,
+    (term) => ({ Mission: "Quest", Thread: "Side-quest", Workspace: "Realm" })[term] ?? term,
   );

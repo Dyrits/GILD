@@ -86,6 +86,7 @@ function ThreadPane({
   onSelect: (threadId: ThreadId) => void;
 }) {
   const { thread } = detail;
+  const work = thread.parentId === null ? "quest" : "side-quest";
   const draft = useDraft(client, thread.id);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isOpening, setIsOpening] = useState(false);
@@ -126,7 +127,7 @@ function ThreadPane({
         )}
         {canOpenBeneath && !isOpening && (
           <Pressable onPress={() => setIsOpening(true)}>
-            <Text style={styles.link}>Open companion beneath</Text>
+            <Text style={styles.link}>Open side-quest</Text>
           </Pressable>
         )}
       </View>
@@ -153,7 +154,7 @@ function ThreadPane({
       {thread.state === "Stopped" && thread.waitingCount > 0 && (
         <Text style={styles.muted}>
           {thread.waitingCount === 1 ? "1 message waits" : `${thread.waitingCount} messages wait`} until you resume this
-          companion.
+          {work}.
         </Text>
       )}
       {thread.blocker === "MissingWorkspace" && thread.workspace !== null && (
@@ -175,7 +176,7 @@ function ThreadPane({
             void 0
           ) : (
             <View style={[styles.message, styles.fromAgent, styles.draft]}>
-              <Text style={styles.sender}>Agent · writing…</Text>
+              <Text style={styles.sender}>Companion · writing…</Text>
               <Text style={styles.body}>{draft}</Text>
             </View>
           )
@@ -206,10 +207,10 @@ function ThreadPane({
           onSend={sendAs(isInTurn ? defaultDelivery : null)}
           placeholder={
             thread.state === "Stopped"
-              ? "Write to this companion; it waits until you resume it…"
+              ? `Write to this ${work}; it waits until you resume it…`
               : isInTurn
-                ? `Write to this companion; Send ${defaultDelivery === "Steer" ? "joins its current turn" : "waits for its next turn"}…`
-                : "Write to this companion…"
+                ? `Write to this ${work}; Send ${defaultDelivery === "Steer" ? "joins its current turn" : "waits for its next turn"}…`
+                : `Write to this ${work}…`
           }
         />
       )}

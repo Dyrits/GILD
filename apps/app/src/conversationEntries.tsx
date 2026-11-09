@@ -20,8 +20,8 @@ const senderStyles = {
 /** The label above a message: none for the owner's own unless it waits for the next turn. */
 const senderLabelOf = (message: Message) => {
   if (message.sender === "user") return message.isQueued ? "Queued for the next turn" : null;
-  if (message.sender === "agent") return "Agent";
-  return `${message.isResult ? "Result from" : "From"} "${shortened(message.fromTitle ?? "a companion")}"`;
+  if (message.sender === "agent") return "Companion";
+  return `${message.isResult ? "Result from" : "From"} "${shortened(message.fromTitle ?? "a quest")}"`;
 };
 
 /** One message, labelled by its sender: the owner, the thread's agent, or another thread. */
@@ -54,7 +54,8 @@ export function EntryView({
       <View style={styles.questionLine}>
         <Pressable onPress={() => onSelectThread(thread.id)}>
           <Text style={styles.link}>
-            {thread.isOpenedByAgent ? "Agent opened beneath" : "Opened beneath"}: {shortened(thread.title)}
+            {thread.isOpenedByAgent ? "Companion opened a side-quest" : "Opened a side-quest"}:{" "}
+            {shortened(thread.title)}
           </Text>
         </Pressable>
       </View>
