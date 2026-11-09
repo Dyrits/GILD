@@ -18,6 +18,10 @@ Naming follow-up: Guildmaster replaces War table; all child threads are side-que
 The follow-up label suite passes 21 tests; typecheck and lint pass.
 Remaining optional naming choices: Realm, Journal, Briefing, and future Waystones / Spoils / Chronicle; none blocks the agreed vocabulary.
 
+Layout follow-up (CHG-0075): no window frame or docked conversation, the quest input always open, a top bar, and an icon-only sidebar option; typecheck, lint, and tests pass, not yet seen in the running window.
+
+Quest layout follow-up (CHG-0076): breadcrumbs, an icon handle on the rail, a quest screen without a header block, and a right quest panel; typecheck, lint, tests, and web export pass, not yet seen in the running window ([proof](verification/2026-11-09-quest-layout.md)).
+
 ## Goal
 
 Build the first slice iteratively (CHG-0025): each batch leaves a runnable application with its checks. Design under review: [first-slice-design.md](first-slice-design.md) and the mission-tracking, thread-tree, and thread-messaging blueprints. Starting revision: `e445b44`.

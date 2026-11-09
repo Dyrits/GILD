@@ -1170,3 +1170,32 @@ Craft and Ritual are recorded for future automation interfaces; no new automatio
 References: [Glossary](glossary.md#guild-interface-vocabulary), apps/app/src/, apps/app/test/labels.test.ts.
 Validation: The owner's naming instructions and explicit clarification that Companion is the selected model; 21 label tests, typecheck, lint, and whitespace checks pass.
 Evidence: Baseline `41cc1f5`; presentation-only changes preserve protocol and storage identifiers.
+
+## CHG-0075 · 2026-11-09 · Frameless window, top bar, collapsible sidebar
+
+Type: Code
+Event: Delivery
+Scope: Interface layout
+
+Summary: The owner asked to drop the box around the conversation, show the quest input without a "Post a quest" button, add a top bar, and let the sidebar collapse to icons.
+The gold frame around the window and the docked 540px conversation panel are removed; a quest opens full width.
+The quest input is always open on the Quests board (not on Archived).
+The 40px top bar spans the window and, on macOS, is the window's title bar (the system's is hidden, the traffic lights stay, the bar drags the window): a sidebar toggle, where the owner is (realm, place, or open quest), and the global spending; the screens' own duplicate headings leave when the sidebar shows.
+The sidebar collapses to a 56px icon rail, remembered in browser storage.
+References: apps/app/App.tsx, apps/app/src/sidebar.tsx, apps/app/src/dashboard.tsx, apps/desktop/src/main.ts, apps/desktop/src/preload.ts.
+Validation: The owner's answers to three scoping questions, then the correction that the top bar is the window's own; typecheck, lint, and 415 tests pass.
+Evidence: Baseline `c9c0077`; not yet seen in the running window, so the appearance awaits the owner.
+
+## CHG-0076 · 2026-11-09 · Breadcrumbs, quest layout, and quest panel
+
+Type: Code
+Event: Delivery
+Scope: Interface layout
+
+Summary: The owner asked for breadcrumbs in the top bar, the sidebar toggle out of it, a quest screen without a full-width header, and the quest's options in a right side panel.
+The top bar shows breadcrumbs that follow the rail (Realms, Quests, Archives); the toggle is an icon handle on the rail's edge, and "Archived" is now "Archives".
+A quest shows its thread tree (Quest, Side-quests) beside a full-height conversation.
+The quest panel (name, state, journal, budget, usage, ending) is a right column with its own header level with the top bar, shown or hidden by an icon at the top bar's right end, open by default from 1280px; below 820px it takes the conversation's place.
+References: apps/app/src/sidebar.tsx, apps/app/src/conversation.tsx, apps/app/src/questPanel.tsx, apps/app/src/threadTree.tsx, apps/app/src/missionActions.tsx, apps/app/App.tsx.
+Validation: The owner's requests in conversation; typecheck, lint, 415 tests, and the web export pass.
+Evidence: Baseline `e827fe2`; [proof](verification/2026-11-09-quest-layout.md), not proven: not seen in the running window, so the appearance awaits the owner.

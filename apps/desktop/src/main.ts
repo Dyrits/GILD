@@ -77,6 +77,8 @@ app
       height: 800,
       icon: iconPath,
       title: "Gild",
+      // On macOS the app's top bar is the title bar: the system's is hidden and its buttons stay.
+      ...(process.platform === "darwin" ? { titleBarStyle: "hidden", trafficLightPosition: { x: 14, y: 12 } } : {}),
       webPreferences: { contextIsolation: true, preload: join(here, "preload.cjs"), sandbox: true },
       width: 1200,
     });

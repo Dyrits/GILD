@@ -1,6 +1,6 @@
 import type { MissionEnding, MissionSummary } from "@gild/contracts";
 import { useState } from "react";
-import { Pressable, Text, TextInput, View } from "react-native";
+import { Pressable, type StyleProp, Text, TextInput, type TextStyle, View } from "react-native";
 import type { ServiceClient } from "./client";
 import { promptQuestionOf } from "./labels";
 import { styles } from "./styles";
@@ -100,7 +100,16 @@ export function MissionPromptCard({
 }
 
 /** The mission's title in its header; pressing it renames the mission (mission-tracking, Title). */
-export function MissionTitle({ client, mission }: { client: ServiceClient; mission: MissionSummary }) {
+export function MissionTitle({
+  client,
+  mission,
+  textStyle = styles.heading,
+}: {
+  client: ServiceClient;
+  mission: MissionSummary;
+  /** How the title reads at rest; the header's heading unless a panel wants it smaller. */
+  textStyle?: StyleProp<TextStyle>;
+}) {
   const [draft, setDraft] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const save = () => {
@@ -116,7 +125,7 @@ export function MissionTitle({ client, mission }: { client: ServiceClient; missi
   if (draft === null) {
     return (
       <Pressable accessibilityLabel="Rename the quest" onPress={() => setDraft(mission.title)} style={styles.flex}>
-        <Text numberOfLines={2} style={styles.heading}>
+        <Text numberOfLines={2} style={textStyle}>
           {mission.title}
         </Text>
       </Pressable>

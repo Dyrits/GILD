@@ -114,7 +114,6 @@ export function Dashboard({
   workspaceId: WorkspaceId | null;
 }) {
   const hasSidebar = useHasSidebar();
-  const [isStarting, setIsStarting] = useState(false);
   const [search, setSearch] = useState("");
   const [width, setWidth] = useState(0);
   // The Archived view keeps every workspace; the board shows the one chosen in the sidebar or the breadcrumb.
@@ -168,7 +167,9 @@ export function Dashboard({
                 />
               </View>
             )}
-            <Text style={[styles.heading, { color: colors.onWood }]}>{isArchived ? "Archived quests" : "Quests"}</Text>
+            {!hasSidebar && (
+              <Text style={[styles.heading, { color: colors.onWood }]}>{isArchived ? "Archives" : "Quests"}</Text>
+            )}
           </View>
           {global !== null && <BudgetMeters onPress={() => setIsGlobalBudgetOpen(true)} use={global} />}
           {!isArchived && !hasSidebar && (
@@ -217,12 +218,7 @@ export function Dashboard({
             ))}
           </View>
         )}
-        {!isArchived && (
-          <Pressable accessibilityRole="button" onPress={() => setIsStarting(!isStarting)} style={styles.button}>
-            <Text style={styles.buttonText}>{isStarting ? "Close notice" : "Post a quest"}</Text>
-          </Pressable>
-        )}
-        {!isArchived && isStarting && (workspaceId === null || openWorkspace !== null) && (
+        {!isArchived && (workspaceId === null || openWorkspace !== null) && (
           <MissionStarter client={client} onOpen={onOpen} workspace={openWorkspace} />
         )}
         <TextInput

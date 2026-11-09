@@ -26,29 +26,36 @@ export function ThreadTree({
   const [unfolded, setUnfolded] = useState<ReadonlySet<string>>(new Set());
   return (
     <ScrollView contentContainerStyle={styles.treeList} style={styles.tree}>
-      {foldThreads(threads, shouldShowAgentThreads, unfolded).map(({ thread, depth, foldedCount }) => (
-        <Pressable
-          key={thread.id}
-          onPress={() => {
-            if (foldedCount > 0) setUnfolded((current) => new Set([...current, thread.id]));
-            onSelect(thread.id);
-          }}
-          style={[styles.treeRow, { paddingLeft: 8 + depth * 16 }, thread.id === selectedId && styles.treeRowSelected]}
-        >
-          <View style={styles.treeTitleRow}>
-            <Text numberOfLines={1} style={[styles.treeTitle, thread.id === selectedId && styles.treeTitleSelected]}>
-              {thread.title}
-            </Text>
-            <StateBadge state={thread.state} />
-          </View>
-          {thread.isAside && <Text style={styles.treeNote}>Aside</Text>}
-          {foldedCount > 0 && <Text style={styles.treeNote}>{foldedLabelOf(foldedCount)}</Text>}
-          {thread.waitingCount > 0 && thread.state !== "Running" && (
-            <Text style={styles.treeNote}>
-              {thread.waitingCount === 1 ? "1 message waiting" : `${thread.waitingCount} messages waiting`}
-            </Text>
-          )}
-        </Pressable>
+      {foldThreads(threads, shouldShowAgentThreads, unfolded).map(({ thread, depth, foldedCount }, index) => (
+        <View key={thread.id}>
+          {index === 0 && <Text style={styles.treeSection}>Quest</Text>}
+          {index === 1 && <Text style={styles.treeSection}>Side-quests</Text>}
+          <Pressable
+            onPress={() => {
+              if (foldedCount > 0) setUnfolded((current) => new Set([...current, thread.id]));
+              onSelect(thread.id);
+            }}
+            style={[
+              styles.treeRow,
+              { paddingLeft: 8 + depth * 16 },
+              thread.id === selectedId && styles.treeRowSelected,
+            ]}
+          >
+            <View style={styles.treeTitleRow}>
+              <Text numberOfLines={1} style={[styles.treeTitle, thread.id === selectedId && styles.treeTitleSelected]}>
+                {thread.title}
+              </Text>
+              <StateBadge state={thread.state} />
+            </View>
+            {thread.isAside && <Text style={styles.treeNote}>Aside</Text>}
+            {foldedCount > 0 && <Text style={styles.treeNote}>{foldedLabelOf(foldedCount)}</Text>}
+            {thread.waitingCount > 0 && thread.state !== "Running" && (
+              <Text style={styles.treeNote}>
+                {thread.waitingCount === 1 ? "1 message waiting" : `${thread.waitingCount} messages waiting`}
+              </Text>
+            )}
+          </Pressable>
+        </View>
       ))}
     </ScrollView>
   );

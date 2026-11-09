@@ -246,9 +246,11 @@ export function IntelScreen({
             <Text style={styles.link}>← Back</Text>
           </Pressable>
         )}
-        <Text numberOfLines={1} style={[styles.heading, styles.flex]}>
-          {title}
-        </Text>
+        {!(hasSidebar && threadId === null) && (
+          <Text numberOfLines={1} style={[styles.heading, styles.flex]}>
+            {title}
+          </Text>
+        )}
       </View>
       {error !== null && <Text style={styles.error}>{error}</Text>}
       {data?.gauge != null && (

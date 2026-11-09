@@ -28,7 +28,7 @@
 ## Handoffs
 
 To resume after the rename to Gild and the owner's logo (CHG-0072; the next launch moves the install; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-09-0900-renamed-to-gild.md). Handoffs are shared and committed.
-To resume the Guild design, vocabulary, banner correction, and current layout follow-up, read the [current handoff](.agents/handoffs/2026-11-09-1342-guild-board.md). Handoffs are shared and committed.
+To resume the Guild interface layout (breadcrumbs, rail handle, quest screen, quest panel; committed on a branch, the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-09-1626-quest-layout.md). Handoffs are shared and committed.
 To resume after the sidebar trim (CHG-0070 pushed; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-08-1602-sidebar-trim.md). Handoffs are shared and committed.
 To resume after the thread-opening indicators (CHG-0067 pushed; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-08-1135-thread-opening-indicators.md). Handoffs are shared and committed.
 To resume after the five Low findings (CHG-0066 uncommitted; awaiting the owner), read the [current handoff](.agents/handoffs/2026-11-08-1110-low-findings.md). Handoffs are shared and committed.

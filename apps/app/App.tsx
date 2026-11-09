@@ -24,8 +24,6 @@ export default function App() {
   const [client, setClient] = useState<ServiceClient | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [openMission, setOpenMission] = useState<MissionId | null>(null);
-  const { width } = useWindowDimensions();
-  const isDocked = width >= 1280 && openMission !== null;
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
   const [isArchivedOpen, setIsArchivedOpen] = useState(false);
@@ -34,6 +32,9 @@ export default function App() {
   const [workspaceId, setWorkspaceId] = useState<WorkspaceId | null>(null);
   // Counts openings from the sidebar, so choosing the open mission again goes back to its threads.
   const [openCount, setOpenCount] = useState(0);
+  // The quest's side panel starts open on a wide window; the top bar's icon shows or hides it.
+  const { width } = useWindowDimensions();
+  const [areDetailsOpen, setAreDetailsOpen] = useState(width >= 1280);
   // Bundled fonts keep the board available offline without a heading jump during loading.
   const [areFontsLoaded, fontError] = useFonts({
     Alegreya: require("./assets/fonts/Alegreya.ttf"),
@@ -105,11 +106,15 @@ export default function App() {
       missionId={openMission}
       onBack={() => setOpenMission(null)}
       onOpenMission={setOpenMission}
+      onSetDetails={setAreDetailsOpen}
     />
   );
   return (
     <Shell
       client={client}
+      details={
+        openMission === null ? null : { isOpen: areDetailsOpen, onToggle: () => setAreDetailsOpen(!areDetailsOpen) }
+      }
       onOpenMission={openMissionFromAnywhere}
       onPlace={goTo}
       onWorkspace={openWorkspace}
@@ -117,27 +122,7 @@ export default function App() {
       place={place}
       workspaceId={workspaceId}
     >
-      <View style={{ flex: 1, flexDirection: "row" }}>
-        {isDocked && (
-          <View style={{ flex: 1, minWidth: 0 }}>
-            <Dashboard
-              client={client}
-              isArchived={false}
-              onArchived={() => goTo("Archived")}
-              onBack={() => setOpenMission(null)}
-              onIntel={() => goTo("Intel")}
-              onOpen={setOpenMission}
-              onSettings={() => goTo("Settings")}
-              onWorkspace={(id) => {
-                setWorkspaceId(id);
-                setOpenMission(null);
-              }}
-              workspaceId={workspaceId}
-            />
-          </View>
-        )}
-        <View style={isDocked ? { width: 540 } : { flex: 1, minWidth: 0 }}>{content}</View>
-      </View>
+      {content}
     </Shell>
   );
 }

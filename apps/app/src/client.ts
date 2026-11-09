@@ -10,7 +10,7 @@ import { Schema } from "effect";
 
 declare global {
   interface Window {
-    gild?: { chooseFolder(): Promise<string | null>; endpoint(): Promise<string> };
+    gild?: { chooseFolder(): Promise<string | null>; endpoint(): Promise<string>; hasOwnTitleBar: boolean };
   }
 }
 
