@@ -28,7 +28,7 @@ const scopeOf = (permission: StandingPermission) =>
   isEverywhere(permission)
     ? "Everywhere"
     : permission.workspaceId !== null
-      ? `In workspace ${permission.workspaceName}`
+      ? `In realm ${permission.workspaceName}`
       : `In ${permission.missionTitle}`;
 
 /** The approval level, standing permissions, and the history of answers. */
@@ -49,7 +49,7 @@ export function PermissionsScreen({ client, onBack }: { client: ServiceClient; o
       (reason: Error) => setActionError(reason.message),
     );
   const missionTitle = (id: MissionId | null) =>
-    id === null ? "All missions" : (missions?.find((mission) => mission.id === id)?.title ?? "Mission");
+    id === null ? "All quests" : (missions?.find((mission) => mission.id === id)?.title ?? "Quest");
   return (
     <ScrollView contentContainerStyle={styles.screen}>
       <View style={styles.header}>

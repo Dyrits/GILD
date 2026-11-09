@@ -92,7 +92,7 @@ export function SettingsScreen({
       <View style={styles.header}>
         {!hasSidebar && (
           <Pressable onPress={onBack}>
-            <Text style={styles.link}>← Missions</Text>
+            <Text style={styles.link}>← Quests</Text>
           </Pressable>
         )}
         <Text style={styles.heading}>Settings</Text>
@@ -105,7 +105,7 @@ export function SettingsScreen({
             <Text style={[styles.body, styles.flex]}>Permissions · {levelLabels[settings.approvalLevel]}</Text>
             <Text style={styles.link}>›</Text>
           </Pressable>
-          <Text style={styles.label}>Default harness, model, and effort before your first mission</Text>
+          <Text style={styles.label}>Default harness, model, and effort before your first quest</Text>
           <RunnerPickers
             harnesses={harnesses.data}
             isAccountShown={false}
@@ -127,7 +127,7 @@ export function SettingsScreen({
             onChanged={harnesses.setData}
             onRefresh={harnesses.refresh}
           />
-          <Text style={styles.label}>Send, while a thread is running</Text>
+          <Text style={styles.label}>Send, while a companion is running</Text>
           <Choice
             label={(delivery) => deliveryLabels[delivery]}
             onChange={(defaultDelivery) => save({ defaultDelivery })}
@@ -139,59 +139,59 @@ export function SettingsScreen({
               onValueChange={(shouldShowAgentThreads) => save({ shouldShowAgentThreads })}
               value={settings.shouldShowAgentThreads}
             />
-            <Text style={styles.body}>Show threads opened by agents</Text>
+            <Text style={styles.body}>Show companions opened by agents</Text>
           </View>
           <NumberSetting
-            label="Chatter guard · messages between two threads"
+            label="Chatter guard · messages between two companions"
             minimum={2}
             onInvalid={setSaveError}
             onSave={(chatterThreshold) => save({ chatterThreshold })}
             value={settings.chatterThreshold}
           />
           <NumberSetting
-            label="Briefing limit · tokens a mission's briefing may hold"
+            label="Briefing limit · tokens a quest's briefing may hold"
             minimum={1}
             onInvalid={setSaveError}
             onSave={(briefingLimit) => save({ briefingLimit })}
             value={settings.briefingLimit}
           />
           <NumberSetting
-            label="Intel warning · percent of a model's context window before a thread's intel icon turns red"
+            label="Lore warning · percent of a model's context window before a companion's lore icon turns red"
             minimum={1}
             onInvalid={setSaveError}
             onSave={(intelWarningPercent) => save({ intelWarningPercent: Math.min(intelWarningPercent, 100) })}
             value={settings.intelWarningPercent}
           />
           <NumberSetting
-            label="Intel half-life · days for an unused preference intel to fade by half"
+            label="Lore half-life · days for an unused preference lore to fade by half"
             minimum={1}
             onInvalid={setSaveError}
             onSave={(preference) => save({ intelHalfLives: { ...settings.intelHalfLives, preference } })}
             value={settings.intelHalfLives.preference}
           />
           <NumberSetting
-            label="Intel half-life · days for an unused decision intel to fade by half"
+            label="Lore half-life · days for an unused decision lore to fade by half"
             minimum={1}
             onInvalid={setSaveError}
             onSave={(decision) => save({ intelHalfLives: { ...settings.intelHalfLives, decision } })}
             value={settings.intelHalfLives.decision}
           />
           <NumberSetting
-            label="Intel half-life · days for an unused fact intel to fade by half"
+            label="Lore half-life · days for an unused fact lore to fade by half"
             minimum={1}
             onInvalid={setSaveError}
             onSave={(fact) => save({ intelHalfLives: { ...settings.intelHalfLives, fact } })}
             value={settings.intelHalfLives.fact}
           />
           <NumberSetting
-            label="Intel half-life · days for an unused temporary intel to fade by half"
+            label="Lore half-life · days for an unused temporary lore to fade by half"
             minimum={1}
             onInvalid={setSaveError}
             onSave={(temporary) => save({ intelHalfLives: { ...settings.intelHalfLives, temporary } })}
             value={settings.intelHalfLives.temporary}
           />
           <NumberSetting
-            label="Ask about a mission after this many days without activity"
+            label="Ask about a quest after this many days without activity"
             minimum={1}
             onInvalid={setSaveError}
             onSave={(inactivityDays) => save({ inactivityDays })}
@@ -202,7 +202,7 @@ export function SettingsScreen({
               onValueChange={(shouldAutoArchive) => save({ shouldAutoArchive })}
               value={settings.shouldAutoArchive}
             />
-            <Text style={styles.body}>Archive done missions automatically</Text>
+            <Text style={styles.body}>Archive done quests automatically</Text>
           </View>
           <View style={styles.toggle}>
             <Toggle
@@ -210,11 +210,11 @@ export function SettingsScreen({
               value={settings.shouldOpenOffTopicMissions}
             />
             <Text style={styles.body}>
-              Open an off-topic message as a new mission without asking when no other mission fits
+              Open an off-topic message as a new quest without asking when no other quest fits
             </Text>
           </View>
           <NumberSetting
-            label="Days after a mission is marked done before it is archived"
+            label="Days after a quest is marked done before it is archived"
             minimum={1}
             onInvalid={setSaveError}
             onSave={(autoArchiveDays) => save({ autoArchiveDays })}
@@ -227,7 +227,7 @@ export function SettingsScreen({
             />
             <Text style={styles.body}>Show replies as they're written</Text>
           </View>
-          <Text style={styles.label}>Default budget for new missions</Text>
+          <Text style={styles.label}>Default budget for new quests</Text>
           <BudgetEditor
             key={`default:${JSON.stringify(settings.defaultMissionBudget)}`}
             limits={settings.defaultMissionBudget}

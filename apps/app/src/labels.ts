@@ -13,7 +13,7 @@ import type {
   SuggestionOutcome,
 } from "@gild/contracts";
 
-const threadsOf = (count: number) => (count === 1 ? "1 thread" : `${count} threads`);
+const threadsOf = (count: number) => (count === 1 ? "1 companion" : `${count} companions`);
 
 /** The mark on a thread that folds agent-opened threads beneath it, for example "+3 threads". */
 export const foldedLabelOf = (count: number) => `+${threadsOf(count)}`;
@@ -27,14 +27,14 @@ export const deletionQuestionOf = (preview: { readonly descendantCount: number; 
       : preview.descendantCount === 0
         ? " (running)"
         : ` (${preview.runningCount} running)`;
-  return `Delete this thread${beneath}${running}?`;
+  return `Delete this companion${beneath}${running}?`;
 };
 
 /** Who wrote a journal entry, as the Journal view names it. */
 export const journalAuthorOf = (entry: {
   readonly authorKind: "thread" | "user";
   readonly authorTitle: string | null;
-}) => (entry.authorKind === "user" ? "You" : `Thread "${entry.authorTitle ?? ""}"`);
+}) => (entry.authorKind === "user" ? "You" : `Companion "${entry.authorTitle ?? ""}"`);
 
 const countOf = (value: number) => value.toLocaleString("en-US");
 
@@ -47,16 +47,16 @@ export const briefingSizeOf = (tokens: number, limit: number) =>
 
 /** The warning before a thread starts with too large a starting context (thread-tree, Opening a thread). */
 export const startingContextWarningOf = (context: StartingContext) =>
-  `This thread would start with about ${tokenCountOf(context.tokens)} tokens, ${Math.round((context.tokens * 100) / context.windowTokens)}% of the model's ${countOf(context.windowTokens)}-token context window; the warning is at ${context.warningPercent}%.`;
+  `This companion would start with about ${tokenCountOf(context.tokens)} tokens, ${Math.round((context.tokens * 100) / context.windowTokens)}% of the model's ${countOf(context.windowTokens)}-token context window; the warning is at ${context.warningPercent}%.`;
 
 /** Each part of a starting context with its tokens, for example "Request 100 · Journal 50 · … tokens". */
 export const startingContextPartsOf = (parts: StartingContextParts) =>
   [
     `Request ${tokenCountOf(parts.request)}`,
     `Journal ${tokenCountOf(parts.journal)}`,
-    `Intel ${tokenCountOf(parts.intel)}`,
+    `Lore ${tokenCountOf(parts.intel)}`,
     `Opener's messages ${tokenCountOf(parts.openerMessages)}`,
-    `Workspace ${tokenCountOf(parts.workspace)}`,
+    `Realm ${tokenCountOf(parts.workspace)}`,
     `Instructions ${tokenCountOf(parts.instructions)}`,
     `Title and budget ${tokenCountOf(parts.position + parts.budget)} tokens`,
   ].join(" · ");
@@ -73,9 +73,9 @@ export const promptQuestionOf = (prompt: "MarkDone" | "Inactive", inactivityDays
 
 /** What the line left behind says about where an off-topic request went (thread-tree, Off-topic requests). */
 export const suggestionLabels = {
-  Continued: "Continued in mission",
+  Continued: "Continued in quest",
   KeptAsAside: "Kept as aside",
-  MovedToMission: "Moved to mission",
+  MovedToMission: "Moved to quest",
   Withdrawn: "Off-topic suggestion withdrawn",
 } as const satisfies Record<SuggestionOutcome, string>;
 
@@ -97,13 +97,13 @@ export const raisedLimitsOf = (limits: BudgetLimits, factor: number): BudgetLimi
 
 /** What a thread's change to intel does, for example "Save intel to Global" (scoped-intel). */
 export const intelActionOf = (change: Pick<IntelChange, "kind" | "previousText" | "scopeLabel" | "text">) => {
-  const scope = change.scopeLabel;
+  const scope = scopeNameOf(change.scopeLabel);
   const actions = {
-    Forget: `Delete intel from ${scope}`,
-    Replace: `Replace intel in ${scope}`,
-    Save: `Save intel to ${scope}`,
+    Forget: `Delete lore from ${scope}`,
+    Replace: `Replace lore in ${scope}`,
+    Save: `Save lore to ${scope}`,
     // An update that keeps the text only moves the intel.
-    Update: change.previousText === change.text ? `Move intel to ${scope}` : `Correct intel in ${scope}`,
+    Update: change.previousText === change.text ? `Move lore to ${scope}` : `Correct lore in ${scope}`,
   } satisfies Record<IntelChange["kind"], string>;
   return actions[change.kind];
 };
@@ -138,7 +138,7 @@ const percentOf = (part: number, whole: number) => {
 
 /** The intel icon's text: the count and its share of the model's context window, for example "Intel · 3 · 0.2%". */
 export const intelGaugeLabelOf = (gauge: Pick<IntelGauge, "count" | "tokens" | "windowTokens">) => {
-  return `Intel · ${gauge.count} · ${percentOf(gauge.tokens, gauge.windowTokens)}%`;
+  return `Lore · ${gauge.count} · ${percentOf(gauge.tokens, gauge.windowTokens)}%`;
 };
 
 /** How often threads used an intel, for example "used 3 times". */
@@ -164,7 +164,7 @@ const intelHistoryVerbs = {
   Deleted: "Deleted",
   Dormant: "Became dormant",
   Edited: "Edited",
-  Merged: "Merged into one global intel",
+  Merged: "Merged into one global lore entry",
   Narrowed: "Moved",
   Pinned: "Pinned",
   Replaced: "Replaced by a save",
@@ -180,7 +180,7 @@ const intelActorLabelOf = (entry: Pick<IntelHistoryEntry, "actor" | "actorTitle"
   const actors = {
     Fading: "fading",
     Owner: "you",
-    Thread: `"${entry.actorTitle ?? "a thread"}"`,
+    Thread: `"${entry.actorTitle ?? "a companion"}"`,
   } satisfies Record<IntelHistoryEntry["actor"], string>;
   return actors[entry.actor];
 };
@@ -193,7 +193,8 @@ const intelHistoryActionOf = (
   const who = intelActorLabelOf(entry);
   if (entry.kind === "Undone") return `You undid: ${intelHistoryVerbs[entry.undid ?? "Saved"].toLowerCase()}`;
   if (entry.kind === "Replaced") return `${verb} from ${who}`;
-  if (entry.kind === "Widened" || entry.kind === "Narrowed") return `${verb} to ${entry.scopeLabel} by ${who}`;
+  if (entry.kind === "Widened" || entry.kind === "Narrowed")
+    return `${verb} to ${scopeNameOf(entry.scopeLabel)} by ${who}`;
   return `${verb} by ${who}`;
 };
 
@@ -220,7 +221,14 @@ export const intelProposalLineOf = (
   },
 ) =>
   proposal.kind === "Widen"
-    ? `Saved separately in ${proposal.intels.length} workspaces: make it one global intel`
-    : `Used only in ${proposal.scopeLabel} for ${proposal.halfLifeDays ?? 0} days, ${
+    ? `Saved separately in ${proposal.intels.length} realms: make it one global lore entry`
+    : `Used only in ${scopeNameOf(proposal.scopeLabel)} for ${proposal.halfLifeDays ?? 0} days, ${
         proposal.uses === 1 ? "once" : `${proposal.uses ?? 0} times`
       }: move it there`;
+
+/** Renames a service-generated scope prefix while preserving the owner's title verbatim. */
+export const scopeNameOf = (label: string) =>
+  label.replace(
+    /^(Mission|Thread|Workspace)(?= |$)/,
+    (term) => ({ Mission: "Quest", Thread: "Companion", Workspace: "Realm" })[term] ?? term,
+  );

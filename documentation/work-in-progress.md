@@ -1,5 +1,18 @@
 # Work in progress
 
+## Guild-board batch · 2026-11-09 · implemented and checked, owner review pending
+
+The owner selected [the Guild direction](art-direction/2026-11-08-guild-board.html) and requested its naming through iterate.
+Starting revision: `63bc425d28bb4ee054e4d0e91c77bdc3c85551a8`.
+Scope: Gild keeps its brand and logo, adopts leather, timber, parchment, gold controls, bundled Cinzel/Alegreya, guild display vocabulary, a collapsible Post a quest form, and a docked conversation from 1280px.
+Existing resting quests retain their own column; no subscription data, Rituals, Waystones, Spoils, or Chronicle features are fabricated.
+Contracts, persisted identifiers, capability paths, harness tools, user-authored content, and service-generated historical text retain their existing terms.
+Checks: typecheck and lint pass; full tests passed 413 with one stale label expectation, corrected and verified by all 20 label tests; desktop build passes.
+Visual check on a throwaway database with the fake harness: quest creation, echo reply, and the docked desktop work; a later CDP timeout prevented the final screenshot and phone-width check.
+The Balanced reviewer (`gpt-6.1-terra`) verified fixes for contrast, notifications, and lore scope names.
+Evidence and remaining checks: [guild-board verification](verification/2026-11-09-guild-board.md).
+Owner acceptance of the appearance remains pending.
+
 ## Goal
 
 Build the first slice iteratively (CHG-0025): each batch leaves a runnable application with its checks. Design under review: [first-slice-design.md](first-slice-design.md) and the mission-tracking, thread-tree, and thread-messaging blueprints. Starting revision: `e445b44`.

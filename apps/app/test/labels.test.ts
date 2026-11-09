@@ -21,27 +21,27 @@ import {
 } from "../src/labels";
 
 describe("tree and deletion labels", () => {
-  it("names one folded thread in the singular", () => {
-    expect(foldedLabelOf(1)).toBe("+1 thread");
-    expect(foldedLabelOf(3)).toBe("+3 threads");
+  it("names one folded companion in the singular", () => {
+    expect(foldedLabelOf(1)).toBe("+1 companion");
+    expect(foldedLabelOf(3)).toBe("+3 companions");
   });
 
-  it("asks about the threads beneath, naming running ones only when some run", () => {
-    expect(deletionQuestionOf({ descendantCount: 0, runningCount: 0 })).toBe("Delete this thread?");
-    expect(deletionQuestionOf({ descendantCount: 0, runningCount: 1 })).toBe("Delete this thread (running)?");
+  it("asks about the companions beneath, naming running ones only when some run", () => {
+    expect(deletionQuestionOf({ descendantCount: 0, runningCount: 0 })).toBe("Delete this companion?");
+    expect(deletionQuestionOf({ descendantCount: 0, runningCount: 1 })).toBe("Delete this companion (running)?");
     expect(deletionQuestionOf({ descendantCount: 1, runningCount: 0 })).toBe(
-      "Delete this thread and 1 thread beneath it?",
+      "Delete this companion and 1 companion beneath it?",
     );
     expect(deletionQuestionOf({ descendantCount: 5, runningCount: 2 })).toBe(
-      "Delete this thread and 5 threads beneath it (2 running)?",
+      "Delete this companion and 5 companions beneath it (2 running)?",
     );
   });
 });
 
 describe("journal labels", () => {
-  it("names the owner as You and a thread by its title", () => {
+  it("names the owner as You and a companion by its title", () => {
     expect(journalAuthorOf({ authorKind: "user", authorTitle: null })).toBe("You");
-    expect(journalAuthorOf({ authorKind: "thread", authorTitle: "Count files" })).toBe('Thread "Count files"');
+    expect(journalAuthorOf({ authorKind: "thread", authorTitle: "Count files" })).toBe('Companion "Count files"');
   });
 
   it("shows the briefing's size against its limit, and when it is over", () => {
@@ -51,9 +51,9 @@ describe("journal labels", () => {
 });
 
 describe("dashboard labels", () => {
-  it("counts a mission's threads, naming running ones only when some run", () => {
-    expect(threadCountOf({ runningCount: 0, threadCount: 1 })).toBe("1 thread");
-    expect(threadCountOf({ runningCount: 2, threadCount: 5 })).toBe("5 threads · 2 running");
+  it("counts a mission's companions, naming running ones only when some run", () => {
+    expect(threadCountOf({ runningCount: 0, threadCount: 1 })).toBe("1 companion");
+    expect(threadCountOf({ runningCount: 2, threadCount: 5 })).toBe("5 companions · 2 running");
   });
 
   it("asks Mark as done after a result, and about inactivity in days", () => {
@@ -65,8 +65,8 @@ describe("dashboard labels", () => {
 
 describe("off-topic suggestion lines", () => {
   it("says where the off-topic message went", () => {
-    expect(suggestionLabels.Continued).toBe("Continued in mission");
-    expect(suggestionLabels.MovedToMission).toBe("Moved to mission");
+    expect(suggestionLabels.Continued).toBe("Continued in quest");
+    expect(suggestionLabels.MovedToMission).toBe("Moved to quest");
     expect(suggestionLabels.KeptAsAside).toBe("Kept as aside");
   });
 });
@@ -93,17 +93,17 @@ describe("intel labels", () => {
   const change = { kind: "Save", previousText: null, scopeLabel: "Global", status: "Done", text: "A fact." } as const;
 
   it("names each kind of change with its scope and status", () => {
-    expect(intelChangeLineOf(change)).toBe("Save intel to Global");
-    expect(intelChangeLineOf({ ...change, status: "Awaiting" })).toBe("Save intel to Global · awaiting your approval");
+    expect(intelChangeLineOf(change)).toBe("Save lore to Global");
+    expect(intelChangeLineOf({ ...change, status: "Awaiting" })).toBe("Save lore to Global · awaiting your approval");
     expect(intelChangeLineOf({ ...change, kind: "Forget", status: "Declined" })).toBe(
-      "Delete intel from Global · declined",
+      "Delete lore from Global · declined",
     );
     expect(intelChangeLineOf({ ...change, kind: "Update", previousText: "Old.", status: "Approved" })).toBe(
-      "Correct intel in Global · approved",
+      "Correct lore in Global · approved",
     );
-    expect(intelChangeLineOf({ ...change, kind: "Update", previousText: "A fact." })).toBe("Move intel to Global");
+    expect(intelChangeLineOf({ ...change, kind: "Update", previousText: "A fact." })).toBe("Move lore to Global");
     expect(intelChangeLineOf({ ...change, kind: "Replace", previousText: "Old.", status: "Awaiting" })).toBe(
-      "Replace intel in Global · awaiting your approval",
+      "Replace lore in Global · awaiting your approval",
     );
   });
 
@@ -121,9 +121,9 @@ describe("intel labels", () => {
   });
 
   it("gives the intel count and its share of the context window", () => {
-    expect(intelGaugeLabelOf({ count: 0, tokens: 0, windowTokens: 200_000 })).toBe("Intel · 0 · 0%");
-    expect(intelGaugeLabelOf({ count: 2, tokens: 100, windowTokens: 200_000 })).toBe("Intel · 2 · <0.1%");
-    expect(intelGaugeLabelOf({ count: 9, tokens: 21_000, windowTokens: 200_000 })).toBe("Intel · 9 · 10.5%");
+    expect(intelGaugeLabelOf({ count: 0, tokens: 0, windowTokens: 200_000 })).toBe("Lore · 0 · 0%");
+    expect(intelGaugeLabelOf({ count: 2, tokens: 100, windowTokens: 200_000 })).toBe("Lore · 2 · <0.1%");
+    expect(intelGaugeLabelOf({ count: 9, tokens: 21_000, windowTokens: 200_000 })).toBe("Lore · 9 · 10.5%");
   });
 
   it("names an intel's kind, state, strength, uses, and pin", () => {
@@ -168,22 +168,22 @@ describe("intel history lines", () => {
   it("says where an approved proposal moved or merged an intel", () => {
     const owner = { ...entry, actor: "Owner", actorTitle: null } as const;
     expect(intelHistoryLineOf({ ...owner, kind: "Narrowed", scopeLabel: "Workspace alpha" })).toBe(
-      "Moved to Workspace alpha by you",
+      "Moved to Realm alpha by you",
     );
-    expect(intelHistoryLineOf({ ...owner, kind: "Merged" })).toBe("Merged into one global intel by you");
+    expect(intelHistoryLineOf({ ...owner, kind: "Merged" })).toBe("Merged into one global lore entry by you");
   });
 });
 
 describe("intel proposal labels", () => {
   it("says what a widening merges and why a narrowing moves an intel", () => {
     const widen = { halfLifeDays: null, intels: [{}, {}], kind: "Widen", scopeLabel: "Global", uses: null } as const;
-    expect(intelProposalLineOf(widen)).toBe("Saved separately in 2 workspaces: make it one global intel");
+    expect(intelProposalLineOf(widen)).toBe("Saved separately in 2 realms: make it one global lore entry");
     expect(
       intelProposalLineOf({ halfLifeDays: 45, intels: [{}], kind: "Narrow", scopeLabel: "Workspace alpha", uses: 1 }),
-    ).toBe("Used only in Workspace alpha for 45 days, once: move it there");
+    ).toBe("Used only in Realm alpha for 45 days, once: move it there");
     expect(
       intelProposalLineOf({ halfLifeDays: 45, intels: [{}], kind: "Narrow", scopeLabel: "Workspace alpha", uses: 3 }),
-    ).toBe("Used only in Workspace alpha for 45 days, 3 times: move it there");
+    ).toBe("Used only in Realm alpha for 45 days, 3 times: move it there");
   });
 });
 
@@ -206,15 +206,15 @@ describe("starting context labels", () => {
     windowTokens: 200_000,
   } as const;
 
-  it("says how much of the context window a new thread would start with", () => {
+  it("says how much of the context window a new companion would start with", () => {
     expect(startingContextWarningOf(context)).toBe(
-      "This thread would start with about 75,000 tokens, 38% of the model's 200,000-token context window; the warning is at 25%.",
+      "This companion would start with about 75,000 tokens, 38% of the model's 200,000-token context window; the warning is at 25%.",
     );
   });
 
   it("lists each part of the starting context with its tokens", () => {
     expect(startingContextPartsOf(context.parts)).toBe(
-      "Request 100 · Journal 50 · Intel 20 · Opener's messages 71,800 · Workspace 580 · Instructions 2,400 · Title and budget 50 tokens",
+      "Request 100 · Journal 50 · Lore 20 · Opener's messages 71,800 · Realm 580 · Instructions 2,400 · Title and budget 50 tokens",
     );
   });
 });

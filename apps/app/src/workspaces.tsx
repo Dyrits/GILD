@@ -34,14 +34,14 @@ export function WorkspacePicker({
     <View style={styles.section}>
       <View style={styles.header}>
         <Text style={styles.muted}>
-          Workspace: <Text style={styles.code}>{value ?? "none (the mission's scratch folder)"}</Text>
+          Realm: <Text style={styles.code}>{value ?? "none (the quest's scratch folder)"}</Text>
         </Text>
         <Pressable onPress={choose}>
           <Text style={styles.link}>Choose folder…</Text>
         </Pressable>
         {value !== null && (
           <Pressable onPress={() => onChange(null)}>
-            <Text style={styles.link}>No workspace</Text>
+            <Text style={styles.link}>No realm</Text>
           </Pressable>
         )}
       </View>
@@ -71,7 +71,7 @@ export function MissingFolderNotice({
     );
   return (
     <View style={styles.failure}>
-      <Text style={styles.error}>The workspace folder {path} no longer exists.</Text>
+      <Text style={styles.error}>The realm folder {path} no longer exists.</Text>
       <Text style={styles.muted}>Your messages wait. Put the folder back, then retry.</Text>
       <Pressable onPress={retry} style={styles.button}>
         <Text style={styles.buttonText}>Retry</Text>

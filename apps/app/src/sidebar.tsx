@@ -93,7 +93,7 @@ function ArchivedItem({
   const count = data?.missions.length ?? 0;
   return (
     <Pressable
-      accessibilityLabel="Archived missions"
+      accessibilityLabel="Archived quests"
       accessibilityRole="button"
       onPress={onPress}
       style={({ pressed }) => [local.item, pressed && local.itemHovered, isSelected && local.itemSelected]}
@@ -150,12 +150,12 @@ function Sidebar({
       <NavItem
         glyph={placeGlyphs.Control}
         isSelected={isOnBoard && workspaceId === null}
-        label="Control"
+        label="War table"
         onPress={() => onPlace("Control")}
       />
       <ScrollView contentContainerStyle={local.group} style={local.flex}>
-        <Section label="Workspaces" />
-        {workspaces.length === 0 && <Text style={local.empty}>No mission in a workspace yet.</Text>}
+        <Section label="Realms" />
+        {workspaces.length === 0 && <Text style={local.empty}>No quest in a realm yet.</Text>}
         {workspaces.map((workspace) => (
           <NavItem
             count={
@@ -168,8 +168,8 @@ function Sidebar({
             onPress={() => onWorkspace(workspace.id)}
           />
         ))}
-        <Section label="Missions" />
-        {loose.length === 0 && <Text style={local.empty}>None outside a workspace.</Text>}
+        <Section label="Quests" />
+        {loose.length === 0 && <Text style={local.empty}>None outside a realm.</Text>}
         {loose.map((mission) => (
           <MissionItem
             isSelected={mission.id === openMission}
@@ -190,7 +190,7 @@ function Sidebar({
             glyph={placeGlyphs[each]}
             isSelected={openMission === null && place === each}
             key={each}
-            label={each}
+            label={each === "Intel" ? "Lore" : "Settings"}
             onPress={() => onPlace(each)}
           />
         ))}
@@ -210,7 +210,7 @@ function Spending({ client }: { client: ServiceClient }) {
   const hasLimits = global.limits.cost !== null || global.limits.tokens !== null;
   return (
     <View style={local.spending}>
-      <Section label="Spending" />
+      <Section label="Reserves" />
       {hasLimits ? (
         <BudgetMeters use={global} />
       ) : (
@@ -242,18 +242,27 @@ export function Shell(props: Parameters<typeof Sidebar>[0] & { children: ReactNo
 
 const local = StyleSheet.create({
   // As wide as a mission's dot with its margins, so the label lines up with the missions' titles.
-  archivedGlyph: { color: colors.textDim, fontSize: fontSizes.sm, textAlign: "center", width: 13 },
-  archivedText: { color: colors.textMuted },
+  archivedGlyph: { color: colors.onWood, fontSize: fontSizes.sm, textAlign: "center", width: 13 },
+  archivedText: { color: colors.onWood },
   attention: { backgroundColor: colors.warning, borderRadius: radii.pill, height: 7, width: 7 },
   brand: { alignItems: "center", flexDirection: "row", gap: 8, paddingBottom: 12, paddingHorizontal: 8, paddingTop: 4 },
-  brandText: { color: colors.text, fontFamily: fonts.hand, fontSize: 28, lineHeight: 32 },
-  count: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.sm },
+  brandText: { color: colors.goldHi, fontFamily: fonts.hand, fontSize: 28, lineHeight: 32 },
+  count: { color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.sm },
   dot: { borderRadius: radii.pill, height: 7, marginHorizontal: 3, width: 7 },
-  empty: { color: colors.textDim, fontFamily: fonts.sans, fontSize: fontSizes.md, paddingHorizontal: 10 },
+  empty: { color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.md, paddingHorizontal: 10 },
   flex: { flex: 1 },
   footer: { borderColor: colors.border, borderTopWidth: 1.5, paddingTop: 8 },
-  frame: { backgroundColor: colors.frame, flex: 1, flexDirection: "row" },
-  glyph: { color: colors.textMuted, fontSize: fontSizes.md, textAlign: "center", width: 16 },
+  frame: {
+    backgroundColor: colors.wood,
+    borderColor: colors.gold,
+    borderRadius: 10,
+    borderWidth: 3,
+    flex: 1,
+    flexDirection: "row",
+    margin: 10,
+    overflow: "hidden",
+  },
+  glyph: { color: colors.onWood, fontSize: fontSizes.md, textAlign: "center", width: 16 },
   group: { gap: 2 },
   item: {
     ...cut,
@@ -265,9 +274,9 @@ const local = StyleSheet.create({
     paddingHorizontal: 8,
     paddingVertical: 5,
   },
-  itemHovered: { backgroundColor: colors.controlHover },
+  itemHovered: { backgroundColor: colors.wood },
   itemSelected: { ...ink, ...lift, backgroundColor: colors.canvas },
-  itemText: { color: colors.textSecondary, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.md },
+  itemText: { color: colors.onWood, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.md },
   missionText: { fontSize: fontSizes.md },
   narrow: { backgroundColor: colors.paper, flex: 1 },
   panel: {
@@ -278,14 +287,23 @@ const local = StyleSheet.create({
     overflow: "hidden",
   },
   section: {
-    color: colors.textMuted,
+    color: colors.onWood,
     fontFamily: fonts.hand,
-    fontSize: 20,
+    fontSize: 12,
+    letterSpacing: 1.4,
     paddingBottom: 2,
     paddingHorizontal: 8,
     paddingTop: 14,
+    textTransform: "uppercase",
   },
-  sidebar: { gap: 2, padding: 12, width: 236 },
+  sidebar: {
+    backgroundColor: colors.leather,
+    borderColor: colors.gold,
+    borderRightWidth: 1,
+    gap: 2,
+    padding: 12,
+    width: 215,
+  },
   spending: { paddingBottom: 4 },
   textSelected: { color: colors.text, fontWeight: "600" },
 });

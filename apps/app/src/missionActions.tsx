@@ -115,8 +115,8 @@ export function MissionTitle({ client, mission }: { client: ServiceClient; missi
   };
   if (draft === null) {
     return (
-      <Pressable accessibilityLabel="Rename the mission" onPress={() => setDraft(mission.title)} style={styles.flex}>
-        <Text numberOfLines={1} style={styles.heading}>
+      <Pressable accessibilityLabel="Rename the quest" onPress={() => setDraft(mission.title)} style={styles.flex}>
+        <Text numberOfLines={2} style={styles.heading}>
           {mission.title}
         </Text>
       </Pressable>
@@ -125,7 +125,7 @@ export function MissionTitle({ client, mission }: { client: ServiceClient; missi
   return (
     <View style={[styles.flex, styles.inlineRow]}>
       <TextInput
-        accessibilityLabel="Mission title"
+        accessibilityLabel="Quest title"
         autoFocus
         onChangeText={setDraft}
         onSubmitEditing={save}

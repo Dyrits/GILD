@@ -3,7 +3,7 @@ import { type ReactNode, useState } from "react";
 import { Pressable, Switch, Text, TextInput, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import { styles } from "./styles";
-import { colors, stateTones } from "./theme";
+import { colors, stateLabels, stateTones } from "./theme";
 
 // The web's switch takes the thumb's color when on from a prop the native types do not declare.
 const webSwitchColors = { activeThumbColor: colors.canvas };
@@ -38,7 +38,7 @@ export function StateBadge({ state }: { state: ThreadState | MissionState }) {
       ) : (
         <Text style={[styles.badgeText, { color: tone.color }]}>{glyph}</Text>
       )}
-      <Text style={[styles.badgeText, { color: tone.color }]}>{state}</Text>
+      <Text style={[styles.badgeText, { color: tone.color }]}>{stateLabels[state]}</Text>
     </View>
   );
 }

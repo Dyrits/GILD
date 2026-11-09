@@ -20,6 +20,7 @@ import {
   intelGaugeLabelOf,
   intelOriginLabelOf,
   intelProposalLineOf,
+  scopeNameOf,
 } from "./labels";
 import { Choice } from "./pickers";
 import { useHasSidebar } from "./sidebar";
@@ -32,7 +33,7 @@ import { useServiceQuery } from "./useServiceQuery";
 export function IntelIcon({ gauge, onPress }: { gauge: IntelGauge; onPress: () => void }) {
   return (
     <Pressable
-      accessibilityHint={`${gauge.tokens} tokens of a ${gauge.windowTokens}-token context window; opens the intel panel`}
+      accessibilityHint={`${gauge.tokens} tokens of a ${gauge.windowTokens}-token context window; opens the lore panel`}
       onPress={onPress}
     >
       <Text style={[styles.link, gauge.isOverWarning && styles.error]}>{intelGaugeLabelOf(gauge)}</Text>
@@ -98,7 +99,7 @@ function IntelProposalCard({ client, proposal }: { client: ServiceClient; propos
       <Text style={styles.body}>{proposal.text}</Text>
       {proposal.intels.map((intel) => (
         <Text key={intel.id} style={styles.muted}>
-          Now in {intel.scopeLabel}: {intel.text}
+          Now in {scopeNameOf(intel.scopeLabel)}: {intel.text}
         </Text>
       ))}
       <Decision
@@ -138,7 +139,7 @@ function IntelRow({ client, intel, onHistory }: { client: ServiceClient; intel: 
   return (
     <View style={styles.section}>
       <Text style={styles.muted}>
-        {intel.scopeLabel} · saved by {intel.savedByTitle === null ? "you" : `"${intel.savedByTitle}"`} ·{" "}
+        {scopeNameOf(intel.scopeLabel)} · saved by {intel.savedByTitle === null ? "you" : `"${intel.savedByTitle}"`} ·{" "}
         {timeOf(intel.savedAt)}
         {intel.updatedAt !== intel.savedAt ? ` · changed ${timeOf(intel.updatedAt)}` : ""} · {intel.tokens} tokens
       </Text>
@@ -172,7 +173,7 @@ function IntelRow({ client, intel, onHistory }: { client: ServiceClient; intel: 
       ) : (
         <View style={styles.inlineRow}>
           <TextInput
-            accessibilityLabel="Intel text"
+            accessibilityLabel="Lore text"
             multiline
             onChangeText={setDraft}
             style={[styles.input, styles.flex]}
@@ -204,7 +205,7 @@ const states = [
   "Pinned",
   "Deleted",
 ] as const satisfies ReadonlyArray<IntelStateFilter | null>;
-const scopeNames = { Global: "Global", Thread: "Thread and mission", Workspace: "Workspace" } as const satisfies Record<
+const scopeNames = { Global: "Global", Thread: "Companion and quest", Workspace: "Realm" } as const satisfies Record<
   IntelScope,
   string
 >;
@@ -252,7 +253,7 @@ export function IntelScreen({
       {error !== null && <Text style={styles.error}>{error}</Text>}
       {data?.gauge != null && (
         <Text style={data.gauge.isOverWarning ? styles.error : styles.muted}>
-          The intel in this thread's scope takes {data.gauge.tokens} tokens of its model's{" "}
+          The lore in this companion's scope takes {data.gauge.tokens} tokens of its model's{" "}
           {data.gauge.windowTokens.toLocaleString("en-US")}-token context window; the icon turns red past{" "}
           {data.gauge.warningPercent}%.
         </Text>
@@ -261,7 +262,7 @@ export function IntelScreen({
         <ScrollView style={styles.flex}>
           {data.proposals.length > 0 && (
             <View style={styles.section}>
-              <Text style={styles.label}>Proposed from how intel is used</Text>
+              <Text style={styles.label}>Proposed from how lore is used</Text>
               {data.proposals.map((proposal) => (
                 <IntelProposalCard client={client} key={proposal.id} proposal={proposal} />
               ))}
@@ -292,7 +293,7 @@ export function IntelScreen({
             />
           </View>
           {data.intels.length === 0 && data.deleted.length === 0 && (
-            <Text style={styles.muted}>{state === "Deleted" ? "No deleted intel." : "No intel here yet."}</Text>
+            <Text style={styles.muted}>{state === "Deleted" ? "No deleted lore." : "No lore here yet."}</Text>
           )}
           {data.intels.map((intel) => (
             <IntelRow client={client} intel={intel} key={intel.id} onHistory={() => setHistoryOf(intel.id)} />

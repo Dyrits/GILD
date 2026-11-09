@@ -21,7 +21,7 @@ const senderStyles = {
 const senderLabelOf = (message: Message) => {
   if (message.sender === "user") return message.isQueued ? "Queued for the next turn" : null;
   if (message.sender === "agent") return "Agent";
-  return `${message.isResult ? "Result from" : "From"} "${shortened(message.fromTitle ?? "a thread")}"`;
+  return `${message.isResult ? "Result from" : "From"} "${shortened(message.fromTitle ?? "a companion")}"`;
 };
 
 /** One message, labelled by its sender: the owner, the thread's agent, or another thread. */

@@ -1,6 +1,14 @@
 import type { BudgetScope, MessageDelivery, MissionDetail, MissionId, ThreadId } from "@gild/contracts";
 import { useEffect, useRef, useState } from "react";
-import { FlatList, type NativeScrollEvent, type NativeSyntheticEvent, Pressable, Text, View } from "react-native";
+import {
+  FlatList,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  Pressable,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
 import { BudgetMeters, BudgetScreen, BudgetStopCard } from "./budgets";
 import { newRequestId, type ServiceClient } from "./client";
 import { Composer, StateBadge } from "./controls";
@@ -10,7 +18,6 @@ import { effortLabel, harnessLabels, modelLabelOf, usageDetail } from "./formatt
 import { IntelIcon, IntelScreen } from "./intel";
 import { JournalScreen } from "./journal";
 import { MissionEndingActions, MissionTitle } from "./missionActions";
-import { useHasSidebar } from "./sidebar";
 import { PanelArch } from "./sketches";
 import { styles } from "./styles";
 import { ChatterNotices, DeleteThreadAction } from "./threadActions";
@@ -119,7 +126,7 @@ function ThreadPane({
         )}
         {canOpenBeneath && !isOpening && (
           <Pressable onPress={() => setIsOpening(true)}>
-            <Text style={styles.link}>Open thread beneath</Text>
+            <Text style={styles.link}>Open companion beneath</Text>
           </Pressable>
         )}
       </View>
@@ -139,14 +146,14 @@ function ThreadPane({
         {thread.accountId === null ? "" : ` (${thread.accountLabel})`} · {modelLabelOf(thread.model)} ·{" "}
         {effortLabel(thread.effort)} ·{" "}
         {thread.workspace === null
-          ? "No workspace: the mission's scratch folder"
-          : `Workspace ${thread.workspace.name} · ${thread.workspace.path}`}
+          ? "No realm: the quest's scratch folder"
+          : `Realm ${thread.workspace.name} · ${thread.workspace.path}`}
         {thread.workspace?.isMissing === true && " · folder missing"}
       </Text>
       {thread.state === "Stopped" && thread.waitingCount > 0 && (
         <Text style={styles.muted}>
           {thread.waitingCount === 1 ? "1 message waits" : `${thread.waitingCount} messages wait`} until you resume this
-          thread.
+          companion.
         </Text>
       )}
       {thread.blocker === "MissingWorkspace" && thread.workspace !== null && (
@@ -199,10 +206,10 @@ function ThreadPane({
           onSend={sendAs(isInTurn ? defaultDelivery : null)}
           placeholder={
             thread.state === "Stopped"
-              ? "Write to this thread; it waits until you resume it…"
+              ? "Write to this companion; it waits until you resume it…"
               : isInTurn
-                ? `Write to this thread; Send ${defaultDelivery === "Steer" ? "joins its current turn" : "waits for its next turn"}…`
-                : "Write to this thread…"
+                ? `Write to this companion; Send ${defaultDelivery === "Steer" ? "joins its current turn" : "waits for its next turn"}…`
+                : "Write to this companion…"
           }
         />
       )}
@@ -223,7 +230,8 @@ export function Conversation({
   /** Opens another mission, such as where an off-topic request went. */
   onOpenMission: (missionId: MissionId) => void;
 }) {
-  const hasSidebar = useHasSidebar();
+  const { width } = useWindowDimensions();
+  const isCompact = width < 820 || width >= 1280;
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
   const [selectedId, setSelectedId] = useState<ThreadId | null>(null);
   const [isJournalOpen, setIsJournalOpen] = useState(false);
@@ -252,7 +260,7 @@ export function Conversation({
         client={client}
         onBack={() => setIntelThread(null)}
         threadId={intelThread.id}
-        title={`Intel · ${intelThread.title}`}
+        title={`Lore · ${intelThread.title}`}
       />
     );
   }
@@ -266,19 +274,19 @@ export function Conversation({
       />
     );
   }
-  // The mission opens under an arched top, on a sheet ruled off in ink.
+  // The quest opens on a parchment sheet beneath its scroll roll.
   return (
     <View style={styles.panel}>
       <PanelArch />
       <View style={[styles.screen, styles.panelSheet]}>
         <View style={styles.header}>
-          {!hasSidebar && (
-            <Pressable onPress={onBack}>
-              <Text style={styles.link}>← Missions</Text>
-            </Pressable>
-          )}
+          <Pressable onPress={onBack}>
+            <Text style={styles.link}>← Quests</Text>
+          </Pressable>
           {data ? (
-            <MissionTitle client={client} key={data.mission.title} mission={data.mission} />
+            <View style={{ width: "100%" }}>
+              <MissionTitle client={client} key={data.mission.title} mission={data.mission} />
+            </View>
           ) : (
             <View style={styles.flex} />
           )}
@@ -295,13 +303,15 @@ export function Conversation({
         {data && <Text style={styles.muted}>{usageDetail(data.mission.usage)}</Text>}
         {error !== null && <Text style={styles.error}>{error}</Text>}
         {data && (
-          <View style={[styles.flex, styles.split]}>
-            <ThreadTree
-              onSelect={setSelectedId}
-              selectedId={data.thread.id}
-              shouldShowAgentThreads={settings?.shouldShowAgentThreads ?? true}
-              threads={data.threads}
-            />
+          <View style={[styles.flex, styles.split, isCompact && { flexDirection: "column" }]}>
+            <View style={isCompact ? { maxHeight: 120 } : null}>
+              <ThreadTree
+                onSelect={setSelectedId}
+                selectedId={data.thread.id}
+                shouldShowAgentThreads={settings?.shouldShowAgentThreads ?? true}
+                threads={data.threads}
+              />
+            </View>
             {detail && (
               <ThreadPane
                 client={client}

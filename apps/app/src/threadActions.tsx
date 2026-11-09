@@ -55,7 +55,7 @@ export function DeleteThreadAction({
         <View style={styles.failure}>
           <Text style={styles.body}>{deletionQuestionOf(preview)}</Text>
           <Text style={styles.muted}>
-            This permanently erases {preview.isMission ? "the mission" : "these threads"} and their conversations.
+            This permanently erases {preview.isMission ? "the quest" : "these companions"} and their conversations.
           </Text>
           <View style={styles.inlineRow}>
             <Pressable disabled={isBusy} onPress={remove}>

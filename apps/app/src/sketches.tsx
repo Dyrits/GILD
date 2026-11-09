@@ -1,5 +1,5 @@
 import { Image, StyleSheet, Text, View } from "react-native";
-import Svg, { Path, Rect } from "react-native-svg";
+import Svg, { Defs, LinearGradient, Path, Pattern, Rect, Stop } from "react-native-svg";
 import { colors, fonts } from "./theme";
 
 /**
@@ -16,15 +16,16 @@ export function GildMark({ size = 30 }: { size?: number }) {
 export function PanelArch() {
   return (
     <View style={local.arch}>
-      <Svg height="100%" preserveAspectRatio="none" viewBox="0 0 360 34" width="100%">
-        <Path
-          d="M0 34 C 40 4, 320 4, 360 34"
-          fill={colors.canvas}
-          stroke={colors.borderStrong}
-          strokeWidth={1.5}
-          vectorEffect="non-scaling-stroke"
-        />
-        <Path d="M180 11.5 L 180 34" stroke={colors.borderStrong} strokeWidth={1.5} vectorEffect="non-scaling-stroke" />
+      <Svg height="100%" preserveAspectRatio="none" viewBox="0 0 360 30" width="100%">
+        <Defs>
+          <LinearGradient id="scrollRoll" x1="0" x2="0" y1="0" y2="1">
+            <Stop offset="0" stopColor="#c9b07a" />
+            <Stop offset="0.35" stopColor="#f8edd2" />
+            <Stop offset="0.65" stopColor="#d9c08a" />
+            <Stop offset="1" stopColor="#a88a52" />
+          </LinearGradient>
+        </Defs>
+        <Rect fill="url(#scrollRoll)" height="25" rx="12" stroke={colors.gold} width="356" x="2" y="2" />
       </Svg>
     </View>
   );
@@ -48,5 +49,22 @@ export function EmptyBoard({ line }: { line: string }) {
 const local = StyleSheet.create({
   arch: { height: 34, width: "100%" },
   empty: { alignItems: "center", gap: 6, paddingVertical: 28 },
-  emptyText: { color: colors.textMuted, fontFamily: fonts.hand, fontSize: 21 },
+  emptyText: { color: colors.onWood, fontFamily: fonts.hand, fontSize: 21 },
 });
+
+/** Repeating timber seams and grain behind the quest notices, rendered on native and web. */
+export function BoardGrain() {
+  return (
+    <View pointerEvents="none" style={StyleSheet.absoluteFill}>
+      <Svg height="100%" width="100%">
+        <Defs>
+          <Pattern height="7" id="timber" patternUnits="userSpaceOnUse" width="120">
+            <Rect fill="#ffffff" height="2" opacity="0.025" width="120" />
+            <Path d="M119 0V7" opacity="0.5" stroke="#1d140c" strokeWidth="2" />
+          </Pattern>
+        </Defs>
+        <Rect fill="url(#timber)" height="100%" width="100%" />
+      </Svg>
+    </View>
+  );
+}

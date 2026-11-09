@@ -9,7 +9,7 @@ import { threadCountOf } from "./labels";
 import { MissionEndingActions } from "./missionActions";
 import { EmptyBoard } from "./sketches";
 import { styles } from "./styles";
-import { colors, cut, fontSizes, fonts, ink, lift } from "./theme";
+import { colors, cut, fontSizes, fonts, ink, lift, stateLabels } from "./theme";
 
 /** One mission as a card: its title, where and how much, its budget, and its ending actions. */
 export function MissionCard({
@@ -28,7 +28,12 @@ export function MissionCard({
   const isCircled = mission.state === "Attention";
   return (
     <View style={[local.card, mission.state === "Done" && local.cardDone]}>
-      {isCircled && <View pointerEvents="none" style={local.circle} />}
+      <View pointerEvents="none" style={local.pin} />
+      {isCircled && (
+        <View pointerEvents="none" style={local.circle}>
+          <Text style={local.seal}>!</Text>
+        </View>
+      )}
       <Pressable accessibilityRole="button" onPress={onOpen} style={local.cardMain}>
         <Text numberOfLines={2} style={local.cardTitle}>
           {mission.state === "Done" && <Text style={local.tick}>✓ </Text>}
@@ -53,8 +58,22 @@ export function MissionCard({
 /** A column's handwritten name; Attention's is highlighted, as with a marker. */
 function ColumnHeading({ column, count }: { column: BoardColumn; count: number }) {
   return (
-    <View style={local.heading}>
-      <Text style={[local.headingText, column === "Attention" && local.highlighted]}>{column}</Text>
+    <View
+      style={[
+        local.heading,
+        {
+          backgroundColor:
+            column === "Attention"
+              ? colors.danger
+              : column === "Done"
+                ? colors.success
+                : column === "Idle"
+                  ? colors.violet
+                  : colors.accent,
+        },
+      ]}
+    >
+      <Text style={local.headingText}>{stateLabels[column]}</Text>
       <Text style={local.count}>{count}</Text>
     </View>
   );
@@ -75,7 +94,7 @@ export function MissionBoard({
   missions: ReadonlyArray<MissionSummary>;
   onOpen: (mission: MissionSummary) => void;
 }) {
-  if (missions.length === 0) return <EmptyBoard line="No missions here yet." />;
+  if (missions.length === 0) return <EmptyBoard line="No quests here yet." />;
   const board = boardOf(missions);
   return (
     <View style={isWide ? local.columns : local.stacked}>
@@ -108,34 +127,54 @@ const local = StyleSheet.create({
     backgroundColor: colors.canvas,
     gap: 6,
     marginBottom: 12,
-    padding: 11,
+    padding: 13,
+    paddingTop: 20,
   },
   cardDone: { opacity: 0.8 },
   cardMain: { gap: 2 },
   cardMeta: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.sm },
-  cardTitle: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.base, fontWeight: "600" },
-  // A loose marker ring around a card in Attention, slightly off its edges as if drawn by hand.
+  cardTitle: { color: colors.text, fontFamily: fonts.hand, fontSize: fontSizes.base, fontWeight: "600" },
   circle: {
-    borderBottomLeftRadius: 20,
-    borderBottomRightRadius: 30,
-    borderColor: colors.warning,
-    borderTopLeftRadius: 26,
-    borderTopRightRadius: 18,
-    borderWidth: 2,
-    bottom: -6,
-    left: -6,
+    alignItems: "center",
+    backgroundColor: colors.danger,
+    borderRadius: 16,
+    bottom: -8,
+    height: 30,
+    justifyContent: "center",
     position: "absolute",
-    right: -5,
-    top: -7,
-    transform: [{ rotate: "-0.6deg" }],
+    right: -7,
+    width: 30,
+    zIndex: 1,
   },
   column: { flex: 1, minWidth: 0 },
   columns: { alignItems: "flex-start", flexDirection: "row", gap: 16 },
-  count: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.sm, fontWeight: "600" },
-  heading: { alignItems: "baseline", flexDirection: "row", gap: 6, marginBottom: 10 },
-  headingText: { color: colors.text, fontFamily: fonts.hand, fontSize: 24, lineHeight: 28, paddingHorizontal: 2 },
+  count: { color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.sm, fontWeight: "600" },
+  heading: {
+    alignItems: "center",
+    borderBottomLeftRadius: 12,
+    borderBottomRightRadius: 3,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 6,
+    justifyContent: "center",
+    marginBottom: 16,
+    padding: 8,
+  },
+  headingText: { color: colors.onWood, fontFamily: fonts.hand, fontSize: 13, lineHeight: 20 },
   highlighted: { backgroundColor: colors.marker },
-  note: { color: colors.textMuted, fontFamily: fonts.hand, fontSize: 19, marginBottom: 12 },
+  note: { color: colors.onWood, fontFamily: fonts.sans, fontSize: 15, marginBottom: 12 },
+  pin: {
+    alignSelf: "center",
+    backgroundColor: colors.textMuted,
+    borderColor: colors.border,
+    borderRadius: 4,
+    borderWidth: 1,
+    height: 7,
+    position: "absolute",
+    top: 5,
+    width: 7,
+  },
+  seal: { color: colors.canvas, fontFamily: fonts.hand, fontSize: 18 },
   stacked: { gap: 8 },
   tick: { color: colors.success },
 });

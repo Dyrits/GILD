@@ -11,13 +11,14 @@ import { allMissions } from "./queries";
 import { QuestionCard } from "./questions";
 import { type Runner, RunnerPickers, useHarnesses } from "./runners";
 import { useHasSidebar } from "./sidebar";
+import { BoardGrain } from "./sketches";
 import { styles } from "./styles";
 import { colors } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
 import { WorkspacePicker } from "./workspaces";
 
 /** The panel width from which the board's columns stand side by side. */
-const boardBreakpoint = 860;
+const boardBreakpoint = 560;
 
 /**
  * Starts a mission with one message, prefilled from the last mission's choices (mission-tracking). On a workspace's
@@ -71,13 +72,13 @@ function MissionStarter({
             ).missionId,
           )
         }
-        placeholder="Start a mission with one message…"
+        placeholder="Start a quest with one message…"
       />
       {lockedWorkspace === null ? (
         <WorkspacePicker onChange={(path) => setWorkspace({ path })} value={chosenWorkspace} />
       ) : (
         <Text style={styles.muted}>
-          Starts in <Text style={styles.code}>{lockedWorkspace.name}</Text>. Choose another folder from All workspaces.
+          Starts in <Text style={styles.code}>{lockedWorkspace.name}</Text>. Choose another folder from All realms.
         </Text>
       )}
     </View>
@@ -113,6 +114,7 @@ export function Dashboard({
   workspaceId: WorkspaceId | null;
 }) {
   const hasSidebar = useHasSidebar();
+  const [isStarting, setIsStarting] = useState(false);
   const [search, setSearch] = useState("");
   const [width, setWidth] = useState(0);
   // The Archived view keeps every workspace; the board shows the one chosen in the sidebar or the breadcrumb.
@@ -140,122 +142,130 @@ export function Dashboard({
     );
   }
   return (
-    <ScrollView
-      contentContainerStyle={local.content}
-      onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
-      style={local.scroll}
-    >
-      <View style={styles.header}>
-        {isArchived && !hasSidebar && (
-          <Pressable onPress={onBack}>
-            <Text style={styles.link}>← Missions</Text>
-          </Pressable>
-        )}
-        <View style={styles.flex}>
-          {workspaceNames.size > 0 && (
-            <View style={local.crumb}>
-              {workspaceId !== null && <Text style={styles.muted}>All workspaces ›</Text>}
-              <Menu
-                accessibilityLabel="Workspace"
-                label={(id) => (id === null ? "All workspaces" : (workspaceNames.get(id) ?? ""))}
-                onChange={onWorkspace}
-                options={[null, ...workspaceNames.keys()]}
-                value={workspaceId}
-              />
-            </View>
+    <View style={local.scroll}>
+      <BoardGrain />
+      <ScrollView
+        contentContainerStyle={local.content}
+        onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
+        style={styles.flex}
+      >
+        <View style={styles.header}>
+          {isArchived && !hasSidebar && (
+            <Pressable onPress={onBack}>
+              <Text style={[styles.link, { color: colors.goldHi }]}>← Quests</Text>
+            </Pressable>
           )}
-          <Text style={styles.heading}>
-            {isArchived ? "Archived missions" : workspaceId === null ? "Control" : "Missions"}
-          </Text>
+          <View style={styles.flex}>
+            {workspaceNames.size > 0 && (
+              <View style={[local.crumb, { alignSelf: "flex-start", backgroundColor: colors.paper, borderRadius: 3 }]}>
+                {workspaceId !== null && <Text style={styles.muted}>All realms ›</Text>}
+                <Menu
+                  accessibilityLabel="Realm"
+                  label={(id) => (id === null ? "All realms" : (workspaceNames.get(id) ?? ""))}
+                  onChange={onWorkspace}
+                  options={[null, ...workspaceNames.keys()]}
+                  value={workspaceId}
+                />
+              </View>
+            )}
+            <Text style={[styles.heading, { color: colors.onWood }]}>{isArchived ? "Archived quests" : "Quests"}</Text>
+          </View>
+          {global !== null && <BudgetMeters onPress={() => setIsGlobalBudgetOpen(true)} use={global} />}
+          {!isArchived && !hasSidebar && (
+            <Pressable onPress={onArchived}>
+              <Text style={[styles.link, { color: colors.goldHi }]}>Archived</Text>
+            </Pressable>
+          )}
+          {!isArchived && !hasSidebar && (
+            <Pressable onPress={onIntel}>
+              <Text style={[styles.link, { color: colors.goldHi }]}>Lore</Text>
+            </Pressable>
+          )}
+          {!hasSidebar && (
+            <Pressable onPress={onSettings}>
+              <Text style={[styles.link, { color: colors.goldHi }]}>Settings</Text>
+            </Pressable>
+          )}
         </View>
-        {global !== null && <BudgetMeters onPress={() => setIsGlobalBudgetOpen(true)} use={global} />}
-        {!isArchived && !hasSidebar && (
-          <Pressable onPress={onArchived}>
-            <Text style={styles.link}>Archived</Text>
-          </Pressable>
+        {!isArchived && global?.stop != null && (
+          <BudgetStopCard client={client} onRaise={() => setIsGlobalBudgetOpen(true)} stop={global.stop} />
         )}
-        {!isArchived && !hasSidebar && (
-          <Pressable onPress={onIntel}>
-            <Text style={styles.link}>Intel</Text>
-          </Pressable>
-        )}
-        {!hasSidebar && (
-          <Pressable onPress={onSettings}>
-            <Text style={styles.link}>Settings</Text>
-          </Pressable>
-        )}
-      </View>
-      {!isArchived && global?.stop != null && (
-        <BudgetStopCard client={client} onRaise={() => setIsGlobalBudgetOpen(true)} stop={global.stop} />
-      )}
-      {!isArchived && questions !== null && questions.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.label}>Waiting for your answer</Text>
-          {questions.map((question) => (
-            <QuestionCard
-              client={client}
-              key={question.id}
-              onOpenMission={() => onOpen(question.missionId)}
-              question={question}
-            />
-          ))}
-        </View>
-      )}
-      {asking.length > 0 && (
-        <View style={styles.section}>
-          <Text style={styles.label}>Missions to settle</Text>
-          {asking.map((mission) => (
-            <MissionPromptCard
-              client={client}
-              inactivityDays={settings?.inactivityDays ?? 14}
-              key={`${mission.id}:${mission.prompt}`}
-              mission={mission}
-              onOpen={() => onOpen(mission.id)}
-            />
-          ))}
-        </View>
-      )}
-      {!isArchived && (workspaceId === null || openWorkspace !== null) && (
-        <MissionStarter client={client} onOpen={onOpen} workspace={openWorkspace} />
-      )}
-      <TextInput
-        accessibilityLabel="Search missions"
-        onChangeText={setSearch}
-        placeholder="Search titles and briefings"
-        placeholderTextColor={colors.placeholder}
-        style={styles.input}
-        value={search}
-      />
-      {error !== null && <Text style={styles.error}>{error}</Text>}
-      {data !== null &&
-        (isArchived ? (
-          data.missions.length === 0 ? (
-            <Text style={styles.muted}>No archived missions.</Text>
-          ) : (
-            data.missions.map((mission) => (
-              <MissionCard
+        {!isArchived && questions !== null && questions.length > 0 && (
+          <View style={styles.section}>
+            <Text style={[styles.label, { color: colors.onWood }]}>Waiting for your answer</Text>
+            {questions.map((question) => (
+              <QuestionCard
                 client={client}
-                column={null}
-                key={mission.id}
+                key={question.id}
+                onOpenMission={() => onOpen(question.missionId)}
+                question={question}
+              />
+            ))}
+          </View>
+        )}
+        {asking.length > 0 && (
+          <View style={styles.section}>
+            <Text style={[styles.label, { color: colors.onWood }]}>Quests to settle</Text>
+            {asking.map((mission) => (
+              <MissionPromptCard
+                client={client}
+                inactivityDays={settings?.inactivityDays ?? 14}
+                key={`${mission.id}:${mission.prompt}`}
                 mission={mission}
                 onOpen={() => onOpen(mission.id)}
               />
-            ))
-          )
-        ) : (
-          <MissionBoard
-            client={client}
-            isWide={width >= boardBreakpoint}
-            missions={data.missions}
-            onOpen={(mission) => onOpen(mission.id)}
-          />
-        ))}
-    </ScrollView>
+            ))}
+          </View>
+        )}
+        {!isArchived && (
+          <Pressable accessibilityRole="button" onPress={() => setIsStarting(!isStarting)} style={styles.button}>
+            <Text style={styles.buttonText}>{isStarting ? "Close notice" : "Post a quest"}</Text>
+          </Pressable>
+        )}
+        {!isArchived && isStarting && (workspaceId === null || openWorkspace !== null) && (
+          <MissionStarter client={client} onOpen={onOpen} workspace={openWorkspace} />
+        )}
+        <TextInput
+          accessibilityLabel="Search quests"
+          onChangeText={setSearch}
+          placeholder="Search titles and briefings"
+          placeholderTextColor={colors.placeholder}
+          style={styles.input}
+          value={search}
+        />
+        {error !== null && (
+          <Text style={[styles.error, { backgroundColor: colors.dangerSoft, padding: 8 }]}>{error}</Text>
+        )}
+        {data !== null &&
+          (isArchived ? (
+            data.missions.length === 0 ? (
+              <Text style={[styles.muted, { color: colors.onWood }]}>No archived quests.</Text>
+            ) : (
+              data.missions.map((mission) => (
+                <MissionCard
+                  client={client}
+                  column={null}
+                  key={mission.id}
+                  mission={mission}
+                  onOpen={() => onOpen(mission.id)}
+                />
+              ))
+            )
+          ) : (
+            <MissionBoard
+              client={client}
+              isWide={width >= boardBreakpoint}
+              missions={data.missions}
+              onOpen={(mission) => onOpen(mission.id)}
+            />
+          ))}
+      </ScrollView>
+    </View>
   );
 }
 
 const local = StyleSheet.create({
   content: { gap: 14, paddingHorizontal: 28, paddingVertical: 20 },
   crumb: { alignItems: "center", flexDirection: "row", gap: 2, zIndex: 3 },
-  scroll: { backgroundColor: colors.paper, flex: 1 },
+  scroll: { backgroundColor: colors.wood, flex: 1 },
 });

@@ -1144,3 +1144,15 @@ References: apps/app/assets/, apps/desktop/assets/icon.png, apps/app/app.json, a
 Validation: `bun run test` passed 414 with 10 skipped; `bun run typecheck`, `bun run check`, `git diff --check`, and the desktop build passed. `leftovers.sh` reports 0 brand uses of the former name in living files. The probe moved a copy of the owner's install (11 missions) into a profile folder that already existed, renamed the database and a Claude session folder, and the built service listed all 11. The window was driven with the fake harness: title Gild, the gold G and name in the sidebar, the gilt empty board, and the mission panel's arch (`verification/2026-11-09-gild-rename/window-control.png`, `window-mission.png`). Not verified: the owner's real install moving (it happens on the next launch), the dock icon, native phone builds.
 
 Evidence: The owner's instruction of 2026-11-09: "We'll do another rebranding. We'll rename the solution 'Gild' instead of Canopy. Use this logo for now."
+
+## CHG-0073 · 2026-11-09 · Guild board and interface vocabulary
+
+Type: Code
+Event: Agreement
+Scope: Interface
+
+Summary: Apply the owner's selected Guild mockup to Gild, including quests, companions, realms, lore, War table, and state display names, while retaining the Gild name and logo.
+Reason: The owner chose this art direction and explicitly requested the naming changes with iterate.
+References: [Mockup](art-direction/2026-11-08-guild-board.html), [vocabulary](glossary.md#guild-interface-vocabulary), [current batch](work-in-progress.md).
+Validation: Direct user request on 2026-11-09; appearance acceptance is pending on the implemented app.
+Evidence: Starting revision `63bc425d28bb4ee054e4d0e91c77bdc3c85551a8`; verification recorded in working state.

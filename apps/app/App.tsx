@@ -1,7 +1,7 @@
-import { Caveat_700Bold, useFonts } from "@expo-google-fonts/caveat";
 import type { MissionId, WorkspaceId } from "@gild/contracts";
+import { useFonts } from "expo-font";
 import { useEffect, useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { ServiceClient } from "./src/client";
 import { Conversation } from "./src/conversation";
 import { Dashboard } from "./src/dashboard";
@@ -24,6 +24,8 @@ export default function App() {
   const [client, setClient] = useState<ServiceClient | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [openMission, setOpenMission] = useState<MissionId | null>(null);
+  const { width } = useWindowDimensions();
+  const isDocked = width >= 1280 && openMission !== null;
   const [isSettingsOpen, setIsSettingsOpen] = useState(false);
   const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
   const [isArchivedOpen, setIsArchivedOpen] = useState(false);
@@ -32,9 +34,11 @@ export default function App() {
   const [workspaceId, setWorkspaceId] = useState<WorkspaceId | null>(null);
   // Counts openings from the sidebar, so choosing the open mission again goes back to its threads.
   const [openCount, setOpenCount] = useState(0);
-  // Caveat's handwriting draws headings; until it loads (or fails, falling back to the system font) the
-  // connecting screen stays, so headings never jump from one face to another.
-  const [areFontsLoaded, fontError] = useFonts({ Caveat_700Bold });
+  // Bundled fonts keep the board available offline without a heading jump during loading.
+  const [areFontsLoaded, fontError] = useFonts({
+    Alegreya: require("./assets/fonts/Alegreya.ttf"),
+    Cinzel: require("./assets/fonts/Cinzel.ttf"),
+  });
   useAttentionNotice(client);
 
   useEffect(() => {
@@ -72,7 +76,7 @@ export default function App() {
   };
   const place = placeOf({ isArchivedOpen, isIntelOpen, isSettingsOpen: isSettingsOpen || isPermissionsOpen });
   const content = isIntelOpen ? (
-    <IntelScreen client={client} onBack={() => setIsIntelOpen(false)} threadId={null} title="All intel" />
+    <IntelScreen client={client} onBack={() => setIsIntelOpen(false)} threadId={null} title="All lore" />
   ) : isPermissionsOpen ? (
     <PermissionsScreen client={client} onBack={() => setIsPermissionsOpen(false)} />
   ) : isSettingsOpen ? (
@@ -113,7 +117,27 @@ export default function App() {
       place={place}
       workspaceId={workspaceId}
     >
-      {content}
+      <View style={{ flex: 1, flexDirection: "row" }}>
+        {isDocked && (
+          <View style={{ flex: 1, minWidth: 0 }}>
+            <Dashboard
+              client={client}
+              isArchived={false}
+              onArchived={() => goTo("Archived")}
+              onBack={() => setOpenMission(null)}
+              onIntel={() => goTo("Intel")}
+              onOpen={setOpenMission}
+              onSettings={() => goTo("Settings")}
+              onWorkspace={(id) => {
+                setWorkspaceId(id);
+                setOpenMission(null);
+              }}
+              workspaceId={workspaceId}
+            />
+          </View>
+        )}
+        <View style={isDocked ? { width: 540 } : { flex: 1, minWidth: 0 }}>{content}</View>
+      </View>
     </Shell>
   );
 }

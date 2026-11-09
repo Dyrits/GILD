@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import type { ServiceClient } from "./client";
 import { timeOf } from "./formatting";
-import { intelHistoryLineOf } from "./labels";
+import { intelHistoryLineOf, scopeNameOf } from "./labels";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
 
@@ -52,7 +52,7 @@ export function IntelHistoryScreen({
   intelId: IntelId;
   onBack: () => void;
 }) {
-  const { data, error } = useServiceQuery(client, { _tag: "ReadIntelHistory", intelId }, `intel-history:${intelId}`);
+  const { data, error } = useServiceQuery(client, { _tag: "ReadIntelHistory", intelId }, `lore-history:${intelId}`);
   const undoing = useUndo(client);
   return (
     <View style={styles.screen}>
@@ -61,7 +61,7 @@ export function IntelHistoryScreen({
           <Text style={styles.link}>← Back</Text>
         </Pressable>
         <Text numberOfLines={1} style={[styles.heading, styles.flex]}>
-          Intel history{data?.isDeleted === true ? " · deleted" : ""}
+          Lore history{data?.isDeleted === true ? " · deleted" : ""}
         </Text>
       </View>
       {error !== null && <Text style={styles.error}>{error}</Text>}
@@ -91,7 +91,7 @@ export function DeletedIntelRow({
   return (
     <View style={styles.section}>
       <Text style={styles.muted}>
-        {intel.scopeLabel} · {intel.kind} · deleted {timeOf(intel.deletedAt)}
+        {scopeNameOf(intel.scopeLabel)} · {intel.kind} · deleted {timeOf(intel.deletedAt)}
       </Text>
       <View style={styles.row}>
         <Text style={[styles.body, styles.flex]}>{intel.text}</Text>

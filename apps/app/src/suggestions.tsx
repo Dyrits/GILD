@@ -60,7 +60,7 @@ export function SuggestionCard({ client, suggestion }: { client: ServiceClient; 
     );
   return (
     <View style={styles.question}>
-      <Text style={styles.questionText}>This message seems off this mission's topic. Where should it go?</Text>
+      <Text style={styles.questionText}>This message seems off this quest's topic. Where should it go?</Text>
       <Text style={styles.body}>{suggestion.text}</Text>
       {suggestion.matches.map((match) => (
         <Pressable
@@ -78,7 +78,7 @@ export function SuggestionCard({ client, suggestion }: { client: ServiceClient; 
           onPress={() => send({ _tag: "NewMission", ...runner })}
           style={[styles.answer, styles.answerPrimary]}
         >
-          <Text style={[styles.answerText, styles.answerTextPrimary]}>Open as new mission "{suggestion.title}"</Text>
+          <Text style={[styles.answerText, styles.answerTextPrimary]}>Open as new quest "{suggestion.title}"</Text>
         </Pressable>
         <RunnerPickers harnesses={harnesses} isCompact={false} onChange={setRunner} value={runner} />
       </View>

@@ -111,7 +111,7 @@ export function OpenThreadForm({
     <View style={styles.openForm}>
       <View style={styles.header}>
         <Text numberOfLines={1} style={[styles.label, styles.flex]}>
-          New thread beneath "{parent.title}"
+          New companion beneath "{parent.title}"
         </Text>
         <Pressable onPress={onCancel}>
           <Text style={styles.link}>Cancel</Text>
@@ -133,7 +133,7 @@ export function OpenThreadForm({
               ))
             )}
             <Pressable onPress={() => setIsTrimming(true)} style={styles.answer}>
-              <Text style={styles.answerText}>Trim intel</Text>
+              <Text style={styles.answerText}>Trim lore</Text>
             </Pressable>
           </View>
         </View>
@@ -145,7 +145,7 @@ export function OpenThreadForm({
             client={client}
             onBack={() => setIsTrimming(false)}
             threadId={parent.id}
-            title={`Trim intel · ${parent.title}`}
+            title={`Trim lore · ${parent.title}`}
           />
         </View>
       )}
@@ -153,7 +153,7 @@ export function OpenThreadForm({
         {...(isOverWarning ? { alternative: { label: "Start anyway", onSend: openWith(true) } } : {})}
         onChangeText={request.change}
         onSend={openWith(false)}
-        placeholder="The new thread's first message…"
+        placeholder="The new companion's first message…"
       />
     </View>
   );

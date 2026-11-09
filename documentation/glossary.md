@@ -2,6 +2,28 @@
 
 Gild organizes a person's work with AI agents as missions carried out in trees of threads, where any thread can open further threads on any harness, model, and effort, and threads talk to each other in both directions.
 
+## Guild interface vocabulary
+
+The owner selected the Guild art direction on 2026-11-09, including its display names.
+The definitions below remain the technical vocabulary for contracts, tools, stored records, and capability paths; the interface uses the following names for those same concepts.
+User-authored text and historical service messages are not rewritten.
+
+| Technical term | Interface name |
+| --- | --- |
+| Mission | Quest |
+| Thread | Companion |
+| Workspace | Realm |
+| Control | War table |
+| Intel | Lore |
+| Attention | Summons |
+| Running | Underway |
+| Idle | Resting |
+| Waiting | Awaiting word |
+| Done | Fulfilled |
+
+Journal, briefing, harness, model, effort, budget, approval, and archive keep their meanings and names.
+The mockup's Rituals, Waystones, Spoils, and Chronicle are reserved for their corresponding future interfaces.
+
 ## Work
 
 **Mission**:

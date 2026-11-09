@@ -148,7 +148,7 @@ export function AccountsSection({
         </Pressable>
       </View>
       <Text style={styles.muted}>
-        Each account keeps its own sign-in and conversations. Threads use the account chosen when they start.
+        Each account keeps its own sign-in and conversations. Companions use the account chosen when they start.
       </Text>
       {error !== null && <Text style={styles.error}>{error}</Text>}
       {harnesses === null ? (

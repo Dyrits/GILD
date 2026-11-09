@@ -108,7 +108,7 @@ export function BrowsableRoots({ client }: { client: ServiceClient }) {
   return (
     <View style={styles.section}>
       <Text style={styles.label}>Browsable roots</Text>
-      <Text style={styles.muted}>Workspaces are chosen from folders under these.</Text>
+      <Text style={styles.muted}>Realms are chosen from folders under these.</Text>
       {error !== null && <Text style={styles.error}>{error}</Text>}
       {roots?.folders.map((root) => (
         <Text key={root.path} style={styles.code}>
