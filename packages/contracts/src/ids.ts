@@ -34,21 +34,21 @@ export type SuggestionId = typeof SuggestionId.Type;
 export const BudgetStopId = Schema.String.pipe(Schema.brand("BudgetStopId"));
 export type BudgetStopId = typeof BudgetStopId.Type;
 
-/** Identifies an intel (scoped-intel). */
-export const IntelId = Schema.String.pipe(Schema.brand("IntelId"));
-export type IntelId = typeof IntelId.Type;
+/** Identifies a lore entry (scoped-intel). */
+export const LoreEntryId = Schema.String.pipe(Schema.brand("LoreEntryId"));
+export type LoreEntryId = typeof LoreEntryId.Type;
 
-/** Identifies a thread's change to intel, done or awaiting the owner's approval (scoped-intel). */
-export const IntelChangeId = Schema.String.pipe(Schema.brand("IntelChangeId"));
-export type IntelChangeId = typeof IntelChangeId.Type;
+/** Identifies a thread's change to lore, done or awaiting the owner's approval (scoped-intel). */
+export const LoreChangeId = Schema.String.pipe(Schema.brand("LoreChangeId"));
+export type LoreChangeId = typeof LoreChangeId.Type;
 
-/** Identifies one entry in an intel's history (scoped-intel, History and undo). */
-export const IntelHistoryEntryId = Schema.String.pipe(Schema.brand("IntelHistoryEntryId"));
-export type IntelHistoryEntryId = typeof IntelHistoryEntryId.Type;
+/** Identifies one entry in a lore entry's history (scoped-intel, History and undo). */
+export const LoreHistoryEntryId = Schema.String.pipe(Schema.brand("LoreHistoryEntryId"));
+export type LoreHistoryEntryId = typeof LoreHistoryEntryId.Type;
 
 /** Identifies a widening or narrowing the service proposes from evidence (scoped-intel, Widening and narrowing). */
-export const IntelProposalId = Schema.String.pipe(Schema.brand("IntelProposalId"));
-export type IntelProposalId = typeof IntelProposalId.Type;
+export const LoreProposalId = Schema.String.pipe(Schema.brand("LoreProposalId"));
+export type LoreProposalId = typeof LoreProposalId.Type;
 
 /** Identifies a provider account added in Gild: a harness signed in with its own folder (provider-accounts). */
 export const AccountId = Schema.String.pipe(Schema.brand("AccountId"));

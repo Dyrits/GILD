@@ -31,6 +31,8 @@ const knownModelOf = (id: string): { name: string; provider: string } | null => 
     const [family, version] = /^\d/.test(claude[1] ?? "") ? [claude[2], claude[1]] : [claude[1], claude[2]];
     return { name: `${titled(family ?? "")} ${(version ?? "").replace("-", ".")}`, provider: "Anthropic" };
   }
+  // The bare Claude aliases the thread's chosen model uses: `sonnet`.
+  if (/^(opus|sonnet|haiku)$/.test(withoutDate)) return { name: titled(withoutDate), provider: "Anthropic" };
   // OpenAI: `gpt-5.1-codex` as "GPT-5.1 Codex".
   const gpt = /^gpt-(.+)$/.exec(withoutDate);
   if (gpt !== null) return { name: `GPT-${(gpt[1] ?? "").split("-").map(titled).join(" ")}`, provider: "OpenAI" };

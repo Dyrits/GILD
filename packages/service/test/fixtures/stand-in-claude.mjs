@@ -50,7 +50,7 @@ const reply = (text) => {
   emit({
     message: {
       content: [{ text, type: "text" }],
-      model: "claude-sonnet-5-5",
+      model: process.env.STAND_IN_MODEL ?? "claude-sonnet-5-5",
       role: "assistant",
       usage: { cache_creation_input_tokens: 5, cache_read_input_tokens: 60, input_tokens: 3, output_tokens: 7 },
     },

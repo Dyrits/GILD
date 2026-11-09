@@ -1411,3 +1411,26 @@ Summary: The owner chose Workshop as the interface name for Settings, from the o
 References: apps/app/src/{sidebar,settings,dashboard,permissions,budgets,folderBrowser}.tsx, packages/service/src/{missions,folders,harnessTools}.ts, documentation/glossary.md.
 Validation: typecheck, lint, and tests pass.
 Evidence: Baseline `9ddcddb`; not proven: the owner's acceptance of the look.
+
+
+## CHG-0093 · 2026-11-10 · Intel is called lore in the code
+
+Type: Code
+Event: Delivery
+Scope: Scoped intel
+
+Summary: The owner asked for the code to say lore, as the interface already did, keeping wire and storage names. Modules, types, schemas, functions, components, variables, comments, and tests now say lore: one item is a lore entry (`LoreEntry`, `LoreEntryId`), several are lore (`LoreScope`, `LoreView`, `loreEntries`); files moved from `intel*` to `lore*`. The prose threads read (thread instructions, tool descriptions, tool answers such as "Saved lore entry …") says lore. Kept as `intel`: the SQL tables, columns, indexes, and migrations; the request tags (`ListIntel` and the eight others); the thread tool names (`save_intel`, `search_intel`, `update_intel`, `forget_intel`, `relied_on_intel`); and the stored settings keys `intelHalfLives` and `intelWarningPercent`. Each file holding one of these says so in a one-line comment. The glossary's Intel terms became Lore terms, and the capability folder keeps its `scoped-intel` path.
+References: packages/contracts/src/{lore,requests,ids,records}.ts, packages/service/src/lore*.ts, apps/app/src/{lore,loreHistory}.tsx, documentation/glossary.md, documentation/architecture.md.
+Validation: format, typecheck, and tests pass (455 passed, 10 skipped); the kept table, tag, tool, and settings names are the same as before the rename.
+Evidence: Baseline `2221cbe` with the owner's uncommitted review fixes; not proven: a live thread reading the reworded instructions.
+
+## CHG-0094 · 2026-11-10 · Review findings of the realms and Companion-label commits fixed
+
+Type: Code
+Event: Delivery
+Scope: Guild interface
+
+Summary: The owner asked for every finding of the review of `42a60db` and `2221cbe` to be fixed. A quest's budget or journal screen, and a realm's lore and crest studio, close when another quest or realm is chosen. The realm panel is keyed by realm, saves a rename once, and counts all the realm's quests whatever the search shows; its ledger and lists are one shared component. `samePath` is exact (with the macOS `/private` form) in `apps/app/src/paths.ts`. The crest studio starts from the crest the realm shows, and its text field can be cleared, one undo step per typing. Breadcrumb keys are positional, and an archived quest's trail runs through Archives. The reply records the thread's chosen model when the harness names none, and Claude Code's `<synthetic>` is no model; `sonnet` reads as "Sonnet". A realm's lore lists its own deleted entries and hides the scope choice. The ending message says quest, and the desktop notification says "A quest needs you.". Not done: the six architecture candidates of `documentation/architecture-audit/architecture-audit-2026-11-09-2351.html`.
+References: apps/app/src/{dashboard,questPanel,paths,workspaces,crestStudio,sidebar,formatting,lore,notifications}.tsx, packages/service/src/{turns,claude,loreViews,loreHistoryViews,ending}.ts.
+Validation: format, typecheck, and tests pass (458 passed, 10 skipped); five mutations each fail a test ([proof](verification/2026-11-10-review-fixes-and-lore-rename.md)).
+Evidence: Baseline `2221cbe`; not proven: the screen behaviors, which await the owner.

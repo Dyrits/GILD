@@ -1,18 +1,20 @@
-import type { DeletedIntel, IntelHistoryEntry, IntelHistoryEntryId, IntelId } from "@gild/contracts";
+import type { DeletedLoreEntry, LoreEntryId, LoreHistoryEntry, LoreHistoryEntryId } from "@gild/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import type { ServiceClient } from "./client";
 import { timeOf } from "./formatting";
-import { intelHistoryLineOf, scopeNameOf } from "./labels";
+import { loreHistoryLineOf, scopeNameOf } from "./labels";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
 
-// An intel's history with Undo, and deleted intel with Undo deletion (scoped-intel, History and undo).
+// Stored and wire names keep `intel` so existing data and agents still work: request tags (`"ListIntel"`, ...).
+
+// A lore entry's history with Undo, and deleted lore with Undo deletion (scoped-intel, History and undo).
 
 /** Undoes one history entry, showing the refusal when there is one. */
 function useUndo(client: ServiceClient) {
   const [error, setError] = useState<string | null>(null);
-  const undo = (entryId: IntelHistoryEntryId) =>
+  const undo = (entryId: LoreHistoryEntryId) =>
     client.request({ _tag: "UndoIntelChange", entryId }).then(
       () => setError(null),
       (reason: Error) => setError(reason.message),
@@ -21,15 +23,15 @@ function useUndo(client: ServiceClient) {
 }
 
 /** One history entry: who or what made it and when, the text before and after, and Undo. */
-function HistoryEntry({ entry, onUndo }: { entry: IntelHistoryEntry; onUndo: () => void }) {
+function HistoryEntry({ entry, onUndo }: { entry: LoreHistoryEntry; onUndo: () => void }) {
   return (
     <View style={styles.section}>
       <View style={styles.row}>
         <Text style={[styles.muted, styles.flex]}>
-          {intelHistoryLineOf(entry)} · {timeOf(entry.at)}
+          {loreHistoryLineOf(entry)} · {timeOf(entry.at)}
         </Text>
         {entry.canUndo && (
-          <Pressable accessibilityLabel={`Undo: ${intelHistoryLineOf(entry)}`} onPress={onUndo}>
+          <Pressable accessibilityLabel={`Undo: ${loreHistoryLineOf(entry)}`} onPress={onUndo}>
             <Text style={styles.link}>Undo</Text>
           </Pressable>
         )}
@@ -42,17 +44,21 @@ function HistoryEntry({ entry, onUndo }: { entry: IntelHistoryEntry; onUndo: () 
   );
 }
 
-/** An intel's history, newest first, each entry with Undo while it stands. */
-export function IntelHistoryScreen({
+/** A lore entry's history, newest first, each entry with Undo while it stands. */
+export function LoreHistoryScreen({
   client,
-  intelId,
+  loreEntryId,
   onBack,
 }: {
   client: ServiceClient;
-  intelId: IntelId;
+  loreEntryId: LoreEntryId;
   onBack: () => void;
 }) {
-  const { data, error } = useServiceQuery(client, { _tag: "ReadIntelHistory", intelId }, `lore-history:${intelId}`);
+  const { data, error } = useServiceQuery(
+    client,
+    { _tag: "ReadIntelHistory", loreEntryId },
+    `lore-history:${loreEntryId}`,
+  );
   const undoing = useUndo(client);
   return (
     <View style={styles.screen}>
@@ -77,25 +83,25 @@ export function IntelHistoryScreen({
   );
 }
 
-/** A deleted intel under the Deleted filter, with Undo deletion and its history. */
-export function DeletedIntelRow({
+/** A deleted lore entry under the Deleted filter, with Undo deletion and its history. */
+export function DeletedLoreEntryRow({
   client,
-  intel,
+  loreEntry,
   onHistory,
 }: {
   client: ServiceClient;
-  intel: DeletedIntel;
+  loreEntry: DeletedLoreEntry;
   onHistory: () => void;
 }) {
   const undoing = useUndo(client);
   return (
     <View style={styles.section}>
       <Text style={styles.muted}>
-        {scopeNameOf(intel.scopeLabel)} · {intel.kind} · deleted {timeOf(intel.deletedAt)}
+        {scopeNameOf(loreEntry.scopeLabel)} · {loreEntry.kind} · deleted {timeOf(loreEntry.deletedAt)}
       </Text>
       <View style={styles.row}>
-        <Text style={[styles.body, styles.flex]}>{intel.text}</Text>
-        <Pressable onPress={() => undoing.undo(intel.entryId)}>
+        <Text style={[styles.body, styles.flex]}>{loreEntry.text}</Text>
+        <Pressable onPress={() => undoing.undo(loreEntry.entryId)}>
           <Text style={styles.link}>Undo deletion</Text>
         </Pressable>
         <Pressable onPress={onHistory}>

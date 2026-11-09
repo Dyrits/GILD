@@ -73,7 +73,7 @@ export function RealmsScreen({
 }
 
 const keepRooms: ReadonlyArray<{ description: string; emblem: EmblemName; label: string; place: Place }> = [
-  { description: "What your threads know, kept across quests.", emblem: "scroll", label: "Lore", place: "Intel" },
+  { description: "What your threads know, kept across quests.", emblem: "scroll", label: "Lore", place: "Lore" },
   { description: "Quests put away; reopen one from here.", emblem: "tower", label: "Archives", place: "Archived" },
 ];
 

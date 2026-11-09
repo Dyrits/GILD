@@ -20,7 +20,7 @@ import { colors, cut, fontSizes, fonts, ink, lift, radii } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
 
 /** The places the sidebar leads to; a mission is opened from its list instead, a realm's quests from its own list. */
-export type Place = "Guildmaster" | "Realms" | "Quests" | "Keep" | "Intel" | "Archived" | "Settings";
+export type Place = "Guildmaster" | "Realms" | "Quests" | "Keep" | "Lore" | "Archived" | "Settings";
 
 const SidebarShown = createContext(false);
 
@@ -87,6 +87,12 @@ const useRailTip = (label: string, isActive: boolean) => {
   };
 };
 
+/** The icon tint on a rail row: gold when the collapsed rail selects it, plain text when the open rail does. */
+const railTintOf = (isSelected: boolean, isCollapsed: boolean): string => {
+  if (!isSelected) return colors.onWood;
+  return isCollapsed ? colors.goldHi : colors.text;
+};
+
 function NavItem({
   count,
   isCollapsed,
@@ -131,11 +137,7 @@ function NavItem({
       {realm !== undefined ? (
         <CrestBadge crest={realm.crest} id={realm.id} size={isCollapsed ? 40 : 30} />
       ) : emblem !== undefined ? (
-        <Emblem
-          name={emblem}
-          size={isCollapsed ? 28 : 18}
-          tint={isSelected ? (isCollapsed ? colors.goldHi : colors.text) : colors.onWood}
-        />
+        <Emblem name={emblem} size={isCollapsed ? 28 : 18} tint={railTintOf(isSelected, isCollapsed)} />
       ) : (
         <Text style={[local.glyph, isSelected && local.textSelected]}>{glyph}</Text>
       )}
@@ -228,11 +230,7 @@ function ArchivedItem({
         isSelected && isCollapsed && local.itemSelectedCollapsed,
       ]}
     >
-      <Emblem
-        name="tower"
-        size={isCollapsed ? 28 : 18}
-        tint={isSelected ? (isCollapsed ? colors.goldHi : colors.text) : colors.onWood}
-      />
+      <Emblem name="tower" size={isCollapsed ? 28 : 18} tint={railTintOf(isSelected, isCollapsed)} />
       {!isCollapsed && (
         <Text numberOfLines={1} style={[local.itemText, local.archivedText, isSelected && local.textSelected]}>
           Archives
@@ -470,9 +468,9 @@ function Sidebar({
               emblem="scroll"
               glyph=""
               isCollapsed={false}
-              isSelected={isHere("Intel")}
+              isSelected={isHere("Lore")}
               label="Lore"
-              onPress={() => onPlace("Intel")}
+              onPress={() => onPlace("Lore")}
             />
             <ArchivedItem
               client={client}
@@ -660,7 +658,8 @@ function TopBar({
         {crumbs.map((crumb, index) => {
           const isLast = index === crumbs.length - 1;
           return (
-            <View key={crumb.label} style={[local.crumb, isLast && local.crumbLast]}>
+            // biome-ignore lint/suspicious/noArrayIndexKey: a trail is positional and labels can repeat (a realm named "Realms").
+            <View key={index} style={[local.crumb, isLast && local.crumbLast]}>
               {index > 0 && <Text style={local.crumbSeparator}>›</Text>}
               {crumb.glyph !== undefined && <Text style={local.crumbGlyph}>{crumb.glyph}</Text>}
               {crumb.onPress === null ? (
@@ -701,6 +700,7 @@ function TopBar({
  * back to its place.
  */
 const crumbsOf = ({
+  isLoaded,
   missions,
   onPlace,
   onWorkspace,
@@ -709,6 +709,9 @@ const crumbsOf = ({
   realm,
   workspaces,
 }: {
+  /** Whether the quests have been read, so a quest missing from them is known to be archived. */
+  isLoaded: boolean;
+  /** The quests that are not archived. */
   missions: readonly MissionSummary[];
   onPlace: (place: Place) => void;
   onWorkspace: (id: WorkspaceId) => void;
@@ -722,12 +725,13 @@ const crumbsOf = ({
     glyph === undefined ? { label, onPress: null } : { glyph, label, onPress: null };
   if (openMission !== null) {
     const mission = missions.find((each) => each.id === openMission);
+    if (mission === undefined && isLoaded) return [to("The Keep", "Keep"), to("Archives", "Archived"), here("Quest")];
     const own = workspaces.find((each) => each.id === mission?.workspaceId);
     const current = here(mission?.title ?? "Quest");
     if (own === undefined) return [to("Quests", "Quests"), current];
     return [to("Realms", "Realms"), { label: own.name, onPress: () => onWorkspace(own.id) }, current];
   }
-  if (place === "Intel") return [to("The Keep", "Keep"), here("Lore")];
+  if (place === "Lore") return [to("The Keep", "Keep"), here("Lore")];
   if (place === "Archived") return [to("The Keep", "Keep"), here("Archives", "▤")];
   if (place === "Keep") return [here("The Keep")];
   if (place === "Settings") return [here("Workshop")];
@@ -821,6 +825,7 @@ export function Shell(
   }, [hasRail]);
   const workspaces = data?.workspaces ?? [];
   const crumbs = crumbsOf({
+    isLoaded: data !== null,
     missions: data?.missions ?? [],
     onPlace: props.onPlace,
     onWorkspace: props.onWorkspace,

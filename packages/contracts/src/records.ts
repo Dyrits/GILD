@@ -3,9 +3,11 @@ import { BudgetEvent, BudgetLimits, BudgetPeriod, BudgetStop, BudgetUse, Spendin
 import { Crest } from "./crest.ts";
 import { HarnessName } from "./harnesses.ts";
 import { AccountId, MessageId, MissionId, SuggestionId, ThreadId, WorkspaceId } from "./ids.ts";
-import { IntelChange, IntelGauge } from "./intel.ts";
+import { LoreChange, LoreGauge } from "./lore.ts";
 import { ApprovalLevel, Question } from "./questions.ts";
 import { Workspace, WorkspaceChoice } from "./workspaces.ts";
+
+// Stored and wire names keep `intel` so existing data and agents still work: settings keys (`intelHalfLives`, `intelWarningPercent`).
 
 // Missions, threads, settings, and off-topic suggestions.
 
@@ -66,8 +68,8 @@ export const Settings = Schema.Struct({
   globalBudgetPeriod: BudgetPeriod,
   /** Days without activity before the dashboard asks to archive or mark a mission done (mission-tracking). */
   inactivityDays: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
-  /** The share of the chosen model's context window, in percent, past which a thread's intel icon turns red (scoped-intel). */
-  /** Days over which an unused intel's strength halves, by kind; a rule never fades (scoped-intel, Kinds). */
+  /** The share of the chosen model's context window, in percent, past which a thread's lore icon turns red (scoped-intel). */
+  /** Days over which an unused lore entry's strength halves, by kind; a rule never fades (scoped-intel, Kinds). */
   intelHalfLives: Schema.Struct({
     decision: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
     fact: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
@@ -290,12 +292,12 @@ export type Suggestion = typeof Suggestion.Type;
 export const StartingContextParts = Schema.Struct({
   /** The budget line; none without a budget. */
   budget: Schema.Number,
-  /** The instructions every thread receives: on threads, the journal, intel, and approvals. */
+  /** The instructions every thread receives: on threads, the journal, lore, and approvals. */
   instructions: Schema.Number,
-  /** The intel in the new thread's scope: scoped intel in full and the global index. */
-  intel: Schema.Number,
   /** The mission's briefing and its latest entries. */
   journal: Schema.Number,
+  /** The lore in the new thread's scope: scoped lore in full and the global index. */
+  lore: Schema.Number,
   /** The opener's messages since the journal's latest entry. */
   openerMessages: Schema.Number,
   /** The line naming the new thread's title and its opener's. */
@@ -362,10 +364,10 @@ export const MissionDetail = Schema.Struct({
   /** The mission's open budget stop when the selected thread holds its question. */
   budgetStop: Schema.NullOr(BudgetStop),
   chatter: Schema.Array(ChatterNotice),
-  /** The selected thread's changes to intel, done and awaiting approval, in the order made. */
-  intelChanges: Schema.Array(IntelChange),
-  /** How much of its model's context window the intel in the selected thread's scope takes. */
-  intelGauge: IntelGauge,
+  /** The selected thread's changes to lore, done and awaiting approval, in the order made. */
+  loreChanges: Schema.Array(LoreChange),
+  /** How much of its model's context window the lore in the selected thread's scope takes. */
+  loreGauge: LoreGauge,
   /** The selected thread's messages. */
   messages: Schema.Array(Message),
   mission: MissionSummary,

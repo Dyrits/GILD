@@ -77,7 +77,7 @@ export const endMission = Effect.fn("endMission")(function* (
   if (JSON.stringify(ids) !== snapshot) {
     return yield* new ServiceFailure({
       kind: "StaleVersion",
-      message: "The threads at work changed. Review them again before ending the mission.",
+      message: "The threads at work changed. Review them again before ending the quest.",
     });
   }
   yield* haltThreads(ids, "Stopped");

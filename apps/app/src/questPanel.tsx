@@ -1,5 +1,5 @@
 import type { MissionDetail, MissionId, MissionSummary, WorkspaceChoice } from "@gild/contracts";
-import { type ReactNode, useState } from "react";
+import { type ReactNode, useRef, useState } from "react";
 import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { boardOf, columnOf } from "./boardColumns";
 import { BudgetMeters } from "./budgets";
@@ -261,6 +261,50 @@ function OverviewRow({ mission, onPress }: { mission: MissionSummary; onPress: (
   );
 }
 
+/** The count of quests in each column, then what needs the owner and what is underway, each a press away from its panel. */
+function QuestLedger({
+  missions,
+  onSelect,
+}: {
+  missions: ReadonlyArray<MissionSummary>;
+  onSelect: (id: MissionId) => void;
+}) {
+  const board = boardOf(missions);
+  const lists = [
+    { label: "Needs you", rows: board.Attention },
+    { label: "Underway", rows: board.Running },
+  ] as const;
+  return (
+    <>
+      <View style={local.group}>
+        <Text style={local.groupLabel}>The quest ledger</Text>
+        <View style={local.ledger}>
+          {ledgerColumns.map(({ column, color }) => (
+            <View key={column} style={local.ledgerTile}>
+              <Text style={[local.ledgerCount, { color }]}>{board[column].length}</Text>
+              <Text style={local.ledgerLabel}>{stateLabels[column]}</Text>
+            </View>
+          ))}
+        </View>
+      </View>
+      {lists.map(
+        ({ label, rows }) =>
+          rows.length > 0 && (
+            <View key={label} style={local.group}>
+              <Text style={local.groupLabel}>{label}</Text>
+              <View style={local.card}>
+                {rows.slice(0, 5).map((mission) => (
+                  <OverviewRow key={mission.id} mission={mission} onPress={() => onSelect(mission.id)} />
+                ))}
+                {rows.length > 5 && <Text style={local.overviewMore}>+ {rows.length - 5} more on the board</Text>}
+              </View>
+            </View>
+          ),
+      )}
+    </>
+  );
+}
+
 /**
  * What the board's side panel shows while no quest is chosen: a compass and an invitation to choose one, the ledger of
  * how many quests stand in each column, and what needs the owner and what is underway, each a press away from its panel.
@@ -275,11 +319,6 @@ export function QuestOverview({
   /** The realm whose quests the board shows, or null for every realm. */
   realm: string | null;
 }) {
-  const board = boardOf(missions);
-  const lists = [
-    { label: "Needs you", rows: board.Attention },
-    { label: "Underway", rows: board.Running },
-  ] as const;
   return (
     <View style={local.panel}>
       <ScrollView contentContainerStyle={local.content} style={styles.flex}>
@@ -297,31 +336,7 @@ export function QuestOverview({
           </Text>
         </View>
         <View style={local.overviewRule} />
-        <View style={local.group}>
-          <Text style={local.groupLabel}>The quest ledger</Text>
-          <View style={local.ledger}>
-            {ledgerColumns.map(({ column, color }) => (
-              <View key={column} style={local.ledgerTile}>
-                <Text style={[local.ledgerCount, { color }]}>{board[column].length}</Text>
-                <Text style={local.ledgerLabel}>{stateLabels[column]}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-        {lists.map(
-          ({ label, rows }) =>
-            rows.length > 0 && (
-              <View key={label} style={local.group}>
-                <Text style={local.groupLabel}>{label}</Text>
-                <View style={local.card}>
-                  {rows.slice(0, 5).map((mission) => (
-                    <OverviewRow key={mission.id} mission={mission} onPress={() => onSelect(mission.id)} />
-                  ))}
-                  {rows.length > 5 && <Text style={local.overviewMore}>+ {rows.length - 5} more on the board</Text>}
-                </View>
-              </View>
-            ),
-        )}
+        <QuestLedger missions={missions} onSelect={onSelect} />
         <Text style={local.quote}>“Every great tale begins with a quest.”</Text>
       </ScrollView>
     </View>
@@ -349,23 +364,25 @@ export function RealmPanel({
   onSelect: (id: MissionId) => void;
   realm: WorkspaceChoice;
 }) {
-  const board = boardOf(missions);
   // The new name while the realm's name is being edited; null at rest.
   const [draft, setDraft] = useState<string | null>(null);
+  // Blur and submit both save; the ref lets the second of the two see that the first already did.
+  const draftRef = useRef<string | null>(null);
   const [renameError, setRenameError] = useState<string | null>(null);
+  const editName = (value: string | null) => {
+    draftRef.current = value;
+    setDraft(value);
+  };
   const saveName = () => {
-    const name = draft?.trim() ?? "";
-    setDraft(null);
+    if (draftRef.current === null) return;
+    const name = draftRef.current.trim();
+    editName(null);
     if (name === "" || name === realm.name) return;
     onRename(name).then(
       () => setRenameError(null),
       (reason: Error) => setRenameError(reason.message),
     );
   };
-  const lists = [
-    { label: "Needs you", rows: board.Attention },
-    { label: "Underway", rows: board.Running },
-  ] as const;
   const lastActivity = missions.length === 0 ? null : Math.max(...missions.map((mission) => mission.lastActivityAt));
   const cost = missions.reduce((sum, mission) => sum + mission.budget.spent.cost, 0);
   const tokens = missions.reduce(
@@ -391,7 +408,7 @@ export function RealmPanel({
               <Pressable
                 accessibilityHint="Press to rename the realm"
                 accessibilityRole="button"
-                onPress={() => setDraft(realm.name)}
+                onPress={() => editName(realm.name)}
                 style={styles.flex}
               >
                 <Text numberOfLines={3} style={local.heroName}>
@@ -405,7 +422,7 @@ export function RealmPanel({
                   autoFocus
                   maxLength={80}
                   onBlur={saveName}
-                  onChangeText={setDraft}
+                  onChangeText={editName}
                   onSubmitEditing={saveName}
                   style={[local.heroName, local.nameInput]}
                   value={draft}
@@ -427,31 +444,7 @@ export function RealmPanel({
         <Group label="Lore">
           <Row label="What this realm has learned" onPress={onOpenLore} />
         </Group>
-        <View style={local.group}>
-          <Text style={local.groupLabel}>The quest ledger</Text>
-          <View style={local.ledger}>
-            {ledgerColumns.map(({ column, color }) => (
-              <View key={column} style={local.ledgerTile}>
-                <Text style={[local.ledgerCount, { color }]}>{board[column].length}</Text>
-                <Text style={local.ledgerLabel}>{stateLabels[column]}</Text>
-              </View>
-            ))}
-          </View>
-        </View>
-        {lists.map(
-          ({ label, rows }) =>
-            rows.length > 0 && (
-              <View key={label} style={local.group}>
-                <Text style={local.groupLabel}>{label}</Text>
-                <View style={local.card}>
-                  {rows.slice(0, 5).map((mission) => (
-                    <OverviewRow key={mission.id} mission={mission} onPress={() => onSelect(mission.id)} />
-                  ))}
-                  {rows.length > 5 && <Text style={local.overviewMore}>+ {rows.length - 5} more on the board</Text>}
-                </View>
-              </View>
-            ),
-        )}
+        <QuestLedger missions={missions} onSelect={onSelect} />
       </ScrollView>
     </View>
   );

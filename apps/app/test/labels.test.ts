@@ -7,13 +7,13 @@ import {
   contextUseTextOf,
   deletionQuestionOf,
   foldedLabelOf,
-  intelChangeLineOf,
-  intelFadingLabelOf,
-  intelGaugeLabelOf,
-  intelHistoryLineOf,
-  intelOriginLabelOf,
-  intelProposalLineOf,
   journalAuthorOf,
+  loreChangeLineOf,
+  loreFadingLabelOf,
+  loreGaugeLabelOf,
+  loreHistoryLineOf,
+  loreOriginLabelOf,
+  loreProposalLineOf,
   meterLevelOf,
   promptQuestionOf,
   raisedLimitsOf,
@@ -110,54 +110,54 @@ describe("budget meters", () => {
   });
 });
 
-describe("intel labels", () => {
+describe("lore labels", () => {
   const change = { kind: "Save", previousText: null, scopeLabel: "Global", status: "Done", text: "A fact." } as const;
 
   it("names each kind of change with its scope and status", () => {
-    expect(intelChangeLineOf(change)).toBe("Save lore to Global");
-    expect(intelChangeLineOf({ ...change, status: "Awaiting" })).toBe("Save lore to Global · awaiting your approval");
-    expect(intelChangeLineOf({ ...change, kind: "Forget", status: "Declined" })).toBe(
+    expect(loreChangeLineOf(change)).toBe("Save lore to Global");
+    expect(loreChangeLineOf({ ...change, status: "Awaiting" })).toBe("Save lore to Global · awaiting your approval");
+    expect(loreChangeLineOf({ ...change, kind: "Forget", status: "Declined" })).toBe(
       "Delete lore from Global · declined",
     );
-    expect(intelChangeLineOf({ ...change, kind: "Update", previousText: "Old.", status: "Approved" })).toBe(
+    expect(loreChangeLineOf({ ...change, kind: "Update", previousText: "Old.", status: "Approved" })).toBe(
       "Correct lore in Global · approved",
     );
-    expect(intelChangeLineOf({ ...change, kind: "Update", previousText: "A fact." })).toBe("Move lore to Global");
-    expect(intelChangeLineOf({ ...change, kind: "Replace", previousText: "Old.", status: "Awaiting" })).toBe(
+    expect(loreChangeLineOf({ ...change, kind: "Update", previousText: "A fact." })).toBe("Move lore to Global");
+    expect(loreChangeLineOf({ ...change, kind: "Replace", previousText: "Old.", status: "Awaiting" })).toBe(
       "Replace lore in Global · awaiting your approval",
     );
   });
 
-  it("names what an intel rests on", () => {
-    expect(intelOriginLabelOf(null)).toBeNull();
-    expect(intelOriginLabelOf({ entryNumber: 4, excerpt: "Chose Effect.", from: null, kind: "JournalEntry" })).toBe(
+  it("names what a lore entry rests on", () => {
+    expect(loreOriginLabelOf(null)).toBeNull();
+    expect(loreOriginLabelOf({ entryNumber: 4, excerpt: "Chose Effect.", from: null, kind: "JournalEntry" })).toBe(
       "From journal entry 4: Chose Effect.",
     );
-    expect(intelOriginLabelOf({ entryNumber: null, excerpt: "Use Bun.", from: null, kind: "Message" })).toBe(
+    expect(loreOriginLabelOf({ entryNumber: null, excerpt: "Use Bun.", from: null, kind: "Message" })).toBe(
       "From your message: Use Bun.",
     );
-    expect(intelOriginLabelOf({ entryNumber: null, excerpt: "Done.", from: "Build", kind: "Message" })).toBe(
+    expect(loreOriginLabelOf({ entryNumber: null, excerpt: "Done.", from: "Build", kind: "Message" })).toBe(
       'From a message by "Build": Done.',
     );
   });
 
-  it("gives the intel count and its share of the context window", () => {
-    expect(intelGaugeLabelOf({ count: 0, tokens: 0, windowTokens: 200_000 })).toBe("Lore · 0 · 0%");
-    expect(intelGaugeLabelOf({ count: 2, tokens: 100, windowTokens: 200_000 })).toBe("Lore · 2 · <0.1%");
-    expect(intelGaugeLabelOf({ count: 9, tokens: 21_000, windowTokens: 200_000 })).toBe("Lore · 9 · 10.5%");
+  it("gives the lore count and its share of the context window", () => {
+    expect(loreGaugeLabelOf({ count: 0, tokens: 0, windowTokens: 200_000 })).toBe("Lore · 0 · 0%");
+    expect(loreGaugeLabelOf({ count: 2, tokens: 100, windowTokens: 200_000 })).toBe("Lore · 2 · <0.1%");
+    expect(loreGaugeLabelOf({ count: 9, tokens: 21_000, windowTokens: 200_000 })).toBe("Lore · 9 · 10.5%");
   });
 
-  it("names an intel's kind, state, strength, uses, and pin", () => {
-    const intel = { isPinned: false, kind: "Preference", state: "Active", strength: 0.816, uses: 0 } as const;
-    expect(intelFadingLabelOf(intel)).toBe("Preference · active · strength 82% · not used yet");
-    expect(intelFadingLabelOf({ ...intel, uses: 1 })).toBe("Preference · active · strength 82% · used once");
-    expect(intelFadingLabelOf({ ...intel, isPinned: true, strength: 1, uses: 3 })).toBe(
+  it("names a lore entry's kind, state, strength, uses, and pin", () => {
+    const loreEntry = { isPinned: false, kind: "Preference", state: "Active", strength: 0.816, uses: 0 } as const;
+    expect(loreFadingLabelOf(loreEntry)).toBe("Preference · active · strength 82% · not used yet");
+    expect(loreFadingLabelOf({ ...loreEntry, uses: 1 })).toBe("Preference · active · strength 82% · used once");
+    expect(loreFadingLabelOf({ ...loreEntry, isPinned: true, strength: 1, uses: 3 })).toBe(
       "Preference · active · strength 100% · used 3 times · pinned",
     );
   });
 });
 
-describe("intel history lines", () => {
+describe("lore history lines", () => {
   const entry = {
     actor: "Thread",
     actorTitle: "Build",
@@ -169,41 +169,59 @@ describe("intel history lines", () => {
   } as const;
 
   it("names who made each entry, and the owner's approval", () => {
-    expect(intelHistoryLineOf(entry)).toBe('Saved by "Build"');
-    expect(intelHistoryLineOf({ ...entry, approvedAt: 1 })).toBe('Saved by "Build" · approved by you');
-    expect(intelHistoryLineOf({ ...entry, kind: "Replaced" })).toBe('Replaced by a save from "Build"');
-    expect(intelHistoryLineOf({ ...entry, kind: "Widened" })).toBe('Moved to Global by "Build"');
-    expect(intelHistoryLineOf({ ...entry, actor: "Owner", actorTitle: null, kind: "Deleted" })).toBe("Deleted by you");
+    expect(loreHistoryLineOf(entry)).toBe('Saved by "Build"');
+    expect(loreHistoryLineOf({ ...entry, approvedAt: 1 })).toBe('Saved by "Build" · approved by you');
+    expect(loreHistoryLineOf({ ...entry, kind: "Replaced" })).toBe('Replaced by a save from "Build"');
+    expect(loreHistoryLineOf({ ...entry, kind: "Widened" })).toBe('Moved to Global by "Build"');
+    expect(loreHistoryLineOf({ ...entry, actor: "Owner", actorTitle: null, kind: "Deleted" })).toBe("Deleted by you");
   });
 
   it("says a fading step was fading, and names what an undo undid", () => {
-    expect(intelHistoryLineOf({ ...entry, actor: "Fading", actorTitle: null, kind: "Dormant" })).toBe(
+    expect(loreHistoryLineOf({ ...entry, actor: "Fading", actorTitle: null, kind: "Dormant" })).toBe(
       "Became dormant by fading",
     );
-    expect(intelHistoryLineOf({ ...entry, actor: "Owner", actorTitle: null, kind: "Undone", undid: "Deleted" })).toBe(
+    expect(loreHistoryLineOf({ ...entry, actor: "Owner", actorTitle: null, kind: "Undone", undid: "Deleted" })).toBe(
       "You undid: deleted",
     );
-    expect(intelHistoryLineOf({ ...entry, undoneAt: 2 })).toBe('Saved by "Build" · undone');
+    expect(loreHistoryLineOf({ ...entry, undoneAt: 2 })).toBe('Saved by "Build" · undone');
   });
 
-  it("says where an approved proposal moved or merged an intel", () => {
+  it("says where an approved proposal moved or merged a lore entry", () => {
     const owner = { ...entry, actor: "Owner", actorTitle: null } as const;
-    expect(intelHistoryLineOf({ ...owner, kind: "Narrowed", scopeLabel: "Workspace alpha" })).toBe(
+    expect(loreHistoryLineOf({ ...owner, kind: "Narrowed", scopeLabel: "Workspace alpha" })).toBe(
       "Moved to Realm alpha by you",
     );
-    expect(intelHistoryLineOf({ ...owner, kind: "Merged" })).toBe("Merged into one global lore entry by you");
+    expect(loreHistoryLineOf({ ...owner, kind: "Merged" })).toBe("Merged into one global lore entry by you");
   });
 });
 
-describe("intel proposal labels", () => {
-  it("says what a widening merges and why a narrowing moves an intel", () => {
-    const widen = { halfLifeDays: null, intels: [{}, {}], kind: "Widen", scopeLabel: "Global", uses: null } as const;
-    expect(intelProposalLineOf(widen)).toBe("Saved separately in 2 realms: make it one global lore entry");
+describe("lore proposal labels", () => {
+  it("says what a widening merges and why a narrowing moves a lore entry", () => {
+    const widen = {
+      halfLifeDays: null,
+      kind: "Widen",
+      loreEntries: [{}, {}],
+      scopeLabel: "Global",
+      uses: null,
+    } as const;
+    expect(loreProposalLineOf(widen)).toBe("Saved separately in 2 realms: make it one global lore entry");
     expect(
-      intelProposalLineOf({ halfLifeDays: 45, intels: [{}], kind: "Narrow", scopeLabel: "Workspace alpha", uses: 1 }),
+      loreProposalLineOf({
+        halfLifeDays: 45,
+        kind: "Narrow",
+        loreEntries: [{}],
+        scopeLabel: "Workspace alpha",
+        uses: 1,
+      }),
     ).toBe("Used only in Realm alpha for 45 days, once: move it there");
     expect(
-      intelProposalLineOf({ halfLifeDays: 45, intels: [{}], kind: "Narrow", scopeLabel: "Workspace alpha", uses: 3 }),
+      loreProposalLineOf({
+        halfLifeDays: 45,
+        kind: "Narrow",
+        loreEntries: [{}],
+        scopeLabel: "Workspace alpha",
+        uses: 3,
+      }),
     ).toBe("Used only in Realm alpha for 45 days, 3 times: move it there");
   });
 });
@@ -215,8 +233,8 @@ describe("starting context labels", () => {
     parts: {
       budget: 30,
       instructions: 2_400,
-      intel: 20,
       journal: 50,
+      lore: 20,
       openerMessages: 71_800,
       position: 20,
       request: 100,

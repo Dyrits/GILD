@@ -4,8 +4,8 @@ import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { Commands, changed } from "./commands.ts";
 import { invalid, notFound, ServiceFailure } from "./errors.ts";
-import { eraseThreadsIntel } from "./intelStore.ts";
 import { haltThreads, releaseResolvedChatter } from "./lifecycle.ts";
+import { eraseThreadsLore } from "./loreStore.ts";
 import { removeScratch } from "./scratch.ts";
 import { ScratchRoot } from "./workspaces.ts";
 
@@ -64,7 +64,7 @@ const eraseSubtree = Effect.fn("eraseSubtree")(function* (rows: Subtree, root: S
   yield* releaseResolvedChatter;
   yield* sql`DELETE FROM questions WHERE thread_id IN ${sql.in(ids)}`;
   yield* sql`DELETE FROM suggestions WHERE thread_id IN ${sql.in(ids)}`;
-  yield* eraseThreadsIntel(ids);
+  yield* eraseThreadsLore(ids);
   // Usage stays: deleting never gives spending back to a budget (budget-control).
   yield* sql`DELETE FROM turns WHERE thread_id IN ${sql.in(ids)}`;
   if (root.parentId === null) {

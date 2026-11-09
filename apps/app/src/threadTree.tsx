@@ -5,8 +5,8 @@ import { newRequestId, type ServiceClient } from "./client";
 import { Composer, StateBadge } from "./controls";
 import { foldThreads } from "./folding";
 import { modelLabelOf } from "./formatting";
-import { IntelScreen } from "./intel";
 import { foldedLabelOf, startingContextPartsOf, startingContextWarningOf } from "./labels";
+import { LoreScreen } from "./lore";
 import { type Runner, RunnerPickers, useHarnesses } from "./runners";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
@@ -66,7 +66,7 @@ export function ThreadTree({
 /**
  * Opens a thread beneath the selected one: its model and effort start as the parent's and can be changed
  * until the first message is sent (thread-tree, Opening a thread). Past a quarter of the model's context
- * window it warns, with a larger model, trimming intel, or starting anyway.
+ * window it warns, with a larger model, trimming lore, or starting anyway.
  */
 export function OpenThreadForm({
   client,
@@ -151,7 +151,7 @@ export function OpenThreadForm({
       {isTrimming && (
         // The panel opens inside the form, so the request typed so far stays.
         <View style={styles.trimPanel}>
-          <IntelScreen
+          <LoreScreen
             client={client}
             onBack={() => setIsTrimming(false)}
             threadId={parent.id}

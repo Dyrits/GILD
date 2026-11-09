@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type {
-  IntelHistoryEntry,
+  LoreHistoryEntry,
   MissionDetail,
   MissionId,
   Request,
@@ -81,8 +81,8 @@ export const open = (parentThreadId: ThreadId, text = "Hello") =>
     text,
   });
 
-/** The entry of the given kind in an intel's history; fails the test when there is none. */
-export const entryOf = (entries: ReadonlyArray<IntelHistoryEntry>, kind: IntelHistoryEntry["kind"]) => {
+/** The entry of the given kind in a lore entry's history; fails the test when there is none. */
+export const entryOf = (entries: ReadonlyArray<LoreHistoryEntry>, kind: LoreHistoryEntry["kind"]) => {
   const found = entries.find((entry) => entry.kind === kind);
   if (found === undefined) throw new Error(`no ${kind} entry in ${entries.map((entry) => entry.kind).join(", ")}`);
   return found;

@@ -2,14 +2,14 @@ import type {
   BudgetLimits,
   ContextGauge,
   ContextPartKind,
-  Intel,
-  IntelChange,
-  IntelChangeStatus,
-  IntelGauge,
-  IntelHistoryEntry,
-  IntelHistoryKind,
-  IntelOrigin,
-  IntelProposal,
+  LoreChange,
+  LoreChangeStatus,
+  LoreEntry,
+  LoreGauge,
+  LoreHistoryEntry,
+  LoreHistoryKind,
+  LoreOrigin,
+  LoreProposal,
   StartingContext,
   StartingContextParts,
   SuggestionOutcome,
@@ -61,7 +61,7 @@ export const startingContextPartsOf = (parts: StartingContextParts) =>
   [
     `Request ${tokenCountOf(parts.request)}`,
     `Journal ${tokenCountOf(parts.journal)}`,
-    `Lore ${tokenCountOf(parts.intel)}`,
+    `Lore ${tokenCountOf(parts.lore)}`,
     `Opener's messages ${tokenCountOf(parts.openerMessages)}`,
     `Realm ${tokenCountOf(parts.workspace)}`,
     `Instructions ${tokenCountOf(parts.instructions)}`,
@@ -142,38 +142,38 @@ export const raisedLimitsOf = (limits: BudgetLimits, factor: number): BudgetLimi
   tokens: limits.tokens === null ? null : Math.ceil(limits.tokens * factor),
 });
 
-/** What a thread's change to intel does, for example "Save intel to Global" (scoped-intel). */
-export const intelActionOf = (change: Pick<IntelChange, "kind" | "previousText" | "scopeLabel" | "text">) => {
+/** What a thread's change to lore does, for example "Save lore to Global" (scoped-intel). */
+export const loreActionOf = (change: Pick<LoreChange, "kind" | "previousText" | "scopeLabel" | "text">) => {
   const scope = scopeNameOf(change.scopeLabel);
   const actions = {
     Forget: `Delete lore from ${scope}`,
     Replace: `Replace lore in ${scope}`,
     Save: `Save lore to ${scope}`,
-    // An update that keeps the text only moves the intel.
+    // An update that keeps the text only moves the lore.
     Update: change.previousText === change.text ? `Move lore to ${scope}` : `Correct lore in ${scope}`,
-  } satisfies Record<IntelChange["kind"], string>;
+  } satisfies Record<LoreChange["kind"], string>;
   return actions[change.kind];
 };
 
-/** What an intel rests on, for the panel, for example "From journal entry 4: Chose Effect."; null when none. */
-export const intelOriginLabelOf = (origin: IntelOrigin | null) => {
+/** What a lore entry rests on, for the panel, for example "From journal entry 4: Chose Effect."; null when none. */
+export const loreOriginLabelOf = (origin: LoreOrigin | null) => {
   if (origin === null) return null;
   if (origin.kind === "JournalEntry") return `From journal entry ${origin.entryNumber ?? ""}: ${origin.excerpt}`;
   if (origin.from === null) return `From your message: ${origin.excerpt}`;
   return `From a message by "${origin.from}": ${origin.excerpt}`;
 };
 
-const intelStatusLabels = {
+const loreStatusLabels = {
   Approved: " · approved",
   Awaiting: " · awaiting your approval",
   Declined: " · declined",
   Done: "",
-} as const satisfies Record<IntelChangeStatus, string>;
+} as const satisfies Record<LoreChangeStatus, string>;
 
-/** A thread's change to intel as one line in its conversation, for example "Save intel to Global · approved". */
-export const intelChangeLineOf = (
-  change: Pick<IntelChange, "kind" | "previousText" | "scopeLabel" | "status" | "text">,
-) => `${intelActionOf(change)}${intelStatusLabels[change.status]}`;
+/** A thread's change to lore as one line in its conversation, for example "Save lore to Global · approved". */
+export const loreChangeLineOf = (
+  change: Pick<LoreChange, "kind" | "previousText" | "scopeLabel" | "status" | "text">,
+) => `${loreActionOf(change)}${loreStatusLabels[change.status]}`;
 
 /** A share as a short percentage, "<0.1" for a share too small to show but not nothing. */
 const percentOf = (part: number, whole: number) => {
@@ -183,32 +183,32 @@ const percentOf = (part: number, whole: number) => {
   return percent.toFixed(1);
 };
 
-/** The intel icon's text: the count and its share of the model's context window, for example "Intel · 3 · 0.2%". */
-export const intelGaugeLabelOf = (gauge: Pick<IntelGauge, "count" | "tokens" | "windowTokens">) =>
-  `Lore · ${intelGaugeValueOf(gauge)}`;
+/** The lore icon's text: the count and its share of the model's context window, for example "Lore · 3 · 0.2%". */
+export const loreGaugeLabelOf = (gauge: Pick<LoreGauge, "count" | "tokens" | "windowTokens">) =>
+  `Lore · ${loreGaugeValueOf(gauge)}`;
 
 /** The lore gauge without its name, for example "3 · 0.2%". */
-export const intelGaugeValueOf = (gauge: Pick<IntelGauge, "count" | "tokens" | "windowTokens">) =>
+export const loreGaugeValueOf = (gauge: Pick<LoreGauge, "count" | "tokens" | "windowTokens">) =>
   `${gauge.count} · ${percentOf(gauge.tokens, gauge.windowTokens)}%`;
 
-/** How often threads used an intel, for example "used 3 times". */
+/** How often threads used a lore entry, for example "used 3 times". */
 const usesLabelOf = (uses: number) => {
   if (uses === 0) return "not used yet";
   if (uses === 1) return "used once";
   return `used ${uses} times`;
 };
 
-/** An intel's fading in the panel, for example "Preference · active · strength 82% · used 3 times · pinned". */
-export const intelFadingLabelOf = (intel: Pick<Intel, "isPinned" | "kind" | "state" | "strength" | "uses">) =>
+/** A lore entry's fading in the panel, for example "Preference · active · strength 82% · used 3 times · pinned". */
+export const loreFadingLabelOf = (loreEntry: Pick<LoreEntry, "isPinned" | "kind" | "state" | "strength" | "uses">) =>
   [
-    intel.kind,
-    intel.state.toLowerCase(),
-    `strength ${Math.round(intel.strength * 100)}%`,
-    usesLabelOf(intel.uses),
-    ...(intel.isPinned ? ["pinned"] : []),
+    loreEntry.kind,
+    loreEntry.state.toLowerCase(),
+    `strength ${Math.round(loreEntry.strength * 100)}%`,
+    usesLabelOf(loreEntry.uses),
+    ...(loreEntry.isPinned ? ["pinned"] : []),
   ].join(" · ");
 
-const intelHistoryVerbs = {
+const loreHistoryVerbs = {
   Archived: "Became archived",
   Corrected: "Corrected",
   Deleted: "Deleted",
@@ -223,25 +223,25 @@ const intelHistoryVerbs = {
   Undone: "Undid",
   Unpinned: "Unpinned",
   Widened: "Moved",
-} as const satisfies Record<IntelHistoryKind, string>;
+} as const satisfies Record<LoreHistoryKind, string>;
 
-/** Who made a change in an intel's history, as its line names them. */
-const intelActorLabelOf = (entry: Pick<IntelHistoryEntry, "actor" | "actorTitle">) => {
+/** Who made a change in a lore entry's history, as its line names them. */
+const loreActorLabelOf = (entry: Pick<LoreHistoryEntry, "actor" | "actorTitle">) => {
   const actors = {
     Fading: "fading",
     Owner: "you",
     Thread: `"${entry.actorTitle ?? "a quest"}"`,
-  } satisfies Record<IntelHistoryEntry["actor"], string>;
+  } satisfies Record<LoreHistoryEntry["actor"], string>;
   return actors[entry.actor];
 };
 
-/** What a change in an intel's history did and who did it, for example "Widened to Global by you". */
-const intelHistoryActionOf = (
-  entry: Pick<IntelHistoryEntry, "actor" | "actorTitle" | "kind" | "scopeLabel" | "undid">,
+/** What a change in a lore entry's history did and who did it, for example "Widened to Global by you". */
+const loreHistoryActionOf = (
+  entry: Pick<LoreHistoryEntry, "actor" | "actorTitle" | "kind" | "scopeLabel" | "undid">,
 ) => {
-  const verb = intelHistoryVerbs[entry.kind];
-  const who = intelActorLabelOf(entry);
-  if (entry.kind === "Undone") return `You undid: ${intelHistoryVerbs[entry.undid ?? "Saved"].toLowerCase()}`;
+  const verb = loreHistoryVerbs[entry.kind];
+  const who = loreActorLabelOf(entry);
+  if (entry.kind === "Undone") return `You undid: ${loreHistoryVerbs[entry.undid ?? "Saved"].toLowerCase()}`;
   if (entry.kind === "Replaced") return `${verb} from ${who}`;
   if (entry.kind === "Widened" || entry.kind === "Narrowed")
     return `${verb} to ${scopeNameOf(entry.scopeLabel)} by ${who}`;
@@ -249,14 +249,14 @@ const intelHistoryActionOf = (
 };
 
 /**
- * One entry of an intel's history as a line in the panel, for example 'Saved by "Build" · approved by you',
+ * One entry of a lore entry's history as a line in the panel, for example 'Saved by "Build" · approved by you',
  * "Became dormant by fading", or "You undid: deleted" (scoped-intel, History and undo).
  */
-export const intelHistoryLineOf = (
-  entry: Pick<IntelHistoryEntry, "actor" | "actorTitle" | "approvedAt" | "kind" | "scopeLabel" | "undid" | "undoneAt">,
+export const loreHistoryLineOf = (
+  entry: Pick<LoreHistoryEntry, "actor" | "actorTitle" | "approvedAt" | "kind" | "scopeLabel" | "undid" | "undoneAt">,
 ) =>
   [
-    intelHistoryActionOf(entry),
+    loreHistoryActionOf(entry),
     ...(entry.approvedAt === null ? [] : ["approved by you"]),
     ...(entry.undoneAt === null ? [] : ["undone"]),
   ].join(" · ");
@@ -265,13 +265,13 @@ export const intelHistoryLineOf = (
  * Why the service proposes a widening or narrowing, and what approving it does, for example "Used only in
  * Workspace alpha for 45 days, 3 times: move it there" (scoped-intel, Widening and narrowing).
  */
-export const intelProposalLineOf = (
-  proposal: Pick<IntelProposal, "halfLifeDays" | "kind" | "scopeLabel" | "uses"> & {
-    readonly intels: ReadonlyArray<unknown>;
+export const loreProposalLineOf = (
+  proposal: Pick<LoreProposal, "halfLifeDays" | "kind" | "scopeLabel" | "uses"> & {
+    readonly loreEntries: ReadonlyArray<unknown>;
   },
 ) =>
   proposal.kind === "Widen"
-    ? `Saved separately in ${proposal.intels.length} realms: make it one global lore entry`
+    ? `Saved separately in ${proposal.loreEntries.length} realms: make it one global lore entry`
     : `Used only in ${scopeNameOf(proposal.scopeLabel)} for ${proposal.halfLifeDays ?? 0} days, ${
         proposal.uses === 1 ? "once" : `${proposal.uses ?? 0} times`
       }: move it there`;

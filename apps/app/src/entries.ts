@@ -1,6 +1,6 @@
 import type {
   BudgetEvent,
-  IntelChange,
+  LoreChange,
   Message,
   MissionDetail,
   Question,
@@ -14,12 +14,12 @@ export type Entry = { key: string; at: number } & (
   | { _tag: "Question"; question: Question }
   | { _tag: "Suggestion"; suggestion: Suggestion }
   | { _tag: "BudgetEvent"; event: BudgetEvent }
-  | { _tag: "IntelChange"; change: IntelChange }
+  | { _tag: "LoreChange"; change: LoreChange }
   | { _tag: "ThreadOpened"; thread: ThreadSummary }
 );
 
 /**
- * Messages, questions, off-topic suggestions, budget lines, intel changes, and the threads opened beneath,
+ * Messages, questions, off-topic suggestions, budget lines, lore changes, and the threads opened beneath,
  * in the order they happened. An aside is left out: its suggestion line already leads to it.
  */
 export const entriesOf = (detail: MissionDetail): Array<Entry> =>
@@ -35,5 +35,5 @@ export const entriesOf = (detail: MissionDetail): Array<Entry> =>
       (suggestion): Entry => ({ _tag: "Suggestion", at: suggestion.askedAt, key: suggestion.id, suggestion }),
     ),
     ...detail.budgetEvents.map((event): Entry => ({ _tag: "BudgetEvent", at: event.at, event, key: event.id })),
-    ...detail.intelChanges.map((change): Entry => ({ _tag: "IntelChange", at: change.at, change, key: change.id })),
+    ...detail.loreChanges.map((change): Entry => ({ _tag: "LoreChange", at: change.at, change, key: change.id })),
   ].sort((a, b) => a.at - b.at);

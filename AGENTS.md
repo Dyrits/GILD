@@ -27,6 +27,7 @@
 
 ## Handoffs
 
+To resume the review fixes, the lore rename, and the architecture audit (committed and pushed to `main`; the owner picks a candidate and looks at the screens), read the [current handoff](.agents/handoffs/2026-11-10-0015-review-fixes-and-lore.md). Handoffs are shared and committed.
 To resume the Companion model label and the `ask_question` specification for Summons (CHG not yet written; the label is committed and pushed, the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-09-2332-companion-label.md). Handoffs are shared and committed.
 To resume realms, crests, and the board redesign (pushed to `main`; its records still to write), read the [current handoff](.agents/handoffs/2026-11-09-2323-realms-and-crests.md). Handoffs are shared and committed.
 To resume the thread panel and context gauge (CHG-0079; the look and the live per-call usage await the owner), read the [current handoff](.agents/handoffs/2026-11-09-2000-thread-panel.md). Handoffs are shared and committed.

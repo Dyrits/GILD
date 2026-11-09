@@ -14,6 +14,10 @@ describe("companionLabelOf", () => {
     expect(companionLabelOf("codex", null, "default")).toBe("OpenAI - Default model");
   });
 
+  it("reads a bare Claude alias as the model's name", () => {
+    expect(companionLabelOf("claude", "sonnet", "default")).toBe("Anthropic - Sonnet");
+  });
+
   it("keeps an unrecognised reported model as it is", () => {
     expect(companionLabelOf("opencode", "qwen3-coder", "default")).toBe("OpenCode - qwen3-coder");
   });

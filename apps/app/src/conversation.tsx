@@ -15,8 +15,8 @@ import { Composer, StateBadge } from "./controls";
 import { EntryView } from "./conversationEntries";
 import { type Entry, entriesOf } from "./entries";
 import { companionLabelOf, effortLabel, harnessLabels, modelLabelOf } from "./formatting";
-import { IntelIcon, IntelScreen } from "./intel";
 import { JournalScreen } from "./journal";
+import { LoreIcon, LoreScreen } from "./lore";
 import { QuestSidebar } from "./questPanel";
 import { useHasSidebar, useHasTopBar, useQuestPanel } from "./sidebar";
 import { styles } from "./styles";
@@ -100,7 +100,7 @@ function ThreadPane({
   onOpenMission,
   onOpenBudget,
   onOpenDetails,
-  onOpenIntel,
+  onOpenLore,
 }: {
   /** Whether this thread's header offers the link to the quest's side panel, where no top bar has the icon. */
   canOpenDetails: boolean;
@@ -111,7 +111,7 @@ function ThreadPane({
   onOpenDetails: () => void;
   onDeleted: () => void;
   onOpenBudget: () => void;
-  onOpenIntel: () => void;
+  onOpenLore: () => void;
   onOpenMission: (missionId: MissionId) => void;
   detail: MissionDetail;
   onSelect: (threadId: ThreadId) => void;
@@ -146,7 +146,7 @@ function ThreadPane({
         <Text numberOfLines={1} style={[styles.paneTitle, styles.flex]}>
           {thread.title}
         </Text>
-        <IntelIcon gauge={detail.intelGauge} onPress={onOpenIntel} />
+        <LoreIcon gauge={detail.loreGauge} onPress={onOpenLore} />
         <StateBadge state={thread.state} />
         {canStop && (
           <Pressable onPress={() => act(client.request({ _tag: "StopThread", threadId: thread.id }))}>
@@ -292,7 +292,7 @@ export function Conversation({
   const [isThreadPanelOpen, setIsThreadPanelOpen] = useState(readThreadPanelOpen);
   const hasTopBar = useHasTopBar();
   const hasSidebar = useHasSidebar();
-  const [intelThread, setIntelThread] = useState<{ id: ThreadId; title: string } | null>(null);
+  const [loreThread, setLoreThread] = useState<{ id: ThreadId; title: string } | null>(null);
   const [budgetScope, setBudgetScope] = useState<BudgetScope | null>(null);
   const { data, error } = useServiceQuery(
     client,
@@ -322,13 +322,13 @@ export function Conversation({
       />
     );
   }
-  if (intelThread !== null) {
+  if (loreThread !== null) {
     return (
-      <IntelScreen
+      <LoreScreen
         client={client}
-        onBack={() => setIntelThread(null)}
-        threadId={intelThread.id}
-        title={`Lore · ${intelThread.title}`}
+        onBack={() => setLoreThread(null)}
+        threadId={loreThread.id}
+        title={`Lore · ${loreThread.title}`}
       />
     );
   }
@@ -371,7 +371,7 @@ export function Conversation({
             onDeleted={() => (detail.thread.parentId === null ? onBack() : setSelectedId(detail.thread.parentId))}
             onOpenBudget={() => setBudgetScope(detail.budgetStop?.scope ?? "Mission")}
             onOpenDetails={() => onSetDetails(true)}
-            onOpenIntel={() => setIntelThread({ id: detail.thread.id, title: detail.thread.title })}
+            onOpenLore={() => setLoreThread({ id: detail.thread.id, title: detail.thread.title })}
             onOpenMission={onOpenMission}
             onSelect={setSelectedId}
             onToggleThreadPanel={() => {
@@ -386,7 +386,7 @@ export function Conversation({
           <ThreadPanel
             client={client}
             detail={detail}
-            onOpenIntel={() => setIntelThread({ id: detail.thread.id, title: detail.thread.title })}
+            onOpenLore={() => setLoreThread({ id: detail.thread.id, title: detail.thread.title })}
           />
         </View>
       )}

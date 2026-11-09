@@ -17,6 +17,8 @@ import { useHasSidebar } from "./sidebar";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
 
+// Stored and wire names keep `intel` so existing data and agents still work: settings keys (`intelHalfLives`, `intelWarningPercent`).
+
 /** What each delivery does to a running thread, as the Settings choice names it. */
 const deliveryLabels = {
   Queue: "Queue for its next turn",

@@ -3,6 +3,8 @@ import { Effect, Exit, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid } from "./errors.ts";
 
+// Stored and wire names keep `intel` so existing data and agents still work: settings keys (`intelHalfLives`, `intelWarningPercent`).
+
 /** A day in milliseconds, the unit of the Settings durations. */
 export const dayMillis = 24 * 60 * 60 * 1000;
 
@@ -49,7 +51,7 @@ export const writeSettings = (settings: Settings) =>
     const parsed = yield* Schema.decodeUnknownEffect(Settings)(settings).pipe(
       Effect.catch(() =>
         invalid(
-          "Invalid settings: the chatter threshold must be a whole number of at least 2; the briefing limit, the inactivity and auto-archive days, and the intel half-lives at least 1; budget limits above 0, tokens in whole numbers.",
+          "Invalid settings: the chatter threshold must be a whole number of at least 2; the briefing limit, the inactivity and auto-archive days, and the lore half-lives at least 1; budget limits above 0, tokens in whole numbers.",
         ),
       ),
     );

@@ -5,6 +5,8 @@ import { TestClock } from "effect/testing";
 import { afterEach } from "vitest";
 import { call, fixture, open, read, send, start, tool } from "./fixtures/service.ts";
 
+// Stored and wire names keep `intel` so existing data and agents still work: request tags (`"ListIntel"`, ...) and thread tool names (`save_intel`, ...).
+
 // Batch 14 (scoped-intel: Duplicates, Saving's origin, Fading's "relied on"), on the test clock.
 
 const fixtures: ReturnType<typeof fixture>[] = [];
@@ -34,55 +36,56 @@ const idle = (text = "Hello", workspacePath: string | null = null) =>
   });
 const save = (threadId: ThreadId, text: string, scope: string, kind: string, extra: object = {}) =>
   tool(threadId, "save_intel", { kind, scope, text, ...extra });
-const idOf = (answer: string) => /intel (\S+?)[ .:]/.exec(answer)?.[1] ?? "";
+const idOf = (answer: string) => /lore entry (\S+?)[ .:]/.exec(answer)?.[1] ?? "";
 const panel = () => call({ _tag: "ListIntel", scope: null, state: null, threadId: null });
-const intelOf = (id: string) => panel().pipe(Effect.map((view) => view.intels.find((intel) => intel.id === id)));
+const loreEntryOf = (id: string) =>
+  panel().pipe(Effect.map((view) => view.loreEntries.find((loreEntry) => loreEntry.id === id)));
 
 describe("duplicates saved as replacements", () => {
-  it.effect("replaces an intel saying an older version of the same thing, keeping its id and uses", () =>
+  it.effect("replaces a lore entry saying an older version of the same thing, keeping its id and uses", () =>
     Effect.gen(function* () {
       const { threadId } = yield* idle();
       const id = idOf(yield* save(threadId, "The owner prefers pnpm.", "mission", "preference"));
       yield* tool(threadId, "search_intel", { ids: [id] });
       yield* advance(10 * day);
       const answer = yield* save(threadId, "The owner prefers Bun.", "mission", "preference");
-      expect(answer).toContain(`Replaced intel ${id}`);
+      expect(answer).toContain(`Replaced lore entry ${id}`);
       expect(answer).toContain("The owner prefers pnpm.");
-      const intels = (yield* panel()).intels;
-      expect(intels).toHaveLength(1);
-      expect(intels[0]).toMatchObject({ id, strength: 1, text: "The owner prefers Bun.", uses: 1 });
+      const loreEntries = (yield* panel()).loreEntries;
+      expect(loreEntries).toHaveLength(1);
+      expect(loreEntries[0]).toMatchObject({ id, strength: 1, text: "The owner prefers Bun.", uses: 1 });
     }).pipe(Effect.provide(live().layer)),
   );
 
-  it.effect("saves an unclear match as a new intel and names the close one", () =>
+  it.effect("saves an unclear match as a new lore entry and names the close one", () =>
     Effect.gen(function* () {
       const { threadId } = yield* idle();
       const id = idOf(yield* save(threadId, "The staging server runs Linux.", "mission", "fact"));
       const answer = yield* save(threadId, "Deploys go to the staging server.", "mission", "fact");
-      expect(answer).toMatch(/^Saved intel /);
+      expect(answer).toMatch(/^Saved lore entry /);
       expect(answer).toContain(id);
-      expect((yield* panel()).intels).toHaveLength(2);
+      expect((yield* panel()).loreEntries).toHaveLength(2);
     }).pipe(Effect.provide(live().layer)),
   );
 
-  it.effect("never replaces an intel in another scope, and names a close one in a wider scope", () => {
+  it.effect("never replaces a lore entry in another scope, and names a close one in a wider scope", () => {
     const { directory, layer } = live();
     return Effect.gen(function* () {
       const { threadId } = yield* idle("Hello", directory);
       const workspace = idOf(yield* save(threadId, "The workspace formats code with Prettier.", "workspace", "fact"));
       const child = (yield* open(threadId)).threadId;
       yield* settleTurns;
-      // A narrower intel that differs overrides the wider one: both stay.
+      // A narrower lore entry that differs overrides the wider one: both stay.
       const answer = yield* save(child, "The workspace formats code with Biome.", "thread", "fact");
-      expect(answer).toMatch(/^Saved intel /);
+      expect(answer).toMatch(/^Saved lore entry /);
       expect(answer).toContain(workspace);
-      expect(yield* intelOf(workspace)).toMatchObject({ text: "The workspace formats code with Prettier." });
+      expect(yield* loreEntryOf(workspace)).toMatchObject({ text: "The workspace formats code with Prettier." });
       const mission = idOf(yield* save(threadId, "Releases ship on Fridays only.", "mission", "decision"));
       expect(yield* save(threadId, "Releases ship on Thursdays only.", "workspace", "decision")).toMatch(
-        /^Saved intel /,
+        /^Saved lore entry /,
       );
-      expect(yield* intelOf(mission)).toMatchObject({ text: "Releases ship on Fridays only." });
-      expect((yield* panel()).intels).toHaveLength(4);
+      expect(yield* loreEntryOf(mission)).toMatchObject({ text: "Releases ship on Fridays only." });
+      expect((yield* panel()).loreEntries).toHaveLength(4);
     }).pipe(Effect.provide(layer));
   });
 
@@ -93,44 +96,44 @@ describe("duplicates saved as replacements", () => {
       for (const change of (yield* panel()).awaiting) {
         yield* call({ _tag: "ResolveIntelChange", changeId: change.id, isApproved: true });
       }
-      const [original] = (yield* panel()).intels;
+      const [original] = (yield* panel()).loreEntries;
       expect(yield* save(threadId, "The owner writes in American English.", "global", "preference")).toContain(
         "Awaiting approval",
       );
       const [change] = (yield* panel()).awaiting;
       if (change === undefined) return expect.unreachable("no change awaits approval");
       expect(change).toMatchObject({
-        intelId: original?.id,
         kind: "Replace",
+        loreEntryId: original?.id,
         previousText: "The owner writes in British English.",
         text: "The owner writes in American English.",
       });
-      expect((yield* intelOf(original?.id ?? ""))?.text).toBe("The owner writes in British English.");
+      expect((yield* loreEntryOf(original?.id ?? ""))?.text).toBe("The owner writes in British English.");
       yield* call({ _tag: "ResolveIntelChange", changeId: change.id, isApproved: true });
-      const intels = (yield* panel()).intels;
-      expect(intels).toHaveLength(1);
-      expect(intels[0]).toMatchObject({ id: original?.id, text: "The owner writes in American English." });
+      const loreEntries = (yield* panel()).loreEntries;
+      expect(loreEntries).toHaveLength(1);
+      expect(loreEntries[0]).toMatchObject({ id: original?.id, text: "The owner writes in American English." });
     }).pipe(Effect.provide(live().layer)),
   );
 
-  it.effect("does not replace an archived intel", () =>
+  it.effect("does not replace an archived lore", () =>
     Effect.gen(function* () {
       const { threadId } = yield* idle();
       const old = idOf(yield* save(threadId, "The API is flaky this week.", "mission", "temporary"));
       yield* advance(20 * day);
       const answer = yield* save(threadId, "The API is flaky this week again.", "mission", "temporary");
-      expect(answer).toMatch(/^Saved intel /);
+      expect(answer).toMatch(/^Saved lore entry /);
       expect(idOf(answer)).not.toBe(old);
     }).pipe(Effect.provide(live().layer)),
   );
 });
 
-describe("where an intel comes from", () => {
+describe("where a lore entry comes from", () => {
   it.effect("records the message the thread was answering", () =>
     Effect.gen(function* () {
       const { threadId } = yield* idle("Always run the tests before a commit.");
       const id = idOf(yield* save(threadId, "Always run the tests before a commit.", "mission", "rule"));
-      expect((yield* intelOf(id))?.origin).toEqual({
+      expect((yield* loreEntryOf(id))?.origin).toEqual({
         entryNumber: null,
         excerpt: "Always run the tests before a commit.",
         from: null,
@@ -147,7 +150,7 @@ describe("where an intel comes from", () => {
       yield* send(threadId, "Unrelated later message.");
       yield* settleTurns;
       const id = idOf(yield* save(threadId, "The owner uses Bun for scripts.", "mission", "preference"));
-      expect((yield* intelOf(id))?.origin?.excerpt).toBe("Use Bun for scripts.");
+      expect((yield* loreEntryOf(id))?.origin?.excerpt).toBe("Use Bun for scripts.");
     }).pipe(Effect.provide(live().layer)),
   );
 
@@ -159,7 +162,7 @@ describe("where an intel comes from", () => {
         "no journal entry 9",
       );
       const id = idOf(yield* save(threadId, "The service uses Effect.", "mission", "decision", { journalEntry: 1 }));
-      expect((yield* intelOf(id))?.origin).toMatchObject({
+      expect((yield* loreEntryOf(id))?.origin).toMatchObject({
         entryNumber: 1,
         excerpt: "Chose Effect for the service.",
         kind: "JournalEntry",
@@ -174,7 +177,7 @@ describe("where an intel comes from", () => {
       for (const change of (yield* panel()).awaiting) {
         yield* call({ _tag: "ResolveIntelChange", changeId: change.id, isApproved: true });
       }
-      expect((yield* panel()).intels[0]?.origin).toMatchObject({
+      expect((yield* panel()).loreEntries[0]?.origin).toMatchObject({
         excerpt: "I always want answers in British English.",
         kind: "Message",
       });
@@ -189,27 +192,27 @@ describe("where an intel comes from", () => {
       yield* tool(child, "send_thread_message", { text: "Keep the build under a minute.", to: threadId });
       yield* settleTurns;
       const id = idOf(yield* save(threadId, "The build must stay under a minute.", "mission", "rule"));
-      const origin = (yield* intelOf(id))?.origin;
+      const origin = (yield* loreEntryOf(id))?.origin;
       expect(origin).toMatchObject({ excerpt: "Keep the build under a minute.", kind: "Message" });
       expect(origin?.from).not.toBeNull();
     }).pipe(Effect.provide(live().layer)),
   );
 });
 
-describe("relying on an intel", () => {
+describe("relying on a lore entry", () => {
   it.effect("counts as a use and keeps it active", () =>
     Effect.gen(function* () {
       const { threadId } = yield* idle();
       const id = idOf(yield* save(threadId, "The staging server is slow today.", "mission", "temporary"));
       yield* advance(7 * day);
       expect(yield* tool(threadId, "relied_on_intel", { ids: [id] })).toContain("1 use");
-      expect(yield* intelOf(id)).toMatchObject({ state: "Active", strength: 1, uses: 1 });
+      expect(yield* loreEntryOf(id)).toMatchObject({ state: "Active", strength: 1, uses: 1 });
       yield* advance(7 * day);
-      expect((yield* intelOf(id))?.state).toBe("Active");
+      expect((yield* loreEntryOf(id))?.state).toBe("Active");
     }).pipe(Effect.provide(live().layer)),
   );
 
-  it.effect("refuses intel outside the thread's scope and archived intel", () =>
+  it.effect("refuses lore outside the thread's scope and archived lore", () =>
     Effect.gen(function* () {
       const { threadId } = yield* idle();
       const other = (yield* idle()).threadId;
@@ -218,8 +221,8 @@ describe("relying on an intel", () => {
       yield* advance(20 * day);
       const answer = yield* tool(threadId, "relied_on_intel", { ids: [foreign, old] });
       expect(answer).toContain("No use counted");
-      expect(yield* intelOf(old)).toMatchObject({ state: "Archived", uses: 0 });
-      expect(yield* intelOf(foreign)).toMatchObject({ uses: 0 });
+      expect(yield* loreEntryOf(old)).toMatchObject({ state: "Archived", uses: 0 });
+      expect(yield* loreEntryOf(foreign)).toMatchObject({ uses: 0 });
       expect(yield* tool(threadId, "relied_on_intel", { ids: [] })).toContain("Invalid arguments");
     }).pipe(Effect.provide(live().layer)),
   );

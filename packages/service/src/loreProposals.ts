@@ -1,36 +1,38 @@
-import type { IntelProposal, IntelProposalId, ProposedIntel } from "@gild/contracts";
+import type { LoreProposal, LoreProposalId, ProposedLoreEntry } from "@gild/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid } from "./errors.ts";
-import { type IntelRow, scopeLabelOf, selectIntels } from "./intel.ts";
-import { isSameOf } from "./intelDuplicates.ts";
-import { type Fading, halfLifeDaysOf, readFading, stateOfIntel } from "./intelFading.ts";
-import { owner } from "./intelHistory.ts";
-import { mergeIntels, moveIntel } from "./intelStore.ts";
+import { type LoreEntryRow, scopeLabelOf, selectLoreEntries } from "./lore.ts";
+import { isSameOf } from "./loreDuplicates.ts";
+import { type Fading, halfLifeDaysOf, readFading, stateOfLoreEntry } from "./loreFading.ts";
+import { owner } from "./loreHistory.ts";
+import { mergeLoreEntries, moveLoreEntry } from "./loreStore.ts";
 import { dayMillis } from "./settings.ts";
 
-// Widening and narrowing proposed from evidence (scoped-intel): the same intel saved in several workspaces
-// becomes one global intel, and a global intel used in one workspace only moves there, each once the owner
+// Stored and wire names keep `intel` so existing data and agents still work: table and column names (`intels`, `intel_id`, ...).
+
+// Widening and narrowing proposed from evidence (scoped-intel): the same lore saved in several workspaces
+// becomes one global lore entry, and a global lore entry used in one workspace only moves there, each once the owner
 // approves. Provisional (work-in-progress, Batch 16): proposals are worked out from evidence when read, as
 // fading is; only the owner's decisions are stored, so a declined proposal does not come back.
 
 /** A proposal with what applying it needs. */
 interface Evidence {
-  readonly proposal: IntelProposal;
-  /** The intels it moves or merges, the one kept first. */
-  readonly rows: ReadonlyArray<IntelRow>;
-  /** For a narrowing, the workspace it moves the intel to; null for a widening. */
+  readonly proposal: LoreProposal;
+  /** The lore entries it moves or merges, the one kept first. */
+  readonly rows: ReadonlyArray<LoreEntryRow>;
+  /** For a narrowing, the workspace it moves the lore to; null for a widening. */
   readonly workspaceId: string | null;
 }
 
-const proposedOf = (row: IntelRow): ProposedIntel => ({
-  id: row.id as ProposedIntel["id"],
+const proposedOf = (row: LoreEntryRow): ProposedLoreEntry => ({
+  id: row.id as ProposedLoreEntry["id"],
   scopeLabel: scopeLabelOf(row),
   text: row.text,
 });
 
-/** Groups intels that say the same thing, each pair joined through any intel the two say the same as. */
-const groupsOf = (rows: ReadonlyArray<IntelRow>) => {
+/** Groups lore entries that say the same thing, each pair joined through any lore the two say the same as. */
+const groupsOf = (rows: ReadonlyArray<LoreEntryRow>) => {
   const groupOf = new Map(rows.map((row) => [row.id, row.id]));
   const rootOf = (id: string): string => {
     const parent = groupOf.get(id) ?? id;
@@ -41,16 +43,16 @@ const groupsOf = (rows: ReadonlyArray<IntelRow>) => {
       if (isSameOf(row.text, other.text)) groupOf.set(rootOf(other.id), rootOf(row.id));
     }
   }
-  const groups = new Map<string, Array<IntelRow>>();
+  const groups = new Map<string, Array<LoreEntryRow>>();
   for (const row of rows) groups.set(rootOf(row.id), [...(groups.get(rootOf(row.id)) ?? []), row]);
   return [...groups.values()];
 };
 
 /**
- * Widenings: workspace intels in two or more workspaces that say the same thing, as one global intel with
- * the newest text and kind. None when a global intel already says it.
+ * Widenings: workspace lore entries in two or more workspaces that say the same thing, as one global lore entry with
+ * the newest text and kind. None when a global lore entry already says it.
  */
-const widenings = (rows: ReadonlyArray<IntelRow>): ReadonlyArray<Evidence> => {
+const widenings = (rows: ReadonlyArray<LoreEntryRow>): ReadonlyArray<Evidence> => {
   const globals = rows.filter((row) => row.scope === "Global");
   return groupsOf(rows.filter((row) => row.scope === "Workspace"))
     .filter((group) => new Set(group.map((row) => row.workspaceId)).size >= 2)
@@ -65,10 +67,10 @@ const widenings = (rows: ReadonlyArray<IntelRow>): ReadonlyArray<Evidence> => {
             id: `Widen:${group
               .map((row) => row.id)
               .toSorted()
-              .join(",")}` as IntelProposalId,
-            intelKind: newest.kind,
-            intels: group.map(proposedOf),
+              .join(",")}` as LoreProposalId,
             kind: "Widen",
+            loreEntries: group.map(proposedOf),
+            loreKind: newest.kind,
             scopeLabel: "Global",
             text: newest.text,
             uses: null,
@@ -81,10 +83,10 @@ const widenings = (rows: ReadonlyArray<IntelRow>): ReadonlyArray<Evidence> => {
 };
 
 /**
- * Narrowings: a global intel saved at least its kind's half-life ago whose every use over the last half-life
+ * Narrowings: a global lore entry saved at least its kind's half-life ago whose every use over the last half-life
  * came from one workspace, with at least one use. A rule has no half-life, so it is never narrowed.
  */
-const narrowings = (rows: ReadonlyArray<IntelRow>, fading: Fading) =>
+const narrowings = (rows: ReadonlyArray<LoreEntryRow>, fading: Fading) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const found: Array<Evidence> = [];
@@ -104,10 +106,10 @@ const narrowings = (rows: ReadonlyArray<IntelRow>, fading: Fading) =>
       found.push({
         proposal: {
           halfLifeDays,
-          id: `Narrow:${row.id}:${only.workspaceId}` as IntelProposalId,
-          intelKind: row.kind,
-          intels: [proposedOf(row)],
+          id: `Narrow:${row.id}:${only.workspaceId}` as LoreProposalId,
           kind: "Narrow",
+          loreEntries: [proposedOf(row)],
+          loreKind: row.kind,
           scopeLabel: scopeLabelOf({ ...row, scope: "Workspace", workspaceName: only.workspaceName }),
           text: row.text,
           uses: only.count,
@@ -123,10 +125,10 @@ const narrowings = (rows: ReadonlyArray<IntelRow>, fading: Fading) =>
 const readEvidence = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const fading = yield* readFading;
-  // Archived intel is out of search, so it is out of proposals too.
-  const rows = (yield* sql<IntelRow>`${selectIntels(sql)}
+  // Archived lore is out of search, so it is out of proposals too.
+  const rows = (yield* sql<LoreEntryRow>`${selectLoreEntries(sql)}
     WHERE i.scope IN ('Workspace', 'Global') ORDER BY i.saved_at, i.rowid`).filter(
-    (row) => stateOfIntel(row, fading) !== "Archived",
+    (row) => stateOfLoreEntry(row, fading) !== "Archived",
   );
   const all = [...widenings(rows), ...(yield* narrowings(rows, fading))];
   if (all.length === 0) return [];
@@ -135,35 +137,35 @@ const readEvidence = Effect.gen(function* () {
   return all.filter((evidence) => !decided.some((row) => row.id === evidence.proposal.id));
 });
 
-/** The proposals awaiting the owner in the intel panel. */
-export const listIntelProposals = readEvidence.pipe(Effect.map((found) => found.map((evidence) => evidence.proposal)));
+/** The proposals awaiting the owner in the lore panel. */
+export const listLoreProposals = readEvidence.pipe(Effect.map((found) => found.map((evidence) => evidence.proposal)));
 
 /**
  * The owner approves or declines a proposal; either way it is not proposed again. A proposal the evidence no
  * longer backs is refused. Callers run it in a transaction.
  */
-export const resolveIntelProposal = (proposalId: string, isApproved: boolean) =>
+export const resolveLoreProposal = (proposalId: string, isApproved: boolean) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const evidence = (yield* readEvidence).find((found) => found.proposal.id === proposalId);
     if (evidence === undefined) {
-      return yield* invalid("This proposal no longer holds: it was decided, or its intels changed.");
+      return yield* invalid("This proposal no longer holds: it was decided, or its lore entries changed.");
     }
     const now = yield* Clock.currentTimeMillis;
     yield* sql`INSERT INTO intel_proposal_decisions (id, status, at)
       VALUES (${proposalId}, ${isApproved ? "Approved" : "Declined"}, ${now})`;
     if (!isApproved) return null;
     const [row] = evidence.rows;
-    // A widening makes the newest intel global and merges the others into it; a narrowing moves the intel to
+    // A widening makes the newest lore global and merges the others into it; a narrowing moves the lore to
     // the one workspace that used it.
     if (evidence.workspaceId === null && row !== undefined) {
-      yield* mergeIntels(
+      yield* mergeLoreEntries(
         row.id,
         evidence.rows.slice(1).map((merged) => merged.id),
       );
     } else if (evidence.workspaceId !== null && row !== undefined) {
       const placement = { scope: "Workspace", threadId: null, workspaceId: evidence.workspaceId } as const;
-      yield* moveIntel(row.id, placement, null, "Narrowed", owner);
+      yield* moveLoreEntry(row.id, placement, null, "Narrowed", owner);
     }
     return null;
   });

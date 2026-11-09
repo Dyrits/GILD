@@ -36,6 +36,8 @@ Mockup batch (CHG-0083): hanging banners, a drawn castle heading, a crest and Th
 
 Illustrated-view batch (CHG-0088): a parchment quest panel with gilt frame, bookmark, Knows and Spends tabs and a Does box; sturdier cards; the painted desk behind the board; typecheck, lint, and 431 tests pass; the look awaits the owner ([proof](verification/2026-11-09-guild-panel.md)).
 
+Review-fix and lore batch (CHG-0093, CHG-0094): the review findings fixed and intel renamed to lore in the code; typecheck, lint, and 458 tests pass; the screen behaviors await the owner ([proof](verification/2026-11-10-review-fixes-and-lore-rename.md)). The architecture audit of 2026-11-09 awaits the owner's choice of candidate.
+
 ## Goal
 
 Build the first slice iteratively (CHG-0025): each batch leaves a runnable application with its checks. Design under review: [first-slice-design.md](first-slice-design.md) and the mission-tracking, thread-tree, and thread-messaging blueprints. Starting revision: `e445b44`.

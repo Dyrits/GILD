@@ -1,11 +1,11 @@
 import type {
-  Intel,
-  IntelChange,
-  IntelGauge,
-  IntelId,
-  IntelProposal,
-  IntelScope,
-  IntelStateFilter,
+  LoreChange,
+  LoreEntry,
+  LoreEntryId,
+  LoreGauge,
+  LoreProposal,
+  LoreScope,
+  LoreStateFilter,
   ThreadId,
   WorkspaceId,
 } from "@gild/contracts";
@@ -13,31 +13,33 @@ import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import type { ServiceClient } from "./client";
 import { clockOf, timeOf } from "./formatting";
-import { DeletedIntelRow, IntelHistoryScreen } from "./intelHistory";
 import {
-  intelActionOf,
-  intelChangeLineOf,
-  intelFadingLabelOf,
-  intelGaugeLabelOf,
-  intelOriginLabelOf,
-  intelProposalLineOf,
+  loreActionOf,
+  loreChangeLineOf,
+  loreFadingLabelOf,
+  loreGaugeLabelOf,
+  loreOriginLabelOf,
+  loreProposalLineOf,
   scopeNameOf,
 } from "./labels";
+import { DeletedLoreEntryRow, LoreHistoryScreen } from "./loreHistory";
 import { Choice } from "./pickers";
 import { useHasSidebar } from "./sidebar";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
 
-// Scoped intel (scoped-intel): the thread's intel icon, its changes in the conversation, and the intel panel.
+// Stored and wire names keep `intel` so existing data and agents still work: request tags (`"ListIntel"`, ...).
 
-/** The thread's intel icon: its count and share of the context window, red past the warning share. */
-export function IntelIcon({ gauge, onPress }: { gauge: IntelGauge; onPress: () => void }) {
+// Scoped lore (scoped-intel): the thread's lore icon, its changes in the conversation, and the lore panel.
+
+/** The thread's lore icon: its count and share of the context window, red past the warning share. */
+export function LoreIcon({ gauge, onPress }: { gauge: LoreGauge; onPress: () => void }) {
   return (
     <Pressable
       accessibilityHint={`${gauge.tokens} tokens of a ${gauge.windowTokens}-token context window; opens the lore panel`}
       onPress={onPress}
     >
-      <Text style={[styles.link, gauge.isOverWarning && styles.error]}>{intelGaugeLabelOf(gauge)}</Text>
+      <Text style={[styles.link, gauge.isOverWarning && styles.error]}>{loreGaugeLabelOf(gauge)}</Text>
     </Pressable>
   );
 }
@@ -66,19 +68,19 @@ function Decision({ onResolve }: { onResolve: (isApproved: boolean) => Promise<u
 }
 
 /** A change awaiting approval as a card: what the thread asks, the text, and the decision. */
-export function IntelChangeCard({
+export function LoreChangeCard({
   change,
   client,
   shouldNameThread = false,
 }: {
-  change: IntelChange;
+  change: LoreChange;
   client: ServiceClient;
   shouldNameThread?: boolean;
 }) {
   return (
     <View style={styles.question}>
       <Text style={styles.questionText}>
-        {intelActionOf(change)}
+        {loreActionOf(change)}
         {shouldNameThread ? ` · asked by "${change.threadTitle}"` : ""}
       </Text>
       {(change.kind === "Update" || change.kind === "Replace") && change.previousText !== change.text && (
@@ -92,15 +94,15 @@ export function IntelChangeCard({
   );
 }
 
-/** A widening or narrowing proposed from evidence: why, the text it keeps, the intels it moves, and the decision. */
-function IntelProposalCard({ client, proposal }: { client: ServiceClient; proposal: IntelProposal }) {
+/** A widening or narrowing proposed from evidence: why, the text it keeps, the lore entries it moves, and the decision. */
+function LoreProposalCard({ client, proposal }: { client: ServiceClient; proposal: LoreProposal }) {
   return (
     <View style={styles.question}>
-      <Text style={styles.questionText}>{intelProposalLineOf(proposal)}</Text>
+      <Text style={styles.questionText}>{loreProposalLineOf(proposal)}</Text>
       <Text style={styles.body}>{proposal.text}</Text>
-      {proposal.intels.map((intel) => (
-        <Text key={intel.id} style={styles.muted}>
-          Now in {scopeNameOf(intel.scopeLabel)}: {intel.text}
+      {proposal.loreEntries.map((loreEntry) => (
+        <Text key={loreEntry.id} style={styles.muted}>
+          Now in {scopeNameOf(loreEntry.scopeLabel)}: {loreEntry.text}
         </Text>
       ))}
       <Decision
@@ -113,22 +115,30 @@ function IntelProposalCard({ client, proposal }: { client: ServiceClient; propos
 }
 
 /** A change made or decided, as a short line in its thread. */
-export function IntelChangeLine({ change }: { change: IntelChange }) {
+export function LoreChangeLine({ change }: { change: LoreChange }) {
   return (
     <View style={styles.questionLine}>
       <Text style={styles.muted}>
-        {intelChangeLineOf(change)} · {clockOf(change.resolvedAt ?? change.at)}
+        {loreChangeLineOf(change)} · {clockOf(change.resolvedAt ?? change.at)}
       </Text>
       <Text style={styles.muted}>{change.text}</Text>
     </View>
   );
 }
 
-/** One intel in the panel, with Edit, Pin or Unpin, Restore when it faded, Delete, and its History. */
-function IntelRow({ client, intel, onHistory }: { client: ServiceClient; intel: Intel; onHistory: () => void }) {
+/** One lore entry in the panel, with Edit, Pin or Unpin, Restore when it faded, Delete, and its History. */
+function LoreEntryRow({
+  client,
+  loreEntry,
+  onHistory,
+}: {
+  client: ServiceClient;
+  loreEntry: LoreEntry;
+  onHistory: () => void;
+}) {
   const [draft, setDraft] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const origin = intelOriginLabelOf(intel.origin);
+  const origin = loreOriginLabelOf(loreEntry.origin);
   const act = (request: Promise<unknown>, after: () => void) =>
     request.then(
       () => {
@@ -140,31 +150,37 @@ function IntelRow({ client, intel, onHistory }: { client: ServiceClient; intel: 
   return (
     <View style={styles.section}>
       <Text style={styles.muted}>
-        {scopeNameOf(intel.scopeLabel)} · saved by {intel.savedByTitle === null ? "you" : `"${intel.savedByTitle}"`} ·{" "}
-        {timeOf(intel.savedAt)}
-        {intel.updatedAt !== intel.savedAt ? ` · changed ${timeOf(intel.updatedAt)}` : ""} · {intel.tokens} tokens
+        {scopeNameOf(loreEntry.scopeLabel)} · saved by{" "}
+        {loreEntry.savedByTitle === null ? "you" : `"${loreEntry.savedByTitle}"`} · {timeOf(loreEntry.savedAt)}
+        {loreEntry.updatedAt !== loreEntry.savedAt ? ` · changed ${timeOf(loreEntry.updatedAt)}` : ""} ·{" "}
+        {loreEntry.tokens} tokens
       </Text>
-      <Text style={styles.muted}>{intelFadingLabelOf(intel)}</Text>
+      <Text style={styles.muted}>{loreFadingLabelOf(loreEntry)}</Text>
       {origin !== null && <Text style={styles.muted}>{origin}</Text>}
       {draft === null ? (
         <View style={styles.row}>
-          <Text style={[styles.body, styles.flex]}>{intel.text}</Text>
-          <Pressable onPress={() => setDraft(intel.text)}>
+          <Text style={[styles.body, styles.flex]}>{loreEntry.text}</Text>
+          <Pressable onPress={() => setDraft(loreEntry.text)}>
             <Text style={styles.link}>Edit</Text>
           </Pressable>
           <Pressable
             onPress={() =>
-              act(client.request({ _tag: "PinIntel", intelId: intel.id, isPinned: !intel.isPinned }), () => {})
+              act(
+                client.request({ _tag: "PinIntel", isPinned: !loreEntry.isPinned, loreEntryId: loreEntry.id }),
+                () => {},
+              )
             }
           >
-            <Text style={styles.link}>{intel.isPinned ? "Unpin" : "Pin"}</Text>
+            <Text style={styles.link}>{loreEntry.isPinned ? "Unpin" : "Pin"}</Text>
           </Pressable>
-          {intel.state !== "Active" && (
-            <Pressable onPress={() => act(client.request({ _tag: "RestoreIntel", intelId: intel.id }), () => {})}>
+          {loreEntry.state !== "Active" && (
+            <Pressable
+              onPress={() => act(client.request({ _tag: "RestoreIntel", loreEntryId: loreEntry.id }), () => {})}
+            >
               <Text style={styles.link}>Restore</Text>
             </Pressable>
           )}
-          <Pressable onPress={() => act(client.request({ _tag: "DeleteIntel", intelId: intel.id }), () => {})}>
+          <Pressable onPress={() => act(client.request({ _tag: "DeleteIntel", loreEntryId: loreEntry.id }), () => {})}>
             <Text style={styles.link}>Delete</Text>
           </Pressable>
           <Pressable onPress={onHistory}>
@@ -182,7 +198,7 @@ function IntelRow({ client, intel, onHistory }: { client: ServiceClient; intel: 
           />
           <Pressable
             onPress={() =>
-              act(client.request({ _tag: "EditIntel", intelId: intel.id, text: draft }), () => setDraft(null))
+              act(client.request({ _tag: "EditIntel", loreEntryId: loreEntry.id, text: draft }), () => setDraft(null))
             }
           >
             <Text style={styles.link}>Save</Text>
@@ -197,7 +213,7 @@ function IntelRow({ client, intel, onHistory }: { client: ServiceClient; intel: 
   );
 }
 
-const scopes = [null, "Thread", "Workspace", "Global"] as const satisfies ReadonlyArray<IntelScope | null>;
+const scopes = [null, "Thread", "Workspace", "Global"] as const satisfies ReadonlyArray<LoreScope | null>;
 const states = [
   null,
   "Active",
@@ -205,17 +221,17 @@ const states = [
   "Archived",
   "Pinned",
   "Deleted",
-] as const satisfies ReadonlyArray<IntelStateFilter | null>;
+] as const satisfies ReadonlyArray<LoreStateFilter | null>;
 const scopeNames = { Global: "Global", Thread: "Quest and side-quests", Workspace: "Realm" } as const satisfies Record<
-  IntelScope,
+  LoreScope,
   string
 >;
 
 /**
- * The intel panel: the changes awaiting approval, then each intel with its scope, saver, and time, filtered by
- * scope. Opened from a thread it lists the intel in that thread's scope, most specific first; otherwise all.
+ * The lore panel: the changes awaiting approval, then each lore entry with its scope, saver, and time, filtered by
+ * scope. Opened from a thread it lists the lore in that thread's scope, most specific first; otherwise all.
  */
-export function IntelScreen({
+export function LoreScreen({
   client,
   onBack,
   threadId,
@@ -230,21 +246,21 @@ export function IntelScreen({
   workspaceId?: WorkspaceId | null;
 }) {
   const hasSidebar = useHasSidebar();
-  const [scope, setScope] = useState<IntelScope | null>(null);
-  const [state, setState] = useState<IntelStateFilter | null>(null);
-  const [historyOf, setHistoryOf] = useState<IntelId | null>(null);
+  const [scope, setScope] = useState<LoreScope | null>(null);
+  const [state, setState] = useState<LoreStateFilter | null>(null);
+  const [historyOf, setHistoryOf] = useState<LoreEntryId | null>(null);
   const { data, error } = useServiceQuery(
     client,
     { _tag: "ListIntel", scope, state, threadId, workspaceId },
-    `intel:${threadId ?? "all"}:${scope ?? "all"}:${state ?? "all"}:${workspaceId ?? "any"}`,
+    `lore:${threadId ?? "all"}:${scope ?? "all"}:${state ?? "all"}:${workspaceId ?? "any"}`,
   );
   if (historyOf !== null) {
-    return <IntelHistoryScreen client={client} intelId={historyOf} onBack={() => setHistoryOf(null)} />;
+    return <LoreHistoryScreen client={client} loreEntryId={historyOf} onBack={() => setHistoryOf(null)} />;
   }
   return (
     <View style={styles.screen}>
       <View style={styles.header}>
-        {/* All intel is a place of the sidebar; a thread's intel goes back to its thread. */}
+        {/* All lore is a place of the sidebar; a thread's lore goes back to its thread. */}
         {!(hasSidebar && threadId === null && workspaceId === null) && (
           <Pressable onPress={onBack}>
             <Text style={styles.link}>← Back</Text>
@@ -270,7 +286,7 @@ export function IntelScreen({
             <View style={styles.section}>
               <Text style={styles.label}>Proposed from how lore is used</Text>
               {data.proposals.map((proposal) => (
-                <IntelProposalCard client={client} key={proposal.id} proposal={proposal} />
+                <LoreProposalCard client={client} key={proposal.id} proposal={proposal} />
               ))}
             </View>
           )}
@@ -278,18 +294,21 @@ export function IntelScreen({
             <View style={styles.section}>
               <Text style={styles.label}>Waiting for your approval</Text>
               {data.awaiting.map((change) => (
-                <IntelChangeCard change={change} client={client} key={change.id} shouldNameThread />
+                <LoreChangeCard change={change} client={client} key={change.id} shouldNameThread />
               ))}
             </View>
           )}
           <View style={[styles.filters, styles.raised]}>
-            <Choice
-              accessibilityLabel="Scope"
-              label={(choice) => (choice === null ? "All scopes" : scopeNames[choice])}
-              onChange={setScope}
-              options={scopes}
-              value={scope}
-            />
+            {/* A realm's lore is all of its own scope, so there is nothing to choose between. */}
+            {workspaceId === null && (
+              <Choice
+                accessibilityLabel="Scope"
+                label={(choice) => (choice === null ? "All scopes" : scopeNames[choice])}
+                onChange={setScope}
+                options={scopes}
+                value={scope}
+              />
+            )}
             <Choice
               accessibilityLabel="State"
               label={(choice) => (choice === null ? "Any state" : choice)}
@@ -298,14 +317,24 @@ export function IntelScreen({
               value={state}
             />
           </View>
-          {data.intels.length === 0 && data.deleted.length === 0 && (
+          {data.loreEntries.length === 0 && data.deleted.length === 0 && (
             <Text style={styles.muted}>{state === "Deleted" ? "No deleted lore." : "No lore here yet."}</Text>
           )}
-          {data.intels.map((intel) => (
-            <IntelRow client={client} intel={intel} key={intel.id} onHistory={() => setHistoryOf(intel.id)} />
+          {data.loreEntries.map((loreEntry) => (
+            <LoreEntryRow
+              client={client}
+              key={loreEntry.id}
+              loreEntry={loreEntry}
+              onHistory={() => setHistoryOf(loreEntry.id)}
+            />
           ))}
-          {data.deleted.map((intel) => (
-            <DeletedIntelRow client={client} intel={intel} key={intel.id} onHistory={() => setHistoryOf(intel.id)} />
+          {data.deleted.map((loreEntry) => (
+            <DeletedLoreEntryRow
+              client={client}
+              key={loreEntry.id}
+              loreEntry={loreEntry}
+              onHistory={() => setHistoryOf(loreEntry.id)}
+            />
           ))}
         </ScrollView>
       )}

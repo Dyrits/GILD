@@ -16,7 +16,6 @@ User-authored text and historical service messages are not rewritten.
 | Thread opened beneath another thread | Side-quest |
 | Workspace | Realm |
 | Control | Guildmaster |
-| Intel | Lore |
 | Workflow | Craft |
 | Workflow run | Craft run |
 | Routine | Ritual |
@@ -164,27 +163,29 @@ _Avoid_: Plugin, recipe
 Free text that tells a thread how to work, attached to a routine, workspace, or the whole system.
 _Avoid_: Prompt, system prompt
 
-## Intel
+## Lore
 
-**Intel**:
-A saved fact, preference, or decision, held at one intel scope. One item is an intel; several are intels.
-_Avoid_: Memory, note, knowledge, lore
+**Lore**:
+Saved facts, preferences, and decisions, each held at one lore scope. One item is a lore entry; several are lore entries, or simply lore.
+_Avoid_: Memory, note, knowledge, intel
 
-**Intel scope**:
-Where an intel lives and who sees it: a thread (and the threads beneath it), a workspace, or global.
+**Lore scope**:
+Where a lore entry lives and who sees it: a thread (and the threads beneath it), a workspace, or global.
 
-**Intel kind**:
-What an intel is (rule, preference, decision, fact, or temporary), which sets how fast it fades when unused.
+**Lore kind**:
+What a lore entry is (rule, preference, decision, fact, or temporary), which sets how fast it fades when unused.
 
-**Intel index**:
-The one-line-per-intel list of active global intel in a thread's context; the full text is read through `search_intel`.
+**Lore index**:
+The one-line-per-entry list of active global lore in a thread's context; the full text is read through `search_intel`.
 
-**Dormant intel**:
-An intel that faded below a strength of 0.15: out of the index and starting context, still found by search.
+**Dormant lore**:
+A lore entry that faded below a strength of 0.15: out of the index and starting context, still found by search.
 
-**Archived intel**:
-An intel that faded below a strength of 0.05: out of search too, kept in the intel panel, where the user can restore it.
-_Avoid_: Deleted intel
+**Archived lore**:
+A lore entry that faded below a strength of 0.05: out of search too, kept in the lore panel, where the user can restore it.
+_Avoid_: Deleted lore
+
+Stored records, request tags, and thread tool names keep the earlier word `intel` (the `intels` table, `ListIntel`, `save_intel`), so existing data and agents keep working.
 
 ## Devices
 

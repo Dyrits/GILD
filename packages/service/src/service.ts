@@ -18,18 +18,18 @@ import { invalid, ServiceFailure } from "./errors.ts";
 import type { Harness } from "./execution.ts";
 import { addBrowsableRoot, browseFolders, createFolder, seedBrowsableRoots } from "./folders.ts";
 import { fakeHarnessToolsLayer, HarnessTools } from "./harnessTools.ts";
-import {
-  deleteIntelByOwner,
-  editIntelByOwner,
-  pinIntelByOwner,
-  resolveIntelChange,
-  restoreIntelByOwner,
-} from "./intelDecisions.ts";
-import { readIntelHistory } from "./intelHistoryViews.ts";
-import { resolveIntelProposal } from "./intelProposals.ts";
-import { undoIntelChange } from "./intelUndo.ts";
-import { readIntelView } from "./intelViews.ts";
 import { type JournalOutcome, readJournalView, updateJournal } from "./journal.ts";
+import {
+  deleteLoreEntryByOwner,
+  editLoreEntryByOwner,
+  pinLoreEntryByOwner,
+  resolveLoreChange,
+  restoreLoreEntryByOwner,
+} from "./loreDecisions.ts";
+import { readLoreHistory } from "./loreHistoryViews.ts";
+import { resolveLoreProposal } from "./loreProposals.ts";
+import { undoLoreChange } from "./loreUndo.ts";
+import { readLoreView } from "./loreViews.ts";
 import { toolServerLayer } from "./mcp.ts";
 import { insertUserMessage } from "./messaging.ts";
 import { readMission } from "./missionDetail.ts";
@@ -47,6 +47,8 @@ import { AccountsRoot, Threads, threadsLayer } from "./threads.ts";
 import { renameMission } from "./titles.ts";
 import { openThreadByOwner } from "./tree.ts";
 import { createRealm, renameRealm, ScratchRoot, setRealmCrest } from "./workspaces.ts";
+
+// Stored and wire names keep `intel` so existing data and agents still work: request tags (`"ListIntel"`, ...).
 
 /** The entry point shared by app commands and, later, MCP calls. */
 export class Service extends Context.Service<
@@ -155,14 +157,14 @@ const make = Effect.gen(function* () {
         BrowseFolders: (browse) => browseFolders(browse.path, browse.shouldIncludeHidden),
         CreateFolder: (create) => createFolder(create.parent, create.name),
         CreateRealm: (create) => change(createRealm(create.path, create.name, create.crest)),
-        DeleteIntel: (given) => change(deleteIntelByOwner(given.intelId)),
+        DeleteIntel: (given) => change(deleteLoreEntryByOwner(given.loreEntryId)),
         DeleteThread: (given) =>
           deleteThread(given.threadId, given.confirmation).pipe(
             Effect.provideService(ScratchRoot, scratchRoot),
             Effect.provideService(Commands, commands),
           ),
         DismissMissionPrompt: (given) => commands.run(dismissPrompt(given.missionId, given.prompt)),
-        EditIntel: (given) => change(editIntelByOwner(given.intelId, given.text)),
+        EditIntel: (given) => change(editLoreEntryByOwner(given.loreEntryId, given.text)),
         EndMission: (given) => commands.run(endMission(given.missionId, given.ending, given.snapshot)),
         InterruptThread: (given) =>
           threads
@@ -177,7 +179,7 @@ const make = Effect.gen(function* () {
             Effect.provideService(HarnessTools, harnessTools),
             Effect.provideService(AccountsRoot, accountsRoot),
           ),
-        ListIntel: (list) => readIntelView(list.scope, list.state, list.threadId, list.workspaceId ?? null),
+        ListIntel: (list) => readLoreView(list.scope, list.state, list.threadId, list.workspaceId ?? null),
         ListMissions: (filters) => listMissions(filters),
         ListOpenQuestions: () => listOpenQuestions,
         ListSkills: (given) => listSkills(given.workspacePath),
@@ -199,7 +201,7 @@ const make = Effect.gen(function* () {
               ),
             ),
           ),
-        PinIntel: (given) => change(pinIntelByOwner(given.intelId, given.isPinned)),
+        PinIntel: (given) => change(pinLoreEntryByOwner(given.loreEntryId, given.isPinned)),
         PreviewDeletion: (given) => previewDeletion(given.threadId),
         PreviewEnding: (given) => previewEnding(given.missionId, given.ending),
         PreviewStartingContext: (given) =>
@@ -209,7 +211,7 @@ const make = Effect.gen(function* () {
             given.text,
           ).pipe(Effect.provideService(ScratchRoot, scratchRoot)),
         ReadBudget: (read) => readBudgetWindow(read.missionId),
-        ReadIntelHistory: (read) => readIntelHistory(read.intelId),
+        ReadIntelHistory: (read) => readLoreHistory(read.loreEntryId),
         ReadJournal: (read) => readJournalView(read.missionId),
         ReadMission: (read) => readMission(read.missionId, read.threadId),
         ReadPermissions: (read) =>
@@ -236,9 +238,9 @@ const make = Effect.gen(function* () {
             chatterDecisions.withPermit,
             Effect.provideService(Commands, commands),
           ),
-        ResolveIntelChange: (given) => change(resolveIntelChange(given.changeId, given.isApproved)),
-        ResolveIntelProposal: (given) => change(resolveIntelProposal(given.proposalId, given.isApproved)),
-        RestoreIntel: (given) => change(restoreIntelByOwner(given.intelId)),
+        ResolveIntelChange: (given) => change(resolveLoreChange(given.changeId, given.isApproved)),
+        ResolveIntelProposal: (given) => change(resolveLoreProposal(given.proposalId, given.isApproved)),
+        RestoreIntel: (given) => change(restoreLoreEntryByOwner(given.loreEntryId)),
         ResumeThread: (resume) => threads.resume(resume.threadId).pipe(Effect.as(null)),
         RetryThread: (retry) => threads.retry(retry.threadId).pipe(Effect.as(null)),
         RewriteBriefing: (rewrite) => {
@@ -301,7 +303,7 @@ const make = Effect.gen(function* () {
           ),
         StopAtBudget: (given) => commands.run(stopAtBudget(given.stopId)),
         StopThread: (stop) => threads.stop(stop.threadId).pipe(Effect.as(null)),
-        UndoIntelChange: (given) => change(undoIntelChange(given.entryId)),
+        UndoIntelChange: (given) => change(undoLoreChange(given.entryId)),
         UpdateSettings: (update) =>
           change(writeSettings(update.settings)).pipe(
             // A changed global budget stops work at its limit or releases the threads it held.

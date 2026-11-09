@@ -5,9 +5,9 @@ import { listBudgetEvents, readHeldStop } from "./budgetViews.ts";
 import { readChatter } from "./chatter.ts";
 import { notFound } from "./errors.ts";
 import { ownAccountLabel } from "./harnessCatalog.ts";
-import { readGauge } from "./intel.ts";
-import { listThreadIntelChanges } from "./intelViews.ts";
 import { threadActionsOf } from "./lifecycle.ts";
+import { readGauge } from "./lore.ts";
+import { listThreadLoreChanges } from "./loreViews.ts";
 import { listMissionSummaries } from "./missions.ts";
 import { listThreadQuestions } from "./questions.ts";
 import { listThreadSuggestions } from "./suggestionStore.ts";
@@ -75,8 +75,8 @@ export const readMission = (missionId: string, threadId: string | null) =>
       budgetEvents: selected.parentId === null ? yield* listBudgetEvents(missionId) : [],
       budgetStop: yield* readHeldStop(selected.id),
       chatter: yield* readChatter(selected.id),
-      intelChanges: yield* listThreadIntelChanges(selected.id),
-      intelGauge: yield* readGauge(selected.id),
+      loreChanges: yield* listThreadLoreChanges(selected.id),
+      loreGauge: yield* readGauge(selected.id),
       messages: messages.map((message) => ({
         ...message,
         isQueued: message.isQueued === 1,

@@ -1,24 +1,26 @@
 import type {
-  Intel,
-  IntelGauge,
-  IntelId,
-  IntelKind,
-  IntelOrigin,
-  IntelScope,
+  LoreEntry,
+  LoreEntryId,
+  LoreGauge,
+  LoreKind,
+  LoreOrigin,
+  LoreScope,
   MissionId,
   ModelChoice,
 } from "@gild/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { notFound } from "./errors.ts";
-import { type Fading, readFading, stateOfIntel, strengthOf, summaryOf } from "./intelFading.ts";
 import { tokensOf } from "./journal.ts";
+import { type Fading, readFading, stateOfLoreEntry, strengthOf, summaryOf } from "./loreFading.ts";
 import { readSettings } from "./settings.ts";
 
-// Scoped intel (scoped-intel): where each intel applies, what a thread recalls, and what the owner reads.
+// Stored and wire names keep `intel` so existing data and agents still work: table and column names (`intels`, `intel_id`, ...), thread tool names (`save_intel`, ...) and settings keys (`intelHalfLives`, `intelWarningPercent`).
 
-/** The most tokens one intel holds, so one intel holds one fact (scoped-intel, Saving). */
-export const intelLimit = 200;
+// Scoped lore (scoped-intel): where each lore entry applies, what a thread recalls, and what the owner reads.
+
+/** The most tokens one lore entry holds, so one lore entry holds one fact (scoped-intel, Saving). */
+export const loreLimit = 200;
 
 /**
  * A model's context window in tokens. Provisional (work-in-progress, Batch 12): every model of every harness
@@ -26,9 +28,9 @@ export const intelLimit = 200;
  */
 export const contextWindowOf = (_model: ModelChoice) => 200_000;
 
-/** Where an intel sits: a thread (the mission's top thread for the whole mission), a workspace, or everywhere. */
+/** Where a lore entry sits: a thread (the mission's top thread for the whole mission), a workspace, or everywhere. */
 export interface Placement {
-  readonly scope: IntelScope;
+  readonly scope: LoreScope;
   readonly threadId: string | null;
   readonly workspaceId: string | null;
 }
@@ -45,7 +47,7 @@ export interface ScopeChain {
 export const widthOf = (placement: Placement, topThreadId: string) =>
   (
     ({ Global: 3, Thread: placement.threadId === topThreadId ? 1 : 0, Workspace: 2 }) satisfies Record<
-      IntelScope,
+      LoreScope,
       number
     >
   )[placement.scope];
@@ -72,22 +74,22 @@ export const readScopeChain = (threadId: string) =>
     } satisfies ScopeChain;
   });
 
-/** One stored intel with what its scope label needs. */
-export interface IntelRow {
+/** One stored lore entry with what its scope label needs. */
+export interface LoreEntryRow {
   readonly id: string;
   readonly isPinned: number;
   readonly isTopThread: number;
-  readonly kind: IntelKind;
+  readonly kind: LoreKind;
   readonly lastUsedAt: number;
   readonly missionId: string | null;
   readonly missionTitle: string | null;
   readonly originEntry: number | null;
   readonly originExcerpt: string | null;
   readonly originFrom: string | null;
-  readonly originKind: IntelOrigin["kind"] | null;
+  readonly originKind: LoreOrigin["kind"] | null;
   readonly savedAt: number;
   readonly savedByTitle: string | null;
-  readonly scope: IntelScope;
+  readonly scope: LoreScope;
   readonly text: string;
   readonly threadId: string | null;
   readonly threadTitle: string | null;
@@ -97,8 +99,8 @@ export interface IntelRow {
   readonly workspaceName: string | null;
 }
 
-/** Selects intels with what their scope labels need; callers add the condition and order. */
-export const selectIntels = (sql: SqlClient.SqlClient) => sql`
+/** Selects lore entries with what their scope labels need; callers add the condition and order. */
+export const selectLoreEntries = (sql: SqlClient.SqlClient) => sql`
   SELECT i.id, i.scope, i.kind, i.is_pinned AS isPinned, i.uses, i.last_used_at AS lastUsedAt, i.text, i.thread_id AS threadId, i.workspace_id AS workspaceId, i.saved_by_title AS savedByTitle,
     i.origin_kind AS originKind, i.origin_entry AS originEntry, i.origin_from AS originFrom,
     i.origin_excerpt AS originExcerpt, i.saved_at AS savedAt, i.updated_at AS updatedAt, t.title AS threadTitle, t.mission_id AS missionId,
@@ -106,9 +108,9 @@ export const selectIntels = (sql: SqlClient.SqlClient) => sql`
   FROM intels i LEFT JOIN threads t ON t.id = i.thread_id LEFT JOIN missions m ON m.id = t.mission_id
   LEFT JOIN workspaces w ON w.id = i.workspace_id`;
 
-/** The scope of an intel or a change in words, for the owner and for threads. */
+/** The scope of a lore entry or a change in words, for the owner and for threads. */
 export const scopeLabelOf = (row: {
-  readonly scope: IntelScope;
+  readonly scope: LoreScope;
   readonly isTopThread: number;
   readonly missionTitle: string | null;
   readonly threadTitle: string | null;
@@ -123,20 +125,20 @@ export const scopeLabelOf = (row: {
     Workspace: `Workspace ${row.workspaceName ?? ""}`,
   })[row.scope];
 
-/** What a stored intel or change rests on, or null when it records none. */
+/** What a stored lore entry or change rests on, or null when it records none. */
 export const originOf = (row: {
   readonly originEntry: number | null;
   readonly originExcerpt: string | null;
   readonly originFrom: string | null;
-  readonly originKind: IntelOrigin["kind"] | null;
-}): IntelOrigin | null =>
+  readonly originKind: LoreOrigin["kind"] | null;
+}): LoreOrigin | null =>
   row.originKind === null
     ? null
     : { entryNumber: row.originEntry, excerpt: row.originExcerpt ?? "", from: row.originFrom, kind: row.originKind };
 
-/** An intel as the owner reads it, with its strength at that time. */
-export const intelOf = (row: IntelRow, fading: Fading): Intel => ({
-  id: row.id as IntelId,
+/** A lore entry as the owner reads it, with its strength at that time. */
+export const loreEntryOf = (row: LoreEntryRow, fading: Fading): LoreEntry => ({
+  id: row.id as LoreEntryId,
   isPinned: row.isPinned === 1,
   kind: row.kind,
   lastUsedAt: row.lastUsedAt,
@@ -146,7 +148,7 @@ export const intelOf = (row: IntelRow, fading: Fading): Intel => ({
   savedByTitle: row.savedByTitle,
   scope: row.scope,
   scopeLabel: scopeLabelOf(row),
-  state: stateOfIntel(row, fading),
+  state: stateOfLoreEntry(row, fading),
   strength: strengthOf(row, fading),
   text: row.text,
   tokens: tokensOf(row.text),
@@ -154,68 +156,68 @@ export const intelOf = (row: IntelRow, fading: Fading): Intel => ({
   uses: row.uses,
 });
 
-/** The intel in a thread's scope, most specific first: the thread, each thread above, the workspace, then global. */
+/** The lore in a thread's scope, most specific first: the thread, each thread above, the workspace, then global. */
 export const listInScope = (chain: ScopeChain) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const rows = yield* sql<IntelRow>`${selectIntels(sql)}
+    const rows = yield* sql<LoreEntryRow>`${selectLoreEntries(sql)}
       WHERE (i.scope = 'Thread' AND i.thread_id IN ${sql.in(chain.threads)})
         OR (i.scope = 'Workspace' AND i.workspace_id = ${chain.workspaceId})
         OR i.scope = 'Global'
       ORDER BY i.saved_at DESC`;
-    const rankOf = (row: IntelRow) =>
+    const rankOf = (row: LoreEntryRow) =>
       row.scope === "Thread" ? chain.threads.indexOf(row.threadId ?? "") : row.scope === "Workspace" ? 1e6 : 2e6;
     // Stable sort: within one scope the newest stays first.
     return rows.toSorted((a, b) => rankOf(a) - rankOf(b));
   });
 
-/** One stored intel, or null when it no longer exists. */
-export const readIntel = (intelId: string) =>
+/** One stored lore entry, or null when it no longer exists. */
+export const readLoreEntry = (loreEntryId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const [row] = yield* sql<IntelRow>`${selectIntels(sql)} WHERE i.id = ${intelId}`;
+    const [row] = yield* sql<LoreEntryRow>`${selectLoreEntries(sql)} WHERE i.id = ${loreEntryId}`;
     return row ?? null;
   });
 
-/** What a turn's context carries of a thread's intel (scoped-intel, Recall). */
+/** What a turn's context carries of a thread's lore (scoped-intel, Recall). */
 interface Recall {
-  /** Dormant intels in scope, not listed. */
+  /** Dormant lore entries in scope, not listed. */
   readonly dormantCount: number;
-  /** Active global intel, oldest first, so a new one is added at the end of the index. */
-  readonly index: ReadonlyArray<IntelRow>;
-  /** Active thread, mission, and workspace intel, most specific first. */
-  readonly inFull: ReadonlyArray<IntelRow>;
+  /** Active global lore, oldest first, so a new one is added at the end of the index. */
+  readonly index: ReadonlyArray<LoreEntryRow>;
+  /** Active thread, mission, and workspace lore, most specific first. */
+  readonly inFull: ReadonlyArray<LoreEntryRow>;
 }
 
-const recallOf = (rows: ReadonlyArray<IntelRow>, fading: Fading): Recall => {
-  const active = rows.filter((row) => stateOfIntel(row, fading) === "Active");
+const recallOf = (rows: ReadonlyArray<LoreEntryRow>, fading: Fading): Recall => {
+  const active = rows.filter((row) => stateOfLoreEntry(row, fading) === "Active");
   return {
-    dormantCount: rows.filter((row) => stateOfIntel(row, fading) === "Dormant").length,
+    dormantCount: rows.filter((row) => stateOfLoreEntry(row, fading) === "Dormant").length,
     index: active.filter((row) => row.scope === "Global").toSorted((a, b) => a.savedAt - b.savedAt),
     inFull: active.filter((row) => row.scope !== "Global"),
   };
 };
 
-const agentLabelOf = (row: IntelRow) =>
+const agentLabelOf = (row: LoreEntryRow) =>
   ({
     Global: "global",
     Thread: row.isTopThread === 1 ? "mission" : `thread "${row.threadTitle ?? ""}"`,
     Workspace: "workspace",
   })[row.scope];
 
-/** Intel as a thread reads it in full: one line each, with its identifier, scope, and kind. */
-export const intelLinesOf = (rows: ReadonlyArray<IntelRow>) =>
+/** Lore as a thread reads it in full: one line each, with its identifier, scope, and kind. */
+export const loreLinesOf = (rows: ReadonlyArray<LoreEntryRow>) =>
   rows.map((row) => `- [${row.id}] (${agentLabelOf(row)}, ${row.kind.toLowerCase()}) ${row.text}`).join("\n");
 
-/** The global index: one line per active global intel with its identifier, kind, and a short summary. */
-const indexLinesOf = (rows: ReadonlyArray<IntelRow>) =>
+/** The global index: one line per active global lore entry with its identifier, kind, and a short summary. */
+const indexLinesOf = (rows: ReadonlyArray<LoreEntryRow>) =>
   rows.map((row) => `- [${row.id}] (global, ${row.kind.toLowerCase()}) ${summaryOf(row.text)}`).join("\n");
 
 /**
- * What the intel in a thread's scope takes in a turn's context: how many active intels, and their tokens in
- * full or as index lines. A thread the owner opens beneath it starts with the same intel.
+ * What the lore in a thread's scope takes in a turn's context: how many active lore entries, and their tokens in
+ * full or as index lines. A thread the owner opens beneath it starts with the same lore.
  */
-export const readIntelSize = (threadId: string) =>
+export const readLoreSize = (threadId: string) =>
   Effect.gen(function* () {
     const recall = recallOf(yield* listInScope(yield* readScopeChain(threadId)), yield* readFading);
     return {
@@ -226,11 +228,11 @@ export const readIntelSize = (threadId: string) =>
     };
   });
 
-/** How much of its model's context window the intel in a thread's scope takes (scoped-intel, Size warning). */
+/** How much of its model's context window the lore in a thread's scope takes (scoped-intel, Size warning). */
 export const readGauge = (threadId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const { count, tokens } = yield* readIntelSize(threadId);
+    const { count, tokens } = yield* readLoreSize(threadId);
     const [thread] = yield* sql<{ model: ModelChoice }>`SELECT model FROM threads WHERE id = ${threadId}`;
     const { intelWarningPercent } = yield* readSettings;
     const windowTokens = contextWindowOf(thread?.model ?? "default");
@@ -240,23 +242,23 @@ export const readGauge = (threadId: string) =>
       tokens,
       warningPercent: intelWarningPercent,
       windowTokens,
-    } satisfies IntelGauge;
+    } satisfies LoreGauge;
   });
 
-/** How a thread keeps intel; part of its system prompt, the same every turn (scoped-intel). */
-export const intelInstructions = [
-  "# Intel",
-  "Intel is what Gild keeps between threads: rules, preferences, decisions, facts, and temporary notes, each at the scope where it applies. Each of your turns starts with the intel in your scope.",
-  `Before saving, check there is something worth keeping: saving nothing is better than a vague or forced intel. When you learn something later work should know, save it with save_intel: one fact per intel, at most ${intelLimit} tokens. Choose the narrowest scope that fits: thread (you and the threads beneath you), mission (every thread of this mission), workspace (every thread working in this folder, in any mission), or global (everywhere; it waits for the owner's approval).`,
-  "Choose its kind: rule (never fades), preference, decision, fact, or temporary (fades in days). Intel nobody uses fades, so search_intel for what you need: reading an intel there keeps it alive. When an intel from your context shaped what you did, say so with relied_on_intel and its ids; that keeps it alive too.",
-  "A save that says the same as an intel in its scope or a wider one, or a newer version of it, replaces it: the intel keeps its id and takes the new text. When the intel rests on a journal entry, give its number as journalEntry; otherwise the message you are answering is recorded as its origin.",
-  "When the owner gives you a rule in a chat, such as 'always run the tests before a commit', save it as an intel of kind rule without being asked.",
-  "Correct an intel that turned out wrong with update_intel, and delete one that no longer holds with forget_intel. When an intel is not specific to where it was saved, such as a general convention or a preference of the owner, propose a wider scope with update_intel; the owner approves the move.",
-  "Where the mission stands belongs in the journal, not in intel.",
+/** How a thread keeps lore; part of its system prompt, the same every turn (scoped-intel). */
+export const loreInstructions = [
+  "# Lore",
+  "Lore is what Gild keeps between threads: rules, preferences, decisions, facts, and temporary notes, each at the scope where it applies. Each of your turns starts with the lore in your scope.",
+  `Before saving, check there is something worth keeping: saving nothing is better than a vague or forced lore entry. When you learn something later work should know, save it with save_intel: one fact per lore entry, at most ${loreLimit} tokens. Choose the narrowest scope that fits: thread (you and the threads beneath you), mission (every thread of this mission), workspace (every thread working in this folder, in any mission), or global (everywhere; it waits for the owner's approval).`,
+  "Choose its kind: rule (never fades), preference, decision, fact, or temporary (fades in days). Lore nobody uses fades, so search_intel for what you need: reading a lore entry there keeps it alive. When a lore entry from your context shaped what you did, say so with relied_on_intel and its ids; that keeps it alive too.",
+  "A save that says the same as a lore entry in its scope or a wider one, or a newer version of it, replaces it: the lore entry keeps its id and takes the new text. When the lore entry rests on a journal entry, give its number as journalEntry; otherwise the message you are answering is recorded as its origin.",
+  "When the owner gives you a rule in a chat, such as 'always run the tests before a commit', save it as a lore entry of kind rule without being asked.",
+  "Correct a lore entry that turned out wrong with update_intel, and delete one that no longer holds with forget_intel. When a lore entry is not specific to where it was saved, such as a general convention or a preference of the owner, propose a wider scope with update_intel; the owner approves the move.",
+  "Where the mission stands belongs in the journal, not in lore.",
 ].join("\n");
 
-/** A thread's intel for each turn's message: the intel in its scope (scoped-intel, Recall). */
-export const intelContextOf = (threadId: string) =>
+/** A thread's lore for each turn's message: the lore in its scope (scoped-intel, Recall). */
+export const loreContextOf = (threadId: string) =>
   Effect.gen(function* () {
     const chain = yield* readScopeChain(threadId);
     const recall = recallOf(yield* listInScope(chain), yield* readFading);
@@ -265,16 +267,16 @@ export const intelContextOf = (threadId: string) =>
       count === 0
         ? []
         : count === 1
-          ? ["1 dormant intel in your scope is not listed; search_intel finds it by words."]
-          : [`${count} dormant intels in your scope are not listed; search_intel finds them by words.`];
+          ? ["1 dormant lore entry in your scope is not listed; search_intel finds it by words."]
+          : [`${count} dormant lore entries in your scope are not listed; search_intel finds them by words.`];
     return [
-      "# Intel at this turn",
-      "The intel in your scope, most specific first; when two conflict, the one listed first wins:",
-      recall.inFull.length === 0 ? "(none yet)" : intelLinesOf(recall.inFull),
+      "# Lore at this turn",
+      "The lore in your scope, most specific first; when two conflict, the one listed first wins:",
+      recall.inFull.length === 0 ? "(none yet)" : loreLinesOf(recall.inFull),
       "",
-      "Global intel, as an index of one line each; read one in full with search_intel and its id:",
+      "Global lore, as an index of one line each; read one in full with search_intel and its id:",
       recall.index.length === 0 ? "(none yet)" : indexLinesOf(recall.index),
       ...dormant,
-      ...(chain.workspaceId === null ? ["You have no workspace, so workspace intel is not available to you."] : []),
+      ...(chain.workspaceId === null ? ["You have no workspace, so workspace lore is not available to you."] : []),
     ].join("\n");
   });

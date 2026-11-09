@@ -9,7 +9,7 @@ import {
   contextLevelOf,
   contextPartLabels,
   contextUseTextOf,
-  intelGaugeValueOf,
+  loreGaugeValueOf,
   threadSpendingTextOf,
   tokenCountOf,
 } from "./labels";
@@ -62,11 +62,11 @@ function ContextMeter({ gauge }: { gauge: ContextGauge }) {
 export function ThreadPanel({
   client,
   detail,
-  onOpenIntel,
+  onOpenLore,
 }: {
   client: ServiceClient;
   detail: MissionDetail;
-  onOpenIntel: () => void;
+  onOpenLore: () => void;
 }) {
   const { thread } = detail;
   const { data: panel } = useServiceQuery(client, { _tag: "ReadThreadPanel", threadId: thread.id }, thread.id);
@@ -102,7 +102,7 @@ export function ThreadPanel({
         </View>
       </View>
       <Group label="Knows">
-        <Row label="Lore" onPress={onOpenIntel} value={intelGaugeValueOf(detail.intelGauge)} />
+        <Row label="Lore" onPress={onOpenLore} value={loreGaugeValueOf(detail.loreGauge)} />
         {skills.length === 0 ? (
           <Row label="Skills" value="None found" />
         ) : (

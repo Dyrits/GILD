@@ -20,7 +20,7 @@ const message = (id: string, sentAt: number) => ({ id, sender: "user", sentAt, t
 const detailOf = (threads: ReadonlyArray<ThreadSummary>, selectedId: string) =>
   ({
     budgetEvents: [],
-    intelChanges: [],
+    loreChanges: [],
     messages: [message("first", 10), message("second", 30)],
     questions: [],
     suggestions: [],

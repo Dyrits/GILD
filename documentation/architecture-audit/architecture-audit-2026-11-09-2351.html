@@ -1,0 +1,256 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Architecture review for Gild · 2026-11-09</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+      mermaid.initialize({ securityLevel: "loose", startOnLoad: true, theme: "neutral" });
+    </script>
+    <style>
+      .seam { border-style: dashed; }
+      .leak { color: #dc2626; }
+      .deep { color: #f8fafc; background: linear-gradient(135deg, #0f172a, #1e293b); }
+      .mod { background: #fff; border: 1px solid #94a3b8; }
+      .lbl { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; }
+    </style>
+  </head>
+  <body class="bg-stone-50 text-slate-900 font-sans">
+    <main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+      <header class="space-y-3">
+        <h1 class="font-serif text-3xl">Gild · architecture review · 2026-11-09</h1>
+        <div class="flex flex-wrap gap-4 text-xs">
+          <span class="flex items-center gap-2"><span class="inline-block w-6 h-4 mod"></span> module</span>
+          <span class="flex items-center gap-2"><span class="inline-block w-6 h-4 border border-dashed border-slate-500"></span> seam</span>
+          <span class="flex items-center gap-2"><span class="inline-block w-6 h-0.5 bg-red-600"></span> leakage</span>
+          <span class="flex items-center gap-2"><span class="inline-block w-6 h-4 deep"></span> deep module</span>
+        </div>
+        <p class="text-sm text-slate-500">Scope: the last ten days of churn (board, realms, crests, quest panel, Companion label). Hot spots: <span class="font-mono">apps/app/src</span>. The 2026-11-06 and 2026-11-07 candidates were applied (62face4) and are not repeated. Conventions file read. Nothing here contradicts a decision record.</p>
+      </header>
+
+      <section class="space-y-14" id="candidates" >
+
+        <!-- 1 -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-5" id="c1" >
+          <h2 class="font-serif text-2xl">1 · One navigation module owns where the owner is</h2>
+          <div class="flex gap-2 text-xs">
+            <span class="px-2 py-1 rounded bg-emerald-100 text-emerald-800 font-semibold">Strong</span>
+            <span class="px-2 py-1 rounded bg-slate-100">in-process</span>
+          </div>
+          <div class="font-mono text-sm text-slate-600">apps/app/App.tsx:19-116<br />apps/app/src/dashboard.tsx:149-237<br />apps/app/src/conversation.tsx:290-296<br />apps/app/src/sidebar.tsx:703-738, 823-831</div>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <div class="lbl text-slate-500">Before</div>
+              <div class="rounded-lg border border-slate-200 p-4 space-y-2 bg-stone-50">
+                <div class="mod p-2 lbl">App · 9 useState, hand-reset in goTo</div>
+                <div class="mod p-2 lbl">Dashboard · previewScreen, isRealmLoreOpen, isGlobalBudgetOpen, isDesigning</div>
+                <div class="mod p-2 lbl">Conversation · 4 more sub-screens</div>
+                <div class="mod p-2 lbl border-red-500">crumbsOf · guesses the place from props <span class="leak">⟵ cannot see sub-screens</span></div>
+              </div>
+            </div>
+            <div class="space-y-2">
+              <div class="lbl text-slate-500">After</div>
+              <div class="rounded-lg border border-slate-200 p-4 bg-stone-50 space-y-2">
+                <div class="deep rounded p-4 space-y-1">
+                  <div class="lbl">Navigation module</div>
+                  <div class="text-xs opacity-80">location · transitions · breadcrumb</div>
+                  <div class="text-xs opacity-40">9 + 4 + 4 states folded inside</div>
+                </div>
+                <div class="border border-dashed border-slate-500 p-1 lbl text-center">seam: App ↔ screens</div>
+                <div class="grid grid-cols-3 gap-2 lbl"><div class="mod p-2">Dashboard</div><div class="mod p-2">Conversation</div><div class="mod p-2">Rail</div></div>
+              </div>
+            </div>
+          </div>
+          <p><b>Problem.</b> <span class="font-mono">key={place}</span> resets Dashboard only on a place change, so Lore stays open on the next realm and a quest's Budget screen survives the next selection; <span class="font-mono">crumbsOf</span> reads <span class="font-mono">allMissions</span>, which excludes archived quests.</p>
+          <p><b>Solution.</b> One location value with its transitions and its breadcrumb, behind one interface between App and the screens.</p>
+          <ul class="list-disc pl-5 text-sm">
+            <li>locality: stale sub-screen bugs concentrate in one place</li>
+            <li>leverage: one interface, four call sites</li>
+            <li>transitions become pure; no navigation tests exist today</li>
+            <li>deletion test: complexity concentrates</li>
+          </ul>
+        </article>
+
+        <!-- 2 -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-5" id="c2" >
+          <h2 class="font-serif text-2xl">2 · Realm identity resolved only in the service</h2>
+          <div class="flex gap-2 text-xs">
+            <span class="px-2 py-1 rounded bg-emerald-100 text-emerald-800 font-semibold">Strong</span>
+            <span class="px-2 py-1 rounded bg-slate-100">local-substitutable</span>
+          </div>
+          <div class="font-mono text-sm text-slate-600">apps/app/src/workspaces.tsx:17-112<br />packages/service/src/workspaces.ts:22-77<br />packages/service/src/missions.ts:40-58</div>
+          <div class="rounded-lg border border-slate-200 bg-white p-4">
+            <pre class="mermaid">
+flowchart LR
+  subgraph Before
+    A1[App: samePath endsWith] -.guess.-> A2[App: folderNameOf]
+    A2 --> S1[Service: attachWorkspace realFolderOf]
+    S1 -.returns null.-> A1
+  end
+  subgraph After
+    B1[App: send folder] --> B2[[Service: resolve folder to Realm]]
+    B2 --> B3[App: receives Realm id]
+  end
+  classDef leak stroke:#dc2626,stroke-width:2px;
+  class A1,A2 leak
+            </pre>
+          </div>
+          <p><b>Problem.</b> The app guesses path equality and folder names that the service already resolves properly; <span class="font-mono">createRealm</span> returns null, and on an existing folder the typed name and crest are dropped. Symlinked and suffix-sharing paths are misjudged.</p>
+          <p><b>Solution.</b> The service owns folder-to-realm resolution and returns the realm; identity crosses the seam as an id.</p>
+          <ul class="list-disc pl-5 text-sm">
+            <li>locality: one path rule, in the service</li>
+            <li>delete samePath and folderNameOf</li>
+            <li>tests use temporary folders and links</li>
+            <li>consistent with decision record 0002</li>
+          </ul>
+        </article>
+
+        <!-- 3 -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-5" id="c3" >
+          <h2 class="font-serif text-2xl">3 · A realm ledger shared by both panels</h2>
+          <div class="flex gap-2 text-xs">
+            <span class="px-2 py-1 rounded bg-emerald-100 text-emerald-800 font-semibold">Strong</span>
+            <span class="px-2 py-1 rounded bg-slate-100">in-process</span>
+          </div>
+          <div class="font-mono text-sm text-slate-600">apps/app/src/questPanel.tsx:268-455<br />apps/app/src/realmCard.tsx:29-30<br />apps/app/src/sidebar.tsx:363-365<br />apps/app/src/dashboard.tsx:153-194</div>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 p-4 bg-stone-50 space-y-2">
+              <div class="lbl text-slate-500">Before</div>
+              <div class="grid grid-cols-2 gap-2">
+                <div class="mod p-2 lbl">QuestOverview · tiles + lists</div>
+                <div class="mod p-2 lbl">RealmPanel · same tiles + lists</div>
+              </div>
+              <div class="mod p-2 lbl border-red-500">"open" = state !== Done, copied in realmCard and rail <span class="leak">⟵ drift</span></div>
+              <div class="mod p-2 lbl border-red-500">fed by ListMissions with search <span class="leak">⟵ typing changes Spent</span></div>
+            </div>
+            <div class="rounded-lg border border-slate-200 p-4 bg-stone-50 space-y-2">
+              <div class="lbl text-slate-500">After</div>
+              <div class="deep rounded p-4"><div class="lbl">Ledger</div><div class="text-xs opacity-80">open rule · totals · Needs you · Underway</div></div>
+              <div class="border border-dashed border-slate-500 p-1 lbl text-center">seam: mission list ↔ panels</div>
+              <div class="grid grid-cols-3 gap-2 lbl"><div class="mod p-2">Overview</div><div class="mod p-2">Realm panel</div><div class="mod p-2">Realm card</div></div>
+            </div>
+          </div>
+          <p><b>Problem.</b> The tiles and lists are copied; both panels total from a searched list, so typing in the search box changes a realm's Quests, Threads, and Spent figures.</p>
+          <p><b>Solution.</b> One ledger computed from the unfiltered mission summaries, in the app or as a service read.</p>
+          <ul class="list-disc pl-5 text-sm">
+            <li>locality: the open rule lives once</li>
+            <li>pure tests beside boardColumns.test.ts</li>
+            <li>search bug fixed at the source</li>
+            <li>deletion test: complexity concentrates</li>
+          </ul>
+        </article>
+
+        <!-- 4 -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-5" id="c4" >
+          <h2 class="font-serif text-2xl">4 · One selection decides which Lore a viewer sees</h2>
+          <div class="flex gap-2 text-xs">
+            <span class="px-2 py-1 rounded bg-amber-100 text-amber-800 font-semibold">Worth exploring</span>
+            <span class="px-2 py-1 rounded bg-slate-100">local-substitutable</span>
+          </div>
+          <div class="font-mono text-sm text-slate-600">packages/service/src/intelViews.ts:74-142<br />packages/service/src/service.ts:180<br />apps/app/src/intel.tsx:223-239</div>
+          <div class="rounded-lg border border-slate-200 bg-white p-4">
+            <pre class="mermaid">
+flowchart LR
+  subgraph Before
+    P[Lore panel] --> R[readIntelView: hidden rules]
+    T[Thread tools] --> S[searchableOf: own rules]
+    R -.drops deleted and non-Workspace silently.-> X((empty list))
+  end
+  subgraph After
+    P2[Lore panel] --> SEL[[Intel selection]]
+    T2[Thread tools] --> SEL
+  end
+  classDef leak stroke:#dc2626,stroke-width:2px;
+  class R,X leak
+            </pre>
+          </div>
+          <p><b>Problem.</b> With a realm id, <span class="font-mono">readIntelView</span> silently drops deleted intel and non-Workspace scopes, yet the screen offers those scope pills; two scope vocabularies exist and no test sends a realm id.</p>
+          <p><b>Solution.</b> Resolve the selection once, shared by the panel and the thread tools. The 2026-11-07 intel store candidate covered writes; this covers reads.</p>
+          <ul class="list-disc pl-5 text-sm">
+            <li>locality: filter rules visible in one place</li>
+            <li>leverage: panel and tools share one selection</li>
+            <li>in-memory SQLite tests already exist</li>
+          </ul>
+        </article>
+
+        <!-- 5 -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-5" id="c5" >
+          <h2 class="font-serif text-2xl">5 · The reply records its model when written</h2>
+          <div class="flex gap-2 text-xs">
+            <span class="px-2 py-1 rounded bg-amber-100 text-amber-800 font-semibold">Worth exploring</span>
+            <span class="px-2 py-1 rounded bg-slate-100">in-process</span>
+          </div>
+          <div class="font-mono text-sm text-slate-600">apps/app/src/formatting.ts:24-50<br />apps/app/src/conversation.tsx:121<br />packages/service/src/claude.ts:138 · codex.ts:172 · opencode.ts:247</div>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 p-4 bg-stone-50 space-y-2">
+              <div class="lbl text-slate-500">Before: cross-section</div>
+              <div class="border-l-4 border-slate-400 bg-white p-2 lbl">Adapter reports model (Claude only)</div>
+              <div class="border-l-4 border-slate-400 bg-white p-2 lbl">Entry stores raw model or null</div>
+              <div class="border-l-4 border-red-500 bg-white p-2 lbl">companionLabelOf at render: falls back to the thread's <i>current</i> model, parses with a regex</div>
+            </div>
+            <div class="rounded-lg border border-slate-200 p-4 bg-stone-50 space-y-2">
+              <div class="lbl text-slate-500">After</div>
+              <div class="border-l-4 border-slate-400 bg-white p-2 lbl">Adapter reports model</div>
+              <div class="deep rounded p-3 lbl">Reply becomes entry: model and label stamped once, from the catalog</div>
+              <div class="border-l-4 border-slate-400 bg-white p-2 lbl">Render reads the label</div>
+            </div>
+          </div>
+          <p><b>Problem.</b> The label function is well tested, but the bug is in the call: old replies are relabelled after a model switch, and the test asserts a Codex model that never arrives.</p>
+          <p><b>Solution.</b> The service stamps each reply entry with its model and label at the seam where a Reply event becomes an entry.</p>
+          <ul class="list-disc pl-5 text-sm">
+            <li>locality: label knowledge lives in the catalog</li>
+            <li>history stops being misattributed</li>
+            <li>decision record 0008 holds</li>
+          </ul>
+        </article>
+
+        <!-- 6 -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-5" id="c6" >
+          <h2 class="font-serif text-2xl">6 · A query cache keyed by the request itself</h2>
+          <div class="flex gap-2 text-xs">
+            <span class="px-2 py-1 rounded bg-slate-200 text-slate-700 font-semibold">Speculative</span>
+            <span class="px-2 py-1 rounded bg-slate-100">mock (fake ServiceClient)</span>
+          </div>
+          <div class="font-mono text-sm text-slate-600">apps/app/src/useServiceQuery.ts:6-33<br />apps/app/src/queries.ts · about 25 call sites</div>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 p-4 bg-stone-50 space-y-2">
+              <div class="lbl text-slate-500">Before</div>
+              <div class="mod p-2 lbl">25 call sites each write a hand key <span class="leak">("budget:global" ×3)</span></div>
+              <div class="mod p-2 lbl border-red-500">Shell, Sidebar, Dashboard each refetch allMissions on every change</div>
+            </div>
+            <div class="rounded-lg border border-slate-200 p-4 bg-stone-50 space-y-2">
+              <div class="lbl text-slate-500">After</div>
+              <div class="deep rounded p-3 lbl">One cache: key derived from the request, shared fetch, invalidation</div>
+              <div class="border border-dashed border-slate-500 p-1 lbl text-center">existing library first (TanStack Query)</div>
+            </div>
+          </div>
+          <p><b>Problem.</b> <span class="font-mono">useServiceQuery</span> is shallow: deleting it only moves key-building to the call sites, and nothing deduplicates fetches.</p>
+          <p><b>Solution.</b> Derive the key from the request and share fetches; check an existing library before building.</p>
+          <ul class="list-disc pl-5 text-sm">
+            <li>leverage: one interface, 25 call sites</li>
+            <li>duplicate fetches disappear</li>
+          </ul>
+        </article>
+      </section>
+
+      <section class="text-sm space-y-2" id="looked-at" >
+        <h2 class="font-serif text-xl">Looked at, not proposed</h2>
+        <ul class="list-disc pl-5">
+          <li><span class="font-mono">service.ts</span> handler table: command runner done, remaining calls thin.</li>
+          <li><span class="font-mono">store.ts</span>: migrations only. <span class="font-mono">boardColumns.ts</span>, <span class="font-mono">labels.ts</span>: deep enough and tested.</li>
+          <li><span class="font-mono">crestStudio.tsx</span>, <span class="font-mono">crestShapes.ts</span>: self-contained and tested.</li>
+          <li><span class="font-mono">sidebar.tsx</span> size (1115 lines): its real friction is <span class="font-mono">crumbsOf</span>, covered by candidate 1.</li>
+        </ul>
+      </section>
+
+      <section class="rounded-xl deep p-6 space-y-2" id="top-recommendation" >
+        <div class="lbl opacity-60">Top recommendation</div>
+        <h2 class="font-serif text-2xl">1 · One navigation module owns where the owner is</h2>
+        <p class="text-sm opacity-90">Most of this week's visible bugs (stale Lore, stale Budget, archived-quest breadcrumb) come from state with no owner, and every new screen adds more. Next: <a class="underline" href="#c2">2</a>, then <a class="underline" href="#c3">3</a>.</p>
+        <a class="underline text-sm" href="#c1">Go to the card</a>
+      </section>
+    </main>
+  </body>
+</html>

@@ -2,7 +2,7 @@ import type { ContextGauge, ContextPart, ThreadPanel } from "@gild/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { notFound } from "./errors.ts";
-import { contextWindowOf } from "./intel.ts";
+import { contextWindowOf } from "./lore.ts";
 import { missionLimitsOf, missionSpendingOf, spendingColumns } from "./spending.ts";
 import { readSentContextSize } from "./startingContext.ts";
 

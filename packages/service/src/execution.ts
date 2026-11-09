@@ -142,6 +142,6 @@ export const routeHarnesses = (adapters: Record<HarnessName, HarnessAdapter>): H
   };
 };
 
-/** The turn's message as the harness receives it: the note (journal, intel, budget) first, set off from the messages. */
+/** The turn's message as the harness receives it: the note (journal, lore, budget) first, set off from the messages. */
 export const turnMessageOf = (request: TurnRequest) =>
   request.note === null ? request.text : `${request.note}\n\n---\n\n${request.text}`;

@@ -2,6 +2,8 @@ import { EffortChoice, HarnessName, ModelChoice } from "@gild/contracts";
 import { Effect, Exit, Schema } from "effect";
 import { latestEntryCount, nothingToRecord } from "./journal.ts";
 
+// Stored and wire names keep `intel` so existing data and agents still work: thread tool names (`save_intel`, ...).
+
 // The thread tool catalogue (ADR 0005; thread-tree, thread-messaging, mission-journal, mission-tracking,
 // action-approval External contracts): each tool is defined once, by its name, description, and argument
 // schema. Its MCP listing, its argument decoding, and the list Claude Code runs without asking all come
@@ -67,10 +69,10 @@ export const threadTools = {
   }),
   forget_intel: definitionOf({
     description:
-      "Delete an intel that no longer holds, by its id. Thread and workspace intel go at once; deleting a global intel waits for the owner's approval.",
+      "Delete a lore entry that no longer holds, by its id. Thread and workspace lore go at once; deleting a global lore entry waits for the owner's approval.",
     invalid: invalid("Invalid arguments: give id."),
     isUnasked: true,
-    schema: Schema.Struct({ id: text("The intel's id, as your context or search_intel gives it.") }),
+    schema: Schema.Struct({ id: text("The lore entry's id, as your context or search_intel gives it.") }),
   }),
   interrupt_thread: definitionOf({
     description:
@@ -119,13 +121,13 @@ export const threadTools = {
   }),
   relied_on_intel: definitionOf({
     description:
-      "Say that intels from your context shaped what you did, by their ids. Each counts as a use and keeps it from fading; only intel that really guided you counts.",
+      "Say that lore entries from your context shaped what you did, by their ids. Each counts as a use and keeps it from fading; only lore that really guided you counts.",
     invalid: invalid("Invalid arguments: give ids, at least one."),
     isUnasked: true,
     schema: Schema.Struct({
       ids: Schema.Array(Schema.String)
         .check(Schema.isMinLength(1))
-        .annotate({ description: "The ids of the intels you relied on, as your context lists them." }),
+        .annotate({ description: "The ids of the lore entries you relied on, as your context lists them." }),
     }),
   }),
   report_result: definitionOf({
@@ -161,7 +163,7 @@ export const threadTools = {
   }),
   save_intel: definitionOf({
     description:
-      "Save one rule, preference, decision, fact, or temporary note that later work should know, at the narrowest scope that fits, only when it is worth keeping. Thread, mission, and workspace intel are saved at once; global intel waits for the owner's approval. A save repeating an intel in that scope or a wider one, or a newer version of it, replaces that intel.",
+      "Save one rule, preference, decision, fact, or temporary note that later work should know, at the narrowest scope that fits, only when it is worth keeping. Thread, mission, and workspace lore are saved at once; global lore waits for the owner's approval. A save repeating a lore entry in that scope or a wider one, or a newer version of it, replaces that lore entry.",
     invalid: invalid(
       "Invalid arguments: give text, scope (thread, mission, workspace, or global), and kind (rule, preference, decision, fact, or temporary).",
     ),
@@ -177,15 +179,15 @@ export const threadTools = {
   }),
   search_intel: definitionOf({
     description:
-      "Search the active and dormant intel in your scope by words, best match first, or read intels in full by their ids, such as global intel from your context's index. Reading an intel counts as a use and keeps it from fading.",
+      "Search the active and dormant lore in your scope by words, best match first, or read lore entries in full by their ids, such as global lore from your context's index. Reading a lore entry counts as a use and keeps it from fading.",
     invalid: searchInvalid,
     isUnasked: true,
     schema: Schema.Struct({
       ids: Schema.optionalKey(
-        Schema.Array(Schema.String).annotate({ description: "Intel ids to read in full, as your context lists them." }),
+        Schema.Array(Schema.String).annotate({ description: "Lore ids to read in full, as your context lists them." }),
       ),
       query: optionalText("Words to look for."),
-      scope: Schema.optionalKey(ToolScope.annotate({ description: `Only intel of this scope. ${scopeHelp}` })),
+      scope: Schema.optionalKey(ToolScope.annotate({ description: `Only lore of this scope. ${scopeHelp}` })),
     }),
   }),
   send_thread_message: definitionOf({
@@ -222,11 +224,11 @@ export const threadTools = {
   }),
   update_intel: definitionOf({
     description:
-      "Correct an intel's text, or propose a wider scope for it when it is not specific to where it was saved. Thread and workspace corrections apply at once; a change to global intel and every widening wait for the owner's approval.",
+      "Correct a lore entry's text, or propose a wider scope for it when it is not specific to where it was saved. Thread and workspace corrections apply at once; a change to global lore and every widening wait for the owner's approval.",
     invalid: invalid("Invalid arguments: give id, and text, scope, or both."),
     isUnasked: true,
     schema: Schema.Struct({
-      id: text("The intel's id, as your context or search_intel gives it."),
+      id: text("The lore entry's id, as your context or search_intel gives it."),
       scope: Schema.optionalKey(ToolScope.annotate({ description: `A wider scope to move it to. ${scopeHelp}` })),
       text: optionalText("The corrected text, one fact, at most 200 tokens."),
     }),

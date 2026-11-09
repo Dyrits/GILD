@@ -4,6 +4,7 @@ import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-nativ
 import type { ServiceClient } from "./client";
 import { CrestBadge } from "./crest";
 import { CrestStudio } from "./crestStudio";
+import { samePath } from "./paths";
 import { AddRealmCard, NoRealmButton, RealmCard } from "./realmCard";
 import { styles } from "./styles";
 import { colors, fontSizes, fonts, ink, radii } from "./theme";
@@ -13,10 +14,6 @@ const chooseFolder = () =>
   window.gild === undefined
     ? Promise.reject(new Error("Choosing a folder needs the desktop app."))
     : window.gild.chooseFolder();
-
-/** Whether two folder paths name the same folder, allowing for a resolved link in front, as `/private` on macOS. */
-const samePath = (a: string | null, b: string | null) =>
-  a !== null && b !== null && (a === b || a.endsWith(b) || b.endsWith(a));
 
 /** A folder being imported as a realm: named and given a crest. */
 export type NewRealm = { crest: Crest | null; name: string; path: string };

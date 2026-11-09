@@ -1,9 +1,9 @@
-import type { IntelOrigin } from "@gild/contracts";
+import type { LoreOrigin } from "@gild/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
-import { summaryOf } from "./intelFading.ts";
+import { summaryOf } from "./loreFading.ts";
 
-// Where an intel comes from (scoped-intel, Saving): the thread that saved it and, when there is one, the
+// Where a lore entry comes from (scoped-intel, Saving): the thread that saved it and, when there is one, the
 // journal entry or message it rests on. The origin is copied when saved, so it outlives its thread.
 
 /**
@@ -30,11 +30,11 @@ export const readOrigin = (threadId: string, journalEntry: number | null) =>
       excerpt: summaryOf(message.text),
       from: message.senderKind === "user" ? null : (message.fromTitle ?? "a thread"),
       kind: "Message",
-    } satisfies IntelOrigin;
+    } satisfies LoreOrigin;
   });
 
 /** The origin columns' values, in the order `origin_kind, origin_entry, origin_from, origin_excerpt`. */
-export const originColumnsOf = (origin: IntelOrigin | null) => ({
+export const originColumnsOf = (origin: LoreOrigin | null) => ({
   originEntry: origin?.entryNumber ?? null,
   originExcerpt: origin?.excerpt ?? null,
   originFrom: origin?.from ?? null,

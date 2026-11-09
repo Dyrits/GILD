@@ -10,6 +10,8 @@ import { sandboxProblem } from "../src/sandbox.ts";
 import { prepareStartingContext } from "../src/startingContext.ts";
 import { call, fixture, open, read, send, settle, start, tool } from "./fixtures/service.ts";
 
+// Stored and wire names keep `intel` so existing data and agents still work: request tags (`"ListIntel"`, ...) and thread tool names (`save_intel`, ...).
+
 const fixtures: ReturnType<typeof fixture>[] = [];
 const live = () => {
   const value = fixture();
@@ -62,17 +64,17 @@ const crowded = () =>
   });
 
 describe("previewing a new thread's starting context", () => {
-  it.live("counts the request, the journal, the intel in scope, and the opener's messages", () => {
+  it.live("counts the request, the journal, the lore in scope, and the opener's messages", () => {
     const { layer } = live();
     return Effect.gen(function* () {
       const { missionId, threadId } = yield* idle();
       yield* tool(threadId, "save_intel", { kind: "fact", scope: "thread", text: "The owner prefers short replies." });
       const shown = yield* preview(threadId, "y".repeat(400));
       expect(shown.parts.request).toBe(100);
-      // The new thread recalls its opener's intel, as its opener's own turns carry it.
+      // The new thread recalls its opener's lore, as its opener's own turns carry it.
       const { note } = yield* prepareStartingContext(threadId);
-      expect(shown.parts.intel).toBe(tokensOf(note.slice(note.indexOf("# Intel at this turn"))));
-      expect(shown.parts.intel).toBeGreaterThan((yield* read(missionId, threadId)).intelGauge.tokens);
+      expect(shown.parts.lore).toBe(tokensOf(note.slice(note.indexOf("# Lore at this turn"))));
+      expect(shown.parts.lore).toBeGreaterThan((yield* read(missionId, threadId)).loreGauge.tokens);
       expect(shown.parts.journal).toBeGreaterThan(0);
       expect(shown.parts.openerMessages).toBeGreaterThan(0);
       expect(shown.tokens).toBe(sumOf(shown));
@@ -80,16 +82,16 @@ describe("previewing a new thread's starting context", () => {
     }).pipe(Effect.provide(layer));
   });
 
-  it.live("counts global intel as its index line", () => {
+  it.live("counts global lore as its index line", () => {
     const { layer } = live();
     return Effect.gen(function* () {
       const { threadId } = yield* idle();
-      const before = (yield* preview(threadId, "Go on.")).parts.intel;
+      const before = (yield* preview(threadId, "Go on.")).parts.lore;
       yield* tool(threadId, "save_intel", { kind: "fact", scope: "global", text: "The owner works in Europe." });
       const [change] = (yield* call({ _tag: "ListIntel", scope: null, state: null, threadId: null })).awaiting;
       if (change === undefined) return yield* Effect.die(new Error("The global save awaits no approval."));
       yield* call({ _tag: "ResolveIntelChange", changeId: change.id, isApproved: true });
-      const after = (yield* preview(threadId, "Go on.")).parts.intel;
+      const after = (yield* preview(threadId, "Go on.")).parts.lore;
       expect(after - before).toBeGreaterThanOrEqual(tokensOf("The owner works in Europe."));
     }).pipe(Effect.provide(layer));
   });
@@ -206,10 +208,10 @@ describe("assembling a thread's starting context", () => {
       );
       expect(context).toContain(`You are thread ${threadId} in a Gild quest`);
       expect(context).toContain("# Quest journal\n");
-      expect(context).toContain("# Intel\n");
+      expect(context).toContain("# Lore\n");
       expect(context).not.toContain("Release planning");
       expect(note.startsWith('Your title: "Release planning".\n\n# Quest journal at this turn\n')).toBe(true);
-      expect(note).toContain("# Intel at this turn");
+      expect(note).toContain("# Lore at this turn");
       expect(note).not.toContain("Budget:");
     }).pipe(Effect.provide(layer));
   });

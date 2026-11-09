@@ -1,6 +1,8 @@
 import { describe, expect, it } from "@effect/vitest";
 import { threadTools, toolListing, unaskedToolNamesOf } from "../src/threadTools.ts";
 
+// Stored and wire names keep `intel` so existing data and agents still work: thread tool names (`save_intel`, ...).
+
 describe("listing the thread tools", () => {
   it("lists every tool with the required arguments its decoder needs", () => {
     const required = Object.fromEntries(
@@ -40,7 +42,7 @@ describe("listing the thread tools", () => {
     expect(missing).toEqual([]);
   });
 
-  it("names every intel kind in save_intel", () => {
+  it("names every lore entry kind in save_intel", () => {
     expect(toolListing.find((tool) => tool.name === "save_intel")?.description).toContain("temporary");
   });
 });

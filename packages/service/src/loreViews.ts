@@ -1,39 +1,41 @@
-import type { IntelChange, IntelScope, IntelStateFilter, IntelView } from "@gild/contracts";
+import type { LoreChange, LoreScope, LoreStateFilter, LoreView } from "@gild/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import {
-  type IntelRow,
-  intelLinesOf,
-  intelOf,
+  type LoreEntryRow,
   listInScope,
+  loreEntryOf,
+  loreLinesOf,
   readGauge,
   readScopeChain,
   scopeLabelOf,
-  selectIntels,
-} from "./intel.ts";
-import type { ToolScope } from "./intelChanges.ts";
-import { readFading, stateOfIntel } from "./intelFading.ts";
-import { listDeletedIntel } from "./intelHistoryViews.ts";
-import { listIntelProposals } from "./intelProposals.ts";
-import { countUses } from "./intelStore.ts";
+  selectLoreEntries,
+} from "./lore.ts";
+import type { ToolScope } from "./loreChanges.ts";
+import { readFading, stateOfLoreEntry } from "./loreFading.ts";
+import { listDeletedLore } from "./loreHistoryViews.ts";
+import { listLoreProposals } from "./loreProposals.ts";
+import { countUses } from "./loreStore.ts";
 import { wordsOf } from "./matching.ts";
 
-// What the owner and threads read of intel: the panel, a thread's changes, and search_intel.
+// Stored and wire names keep `intel` so existing data and agents still work: table and column names (`intels`, `intel_id`, ...) and thread tool names (`save_intel`, ...).
 
-/** The most intels `search_intel` answers with. */
+// What the owner and threads read of lore: the panel, a thread's changes, and search_intel.
+
+/** The most lore entries `search_intel` answers with. */
 const searchLimit = 20;
-/** A word found in this many intels or fewer, such as a name, counts more in search (scoped-intel, External contract). */
+/** A word found in this many lore entries or fewer, such as a name, counts more in search (scoped-intel, External contract). */
 const rareWordLimit = 3;
 const rareWordWeight = 3;
 
 const selectChanges = (sql: SqlClient.SqlClient) => sql`
-  SELECT c.id, c.thread_id AS threadId, t.title AS threadTitle, c.kind, c.status, c.intel_id AS intelId, c.scope,
+  SELECT c.id, c.thread_id AS threadId, t.title AS threadTitle, c.kind, c.status, c.intel_id AS loreEntryId, c.scope,
     c.text, c.previous_text AS previousText, c.at, c.resolved_at AS resolvedAt, s.title AS scopeThreadTitle,
     m.title AS missionTitle, (m.top_thread_id = c.scope_thread_id) AS isTopThread, w.name AS workspaceName
   FROM intel_changes c JOIN threads t ON t.id = c.thread_id LEFT JOIN threads s ON s.id = c.scope_thread_id
   LEFT JOIN missions m ON m.id = s.mission_id LEFT JOIN workspaces w ON w.id = c.scope_workspace_id`;
 
-type ChangeRow = Omit<IntelChange, "scopeLabel"> & {
+type ChangeRow = Omit<LoreChange, "scopeLabel"> & {
   scopeThreadTitle: string | null;
   missionTitle: string | null;
   isTopThread: number;
@@ -50,7 +52,7 @@ const changeOf = ({ scopeThreadTitle, missionTitle, isTopThread, workspaceName, 
       threadTitle: scopeThreadTitle,
       workspaceName,
     }),
-  }) as IntelChange;
+  }) as LoreChange;
 
 /** Every change awaiting the owner's approval, oldest first. */
 const listAwaitingChanges = Effect.gen(function* () {
@@ -59,8 +61,8 @@ const listAwaitingChanges = Effect.gen(function* () {
   return rows.map(changeOf);
 });
 
-/** A thread's changes to intel, in the order made, as its conversation shows them. */
-export const listThreadIntelChanges = (threadId: string) =>
+/** A thread's changes to lore, in the order made, as its conversation shows them. */
+export const listThreadLoreChanges = (threadId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const rows = yield* sql<ChangeRow>`${selectChanges(sql)} WHERE c.thread_id = ${threadId} ORDER BY c.at, c.rowid`;
@@ -68,12 +70,12 @@ export const listThreadIntelChanges = (threadId: string) =>
   });
 
 /**
- * The intel panel: one thread's scope or all intel, filtered by scope and state, and every change awaiting
+ * The lore panel: one thread's scope or all lore, filtered by scope and state, and every change awaiting
  * approval.
  */
-export const readIntelView = (
-  scope: IntelScope | null,
-  state: IntelStateFilter | null,
+export const readLoreView = (
+  scope: LoreScope | null,
+  state: LoreStateFilter | null,
   threadId: string | null,
   workspaceId: string | null = null,
 ) =>
@@ -85,28 +87,28 @@ export const readIntelView = (
       state === "Deleted"
         ? []
         : chain === null
-          ? yield* sql<IntelRow>`${selectIntels(sql)} ORDER BY i.saved_at DESC`
+          ? yield* sql<LoreEntryRow>`${selectLoreEntries(sql)} ORDER BY i.saved_at DESC`
           : yield* listInScope(chain);
-    const deleted = state === "Deleted" ? yield* listDeletedIntel(chain) : [];
-    const isOfState = (row: IntelRow) =>
-      state === null || (state === "Pinned" ? row.isPinned === 1 : stateOfIntel(row, fading) === state);
+    const deleted = state === "Deleted" ? yield* listDeletedLore(chain, workspaceId) : [];
+    const isOfState = (row: LoreEntryRow) =>
+      state === null || (state === "Pinned" ? row.isPinned === 1 : stateOfLoreEntry(row, fading) === state);
     return {
       awaiting: yield* listAwaitingChanges,
-      deleted: deleted.filter((intel) => (scope === null || intel.scope === scope) && workspaceId === null),
+      deleted: deleted.filter((loreEntry) => scope === null || loreEntry.scope === scope),
       gauge: threadId === null ? null : yield* readGauge(threadId),
-      intels: rows
+      loreEntries: rows
         .filter(
           (row) =>
             (scope === null || row.scope === scope) &&
             (workspaceId === null || (row.scope === "Workspace" && row.workspaceId === workspaceId)) &&
             isOfState(row),
         )
-        .map((row) => intelOf(row, fading)),
-      proposals: yield* listIntelProposals,
-    } satisfies IntelView;
+        .map((row) => loreEntryOf(row, fading)),
+      proposals: yield* listLoreProposals,
+    } satisfies LoreView;
   });
 
-const isOfToolScope = (row: IntelRow, scope: ToolScope) =>
+const isOfToolScope = (row: LoreEntryRow, scope: ToolScope) =>
   ({
     global: row.scope === "Global",
     mission: row.scope === "Thread" && row.isTopThread === 1,
@@ -114,15 +116,17 @@ const isOfToolScope = (row: IntelRow, scope: ToolScope) =>
     workspace: row.scope === "Workspace",
   })[scope];
 
-/** Ranks intels by the query's words they share, a rare word counting more; ties keep the scope order. */
-const rankByWords = (rows: ReadonlyArray<IntelRow>, query: string) => {
+/** Ranks lore entries by the query's words they share, a rare word counting more; ties keep the scope order. */
+const rankByWords = (rows: ReadonlyArray<LoreEntryRow>, query: string) => {
   const wanted = wordsOf(query);
-  const wordsByIntel = new Map(rows.map((row) => [row.id, wordsOf(row.text)]));
-  const intelsWith = (word: string) => rows.filter((row) => wordsByIntel.get(row.id)?.has(word)).length;
-  const weights = new Map([...wanted].map((word) => [word, intelsWith(word) <= rareWordLimit ? rareWordWeight : 1]));
+  const wordsByLoreEntry = new Map(rows.map((row) => [row.id, wordsOf(row.text)]));
+  const loreEntriesWith = (word: string) => rows.filter((row) => wordsByLoreEntry.get(row.id)?.has(word)).length;
+  const weights = new Map(
+    [...wanted].map((word) => [word, loreEntriesWith(word) <= rareWordLimit ? rareWordWeight : 1]),
+  );
   return rows
     .map((row) => {
-      const words = wordsByIntel.get(row.id) ?? new Set<string>();
+      const words = wordsByLoreEntry.get(row.id) ?? new Set<string>();
       let score = 0;
       for (const [word, weight] of weights) if (words.has(word)) score += weight;
       return { row, score };
@@ -132,20 +136,20 @@ const rankByWords = (rows: ReadonlyArray<IntelRow>, query: string) => {
     .map(({ row }) => row);
 };
 
-/** The thread's intel that search reads: in its scope and not archived. */
+/** The thread's lore that search reads: in its scope and not archived. */
 const searchableOf = (threadId: string) =>
   Effect.gen(function* () {
     const fading = yield* readFading;
     return (yield* listInScope(yield* readScopeChain(threadId))).filter(
-      (row) => stateOfIntel(row, fading) !== "Archived",
+      (row) => stateOfLoreEntry(row, fading) !== "Archived",
     );
   });
 
 /**
- * `relied_on_intel`: a thread says intels shaped what it did, which counts one use of each (scoped-intel,
- * Fading). Only intel in its scope and not archived counts. Callers run it in a transaction.
+ * `relied_on_intel`: a thread says lore entries shaped what it did, which counts one use of each (scoped-intel,
+ * Fading). Only lore in its scope and not archived counts. Callers run it in a transaction.
  */
-export const relyOnIntel = (threadId: string, ids: ReadonlyArray<string>) =>
+export const relyOnLore = (threadId: string, ids: ReadonlyArray<string>) =>
   Effect.gen(function* () {
     const counted = (yield* searchableOf(threadId)).filter((row) => ids.includes(row.id)).map((row) => row.id);
     const missed = [...new Set(ids)].filter((id) => !counted.includes(id));
@@ -159,11 +163,11 @@ export const relyOnIntel = (threadId: string, ids: ReadonlyArray<string>) =>
   });
 
 /**
- * `search_intel`: the active and dormant intel in the thread's scope read by identifier or matching the
- * query's words, best match first. Each intel returned counts as a use, so it fades slower and a dormant one
+ * `search_intel`: the active and dormant lore in the thread's scope read by identifier or matching the
+ * query's words, best match first. Each lore entry returned counts as a use, so it fades slower and a dormant one
  * becomes active again (scoped-intel, Fading). Callers run it in a transaction.
  */
-export const searchIntelText = (
+export const searchLoreText = (
   threadId: string,
   query: string | null,
   ids: ReadonlyArray<string>,
@@ -175,11 +179,11 @@ export const searchIntelText = (
     const matched = query === null ? [] : rankByWords(rows, query).filter((row) => !ids.includes(row.id));
     const found = [...named, ...matched].slice(0, searchLimit);
     if (found.length === 0) {
-      return "No intel matches. Your context already lists the active intel in your scope, and global intel as an index.";
+      return "No lore matches. Your context already lists the active lore in your scope, and global lore as an index.";
     }
     yield* countUses(
       threadId,
       found.map((row) => row.id),
     );
-    return `Intel found, best match first; when two conflict, the more specific scope wins:\n${intelLinesOf(found)}`;
+    return `Lore found, best match first; when two conflict, the more specific scope wins:\n${loreLinesOf(found)}`;
   });

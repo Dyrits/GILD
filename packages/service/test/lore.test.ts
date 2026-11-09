@@ -1,8 +1,10 @@
 import { describe, expect, it } from "@effect/vitest";
-import type { IntelScope, MissionId, ThreadId } from "@gild/contracts";
+import type { LoreScope, MissionId, ThreadId } from "@gild/contracts";
 import { Effect } from "effect";
 import { afterEach } from "vitest";
 import { call, fixture, open, read, send, settle, start, tool } from "./fixtures/service.ts";
+
+// Stored and wire names keep `intel` so existing data and agents still work: request tags (`"ListIntel"`, ...), thread tool names (`save_intel`, ...) and settings keys (`intelHalfLives`, `intelWarningPercent`).
 
 const fixtures: ReturnType<typeof fixture>[] = [];
 const live = () => {
@@ -16,7 +18,7 @@ afterEach(() => {
 
 const save = (threadId: ThreadId, text: string, scope: string) =>
   tool(threadId, "save_intel", { kind: "fact", scope, text });
-const panel = (threadId: ThreadId | null = null, scope: IntelScope | null = null) =>
+const panel = (threadId: ThreadId | null = null, scope: LoreScope | null = null) =>
   call({ _tag: "ListIntel", scope, state: null, threadId });
 /** A mission whose top thread has finished its first turn, in a workspace or the scratch folder. */
 const idle = (workspacePath: string | null = null, text = "Hello") =>
@@ -50,40 +52,42 @@ const approveAll = (isApproved = true) =>
       yield* call({ _tag: "ResolveIntelChange", changeId: change.id, isApproved });
     }
   });
-const idOf = (answer: string) => /intel (\S+?)[ .]/.exec(answer)?.[1] ?? "";
+const idOf = (answer: string) => /lore entry (\S+?)[ .]/.exec(answer)?.[1] ?? "";
 
-describe("saving intel", () => {
-  it.live("saves thread intel without approval and shows the save in the thread", () => {
+describe("saving lore", () => {
+  it.live("saves thread lore without approval and shows the save in the thread", () => {
     const { layer } = live();
     return Effect.gen(function* () {
       const { missionId, threadId } = yield* idle();
       const answer = yield* save(threadId, "The owner prefers short replies.", "thread");
-      expect(answer).toContain("Saved intel");
+      expect(answer).toContain("Saved lore entry");
       const detail = yield* read(missionId, threadId);
-      expect(detail.intelChanges).toMatchObject([
+      expect(detail.loreChanges).toMatchObject([
         { kind: "Save", scope: "Thread", status: "Done", text: "The owner prefers short replies." },
       ]);
-      expect((yield* panel(threadId)).intels.map((intel) => intel.text)).toEqual(["The owner prefers short replies."]);
+      expect((yield* panel(threadId)).loreEntries.map((loreEntry) => loreEntry.text)).toEqual([
+        "The owner prefers short replies.",
+      ]);
     }).pipe(Effect.provide(layer));
   });
 
-  it.live("refuses an intel over 200 tokens with its reason", () => {
+  it.live("refuses a lore entry over 200 tokens with its reason", () => {
     const { layer } = live();
     return Effect.gen(function* () {
       const { threadId } = yield* idle();
       const answer = yield* save(threadId, "x".repeat(801), "thread");
       expect(answer).toContain("201 tokens");
-      expect((yield* panel()).intels).toEqual([]);
-      expect(yield* save(threadId, "x".repeat(800), "thread")).toContain("Saved intel");
+      expect((yield* panel()).loreEntries).toEqual([]);
+      expect(yield* save(threadId, "x".repeat(800), "thread")).toContain("Saved lore entry");
     }).pipe(Effect.provide(layer));
   });
 
-  it.live("refuses workspace intel for a thread without a workspace", () => {
+  it.live("refuses workspace lore for a thread without a workspace", () => {
     const { layer } = live();
     return Effect.gen(function* () {
       const { threadId } = yield* idle();
       expect(yield* save(threadId, "Tests run with bun.", "workspace")).toContain("no workspace");
-      expect((yield* panel()).intels).toEqual([]);
+      expect((yield* panel()).loreEntries).toEqual([]);
     }).pipe(Effect.provide(layer));
   });
 
@@ -93,14 +97,14 @@ describe("saving intel", () => {
       const { missionId, threadId } = yield* idle();
       const answer = yield* save(threadId, "The owner writes in British English.", "global");
       expect(answer).toContain("Awaiting approval");
-      expect((yield* panel()).intels).toEqual([]);
+      expect((yield* panel()).loreEntries).toEqual([]);
       expect((yield* panel()).awaiting).toMatchObject([{ kind: "Save", scope: "Global", status: "Awaiting" }]);
       expect(yield* contextOf(missionId, threadId)).not.toContain("British English");
       yield* approveAll();
-      expect((yield* panel()).intels).toMatchObject([
+      expect((yield* panel()).loreEntries).toMatchObject([
         { scope: "Global", text: "The owner writes in British English." },
       ]);
-      expect((yield* read(missionId, threadId)).intelChanges).toMatchObject([{ status: "Approved" }]);
+      expect((yield* read(missionId, threadId)).loreChanges).toMatchObject([{ status: "Approved" }]);
       expect(yield* contextOf(missionId, threadId)).toContain("British English");
     }).pipe(Effect.provide(layer));
   });
@@ -111,9 +115,9 @@ describe("saving intel", () => {
       const { missionId, threadId } = yield* idle();
       yield* save(threadId, "The owner writes in British English.", "global");
       yield* approveAll(false);
-      expect((yield* panel()).intels).toEqual([]);
+      expect((yield* panel()).loreEntries).toEqual([]);
       expect((yield* panel()).awaiting).toEqual([]);
-      expect((yield* read(missionId, threadId)).intelChanges).toMatchObject([{ status: "Declined" }]);
+      expect((yield* read(missionId, threadId)).loreChanges).toMatchObject([{ status: "Declined" }]);
     }).pipe(Effect.provide(layer));
   });
 
@@ -122,15 +126,15 @@ describe("saving intel", () => {
     return Effect.gen(function* () {
       const { missionId, threadId } = yield* idle();
       const context = yield* contextOf(missionId, threadId);
-      expect(context).toContain("# Intel");
+      expect(context).toContain("# Lore");
       expect(context).toContain("always run the tests before a commit");
       expect(context).toContain("save_intel");
     }).pipe(Effect.provide(layer));
   });
 });
 
-describe("recalling intel", () => {
-  it.live("starts a new thread with all the intel in its scope", () => {
+describe("recalling lore", () => {
+  it.live("starts a new thread with all the lore in its scope", () => {
     const { layer } = live();
     return Effect.gen(function* () {
       const { missionId, threadId } = yield* idle();
@@ -141,7 +145,7 @@ describe("recalling intel", () => {
     }).pipe(Effect.provide(layer));
   });
 
-  it.live("keeps a thread's intel from the threads above and beside it", () => {
+  it.live("keeps a thread's lore from the threads above and beside it", () => {
     const { layer } = live();
     return Effect.gen(function* () {
       const { missionId, threadId } = yield* idle();
@@ -153,11 +157,11 @@ describe("recalling intel", () => {
     }).pipe(Effect.provide(layer));
   });
 
-  it.live("shares workspace intel with another mission in the same workspace only", () => {
+  it.live("shares workspace lore with another mission in the same workspace only", () => {
     const { directory, layer } = live();
     return Effect.gen(function* () {
       const first = yield* idle(directory);
-      expect(yield* save(first.threadId, "Run the tests before a commit.", "workspace")).toContain("Saved intel");
+      expect(yield* save(first.threadId, "Run the tests before a commit.", "workspace")).toContain("Saved lore entry");
       const second = yield* idle(directory);
       expect(yield* contextOf(second.missionId, second.threadId)).toContain("Run the tests before a commit.");
       const elsewhere = yield* idle();
@@ -165,7 +169,7 @@ describe("recalling intel", () => {
     }).pipe(Effect.provide(layer));
   });
 
-  it.live("saves mission intel on the top thread from a thread beneath", () => {
+  it.live("saves mission lore on the top thread from a thread beneath", () => {
     const { layer } = live();
     return Effect.gen(function* () {
       const { missionId, threadId } = yield* idle();
@@ -173,7 +177,7 @@ describe("recalling intel", () => {
       const second = yield* child(missionId, threadId);
       yield* save(first, "The mission targets macOS first.", "mission");
       expect(yield* contextOf(missionId, second)).toContain("The mission targets macOS first.");
-      expect((yield* panel()).intels).toMatchObject([{ scope: "Thread" }]);
+      expect((yield* panel()).loreEntries).toMatchObject([{ scope: "Thread" }]);
     }).pipe(Effect.provide(layer));
   });
 
@@ -193,7 +197,7 @@ describe("recalling intel", () => {
       expect(positions.every((position) => position >= 0)).toBe(true);
       expect(positions).toEqual([...positions].sort((a, b) => a - b));
       expect(yield* tool(beneath, "search_intel", { query: "deploy", scope: "workspace" })).not.toContain("preview");
-      expect(yield* tool(beneath, "search_intel", { query: "unrelated words" })).toContain("No intel");
+      expect(yield* tool(beneath, "search_intel", { query: "unrelated words" })).toContain("No lore");
       const context = yield* contextOf(missionId, beneath);
       expect(context.indexOf("local machine")).toBeLessThan(context.indexOf("global default"));
       expect(context).toContain("listed first wins");
@@ -201,17 +205,17 @@ describe("recalling intel", () => {
   });
 });
 
-describe("correcting and deleting intel", () => {
-  it.live("lets a thread correct and delete thread and workspace intel on its own", () => {
+describe("correcting and deleting lore", () => {
+  it.live("lets a thread correct and delete thread and workspace lore on its own", () => {
     const { directory, layer } = live();
     return Effect.gen(function* () {
       const { missionId, threadId } = yield* idle(directory);
       const id = idOf(yield* save(threadId, "Tests run with npm.", "workspace"));
       expect(yield* tool(threadId, "update_intel", { id, text: "Tests run with bun." })).toContain("Updated");
-      expect((yield* panel()).intels.map((intel) => intel.text)).toEqual(["Tests run with bun."]);
+      expect((yield* panel()).loreEntries.map((loreEntry) => loreEntry.text)).toEqual(["Tests run with bun."]);
       expect(yield* tool(threadId, "forget_intel", { id })).toContain("Deleted");
-      expect((yield* panel()).intels).toEqual([]);
-      expect((yield* read(missionId, threadId)).intelChanges.map((change) => change.kind)).toEqual([
+      expect((yield* panel()).loreEntries).toEqual([]);
+      expect((yield* read(missionId, threadId)).loreChanges.map((change) => change.kind)).toEqual([
         "Save",
         "Update",
         "Forget",
@@ -219,27 +223,27 @@ describe("correcting and deleting intel", () => {
     }).pipe(Effect.provide(layer));
   });
 
-  it.live("holds a change or deletion of global intel until the owner approves it", () => {
+  it.live("holds a change or deletion of global lore until the owner approves it", () => {
     const { layer } = live();
     return Effect.gen(function* () {
       const { threadId } = yield* idle();
       yield* save(threadId, "The owner's name is Sam.", "global");
       yield* approveAll();
-      const id = (yield* panel()).intels[0]?.id ?? "";
+      const id = (yield* panel()).loreEntries[0]?.id ?? "";
       expect(yield* tool(threadId, "update_intel", { id, text: "The owner's name is Alex." })).toContain(
         "Awaiting approval",
       );
-      expect((yield* panel()).intels[0]?.text).toBe("The owner's name is Sam.");
+      expect((yield* panel()).loreEntries[0]?.text).toBe("The owner's name is Sam.");
       yield* approveAll();
-      expect((yield* panel()).intels[0]?.text).toBe("The owner's name is Alex.");
+      expect((yield* panel()).loreEntries[0]?.text).toBe("The owner's name is Alex.");
       expect(yield* tool(threadId, "forget_intel", { id })).toContain("Awaiting approval");
-      expect((yield* panel()).intels).toHaveLength(1);
+      expect((yield* panel()).loreEntries).toHaveLength(1);
       yield* approveAll();
-      expect((yield* panel()).intels).toEqual([]);
+      expect((yield* panel()).loreEntries).toEqual([]);
     }).pipe(Effect.provide(layer));
   });
 
-  it.live("refuses a change to intel outside the thread's scope", () => {
+  it.live("refuses a change to lore outside the thread's scope", () => {
     const { layer } = live();
     return Effect.gen(function* () {
       const { missionId, threadId } = yield* idle();
@@ -248,7 +252,7 @@ describe("correcting and deleting intel", () => {
       const id = idOf(yield* save(first, "A fact of the first child.", "thread"));
       expect(yield* tool(second, "update_intel", { id, text: "Changed." })).toContain("Not changed");
       expect(yield* tool(second, "forget_intel", { id })).toContain("Not deleted");
-      expect((yield* panel()).intels.map((intel) => intel.text)).toEqual(["A fact of the first child."]);
+      expect((yield* panel()).loreEntries.map((loreEntry) => loreEntry.text)).toEqual(["A fact of the first child."]);
     }).pipe(Effect.provide(layer));
   });
 
@@ -258,48 +262,50 @@ describe("correcting and deleting intel", () => {
       const { threadId } = yield* idle(directory);
       const id = idOf(yield* save(threadId, "The owner likes tables.", "thread"));
       expect(yield* tool(threadId, "update_intel", { id, scope: "global" })).toContain("Awaiting approval");
-      expect((yield* panel()).intels[0]?.scope).toBe("Thread");
+      expect((yield* panel()).loreEntries[0]?.scope).toBe("Thread");
       expect(yield* tool(threadId, "update_intel", { id, scope: "thread" })).toContain("Not changed");
       yield* approveAll();
-      expect((yield* panel()).intels[0]?.scope).toBe("Global");
+      expect((yield* panel()).loreEntries[0]?.scope).toBe("Global");
     }).pipe(Effect.provide(layer));
   });
 });
 
-describe("managing intel in the panel", () => {
-  it.live("lists intel with its scope, saver, and time, filtered by scope", () => {
+describe("managing lore in the panel", () => {
+  it.live("lists lore with its scope, saver, and time, filtered by scope", () => {
     const { directory, layer } = live();
     return Effect.gen(function* () {
       const { threadId } = yield* idle(directory, "Plan the release");
       yield* save(threadId, "A workspace fact.", "workspace");
       yield* save(threadId, "A thread fact.", "thread");
       const all = yield* panel();
-      expect(all.intels).toHaveLength(2);
-      expect(all.intels.find((intel) => intel.scope === "Thread")).toMatchObject({
+      expect(all.loreEntries).toHaveLength(2);
+      expect(all.loreEntries.find((loreEntry) => loreEntry.scope === "Thread")).toMatchObject({
         savedByTitle: "Plan the release",
         scopeLabel: expect.stringContaining("Plan the release"),
       });
-      expect(all.intels.every((intel) => intel.savedAt > 0)).toBe(true);
-      expect((yield* panel(null, "Workspace")).intels.map((intel) => intel.text)).toEqual(["A workspace fact."]);
+      expect(all.loreEntries.every((loreEntry) => loreEntry.savedAt > 0)).toBe(true);
+      expect((yield* panel(null, "Workspace")).loreEntries.map((loreEntry) => loreEntry.text)).toEqual([
+        "A workspace fact.",
+      ]);
     }).pipe(Effect.provide(layer));
   });
 
-  it.live("lets the owner edit and delete any intel", () => {
+  it.live("lets the owner edit and delete any lore", () => {
     const { layer } = live();
     return Effect.gen(function* () {
       const { threadId } = yield* idle();
       yield* save(threadId, "The owner's name is Sam.", "global");
       yield* approveAll();
-      const id = (yield* panel()).intels[0]?.id;
+      const id = (yield* panel()).loreEntries[0]?.id;
       if (id === undefined) return expect.unreachable();
-      yield* call({ _tag: "EditIntel", intelId: id, text: "The owner's name is Alex." });
-      expect((yield* panel()).intels[0]?.text).toBe("The owner's name is Alex.");
-      yield* call({ _tag: "DeleteIntel", intelId: id });
-      expect((yield* panel()).intels).toEqual([]);
+      yield* call({ _tag: "EditIntel", loreEntryId: id, text: "The owner's name is Alex." });
+      expect((yield* panel()).loreEntries[0]?.text).toBe("The owner's name is Alex.");
+      yield* call({ _tag: "DeleteIntel", loreEntryId: id });
+      expect((yield* panel()).loreEntries).toEqual([]);
     }).pipe(Effect.provide(layer));
   });
 
-  it.live("erases a deleted thread's intel and its awaiting changes", () => {
+  it.live("erases a deleted thread's lore and its awaiting changes", () => {
     const { layer } = live();
     return Effect.gen(function* () {
       const { missionId, threadId } = yield* idle();
@@ -308,14 +314,14 @@ describe("managing intel in the panel", () => {
       yield* save(beneath, "Proposed by the child.", "global");
       const preview = yield* call({ _tag: "PreviewDeletion", threadId: beneath });
       yield* call({ _tag: "DeleteThread", confirmation: preview.confirmation, threadId: beneath });
-      expect((yield* panel()).intels).toEqual([]);
+      expect((yield* panel()).loreEntries).toEqual([]);
       expect((yield* panel()).awaiting).toEqual([]);
     }).pipe(Effect.provide(layer));
   });
 });
 
-describe("warning about intel size", () => {
-  it.live("turns the intel icon red past the warning share of the model's context window", () => {
+describe("warning about lore size", () => {
+  it.live("turns the lore icon red past the warning share of the model's context window", () => {
     const { layer } = live();
     return Effect.gen(function* () {
       const settings = yield* call({ _tag: "ReadSettings" });
@@ -323,13 +329,37 @@ describe("warning about intel size", () => {
       yield* call({ _tag: "UpdateSettings", settings: { ...settings, intelWarningPercent: 1 } });
       const { missionId, threadId } = yield* idle();
       for (let index = 0; index < 10; index++) yield* save(threadId, `${index} ${"x".repeat(790)}`, "thread");
-      const under = (yield* read(missionId, threadId)).intelGauge;
+      const under = (yield* read(missionId, threadId)).loreGauge;
       expect(under).toMatchObject({ count: 10, isOverWarning: false, warningPercent: 1, windowTokens: 200_000 });
       yield* save(threadId, "y".repeat(400), "thread");
-      const over = (yield* read(missionId, threadId)).intelGauge;
+      const over = (yield* read(missionId, threadId)).loreGauge;
       expect(over.isOverWarning).toBe(true);
       expect(over.tokens).toBeGreaterThan(2000);
       expect((yield* panel(threadId)).gauge).toMatchObject({ isOverWarning: true });
+    }).pipe(Effect.provide(layer));
+  });
+});
+
+describe("a realm's lore", () => {
+  it.live("lists the realm's own deleted lore and no other", () => {
+    const { directory, layer } = live();
+    return Effect.gen(function* () {
+      const { threadId } = yield* idle(directory);
+      const { workspaces } = yield* call({
+        _tag: "ListMissions",
+        isArchived: false,
+        search: null,
+        state: null,
+        workspaceId: null,
+      });
+      const workspaceId = workspaces[0]?.id ?? null;
+      const id = idOf(yield* save(threadId, "The realm uses tabs.", "workspace"));
+      const otherId = idOf(yield* save(threadId, "A fact of this thread.", "thread"));
+      yield* tool(threadId, "forget_intel", { id });
+      yield* tool(threadId, "forget_intel", { id: otherId });
+      yield* approveAll();
+      const view = yield* call({ _tag: "ListIntel", scope: null, state: "Deleted", threadId: null, workspaceId });
+      expect(view.deleted.map((loreEntry) => loreEntry.text)).toEqual(["The realm uses tabs."]);
     }).pipe(Effect.provide(layer));
   });
 });

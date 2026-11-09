@@ -114,12 +114,15 @@ export const admitTurn = (threadId: string) =>
     );
   });
 
-/** Saves a reply of the running turn to the thread's conversation. */
+/**
+ * Saves a reply of the running turn to the thread's conversation. A harness that names no model (Codex, OpenCode) leaves
+ * the reply under the model the thread chose for this turn, so a later model switch does not relabel it.
+ */
 export const saveTurnReply = (threadId: string, turn: Admitted, text: string, model: string | null) =>
   transacting(
     Effect.gen(function* () {
       if (!(yield* isCurrentTurn(turn.turnId))) return;
-      yield* insertReply(turn.missionId, threadId, text, model);
+      yield* insertReply(turn.missionId, threadId, text, model ?? (turn.model === "default" ? null : turn.model));
       yield* publishOnCommit;
     }),
   );

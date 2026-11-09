@@ -1,26 +1,28 @@
-import type { IntelActor, IntelHistoryKind, IntelKind, IntelOrigin, IntelScope } from "@gild/contracts";
+import type { LoreActor, LoreHistoryKind, LoreKind, LoreOrigin, LoreScope } from "@gild/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
-import { type Fading, fadingStepsOf } from "./intelFading.ts";
+import { type Fading, fadingStepsOf } from "./loreFading.ts";
 
-// An intel's history (scoped-intel, History and undo): every save, replacement, change, widening, deletion,
+// Stored and wire names keep `intel` so existing data and agents still work: table and column names (`intels`, `intel_id`, ...).
+
+// A lore entry's history (scoped-intel, History and undo): every save, replacement, change, widening, deletion,
 // and fading step, with who or what made it and when, and each change's state before and after so it can
-// be undone. The intel store (intelStore.ts) writes it; this module reads it.
+// be undone. The lore store (loreStore.ts) writes it; this module reads it.
 
-/** An intel's stored state, kept with each history entry so the owner can undo the change. */
+/** A lore entry's stored state, kept with each history entry so the owner can undo the change. */
 export interface Snapshot {
   readonly id: string;
   readonly isPinned: number;
-  readonly kind: IntelKind;
+  readonly kind: LoreKind;
   readonly lastUsedAt: number;
   readonly originEntry: number | null;
   readonly originExcerpt: string | null;
   readonly originFrom: string | null;
-  readonly originKind: IntelOrigin["kind"] | null;
+  readonly originKind: LoreOrigin["kind"] | null;
   readonly savedAt: number;
   readonly savedByThreadId: string | null;
   readonly savedByTitle: string | null;
-  readonly scope: IntelScope;
+  readonly scope: LoreScope;
   readonly text: string;
   readonly threadId: string | null;
   readonly updatedAt: number;
@@ -36,8 +38,8 @@ export const owner: Actor = { kind: "Owner" };
 /** A thread, as the actor of a change. */
 export const threadActor = (threadId: string): Actor => ({ kind: "Thread", threadId });
 
-/** An intel's stored state, or null when it does not exist. */
-export const readSnapshot = (intelId: string) =>
+/** A lore entry's stored state, or null when it does not exist. */
+export const readSnapshot = (loreEntryId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const [row] = yield* sql<Snapshot>`
@@ -46,17 +48,17 @@ export const readSnapshot = (intelId: string) =>
         updated_at AS updatedAt, last_used_at AS lastUsedAt, uses, is_pinned AS isPinned,
         origin_kind AS originKind, origin_entry AS originEntry, origin_from AS originFrom,
         origin_excerpt AS originExcerpt
-      FROM intels WHERE id = ${intelId}`;
+      FROM intels WHERE id = ${loreEntryId}`;
     return row ?? null;
   });
 
-/** A fading step's identifier: one per intel, step, and time, so a step shown before it is stored keeps it. */
-export const fadingEntryIdOf = (intelId: string, kind: string, at: number) => `${intelId}:${kind}:${at}`;
+/** A fading step's identifier: one per lore entry, step, and time, so a step shown before it is stored keeps it. */
+export const fadingEntryIdOf = (loreEntryId: string, kind: string, at: number) => `${loreEntryId}:${kind}:${at}`;
 
 /** Whether an identifier names a fading step, which has no Undo. */
 export const isFadingEntryId = (entryId: string) => /:(Dormant|Archived):\d+$/.test(entryId);
 
-/** The fading steps an intel took since its last use and that are not stored yet. */
+/** The fading steps a lore entry took since its last use and that are not stored yet. */
 export const unrecordedStepsOf = (state: Snapshot, fading: Fading) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
@@ -69,16 +71,16 @@ export const unrecordedStepsOf = (state: Snapshot, fading: Fading) =>
 
 /** One stored history entry, its states still as JSON. */
 export interface EntryRow {
-  readonly actor: IntelActor;
+  readonly actor: LoreActor;
   readonly actorTitle: string | null;
   readonly afterState: string | null;
   readonly approvedAt: number | null;
   readonly at: number;
   readonly beforeState: string | null;
   readonly id: string;
-  readonly intelId: string;
-  readonly kind: IntelHistoryKind;
-  readonly undid: IntelHistoryKind | null;
+  readonly kind: LoreHistoryKind;
+  readonly loreEntryId: string;
+  readonly undid: LoreHistoryKind | null;
   readonly undoneAt: number | null;
 }
 
@@ -88,7 +90,7 @@ export const stateOf = (json: string | null): Snapshot | null =>
 
 /** Selects history entries; callers add the condition and order. */
 export const selectEntries = (sql: SqlClient.SqlClient) => sql`
-  SELECT id, intel_id AS intelId, kind, actor, actor_title AS actorTitle, at, approved_at AS approvedAt,
+  SELECT id, intel_id AS loreEntryId, kind, actor, actor_title AS actorTitle, at, approved_at AS approvedAt,
     before_state AS beforeState, after_state AS afterState, undid, undone_at AS undoneAt
   FROM intel_history`;
 

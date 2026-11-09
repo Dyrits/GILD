@@ -5,7 +5,7 @@ import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { ServiceClient } from "./src/client";
 import { Conversation } from "./src/conversation";
 import { Dashboard } from "./src/dashboard";
-import { IntelScreen } from "./src/intel";
+import { LoreScreen } from "./src/lore";
 import { useAttentionNotice } from "./src/notifications";
 import { PermissionsScreen } from "./src/permissions";
 import { GuildmasterScreen, KeepScreen, RealmsScreen } from "./src/places";
@@ -82,8 +82,8 @@ export default function App() {
         onOpenMission={setOpenMission}
         onSetDetails={setAreDetailsOpen}
       />
-    ) : place === "Intel" ? (
-      <IntelScreen client={client} onBack={() => goTo("Keep")} threadId={null} title="All lore" />
+    ) : place === "Lore" ? (
+      <LoreScreen client={client} onBack={() => goTo("Keep")} threadId={null} title="All lore" />
     ) : place === "Settings" && isPermissionsOpen ? (
       <PermissionsScreen client={client} onBack={() => setIsPermissionsOpen(false)} />
     ) : place === "Settings" ? (
@@ -105,11 +105,10 @@ export default function App() {
         key={place}
         onArchived={() => goTo("Archived")}
         onBack={() => goTo("Keep")}
-        onIntel={() => goTo("Intel")}
+        onLore={() => goTo("Lore")}
         onOpen={openMissionFromAnywhere}
         onSelect={selectMission}
         onSettings={() => goTo("Settings")}
-        onWorkspace={(id) => (id === null ? goTo("Quests") : openWorkspace(id))}
         selectedId={selectedMission}
         workspaceId={workspaceId}
       />

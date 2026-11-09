@@ -3,7 +3,7 @@ import { Pressable, Text, View } from "react-native";
 import type { ServiceClient } from "./client";
 import type { Entry } from "./entries";
 import { clockOf } from "./formatting";
-import { IntelChangeCard, IntelChangeLine } from "./intel";
+import { LoreChangeCard, LoreChangeLine } from "./lore";
 import { QuestionCard, QuestionLine } from "./questions";
 import { styles } from "./styles";
 import { SuggestionCard, SuggestionLine } from "./suggestions";
@@ -78,11 +78,11 @@ export function EntryView({
         </Text>
       </View>
     );
-  if (entry._tag === "IntelChange")
+  if (entry._tag === "LoreChange")
     return entry.change.status === "Awaiting" ? (
-      <IntelChangeCard change={entry.change} client={client} />
+      <LoreChangeCard change={entry.change} client={client} />
     ) : (
-      <IntelChangeLine change={entry.change} />
+      <LoreChangeLine change={entry.change} />
     );
   if (entry._tag === "Suggestion")
     return entry.suggestion.outcome === null ? (

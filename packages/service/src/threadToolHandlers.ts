@@ -5,8 +5,8 @@ import type { Approvals } from "./approvals.ts";
 import { countChatter } from "./chatter.ts";
 import { type CommandRunner, changed, unchanged, type WithFollowUps } from "./commands.ts";
 import { HarnessFailure, type HarnessPrompt, type PromptAnswer } from "./execution.ts";
-import { intelToolsOf } from "./intelTools.ts";
 import { journalToolsOf } from "./journalTools.ts";
+import { loreToolsOf } from "./loreTools.ts";
 import { insertMessage } from "./messaging.ts";
 import type { Resolution, Suggested, Suggestions } from "./suggestions.ts";
 import type { Threads } from "./threads.ts";
@@ -102,7 +102,7 @@ export const makeToolHandlers = (dependencies: {
   const answer = (text: string, isError = false): ToolAnswer => ({ isError, text });
 
   const handlers: ToolHandlers = {
-    ...intelToolsOf(commit),
+    ...loreToolsOf(commit),
     ...journalToolsOf(commit),
     ...titleToolsOf(commit),
     answer_prompt: (threadId, { input, tool_name }) =>

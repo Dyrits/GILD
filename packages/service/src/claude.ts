@@ -31,6 +31,12 @@ interface ClaudeConnection extends HarnessConnection {
   readonly process: StreamJsonProcess;
 }
 
+/** The model that wrote a message, or null when none is named; Claude Code's own placeholder `<synthetic>` names none. */
+const reportedModelOf = (message: unknown): string | null => {
+  const model = textFieldOf(message, "model");
+  return model === null || model.startsWith("<") ? null : model;
+};
+
 /** The turn's own cost from the result's running total; a total that fell means a fresh count. */
 const turnCostOf = (connection: ClaudeConnection, total: unknown): number | null => {
   if (typeof total !== "number" || !Number.isFinite(total)) return null;
@@ -90,7 +96,7 @@ const claudeProtocolOf = (options: ClaudeOptions): HarnessProtocol<ClaudeConnect
     }),
 
   // A changed level, set of permissions, set of workspace instructions, model, effort, folder, or account
-  // restarts the process, resuming its conversation; the journal and intel ride on the turn's message instead.
+  // restarts the process, resuming its conversation; the journal and lore ride on the turn's message instead.
   restartKeyOf: (request) =>
     JSON.stringify([
       accessArgsOf(request.access, request.context, options),
@@ -135,7 +141,7 @@ const claudeProtocolOf = (options: ClaudeOptions): HarnessProtocol<ClaudeConnect
           // A synthetic assistant message carrying `error` reports a failure, not a reply.
           if (error !== undefined && error !== null) reportedError = text || String(error);
           else if (text.trim() !== "")
-            yield* request.onEvent({ _tag: "Reply", model: textFieldOf(fieldOf(event, "message"), "model"), text });
+            yield* request.onEvent({ _tag: "Reply", model: reportedModelOf(fieldOf(event, "message")), text });
         } else if (type === "result") {
           // An interrupted turn ends with an error result, which is no failure (probe of 2026-11-06).
           const usage = usageOf(fieldOf(event, "usage"));

@@ -193,10 +193,10 @@ export function CrestStudio({
   onDone: (crest: Crest | null) => Promise<unknown>;
 }) {
   const onClose = onCancel;
-  const [crest, setCrest] = useState<Crest>(() =>
-    // A crest not designed yet starts from a shuffle, so the owner has something to adjust.
-    initial === null ? withPlate(shuffledCrest()) : withPlate(crestOf(initial, id)),
-  );
+  // It starts from the crest the realm shows now, designed or not, so the owner adjusts what they see.
+  const [crest, setCrest] = useState<Crest>(() => withPlate(crestOf(initial, id)));
+  // What the emblem's text field holds, which may be empty while the crest keeps its last text.
+  const [emblemText, setEmblemText] = useState(crest.emblem._tag === "Text" ? crest.emblem.text : "");
   const [history, setHistory] = useState<ReadonlyArray<Crest>>([]);
   const [step, setStep] = useState<Step>("Shape");
   const [error, setError] = useState<string | null>(null);
@@ -343,12 +343,18 @@ export function CrestStudio({
                   accessibilityLabel="Letter or emoji"
                   maxLength={8}
                   onChangeText={(text) => {
-                    if (text.trim() !== "") apply({ ...crest, emblem: { _tag: "Text", text: text.trim() } });
+                    setEmblemText(text);
+                    const trimmed = text.trim();
+                    if (trimmed === "") return;
+                    const next: Crest = { ...crest, emblem: { _tag: "Text", text: trimmed } };
+                    // Typing in the field is one step to undo, not one per key.
+                    if (crest.emblem._tag === "Text") setCrest(next);
+                    else apply(next);
                   }}
                   placeholder="C"
                   placeholderTextColor={colors.placeholder}
                   style={local.input}
-                  value={crest.emblem._tag === "Text" ? crest.emblem.text : ""}
+                  value={crest.emblem._tag === "Text" ? emblemText : ""}
                 />
                 <Choices
                   label="Size"

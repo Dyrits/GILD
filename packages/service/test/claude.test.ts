@@ -9,9 +9,11 @@ import { afterEach } from "vitest";
 import { Changes, claudeHarnessLayer, makeClaudeHarness, Service, serviceLayer } from "../src/index.ts";
 import { turnRequestOf } from "./fixtures/turns.ts";
 
+// Stored and wire names keep `intel` so existing data and agents still work: settings keys (`intelHalfLives`, `intelWarningPercent`).
+
 const standIn = join(import.meta.dirname, "fixtures", "stand-in-claude.mjs");
 
-/** A stand-in reply without the turn's note (journal, intel, budget) that precedes the messages. */
+/** A stand-in reply without the turn's note (journal, lore, budget) that precedes the messages. */
 const withoutNote = (text: string | undefined) => text?.replace(/ to: [\s\S]*?\n---\n\n/, " to: ") ?? "";
 
 const directories: string[] = [];
@@ -23,6 +25,7 @@ const temporary = () => {
 afterEach(() => {
   delete process.env.STAND_IN_MODE;
   delete process.env.STAND_IN_COST;
+  delete process.env.STAND_IN_MODEL;
   delete process.env.STAND_IN_INPUT;
   for (const directory of directories.splice(0)) rmSync(directory, { force: true, recursive: true });
 });
@@ -285,6 +288,23 @@ describe("running Claude Code threads", () => {
 
       expect(panel.context?.tokens).toBe(75);
       expect(panel.turnCount).toBe(1);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("records no model for a reply under Claude Code's own `<synthetic>` placeholder", () => {
+    process.env.STAND_IN_MODEL = "<synthetic>";
+    const { layer } = withClaude();
+    return Effect.gen(function* () {
+      const started = yield* call({
+        _tag: "StartMission",
+        effort: "low",
+        model: "default",
+        requestId: "r1",
+        text: "Hello",
+        workspacePath: null,
+      });
+      const detail = yield* settle(started.missionId, idleWith(1));
+      expect(detail.messages.map((m) => m.model)).toEqual([null, null]);
     }).pipe(Effect.provide(layer));
   });
 

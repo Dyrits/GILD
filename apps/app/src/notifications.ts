@@ -20,7 +20,7 @@ export function useAttentionNotice(client: ServiceClient | null) {
           const isNew = known.current !== null && [...ids].some((id) => !known.current?.has(id));
           known.current = ids;
           if (isNew && Notification.permission === "granted") {
-            new Notification("Gild", { body: "A companion needs your attention." });
+            new Notification("Gild", { body: "A quest needs you." });
           }
         },
         // A failed check is retried on the next change; the dashboard shows the service's errors.

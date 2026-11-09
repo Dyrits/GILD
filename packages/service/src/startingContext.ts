@@ -5,8 +5,8 @@ import { SqlClient } from "effect/sql";
 import { notFound } from "./errors.ts";
 import { claudeModels } from "./harnessCatalog.ts";
 import { approvalInstructionsOf, positionLineOf, type ThreadPosition, threadInstructionsOf } from "./instructions.ts";
-import { contextWindowOf, intelContextOf, intelInstructions } from "./intel.ts";
 import { journalContextOf, journalInstructions, openerContextOf, openerMessagesOf, tokensOf } from "./journal.ts";
+import { contextWindowOf, loreContextOf, loreInstructions } from "./lore.ts";
 import { listThreadPermissions } from "./permissions.ts";
 import { sandboxProblem } from "./sandbox.ts";
 import { readSettings } from "./settings.ts";
@@ -29,7 +29,7 @@ export interface TurnContext {
   readonly context: string;
   readonly cwd: string;
   readonly isInWorkspace: boolean;
-  /** What changes turn to turn: the titles, the journal, the opener's messages, intel, and the budget line. */
+  /** What changes turn to turn: the titles, the journal, the opener's messages, lore, and the budget line. */
   readonly note: string;
 }
 
@@ -37,8 +37,8 @@ export interface TurnContext {
 interface Sections {
   readonly budget: string | null;
   readonly instructions: string;
-  readonly intel: string;
   readonly journal: string;
+  readonly lore: string;
   readonly openerMessages: string | null;
   readonly position: string;
   readonly workspace: string;
@@ -46,8 +46,8 @@ interface Sections {
 
 /** Whom a starting context is for: a thread, or one about to be opened. */
 interface Subject {
-  /** The thread whose scope the intel comes from: the thread itself, or the opener of one about to be opened. */
-  readonly intelThreadId: string;
+  /** The thread whose scope the lore comes from: the thread itself, or the opener of one about to be opened. */
+  readonly loreThreadId: string;
   readonly missionId: string;
   readonly openerMessages: string | null;
   readonly position: ThreadPosition;
@@ -67,9 +67,9 @@ const readSections = (subject: Subject, workspace: string) =>
   Effect.gen(function* () {
     return {
       budget: yield* budgetLineOf(subject.missionId),
-      instructions: [threadInstructionsOf(subject.position), journalInstructions, intelInstructions].join("\n\n"),
-      intel: yield* intelContextOf(subject.intelThreadId),
+      instructions: [threadInstructionsOf(subject.position), journalInstructions, loreInstructions].join("\n\n"),
       journal: yield* journalContextOf(subject.missionId),
+      lore: yield* loreContextOf(subject.loreThreadId),
       openerMessages: openerContextOf(subject.openerMessages),
       position: positionLineOf(subject.position),
       workspace,
@@ -81,7 +81,7 @@ const readSections = (subject: Subject, workspace: string) =>
 const systemPartOf = (sections: Sections) => [sections.workspace, sections.instructions].join("\n\n");
 
 const noteOf = (sections: Sections) =>
-  [sections.position, sections.journal, sections.openerMessages, sections.intel, sections.budget]
+  [sections.position, sections.journal, sections.openerMessages, sections.lore, sections.budget]
     .filter((part) => part !== null)
     .join("\n\n");
 
@@ -110,7 +110,7 @@ const readThreadSubject = (threadId: string) =>
     };
     return {
       harness: row.harness,
-      subject: { intelThreadId: threadId, missionId: row.missionId, openerMessages: row.openerMessages, position },
+      subject: { loreThreadId: threadId, missionId: row.missionId, openerMessages: row.openerMessages, position },
       workspace: yield* readThreadWorkspace(threadId),
     };
   });
@@ -148,7 +148,7 @@ const readApprovalInstructions = (threadId: string, isInWorkspace: boolean, harn
 /**
  * What a thread the owner opens beneath `parentId` with this request would start with, on the chosen harness
  * (the parent's when null) and model. It has the parent's workspace, the parent's messages since the latest
- * journal entry, and no intel of its own yet, so its intel is the parent's. Skills are not counted until
+ * journal entry, and no lore of its own yet, so its lore is the parent's. Skills are not counted until
  * tool-and-skill-loading gives them to threads; the thread tools' own descriptions are not counted either.
  */
 export const readStartingContext = (
@@ -172,14 +172,14 @@ export const readStartingContext = (
       title: titleOf(request),
     };
     const openerMessages = yield* openerMessagesOf(parentId);
-    const subject = { intelThreadId: parentId, missionId: parent.missionId, openerMessages, position };
+    const subject = { loreThreadId: parentId, missionId: parent.missionId, openerMessages, position };
     const sections = yield* readSections(subject, folder.context);
     const approvals = yield* readApprovalInstructions(parentId, workspace !== null, harness);
     const parts = {
       budget: sections.budget === null ? 0 : tokensOf(sections.budget),
       instructions: tokensOf(sections.instructions) + tokensOf(approvals),
-      intel: tokensOf(sections.intel),
       journal: tokensOf(sections.journal),
+      lore: tokensOf(sections.lore),
       openerMessages: sections.openerMessages === null ? 0 : tokensOf(sections.openerMessages),
       position: tokensOf(sections.position),
       request: tokensOf(request),
@@ -204,12 +204,12 @@ export const readStartingContext = (
 /** The refusal of a thread whose starting context is over the warning, in words, or null when it may start. */
 export const startingContextRefusalOf = (context: StartingContext) =>
   context.isOverWarning
-    ? `Not started: its starting context takes about ${Math.round((context.tokens * 100) / context.windowTokens)}% of the model's context window, over the warning at ${context.warningPercent}%. Choose a model with a larger window, trim intel, or start it anyway.`
+    ? `Not started: its starting context takes about ${Math.round((context.tokens * 100) / context.windowTokens)}% of the model's context window, over the warning at ${context.warningPercent}%. Choose a model with a larger window, trim lore, or start it anyway.`
     : null;
 
 /**
  * The tokens of what Gild sends a thread each turn, by the parts of the context gauge (thread-panel): the
- * instructions with the working folder, approval rules, and position; the intel; the journal; and the opener's
+ * instructions with the working folder, approval rules, and position; the lore; the journal; and the opener's
  * messages. Counted from the text, so they are estimates. Nothing is made on disk.
  */
 export const readSentContextSize = (threadId: string) =>
@@ -227,7 +227,7 @@ export const readSentContextSize = (threadId: string) =>
         tokensOf(sections.position) +
         (sections.budget === null ? 0 : tokensOf(sections.budget)),
       journal: tokensOf(sections.journal),
-      lore: tokensOf(sections.intel),
+      lore: tokensOf(sections.lore),
       openerMessages: sections.openerMessages === null ? 0 : tokensOf(sections.openerMessages),
     };
   });

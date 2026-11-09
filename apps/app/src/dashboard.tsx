@@ -6,8 +6,8 @@ import { BudgetMeters, BudgetScreen, BudgetStopCard } from "./budgets";
 import { newRequestId, type ServiceClient } from "./client";
 import { Composer } from "./controls";
 import { CrestStudio } from "./crestStudio";
-import { IntelScreen } from "./intel";
 import { JournalScreen } from "./journal";
+import { LoreScreen } from "./lore";
 import { MissionPromptCard } from "./missionActions";
 import { allMissions } from "./queries";
 import { QuestionCard } from "./questions";
@@ -120,7 +120,7 @@ export function Dashboard({
   onOpen,
   onSelect,
   onSettings,
-  onIntel,
+  onLore,
   selectedId,
   workspaceId: chosenWorkspaceId,
 }: {
@@ -134,10 +134,8 @@ export function Dashboard({
   /** The quest the panel beside the board shows, or null. */
   selectedId: MissionId | null;
   onSettings: () => void;
-  /** Opens the intel panel with all intel. */
-  onIntel: () => void;
-  /** Shows one workspace's missions, or every mission with null. */
-  onWorkspace: (id: WorkspaceId | null) => void;
+  /** Opens the lore panel with all lore. */
+  onLore: () => void;
   /** The workspace whose missions show, or null for every mission. */
   workspaceId: WorkspaceId | null;
 }) {
@@ -147,8 +145,10 @@ export function Dashboard({
   // The Archived view keeps every workspace; the board shows the one chosen in the sidebar or the breadcrumb.
   const workspaceId = isArchived ? null : chosenWorkspaceId;
   const [isGlobalBudgetOpen, setIsGlobalBudgetOpen] = useState(false);
-  // What the selected quest's panel opened in this screen's place: its budget or its journal.
-  const [previewScreen, setPreviewScreen] = useState<"Budget" | "Journal" | null>(null);
+  // What a quest's panel opened in this screen's place: its budget or its journal. It belongs to that quest, so
+  // choosing another quest closes it.
+  const [preview, setPreview] = useState<{ missionId: MissionId; screen: "Budget" | "Journal" } | null>(null);
+  const previewScreen = preview !== null && preview.missionId === selectedId ? preview.screen : null;
   const { data: global } = useServiceQuery(client, { _tag: "ReadBudget", missionId: null }, "budget:global");
   const request = { _tag: "ListMissions", isArchived, search, state: null, workspaceId } as const;
   const { data, error } = useServiceQuery(client, request, `missions:${JSON.stringify(request)}`);
@@ -160,8 +160,13 @@ export function Dashboard({
   const workspaceNames = new Map((data?.workspaces ?? []).map((w) => [w.id, w.name]));
   // The realm whose board shows, and whether its crest studio is open.
   const realm = (data?.workspaces ?? []).find((w) => w.id === workspaceId) ?? null;
-  const [isDesigning, setIsDesigning] = useState(false);
-  const [isRealmLoreOpen, setIsRealmLoreOpen] = useState(false);
+  // The realm whose crest studio or lore is open; showing another realm closes them.
+  // The realm's figures count all its quests, whatever the search shows.
+  const realmMissions = (all?.missions ?? []).filter((mission) => mission.workspaceId === realm?.id);
+  const [designingId, setDesigningId] = useState<WorkspaceId | null>(null);
+  const [loreId, setLoreId] = useState<WorkspaceId | null>(null);
+  const isDesigning = realm !== null && designingId === realm.id;
+  const isRealmLoreOpen = realm !== null && loreId === realm.id;
   // With a sidebar a card only selects its quest, and the panel beside the board shows it; without one it opens it.
   // Pressing the quest already chosen puts it back.
   const press = (id: MissionId) => (hasSidebar ? onSelect(id === selectedId ? null : id) : onOpen(id));
@@ -173,15 +178,16 @@ export function Dashboard({
         client={client}
         missionId={selectedId}
         onBack={() => onSelect(null)}
-        onOpenBudget={() => setPreviewScreen("Budget")}
-        onOpenJournal={() => setPreviewScreen("Journal")}
+        onOpenBudget={() => setPreview({ missionId: selectedId, screen: "Budget" })}
+        onOpenJournal={() => setPreview({ missionId: selectedId, screen: "Journal" })}
         onOpenQuest={() => onOpen(selectedId)}
       />
     ) : isArchived ? null : realm !== null ? (
       <RealmPanel
-        missions={data?.missions ?? []}
-        onCustomize={() => setIsDesigning(true)}
-        onOpenLore={() => setIsRealmLoreOpen(true)}
+        key={realm.id}
+        missions={realmMissions}
+        onCustomize={() => setDesigningId(realm.id)}
+        onOpenLore={() => setLoreId(realm.id)}
         onRename={(name) => client.request({ _tag: "RenameRealm", name, workspaceId: realm.id })}
         onSelect={onSelect}
         realm={realm}
@@ -199,7 +205,7 @@ export function Dashboard({
       <BudgetScreen
         client={client}
         missionId={selectedId}
-        onBack={() => setPreviewScreen(null)}
+        onBack={() => setPreview(null)}
         title={`Budget · ${selected?.title ?? ""}`}
       />
     );
@@ -209,16 +215,16 @@ export function Dashboard({
       <JournalScreen
         client={client}
         missionId={selectedId}
-        onBack={() => setPreviewScreen(null)}
+        onBack={() => setPreview(null)}
         title={selected?.title ?? ""}
       />
     );
   }
   if (isRealmLoreOpen && realm !== null) {
     return (
-      <IntelScreen
+      <LoreScreen
         client={client}
-        onBack={() => setIsRealmLoreOpen(false)}
+        onBack={() => setLoreId(null)}
         threadId={null}
         title={`Lore · ${realm.name}`}
         workspaceId={realm.id}
@@ -242,9 +248,9 @@ export function Dashboard({
           id={realm.id}
           initial={realm.crest}
           name={realm.name}
-          onCancel={() => setIsDesigning(false)}
+          onCancel={() => setDesigningId(null)}
           onDone={(crest) =>
-            client.request({ _tag: "SetRealmCrest", crest, workspaceId: realm.id }).then(() => setIsDesigning(false))
+            client.request({ _tag: "SetRealmCrest", crest, workspaceId: realm.id }).then(() => setDesigningId(null))
           }
         />
       )}
@@ -268,7 +274,7 @@ export function Dashboard({
             </Pressable>
           )}
           {!isArchived && !hasSidebar && (
-            <Pressable onPress={onIntel}>
+            <Pressable onPress={onLore}>
               <Text style={[styles.link, { color: colors.goldHi }]}>Lore</Text>
             </Pressable>
           )}

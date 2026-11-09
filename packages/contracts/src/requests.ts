@@ -5,10 +5,10 @@ import { HarnessList, HarnessName } from "./harnesses.ts";
 import {
   AccountId,
   BudgetStopId,
-  IntelChangeId,
-  IntelHistoryEntryId,
-  IntelId,
-  IntelProposalId,
+  LoreChangeId,
+  LoreEntryId,
+  LoreHistoryEntryId,
+  LoreProposalId,
   MessageId,
   MissionId,
   PermissionId,
@@ -17,8 +17,8 @@ import {
   ThreadId,
   WorkspaceId,
 } from "./ids.ts";
-import { IntelHistory, IntelScope, IntelStateFilter, IntelView } from "./intel.ts";
 import { JournalView } from "./journal.ts";
+import { LoreHistory, LoreScope, LoreStateFilter, LoreView } from "./lore.ts";
 import { PermissionsView, Question } from "./questions.ts";
 import {
   EffortChoice,
@@ -173,36 +173,37 @@ export const AddJournalEntry = Schema.TaggedStruct("AddJournalEntry", {
   text: MessageText,
 });
 
-/** The intel panel: the intel in a thread's scope, most specific first, or all intel; filtered by scope and state. */
-export const ListIntel = Schema.TaggedStruct("ListIntel", {
-  scope: Schema.NullOr(IntelScope),
-  state: Schema.NullOr(IntelStateFilter),
+// Request tags such as "ListIntel" are wire names kept as `intel`; the constants follow the code.
+/** The lore panel: the lore in a thread's scope, most specific first, or all lore; filtered by scope and state. */
+export const ListLore = Schema.TaggedStruct("ListIntel", {
+  scope: Schema.NullOr(LoreScope),
+  state: Schema.NullOr(LoreStateFilter),
   threadId: Schema.NullOr(ThreadId),
   /** Only the lore of this realm's own scope; absent shows the lore the other filters give. */
   workspaceId: Schema.optionalKey(Schema.NullOr(WorkspaceId)),
 });
-/** The owner pins an intel so it never fades, or unpins it. */
-export const PinIntel = Schema.TaggedStruct("PinIntel", { intelId: IntelId, isPinned: Schema.Boolean });
-/** The owner makes a dormant or archived intel active again, at full strength. */
-export const RestoreIntel = Schema.TaggedStruct("RestoreIntel", { intelId: IntelId });
-/** The owner corrects an intel's text. */
-export const EditIntel = Schema.TaggedStruct("EditIntel", { intelId: IntelId, text: MessageText });
-/** The owner deletes an intel. */
-export const DeleteIntel = Schema.TaggedStruct("DeleteIntel", { intelId: IntelId });
-/** An intel's history, newest first, deleted intel included (scoped-intel, History and undo). */
-export const ReadIntelHistory = Schema.TaggedStruct("ReadIntelHistory", { intelId: IntelId });
-/** The owner undoes one change in an intel's history; undoing a deletion restores the intel. */
-export const UndoIntelChange = Schema.TaggedStruct("UndoIntelChange", { entryId: IntelHistoryEntryId });
+/** The owner pins a lore entry so it never fades, or unpins it. */
+export const PinLoreEntry = Schema.TaggedStruct("PinIntel", { isPinned: Schema.Boolean, loreEntryId: LoreEntryId });
+/** The owner makes a dormant or archived lore entry active again, at full strength. */
+export const RestoreLoreEntry = Schema.TaggedStruct("RestoreIntel", { loreEntryId: LoreEntryId });
+/** The owner corrects a lore entry's text. */
+export const EditLoreEntry = Schema.TaggedStruct("EditIntel", { loreEntryId: LoreEntryId, text: MessageText });
+/** The owner deletes a lore entry. */
+export const DeleteLoreEntry = Schema.TaggedStruct("DeleteIntel", { loreEntryId: LoreEntryId });
+/** A lore entry's history, newest first, deleted lore included (scoped-intel, History and undo). */
+export const ReadLoreHistory = Schema.TaggedStruct("ReadIntelHistory", { loreEntryId: LoreEntryId });
+/** The owner undoes one change in a lore entry's history; undoing a deletion restores the lore. */
+export const UndoLoreChange = Schema.TaggedStruct("UndoIntelChange", { entryId: LoreHistoryEntryId });
 /** The owner approves or declines a thread's change awaiting approval: a global save, change, or deletion, or a widening. */
-export const ResolveIntelChange = Schema.TaggedStruct("ResolveIntelChange", {
-  changeId: IntelChangeId,
+export const ResolveLoreChange = Schema.TaggedStruct("ResolveIntelChange", {
+  changeId: LoreChangeId,
   isApproved: Schema.Boolean,
 });
 
 /** The owner approves or declines a widening or narrowing the service proposed from evidence. */
-export const ResolveIntelProposal = Schema.TaggedStruct("ResolveIntelProposal", {
+export const ResolveLoreProposal = Schema.TaggedStruct("ResolveIntelProposal", {
   isApproved: Schema.Boolean,
-  proposalId: IntelProposalId,
+  proposalId: LoreProposalId,
 });
 
 /** The owner's answer to one open question. */
@@ -331,15 +332,15 @@ export const Request = Schema.Union([
   ReadJournal,
   RewriteBriefing,
   AddJournalEntry,
-  ListIntel,
-  EditIntel,
-  DeleteIntel,
-  PinIntel,
-  RestoreIntel,
-  ResolveIntelChange,
-  ResolveIntelProposal,
-  ReadIntelHistory,
-  UndoIntelChange,
+  ListLore,
+  EditLoreEntry,
+  DeleteLoreEntry,
+  PinLoreEntry,
+  RestoreLoreEntry,
+  ResolveLoreChange,
+  ResolveLoreProposal,
+  ReadLoreHistory,
+  UndoLoreChange,
   AnswerQuestion,
   AnswerSuggestion,
   SetMissionBudget,
@@ -399,7 +400,7 @@ export const Results = {
   EndMission: Schema.Null,
   InterruptThread: Schema.Null,
   ListHarnesses: HarnessList,
-  ListIntel: IntelView,
+  ListIntel: LoreView,
   ListMissions: MissionList,
   ListOpenQuestions: Schema.Array(Question),
   ListSkills: Schema.Array(Skill),
@@ -409,7 +410,7 @@ export const Results = {
   PreviewEnding: EndingPreview,
   PreviewStartingContext: StartingContext,
   ReadBudget: BudgetWindow,
-  ReadIntelHistory: IntelHistory,
+  ReadIntelHistory: LoreHistory,
   ReadJournal: JournalView,
   ReadMission: MissionDetail,
   ReadPermissions: PermissionsView,
