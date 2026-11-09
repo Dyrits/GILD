@@ -64,7 +64,7 @@ export const readMission = (missionId: string, threadId: string | null) =>
     if (thread === undefined) return yield* notFound("No such thread in this mission.");
     const workspace = yield* readThreadWorkspace(selected.id);
     const messages = yield* sql<Omit<Message, "isResult" | "isQueued"> & { isResult: number; isQueued: number }>`
-      SELECT m.id, m.thread_id AS threadId, m.sender_kind AS sender, m.text, m.sequence, m.sent_at AS sentAt,
+      SELECT m.id, m.thread_id AS threadId, m.sender_kind AS sender, m.model, m.text, m.sequence, m.sent_at AS sentAt,
         m.sender_thread_id AS fromThreadId, COALESCE(s.title, m.sender_title) AS fromTitle, m.is_result AS isResult,
         (m.is_queued = 1 AND m.delivered_turn_id IS NULL) AS isQueued
       FROM messages m LEFT JOIN threads s ON s.id = m.sender_thread_id

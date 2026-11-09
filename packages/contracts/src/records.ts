@@ -165,6 +165,8 @@ export const Message = Schema.Struct({
   isQueued: Schema.Boolean,
   /** Whether it is a result reported by a thread beneath (thread-tree, Results). */
   isResult: Schema.Boolean,
+  /** The model that wrote an agent reply, as its harness named it (such as `claude-sonnet-5-5`); null when unreported. */
+  model: Schema.NullOr(Schema.String),
   sender: SenderKind,
   sentAt: Schema.Number,
   sequence: Schema.Number,

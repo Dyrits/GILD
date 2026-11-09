@@ -152,7 +152,10 @@ export const threadsLayer = Layer.effect(
             Delivered: (delivered) => local(deliverSteered(turn, delivered.messageId)).pipe(Effect.orDie),
             Draft: (written) => (shouldStreamReplies ? draft(threadId, written.text).pipe(Effect.asVoid) : Effect.void),
             Reply: (reply) =>
-              local(saveTurnReply(threadId, turn, reply.text)).pipe(Effect.andThen(draft(threadId, "")), Effect.orDie),
+              local(saveTurnReply(threadId, turn, reply.text, reply.model ?? null)).pipe(
+                Effect.andThen(draft(threadId, "")),
+                Effect.orDie,
+              ),
           });
         if (!(yield* isCurrent(turn.turnId))) return;
         active.set(threadId, { turnId: turn.turnId, written: new Set() });

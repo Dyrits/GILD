@@ -115,11 +115,11 @@ export const admitTurn = (threadId: string) =>
   });
 
 /** Saves a reply of the running turn to the thread's conversation. */
-export const saveTurnReply = (threadId: string, turn: Admitted, text: string) =>
+export const saveTurnReply = (threadId: string, turn: Admitted, text: string, model: string | null) =>
   transacting(
     Effect.gen(function* () {
       if (!(yield* isCurrentTurn(turn.turnId))) return;
-      yield* insertReply(turn.missionId, threadId, text);
+      yield* insertReply(turn.missionId, threadId, text, model);
       yield* publishOnCommit;
     }),
   );

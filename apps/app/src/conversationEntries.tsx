@@ -18,15 +18,21 @@ const senderStyles = {
 } satisfies Record<Message["sender"], unknown>;
 
 /** The label above a message: none for the owner's own unless it waits for the next turn. */
-const senderLabelOf = (message: Message) => {
+const senderLabelOf = (message: Message, companionOf: (reported: string | null) => string) => {
   if (message.sender === "user") return message.isQueued ? "Queued for the next turn" : null;
-  if (message.sender === "agent") return "Companion";
+  if (message.sender === "agent") return companionOf(message.model);
   return `${message.isResult ? "Result from" : "From"} "${shortened(message.fromTitle ?? "a quest")}"`;
 };
 
 /** One message, labelled by its sender: the owner, the thread's agent, or another thread. */
-function MessageBubble({ message }: { message: Message }) {
-  const sender = senderLabelOf(message);
+function MessageBubble({
+  companionOf,
+  message,
+}: {
+  companionOf: (reported: string | null) => string;
+  message: Message;
+}) {
+  const sender = senderLabelOf(message, companionOf);
   return (
     <View style={[styles.message, senderStyles[message.sender]]}>
       {/* The owner's own messages need no label, as in a chat; a queued one says it waits. */}
@@ -39,11 +45,14 @@ function MessageBubble({ message }: { message: Message }) {
 /** One conversation entry: an open question or suggestion as a card, a settled one as a line. */
 export function EntryView({
   client,
+  companionOf,
   entry,
   onOpenMission,
   onSelectThread,
 }: {
   client: ServiceClient;
+  /** The Companion label for a reply, given the model its harness reported for it (null when none did). */
+  companionOf: (reported: string | null) => string;
   entry: Entry;
   onOpenMission: (missionId: MissionId) => void;
   onSelectThread: (threadId: ThreadId) => void;
@@ -87,5 +96,5 @@ export function EntryView({
     ) : (
       <QuestionLine question={entry.question} />
     );
-  return <MessageBubble message={entry.message} />;
+  return <MessageBubble companionOf={companionOf} message={entry.message} />;
 }

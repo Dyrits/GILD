@@ -98,6 +98,20 @@ Review this list when starting a capability, and every few weeks: read each prod
 - **License**: Apache 2.0 according to its site; not checked in the repository. Code may be reused with its notice where a decision record allows it, once checked.
 - **Check on**: its [docs](https://github.com/makecindy/cindy/tree/main/docs) and [releases](https://github.com/makecindy/cindy/releases), especially its Pi harness, how it moves a task between devices, and how the review step is wired; as the open-source product closest to Gild's multi-harness tree.
 
+## Interface and design
+
+### Crest ([crestbrowser.com](https://crestbrowser.com), [source](https://github.com/pauljoda/Crest))
+
+- **What it is**: an open-source browser for Mac, iPhone, and iPad (SwiftUI; Chromium and WebKit on Mac). Its main idea is **Spaces**: work, home, research, or a private session, each with its own cookies, history, tabs, credentials, settings, and sync identity, and **Sub-Spaces** that share sign-ins within a group.
+- **Good ideas** (from its README, 2026-11-09):
+  - **Crest Studio**: each Space has a crest on its sidebar background, designed from a template through steps (shape, field, band, emblem, border, finish, sidebar), each step choosing among previews of the user's own crest, with Shuffle and Undo;
+  - every part of the crest has its own color, named by what it paints;
+  - emblems from heraldic artwork, emoji, monograms, or a searchable symbol picker;
+  - an Appearance page with presets, live preview, and per-setting reset.
+- **Taken** (2026-11-09): the crest system for realms and Crest Studio: a plate cut to a shape, a field with a second color, a band, an edge, a trim, and an emblem, drawn on a 100 by 100 grid ([`crestShapes.ts`](../apps/app/src/crestShapes.ts)); the heraldic emblems, which reach Gild through Crest Studio and are credited in [`crest-credits.md`](../apps/app/src/crest-credits.md) (game-icons.net, CC BY 3.0). The idea of giving each context a visible identity matches Gild's realms.
+- **License**: MPL-2.0. Ideas are written independently; the crest figures carry their own CC BY 3.0 credits. Check the license's file-level terms before copying any of its files.
+- **Check on**: its [releases](https://github.com/pauljoda/Crest/releases) and [guides](https://crestbrowser.com/guides/), especially new Crest Studio steps or emblem sources, and whether Sub-Spaces (shared sign-ins across a group) suggest grouping realms.
+
 ## Memory and long-running agents
 
 ### Rerun ([rerun.build](https://rerun.build), [source](https://github.com/rerun-build/rerun))

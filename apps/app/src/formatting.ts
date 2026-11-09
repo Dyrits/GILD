@@ -11,6 +11,44 @@ export const harnessLabels = {
 export const modelLabelOf = (model: ModelChoice, options: ReadonlyArray<ModelOption> = []) =>
   options.find((option) => option.id === model)?.label ??
   (model === "default" ? "Default model" : model.charAt(0).toUpperCase() + model.slice(1));
+
+/** Each harness's usual model company, when the model's own identifier names none. */
+const harnessProviders = { claude: "Anthropic", codex: "OpenAI", opencode: "OpenCode" } as const satisfies Record<
+  HarnessName,
+  string
+>;
+
+const titled = (word: string) => word.charAt(0).toUpperCase() + word.slice(1);
+
+/** A model identifier as company and readable name with version, such as `claude-sonnet-5-5` as Anthropic and "Sonnet 5.5"; null when unrecognised. */
+const knownModelOf = (id: string): { name: string; provider: string } | null => {
+  const withoutDate = id.replace(/-\d{8}$/, "");
+  // Claude: `claude-sonnet-5-5` and `claude-opus-4-1`, or the older `claude-3-5-sonnet`.
+  const claude =
+    /^claude-(opus|sonnet|haiku)-(\d+(?:-\d+)?)$/.exec(withoutDate) ??
+    /^claude-(\d+(?:-\d+)?)-(opus|sonnet|haiku)$/.exec(withoutDate);
+  if (claude !== null) {
+    const [family, version] = /^\d/.test(claude[1] ?? "") ? [claude[2], claude[1]] : [claude[1], claude[2]];
+    return { name: `${titled(family ?? "")} ${(version ?? "").replace("-", ".")}`, provider: "Anthropic" };
+  }
+  // OpenAI: `gpt-5.1-codex` as "GPT-5.1 Codex".
+  const gpt = /^gpt-(.+)$/.exec(withoutDate);
+  if (gpt !== null) return { name: `GPT-${(gpt[1] ?? "").split("-").map(titled).join(" ")}`, provider: "OpenAI" };
+  return null;
+};
+
+/**
+ * The Companion's label above its reply: the model company, then the model's name and version, such as
+ * "Anthropic - Sonnet 5.5". It uses the model the harness reported for the reply; without one, the thread's
+ * chosen model.
+ */
+export const companionLabelOf = (harness: HarnessName, reported: string | null, chosen: ModelChoice) => {
+  const known = reported === null ? null : knownModelOf(reported);
+  if (known !== null) return `${known.provider} - ${known.name}`;
+  const name = reported ?? modelLabelOf(chosen);
+  return `${harnessProviders[harness]} - ${name}`;
+};
+
 /** An effort level as the owner reads it. */
 export const effortLabel = (effort: EffortChoice) => (effort === "default" ? "Default effort" : effort);
 

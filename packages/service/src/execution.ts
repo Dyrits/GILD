@@ -4,7 +4,12 @@ import { Context, Effect, Schema } from "effect";
 /** What a harness reports while a turn runs. */
 export type HarnessEvent =
   /** A complete assistant message, to be saved. */
-  | { readonly _tag: "Reply"; readonly text: string }
+  | {
+      readonly _tag: "Reply";
+      /** The model that wrote it as the harness names it (such as `claude-sonnet-5-5`), when it reports one. */
+      readonly model?: string | null;
+      readonly text: string;
+    }
   /** The assistant message written so far, never saved. */
   | { readonly _tag: "Draft"; readonly text: string }
   /** A message steered into the running turn was taken in by it (CHG-0039). */

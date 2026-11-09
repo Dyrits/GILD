@@ -93,6 +93,7 @@ describe("running Claude Code threads", () => {
       const detail = yield* settle(started.missionId, idleWith(1));
 
       expect(detail.messages.map((m) => m.sender)).toEqual(["user", "agent"]);
+      expect(detail.messages.map((m) => m.model)).toEqual([null, "claude-sonnet-5-5"]);
       expect(withoutNote(detail.messages[1]?.text)).toMatch(/^Reply 1 .* to: Hello$/);
       expect(detail.thread).toMatchObject({ effort: "high", failure: null, model: "opus" });
 

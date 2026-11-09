@@ -14,7 +14,7 @@ import { newRequestId, type ServiceClient } from "./client";
 import { Composer, StateBadge } from "./controls";
 import { EntryView } from "./conversationEntries";
 import { type Entry, entriesOf } from "./entries";
-import { effortLabel, harnessLabels, modelLabelOf } from "./formatting";
+import { companionLabelOf, effortLabel, harnessLabels, modelLabelOf } from "./formatting";
 import { IntelIcon, IntelScreen } from "./intel";
 import { JournalScreen } from "./journal";
 import { QuestSidebar } from "./questPanel";
@@ -118,6 +118,7 @@ function ThreadPane({
 }) {
   const { thread } = detail;
   const work = thread.parentId === null ? "quest" : "side-quest";
+  const companionOf = (reported: string | null) => companionLabelOf(thread.harness, reported, thread.model);
   const draft = useDraft(client, thread.id);
   const skills = useSkills(client, thread.workspace?.path ?? null);
   const [actionError, setActionError] = useState<string | null>(null);
@@ -218,13 +219,19 @@ function ThreadPane({
             void 0
           ) : (
             <View style={[styles.message, styles.fromAgent, styles.draft]}>
-              <Text style={styles.sender}>Companion · writing…</Text>
+              <Text style={styles.sender}>{companionOf(null)} · writing…</Text>
               <Text style={styles.body}>{draft}</Text>
             </View>
           )
         }
         renderItem={({ item }) => (
-          <EntryView client={client} entry={item} onOpenMission={onOpenMission} onSelectThread={onSelect} />
+          <EntryView
+            client={client}
+            companionOf={companionOf}
+            entry={item}
+            onOpenMission={onOpenMission}
+            onSelectThread={onSelect}
+          />
         )}
         style={styles.flex}
       />

@@ -392,6 +392,11 @@ const migrations = {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`ALTER TABLE workspaces ADD COLUMN crest TEXT`;
   }),
+  // The model that wrote each agent reply, as the harness named it, for the Companion label; null when unreported.
+  "0024_message_model": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE messages ADD COLUMN model TEXT`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */
