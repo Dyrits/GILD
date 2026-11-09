@@ -69,7 +69,13 @@ describe("starting a mission", () => {
         workspaceId: null,
       });
       expect(missions).toHaveLength(1);
-      expect(missions[0]).toMatchObject({ id: started.missionId, state: "Running", title: "Plan the trip" });
+      expect(missions[0]).toMatchObject({
+        harness: "claude",
+        id: started.missionId,
+        model: "default",
+        state: "Running",
+        title: "Plan the trip",
+      });
 
       const detail = yield* read(started.missionId);
       expect(detail.thread).toMatchObject({ id: started.threadId, state: "Running" });

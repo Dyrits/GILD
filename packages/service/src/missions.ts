@@ -1,5 +1,6 @@
 import type {
   EffortChoice,
+  HarnessName,
   MissionEnding,
   MissionPrompt,
   MissionSummary,
@@ -79,6 +80,8 @@ type MissionRow = {
   id: string;
   title: string;
   topThreadId: string;
+  harness: HarnessName;
+  model: ModelChoice;
   lastActivityAt: number;
   states: string;
   threadCount: number;
@@ -113,9 +116,11 @@ const summaryOf = (row: MissionRow, now: number, settings: Settings): MissionSum
       limits: { cost: row.budgetCost, tokens: row.budgetTokens },
       spent: { cost: row.spentCost, tokens: row.spentTokens },
     },
+    harness: row.harness,
     id: row.id,
     isTitleByUser: row.isTitleByUser === 1,
     lastActivityAt: row.lastActivityAt,
+    model: row.model,
     prompt: promptOf(row, now, settings),
     runningCount: states.filter((state) => state === "Running").length,
     state: row.ending ?? workedOutStateOf(states),
@@ -130,7 +135,7 @@ const summaryOf = (row: MissionRow, now: number, settings: Settings): MissionSum
 
 const missionRows = (sql: SqlClient.SqlClient, where: Statement.Fragment) =>
   sql<MissionRow>`
-    SELECT m.id, m.title, m.top_thread_id AS topThreadId, m.last_activity_at AS lastActivityAt,
+    SELECT m.id, m.title, m.top_thread_id AS topThreadId, top.harness AS harness, top.model AS model, m.last_activity_at AS lastActivityAt,
       (SELECT group_concat(t.state) FROM threads t WHERE t.mission_id = m.id) AS states,
       (SELECT COUNT(*) FROM threads t WHERE t.mission_id = m.id) AS threadCount,
       m.ending, m.is_title_by_user AS isTitleByUser, m.is_asking_done AS isAskingDone,

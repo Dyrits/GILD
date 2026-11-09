@@ -26,8 +26,18 @@ export interface ClaudeOptions extends AccessOptions {
 }
 
 interface ClaudeConnection extends HarnessConnection {
+  /** The cost Claude Code last reported for this process, which it adds up across turns (provisional, unprobed). */
+  lastTotalCost: number;
   readonly process: StreamJsonProcess;
 }
+
+/** The turn's own cost from the result's running total; a total that fell means a fresh count. */
+const turnCostOf = (connection: ClaudeConnection, total: unknown): number | null => {
+  if (typeof total !== "number" || !Number.isFinite(total)) return null;
+  const cost = total >= connection.lastTotalCost ? total - connection.lastTotalCost : total;
+  connection.lastTotalCost = total;
+  return Math.round(cost * 1e6) / 1e6;
+};
 
 /** The child's environment, signed in with the turn's account (provider-accounts). */
 const childEnvironment = (configDirectory: string | null) =>
@@ -119,10 +129,11 @@ const claudeProtocolOf = (options: ClaudeOptions): HarnessProtocol<ClaudeConnect
         } else if (type === "result") {
           // An interrupted turn ends with an error result, which is no failure (probe of 2026-11-06).
           const usage = usageOf(fieldOf(event, "usage"));
-          if (turn.isInterrupting()) return { isInterrupted: true, usage };
+          const cost = turnCostOf(connection, fieldOf(event, "total_cost_usd"));
+          if (turn.isInterrupting()) return { cost, isInterrupted: true, usage };
           if (fieldOf(event, "is_error") === true || reportedError !== null)
             return yield* new HarnessFailure({ reason: failureReasonOf(event, reportedError) });
-          return { isInterrupted: false, usage };
+          return { cost, isInterrupted: false, usage };
         }
       }
     }),
@@ -145,7 +156,13 @@ const claudeProtocolOf = (options: ClaudeOptions): HarnessProtocol<ClaudeConnect
         env: childEnvironment(request.configDirectory),
         label: "Claude Code",
       });
-      return { close: process.close, hasExited: process.hasExited, process, sessionId } satisfies ClaudeConnection;
+      return {
+        close: process.close,
+        hasExited: process.hasExited,
+        lastTotalCost: 0,
+        process,
+        sessionId,
+      } satisfies ClaudeConnection;
     }),
 
   // A user message written mid-turn joins it after the current tool call; its uuid comes back in the echo

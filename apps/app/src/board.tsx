@@ -1,15 +1,22 @@
 import type { MissionSummary } from "@gild/contracts";
-import { Pressable, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { type BoardColumn, boardColumns, boardOf, isStateShownOn } from "./boardColumns";
 import { BudgetMeters } from "./budgets";
 import type { ServiceClient } from "./client";
 import { StateBadge } from "./controls";
-import { timeOf, usageText } from "./formatting";
+import { harnessLabels, modelLabelOf, timeOf, usageText } from "./formatting";
 import { threadCountOf } from "./labels";
 import { MissionEndingActions } from "./missionActions";
 import { EmptyBoard } from "./sketches";
 import { styles } from "./styles";
 import { colors, cut, fontSizes, fonts, ink, lift, stateLabels } from "./theme";
+
+/** A card's slight, steady tilt (between -1.8 and 1.8 degrees), taken from its id so it does not change between renders. */
+const tiltOf = (id: string) => {
+  let hash = 0;
+  for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) % 997;
+  return Math.round(((hash % 37) / 36 - 0.5) * 3.6 * 10) / 10;
+};
 
 /** One mission as a card: its title, where and how much, its budget, and its ending actions. */
 export function MissionCard({
@@ -24,10 +31,25 @@ export function MissionCard({
   mission: MissionSummary;
   onOpen: () => void;
 }) {
-  const place = [mission.workspaceName, threadCountOf(mission)].filter((part) => part !== null).join(" · ");
+  const place = [
+    harnessLabels[mission.harness],
+    modelLabelOf(mission.model),
+    mission.workspaceName,
+    threadCountOf(mission),
+  ]
+    .filter((part) => part !== null)
+    .join(" · ");
   const isCircled = mission.state === "Attention";
+  const cost = mission.budget.spent.cost;
   return (
-    <View style={[local.card, mission.state === "Done" && local.cardDone]}>
+    <View
+      style={[
+        local.card,
+        mission.state === "Done" && local.cardDone,
+        isCircled && local.cardAttention,
+        { transform: [{ rotate: `${tiltOf(mission.id)}deg` }] },
+      ]}
+    >
       <View pointerEvents="none" style={local.pin} />
       {isCircled && (
         <View pointerEvents="none" style={local.circle}>
@@ -47,6 +69,12 @@ export function MissionCard({
         <Text numberOfLines={1} style={local.cardMeta}>
           {usageText(mission.usage)} · {timeOf(mission.lastActivityAt)}
         </Text>
+        {cost > 0 && (
+          <View accessibilityLabel={`API cost $${cost.toFixed(2)}`} style={local.costRow}>
+            <View style={local.coin} />
+            <Text style={local.cost}>${cost.toFixed(2)}</Text>
+          </View>
+        )}
       </Pressable>
       {(column === null || isStateShownOn(column, mission.state)) && <StateBadge state={mission.state} />}
       <BudgetMeters use={mission.budget} />
@@ -55,26 +83,27 @@ export function MissionCard({
   );
 }
 
-/** A column's handwritten name; Attention's is highlighted, as with a marker. */
+/** What each column means, in one italic line under its ribbon. */
+const columnCaptions = { Attention: "needs you", Done: "Done", Idle: "Resting", Running: "Running" } as const;
+
+/** A column's ribbon: a banner with a notched lower edge, its name and count, and its meaning beneath. */
 function ColumnHeading({ column, count }: { column: BoardColumn; count: number }) {
+  const color =
+    column === "Attention"
+      ? colors.danger
+      : column === "Done"
+        ? colors.success
+        : column === "Idle"
+          ? colors.violet
+          : colors.accent;
   return (
-    <View
-      style={[
-        local.heading,
-        {
-          backgroundColor:
-            column === "Attention"
-              ? colors.danger
-              : column === "Done"
-                ? colors.success
-                : column === "Idle"
-                  ? colors.violet
-                  : colors.accent,
-        },
-      ]}
-    >
-      <Text style={local.headingText}>{stateLabels[column]}</Text>
-      <Text style={local.count}>{count}</Text>
+    <View style={local.headingBlock}>
+      <View style={[local.heading, { backgroundColor: color }]}>
+        <Text style={local.headingText}>
+          {stateLabels[column]} <Text style={local.count}>{count}</Text>
+        </Text>
+      </View>
+      <Text style={local.caption}>{columnCaptions[column]}</Text>
     </View>
   );
 }
@@ -120,6 +149,13 @@ export function MissionBoard({
 }
 
 const local = StyleSheet.create({
+  caption: {
+    color: colors.onWood,
+    fontFamily: fonts.sans,
+    fontSize: fontSizes.sm,
+    fontStyle: "italic",
+    textAlign: "center",
+  },
   card: {
     ...ink,
     ...cut,
@@ -130,6 +166,7 @@ const local = StyleSheet.create({
     padding: 13,
     paddingTop: 20,
   },
+  cardAttention: { borderColor: colors.danger },
   cardDone: { opacity: 0.8 },
   cardMain: { gap: 2 },
   cardMeta: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.sm },
@@ -146,21 +183,32 @@ const local = StyleSheet.create({
     width: 30,
     zIndex: 1,
   },
+  coin: { backgroundColor: colors.gold, borderRadius: 6, height: 11, width: 11 },
   column: { flex: 1, minWidth: 0 },
   columns: { alignItems: "flex-start", flexDirection: "row", gap: 16 },
-  count: { color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.sm, fontWeight: "600" },
+  cost: { color: colors.text, fontFamily: fonts.mono, fontSize: fontSizes.sm },
+  costRow: { alignItems: "center", flexDirection: "row", gap: 5, marginTop: 2 },
+  count: { fontSize: 13 },
   heading: {
     alignItems: "center",
-    borderBottomLeftRadius: 12,
-    borderBottomRightRadius: 3,
-    flexDirection: "row",
-    flexWrap: "wrap",
-    gap: 6,
     justifyContent: "center",
-    marginBottom: 16,
-    padding: 8,
+    paddingBottom: 18,
+    paddingHorizontal: 12,
+    paddingTop: 9,
+    // The swallowtail notch is web-only; native shows a plain banner until a mask is chosen.
+    ...(Platform.OS === "web" ? ({ clipPath: "polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%)" } as object) : {}),
   },
-  headingText: { color: colors.onWood, fontFamily: fonts.hand, fontSize: 13, lineHeight: 20 },
+  headingBlock: { alignItems: "stretch", gap: 8, marginBottom: 16 },
+  headingText: {
+    color: colors.onWood,
+    fontFamily: fonts.hand,
+    fontSize: 17,
+    fontWeight: "700",
+    letterSpacing: 1,
+    lineHeight: 22,
+    textAlign: "center",
+    textTransform: "uppercase",
+  },
   highlighted: { backgroundColor: colors.marker },
   note: { color: colors.onWood, fontFamily: fonts.sans, fontSize: 15, marginBottom: 12 },
   pin: {

@@ -22,6 +22,7 @@ const temporary = () => {
 };
 afterEach(() => {
   delete process.env.STAND_IN_MODE;
+  delete process.env.STAND_IN_COST;
   delete process.env.STAND_IN_INPUT;
   for (const directory of directories.splice(0)) rmSync(directory, { force: true, recursive: true });
 });
@@ -264,6 +265,26 @@ describe("running Claude Code threads", () => {
         missions: [summary],
       } = yield* call({ _tag: "ListMissions", isArchived: false, search: null, state: null, workspaceId: null });
       expect(summary?.usage.output).toBe(20);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("records each turn's own cost from the running total Claude Code reports", () => {
+    process.env.STAND_IN_COST = "1";
+    const { layer } = withClaude();
+    return Effect.gen(function* () {
+      const started = yield* call({
+        _tag: "StartMission",
+        effort: "low",
+        model: "haiku",
+        requestId: "r1",
+        text: "One",
+        workspacePath: null,
+      });
+      yield* settle(started.missionId, idleWith(1));
+      yield* call({ _tag: "SendMessage", delivery: null, requestId: "r2", text: "Two", threadId: started.threadId });
+      const detail = yield* settle(started.missionId, idleWith(2));
+
+      expect(detail.mission.budget.spent.cost).toBeCloseTo(0.02, 6);
     }).pipe(Effect.provide(layer));
   });
 

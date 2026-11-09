@@ -2,6 +2,7 @@
 // transcripts captured from Claude Code 2.1.302. Behavior is set by environment:
 // STAND_IN_LOG: file that receives one JSON line per process start ({ pid, args, cwd, env }).
 // STAND_IN_INPUT: file that receives each line written to the stand-in's stdin.
+// STAND_IN_COST: set to report a running total_cost_usd of 0.01 per turn.
 // STAND_IN_MODE: "ok" (default), "fail-start" (exit 1 before answering), "error-result".
 // A message "slow <millis>" keeps its turn running that long. A message written during a turn joins it
 // and is echoed with its uuid (--replay-user-messages), unless its text contains "unseen": that one is
@@ -50,6 +51,7 @@ const reply = (text) => {
     is_error: false,
     result: text,
     subtype: "success",
+    ...(process.env.STAND_IN_COST === undefined ? {} : { total_cost_usd: turn / 100 }),
     type: "result",
     usage: { cache_creation_input_tokens: 50, cache_read_input_tokens: 100, input_tokens: 2, output_tokens: 10 },
   });

@@ -1199,3 +1199,31 @@ The quest panel (name, state, journal, budget, usage, ending) is a right column 
 References: apps/app/src/sidebar.tsx, apps/app/src/conversation.tsx, apps/app/src/questPanel.tsx, apps/app/src/threadTree.tsx, apps/app/src/missionActions.tsx, apps/app/App.tsx.
 Validation: The owner's requests in conversation; typecheck, lint, 415 tests, and the web export pass.
 Evidence: Baseline `e827fe2`; [proof](verification/2026-11-09-quest-layout.md), not proven: not seen in the running window, so the appearance awaits the owner.
+
+## CHG-0077 · 2026-11-09 · Tilted quest cards with API cost; Claude turn cost recorded
+
+Type: Code
+Event: Delivery
+Scope: Mission card, harness cost
+
+Summary: The owner asked for quest cards like the Guild mockup (parchment, pinned, tilted, with the API cost) and then the next feature through iterate.
+Cards tilt by a steady angle from their id (within 1.8 degrees), an Attention card has a red edge, and a gold-coin cost line shows when the quest has spent API cost.
+So the cost can appear, Claude Code's `total_cost_usd` is now recorded per turn as the difference from the process's previous running total; the owner chose to record it on every Claude turn, not only when billed by API key.
+Because a turn with a cost is not counted in tokens, Claude turns now count against cost limits and no longer against token limits.
+References: apps/app/src/board.tsx, packages/service/src/claude.ts, packages/service/src/harnessProcesses.ts, packages/service/test/claude.test.ts.
+Validation: typecheck, lint, and 419 tests pass, including one for the per-turn cost from a running total.
+Evidence: Baseline `6d7804d`; not proven: the running-total assumption was not probed live (the owner stopped the probe), and the card look was not seen in the running window; both await the owner.
+
+## CHG-0078 · 2026-11-09 · Ribbon column headings; harness and model on cards
+
+Type: Code
+Event: Delivery
+Scope: Mission board
+
+Summary: The owner asked for column headings like the Guild mockup, then for the next feature.
+Each column heading is a colored banner with a notched lower edge (web only), the name in capitals with its count, and an italic caption beneath ("needs you", "Running", "Resting", "Done").
+`MissionSummary` gains `harness` and `model` of the top thread, and a card's line reads, for example, "Claude Code · Sonnet · realm · 2 threads".
+References: apps/app/src/board.tsx, packages/contracts/src/records.ts, packages/service/src/missions.ts, packages/service/test/missions.test.ts.
+Validation: typecheck, lint, and 419 tests pass.
+Evidence: Baseline `6d7804d`; not proven: the look was not seen in the running window and awaits the owner. Branch and diff stats stay on the backlog.
+

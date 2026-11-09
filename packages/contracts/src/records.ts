@@ -102,10 +102,13 @@ export type MissionPrompt = typeof MissionPrompt.Type;
 export const MissionSummary = Schema.Struct({
   /** The mission's budget and its spending over the mission's life. */
   budget: BudgetUse,
+  /** The top thread's harness and model, for the card. */
+  harness: HarnessName,
   id: MissionId,
   /** Whether the owner renamed it, after which `set_mission_title` is refused. */
   isTitleByUser: Schema.Boolean,
   lastActivityAt: Schema.Number,
+  model: ModelChoice,
   /** The question the dashboard asks of it, or null. */
   prompt: Schema.NullOr(MissionPrompt),
   /** Threads Running now. */

@@ -22,6 +22,10 @@ Layout follow-up (CHG-0075): no window frame or docked conversation, the quest i
 
 Quest layout follow-up (CHG-0076): breadcrumbs, an icon handle on the rail, a quest screen without a header block, and a right quest panel; typecheck, lint, tests, and web export pass, not yet seen in the running window ([proof](verification/2026-11-09-quest-layout.md)).
 
+Card cost batch (CHG-0077): tilted cards with API cost; Claude's `total_cost_usd` recorded per turn (assumed a running total, unprobed live); typecheck, lint, and 419 tests pass; the look and the live probe await the owner.
+
+Board batch (CHG-0078): ribbon column headings and harness and model on cards; typecheck, lint, and tests pass; the look awaits the owner.
+
 ## Goal
 
 Build the first slice iteratively (CHG-0025): each batch leaves a runnable application with its checks. Design under review: [first-slice-design.md](first-slice-design.md) and the mission-tracking, thread-tree, and thread-messaging blueprints. Starting revision: `e445b44`.
