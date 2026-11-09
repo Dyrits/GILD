@@ -1,6 +1,7 @@
 import type { MissionSummary } from "@gild/contracts";
 import { useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Banner } from "./banner";
 import { type BoardColumn, boardColumns, boardOf, isStateShownOn } from "./boardColumns";
 import { BudgetMeters } from "./budgets";
 import type { ServiceClient } from "./client";
@@ -104,34 +105,10 @@ export function MissionCard({
 /** What each column means, in one italic line under its ribbon. */
 const columnCaptions = { Attention: "needs you", Done: "Done", Idle: "Resting", Running: "Running" } as const;
 
-/**
- * A column's banner: hung from a gilt rod with a knob at each end, a swallowtail cloth in the column's color, its name
- * and count, and its meaning beneath in italics.
- */
+/** A column's banner, its cloth the color of what the column means. */
 function ColumnHeading({ column, count }: { column: BoardColumn; count: number }) {
-  const color =
-    column === "Attention"
-      ? colors.danger
-      : column === "Done"
-        ? colors.success
-        : column === "Idle"
-          ? colors.violet
-          : colors.accent;
-  return (
-    <View style={local.headingBlock}>
-      <View style={local.rod}>
-        <View style={local.knob} />
-        <View style={local.rodBar} />
-        <View style={local.knob} />
-      </View>
-      <View style={[local.heading, { backgroundColor: color }]}>
-        <Text style={local.headingText}>
-          {stateLabels[column]} <Text style={local.count}>{count}</Text>
-        </Text>
-        <Text style={local.caption}>{columnCaptions[column]}</Text>
-      </View>
-    </View>
-  );
+  const cloth = column === "Attention" ? "red" : column === "Done" ? "green" : column === "Idle" ? "violet" : "blue";
+  return <Banner caption={columnCaptions[column]} cloth={cloth} count={count} title={stateLabels[column]} />;
 }
 
 /**
@@ -175,14 +152,6 @@ export function MissionBoard({
 }
 
 const local = StyleSheet.create({
-  caption: {
-    color: colors.onWood,
-    fontFamily: fonts.sans,
-    fontSize: fontSizes.sm,
-    fontStyle: "italic",
-    opacity: 0.9,
-    textAlign: "center",
-  },
   card: {
     ...ink,
     ...cut,
@@ -218,28 +187,6 @@ const local = StyleSheet.create({
   columns: { alignItems: "flex-start", flexDirection: "row", gap: 16 },
   cost: { color: colors.text, fontFamily: fonts.mono, fontSize: fontSizes.sm },
   costRow: { alignItems: "center", flexDirection: "row", gap: 5, marginTop: 2 },
-  count: { fontSize: 13 },
-  heading: {
-    alignItems: "center",
-    justifyContent: "center",
-    marginHorizontal: 8,
-    paddingBottom: 22,
-    paddingHorizontal: 12,
-    paddingTop: 8,
-    // The swallowtail notch is web-only; native shows a plain banner until a mask is chosen.
-    ...(Platform.OS === "web" ? ({ clipPath: "polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%)" } as object) : {}),
-  },
-  headingBlock: { alignItems: "stretch", marginBottom: 16 },
-  headingText: {
-    color: colors.onWood,
-    fontFamily: fonts.hand,
-    fontSize: 17,
-    fontWeight: "700",
-    letterSpacing: 1,
-    lineHeight: 22,
-    textAlign: "center",
-    textTransform: "uppercase",
-  },
   highlighted: { backgroundColor: colors.marker },
   inner: {
     borderColor: colors.border,
@@ -251,14 +198,6 @@ const local = StyleSheet.create({
     position: "absolute",
     right: 3,
     top: 3,
-  },
-  knob: {
-    backgroundColor: colors.goldHi,
-    borderColor: colors.gold,
-    borderRadius: 6,
-    borderWidth: 1,
-    height: 11,
-    width: 11,
   },
   note: { color: colors.onWood, fontFamily: fonts.sans, fontSize: 15, marginBottom: 12 },
   pin: {
@@ -290,8 +229,6 @@ const local = StyleSheet.create({
     letterSpacing: 1.2,
     textTransform: "uppercase",
   },
-  rod: { alignItems: "center", flexDirection: "row", marginBottom: -1, zIndex: 1 },
-  rodBar: { backgroundColor: colors.gold, flex: 1, height: 4 },
   seal: { color: colors.canvas, fontFamily: fonts.hand, fontSize: 18 },
   stacked: { gap: 8 },
   tick: { color: colors.success },

@@ -1299,3 +1299,15 @@ Left out: the mockup's painted scenery, the Counsel, Spoils, Chronicle tabs, par
 References: apps/app/src/{board,dashboard,sidebar,budgets,questPanel,sketches}.tsx.
 Validation: typecheck, lint, and 431 tests pass.
 Evidence: Baseline `5485680`; [proof](verification/2026-11-09-guild-mockup.md). Not proven: the Fulfilled tag, the collapsed rail, narrow widths, and the owner's acceptance of the look.
+
+
+## CHG-0084 · 2026-11-09 · Drawn banners
+
+Type: Code
+Event: Delivery
+Scope: Mission board
+
+Summary: The owner shared a reference of hanging banners and asked for banners as good. The columns' headings are now drawn to their width in SVG: a gilt rod with a finial at each end and a diamond in the middle, a cloth shaded from light to dark with fine vertical weave lines, a double gilt trim and a pointed lower edge with a diamond, a tassel on the red, blue, and violet cloths, and the title, a rule, and the column's meaning over the cloth.
+References: apps/app/src/banner.tsx, apps/app/src/board.tsx.
+Validation: typecheck, lint, and 431 tests pass.
+Evidence: Baseline `3302f7b`; [screenshot](verification/2026-11-09-guild-mockup/board-banners.png), fake harness at 1600px. Not proven: narrow widths and the owner's acceptance of the look. The reference's velvet texture, the frayed green fringe, and the shadow under the rod are not drawn.
