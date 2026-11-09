@@ -11,8 +11,9 @@ import { allMissions } from "./queries";
 import { QuestionCard } from "./questions";
 import { type Runner, RunnerPickers, useHarnesses } from "./runners";
 import { useHasSidebar } from "./sidebar";
+import { GuildHero } from "./sketches";
 import { styles } from "./styles";
-import { colors } from "./theme";
+import { colors, fonts } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
 import { useSkills } from "./useSkills";
 import { WorkspacePicker } from "./workspaces";
@@ -149,6 +150,7 @@ export function Dashboard({
         onLayout={(event) => setWidth(event.nativeEvent.layout.width)}
         style={styles.flex}
       >
+        <GuildHero />
         <View style={styles.header}>
           {isArchived && !hasSidebar && (
             <Pressable onPress={onBack}>
@@ -168,9 +170,7 @@ export function Dashboard({
                 />
               </View>
             )}
-            {!hasSidebar && (
-              <Text style={[styles.heading, { color: colors.onWood }]}>{isArchived ? "Archives" : "Quests"}</Text>
-            )}
+            <Text style={local.title}>{isArchived ? "Archives" : "Quests"}</Text>
           </View>
           {global !== null && <BudgetMeters onPress={() => setIsGlobalBudgetOpen(true)} use={global} />}
           {!isArchived && !hasSidebar && (
@@ -265,4 +265,17 @@ const local = StyleSheet.create({
   content: { gap: 14, paddingHorizontal: 28, paddingVertical: 20 },
   crumb: { alignItems: "center", flexDirection: "row", gap: 2, zIndex: 3 },
   scroll: { backgroundColor: colors.wood, flex: 1 },
+  title: {
+    color: colors.onWood,
+    fontFamily: fonts.hand,
+    fontSize: 46,
+    fontWeight: "700",
+    letterSpacing: 2,
+    lineHeight: 56,
+    marginTop: 4,
+    textShadowColor: "#000",
+    textShadowOffset: { height: 2, width: 0 },
+    textShadowRadius: 6,
+    textTransform: "uppercase",
+  },
 });

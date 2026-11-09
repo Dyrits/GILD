@@ -1283,3 +1283,19 @@ The rail's Reserves show one row per set global limit: Mana for tokens, Gold for
 References: apps/app/src/{controls,styles,sidebar,budgets,labels}.ts*.
 Validation: typecheck, lint, and 431 tests pass.
 Evidence: Baseline `882402b`; [proof](verification/2026-11-09-composer-reserves.md). Not proven: warning colors, the skill highlight on a grown box, narrow widths, and the owner's acceptance of the look.
+
+
+## CHG-0083 · 2026-11-09 · Board closer to the owner's mockup
+
+Type: Code
+Event: Delivery
+Scope: Guild interface
+
+Summary: The owner shared a painted mockup of the guild and asked for the interface to be more like it. What code can draw was taken; painted art and features Gild lacks were not.
+Board: a large Quests title over a drawn castle and hills; columns hang as banners from gilt rods with their meaning inside; cards have an inner gilt line and Done cards a FULFILLED tag.
+Rail: a crest with the mark and the wordmark; sections with icons and a gilt rule (Realms, Quests, The Keep, Reserves). Guildmaster, Lore, Archives, and Settings now sit together under The Keep, drawn icons replace the text glyphs, and the reserves have icons and gilt-rimmed bars.
+Quest panel: opens with the quest's emblem, its title (press to rename), and its state; the separate Name and Status groups are gone.
+Left out: the mockup's painted scenery, the Counsel, Spoils, Chronicle tabs, party size, branch, and diff counts, which Gild does not have.
+References: apps/app/src/{board,dashboard,sidebar,budgets,questPanel,sketches}.tsx.
+Validation: typecheck, lint, and 431 tests pass.
+Evidence: Baseline `5485680`; [proof](verification/2026-11-09-guild-mockup.md). Not proven: the Fulfilled tag, the collapsed rail, narrow widths, and the owner's acceptance of the look.

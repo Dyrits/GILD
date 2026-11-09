@@ -4,6 +4,7 @@ import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { BudgetMeters } from "./budgets";
 import type { ServiceClient } from "./client";
 import { StateBadge } from "./controls";
+import { Badge } from "./emblems";
 import { usageDetail } from "./formatting";
 import { tokenCountOf } from "./labels";
 import { MissionEndingActions, MissionTitle } from "./missionActions";
@@ -72,18 +73,16 @@ export function QuestSidebar({
   const { usage } = mission;
   return (
     <ScrollView contentContainerStyle={local.content} style={local.panel}>
-      <View style={local.group}>
-        <Text style={local.groupLabel}>Name</Text>
-        <View style={local.field}>
-          <MissionTitle client={client} key={mission.title} mission={mission} textStyle={local.name} />
+      <View style={local.hero}>
+        <Text style={local.kicker}>Quest</Text>
+        <View style={local.heroRow}>
+          <Badge id={mission.id} isChip size={52} />
+          <View style={local.heroText}>
+            <MissionTitle client={client} key={mission.title} mission={mission} textStyle={local.heroName} />
+            <StateBadge state={mission.state} />
+          </View>
         </View>
       </View>
-      <Group label="Status">
-        <View style={local.row}>
-          <Text style={local.rowLabel}>State</Text>
-          <StateBadge state={mission.state} />
-        </View>
-      </Group>
       <Group label="Knows">
         <Row label="Journal" onPress={onOpenJournal} />
       </Group>
@@ -118,7 +117,17 @@ const local = StyleSheet.create({
     letterSpacing: 1.4,
     textTransform: "uppercase",
   },
-  name: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.md },
+  hero: { borderBottomColor: colors.gold, borderBottomWidth: 1, gap: 8, paddingBottom: 14 },
+  heroName: { color: colors.text, fontFamily: fonts.hand, fontSize: 20, fontWeight: "700", lineHeight: 26 },
+  heroRow: { alignItems: "center", flexDirection: "row", gap: 12 },
+  heroText: { alignItems: "flex-start", flex: 1, gap: 4 },
+  kicker: {
+    color: colors.textMuted,
+    fontFamily: fonts.hand,
+    fontSize: 12,
+    letterSpacing: 2,
+    textTransform: "uppercase",
+  },
   panel: { flex: 1 },
   pressed: { backgroundColor: colors.controlActive },
   row: { alignItems: "center", flexDirection: "row", gap: 8, minHeight: 40, paddingHorizontal: 12 },

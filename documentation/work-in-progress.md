@@ -32,6 +32,8 @@ Emblems batch (CHG-0081): an emblem per realm and quest, one Realms menu in the 
 
 Composer and reserves batch (CHG-0082): a one-line pill message box growing only for several lines, and Mana and Gold reserve rows in the rail; typecheck, lint, and 431 tests pass; the look awaits the owner ([proof](verification/2026-11-09-composer-reserves.md)).
 
+Mockup batch (CHG-0083): hanging banners, a drawn castle heading, a crest and The Keep in the rail, a quest panel header; typecheck, lint, and 431 tests pass; the look awaits the owner ([proof](verification/2026-11-09-guild-mockup.md)).
+
 ## Goal
 
 Build the first slice iteratively (CHG-0025): each batch leaves a runnable application with its checks. Design under review: [first-slice-design.md](first-slice-design.md) and the mission-tracking, thread-tree, and thread-messaging blueprints. Starting revision: `e445b44`.

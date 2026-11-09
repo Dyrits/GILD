@@ -9,6 +9,7 @@ import {
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import type { ServiceClient } from "./client";
+import { Emblem, type EmblemName } from "./emblems";
 import { timeOf } from "./formatting";
 import { budgetUseTextOf, meterLevelOf, raisedLimitsOf, reserveOf, tokenCountOf } from "./labels";
 import { Choice } from "./pickers";
@@ -57,9 +58,9 @@ export function BudgetMeters({ use, onPress }: { use: BudgetUse; onPress?: () =>
 
 /** What each limit is called in the rail, and the color of its full bar: tokens are Mana, cost is Gold. */
 const reserveKinds = {
-  cost: { color: colors.goldHi, name: "Gold" },
-  tokens: { color: "#5b8fd6", name: "Mana" },
-} as const;
+  cost: { color: colors.goldHi, emblem: "gem", name: "Gold" },
+  tokens: { color: "#5b8fd6", emblem: "flask", name: "Mana" },
+} as const satisfies Record<string, { color: string; emblem: EmblemName; name: string }>;
 
 /**
  * The rail's reserves: one row per set limit, its name and what is left above a bar that drains as the budget is
@@ -76,17 +77,34 @@ export function ReserveRows({ use }: { use: BudgetUse }) {
         const color = level === "normal" ? reserveKinds[unit].color : levelColors[level];
         const { fraction, text } = reserveOf(unit, spent, limit);
         return (
-          <View accessibilityLabel={`Reserve ${reserveKinds[unit].name}`} key={unit} style={{ gap: 3 }}>
-            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-              <Text style={{ color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.md }}>
-                {reserveKinds[unit].name}
-              </Text>
-              <Text style={{ color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.md }}>{text}</Text>
-            </View>
-            <View style={{ backgroundColor: "#1f120c", borderRadius: radii.pill, height: 6, overflow: "hidden" }}>
+          <View
+            accessibilityLabel={`Reserve ${reserveKinds[unit].name}`}
+            key={unit}
+            style={{ alignItems: "center", flexDirection: "row", gap: 8 }}
+          >
+            <Emblem name={reserveKinds[unit].emblem} size={22} tint={reserveKinds[unit].color} />
+            <View style={{ flex: 1, gap: 3 }}>
+              <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+                <Text style={{ color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.md }}>
+                  {reserveKinds[unit].name}
+                </Text>
+                <Text style={{ color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.md }}>{text}</Text>
+              </View>
               <View
-                style={{ backgroundColor: color, borderRadius: radii.pill, height: 6, width: `${fraction * 100}%` }}
-              />
+                style={{
+                  backgroundColor: "#1f120c",
+                  borderColor: colors.gold,
+                  borderRadius: radii.pill,
+                  borderWidth: 1,
+                  height: 10,
+                  overflow: "hidden",
+                  padding: 1,
+                }}
+              >
+                <View
+                  style={{ backgroundColor: color, borderRadius: radii.pill, flex: 1, width: `${fraction * 100}%` }}
+                />
+              </View>
             </View>
           </View>
         );

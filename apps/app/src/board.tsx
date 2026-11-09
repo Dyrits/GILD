@@ -57,7 +57,13 @@ export function MissionCard({
         { transform: [{ rotate: isHovered ? "0deg" : `${tiltOf(mission.id)}deg` }, { scale: isHovered ? 1.02 : 1 }] },
       ]}
     >
+      <View pointerEvents="none" style={local.inner} />
       <View pointerEvents="none" style={local.pin} />
+      {mission.state === "Done" && (
+        <View pointerEvents="none" style={local.ribbon}>
+          <Text style={local.ribbonText}>{stateLabels.Done}</Text>
+        </View>
+      )}
       {isCircled && (
         <View pointerEvents="none" style={local.circle}>
           <Text style={local.seal}>!</Text>
@@ -86,7 +92,9 @@ export function MissionCard({
           </View>
         )}
       </Pressable>
-      {(column === null || isStateShownOn(column, mission.state)) && <StateBadge state={mission.state} />}
+      {mission.state !== "Done" && (column === null || isStateShownOn(column, mission.state)) && (
+        <StateBadge state={mission.state} />
+      )}
       <BudgetMeters use={mission.budget} />
       <MissionEndingActions client={client} mission={mission} />
     </View>
@@ -96,7 +104,10 @@ export function MissionCard({
 /** What each column means, in one italic line under its ribbon. */
 const columnCaptions = { Attention: "needs you", Done: "Done", Idle: "Resting", Running: "Running" } as const;
 
-/** A column's ribbon: a banner with a notched lower edge, its name and count, and its meaning beneath. */
+/**
+ * A column's banner: hung from a gilt rod with a knob at each end, a swallowtail cloth in the column's color, its name
+ * and count, and its meaning beneath in italics.
+ */
 function ColumnHeading({ column, count }: { column: BoardColumn; count: number }) {
   const color =
     column === "Attention"
@@ -108,12 +119,17 @@ function ColumnHeading({ column, count }: { column: BoardColumn; count: number }
           : colors.accent;
   return (
     <View style={local.headingBlock}>
+      <View style={local.rod}>
+        <View style={local.knob} />
+        <View style={local.rodBar} />
+        <View style={local.knob} />
+      </View>
       <View style={[local.heading, { backgroundColor: color }]}>
         <Text style={local.headingText}>
           {stateLabels[column]} <Text style={local.count}>{count}</Text>
         </Text>
+        <Text style={local.caption}>{columnCaptions[column]}</Text>
       </View>
-      <Text style={local.caption}>{columnCaptions[column]}</Text>
     </View>
   );
 }
@@ -164,6 +180,7 @@ const local = StyleSheet.create({
     fontFamily: fonts.sans,
     fontSize: fontSizes.sm,
     fontStyle: "italic",
+    opacity: 0.9,
     textAlign: "center",
   },
   card: {
@@ -205,13 +222,14 @@ const local = StyleSheet.create({
   heading: {
     alignItems: "center",
     justifyContent: "center",
-    paddingBottom: 18,
+    marginHorizontal: 8,
+    paddingBottom: 22,
     paddingHorizontal: 12,
-    paddingTop: 9,
+    paddingTop: 8,
     // The swallowtail notch is web-only; native shows a plain banner until a mask is chosen.
     ...(Platform.OS === "web" ? ({ clipPath: "polygon(0 0, 100% 0, 100% 100%, 50% 78%, 0 100%)" } as object) : {}),
   },
-  headingBlock: { alignItems: "stretch", gap: 8, marginBottom: 16 },
+  headingBlock: { alignItems: "stretch", marginBottom: 16 },
   headingText: {
     color: colors.onWood,
     fontFamily: fonts.hand,
@@ -223,6 +241,25 @@ const local = StyleSheet.create({
     textTransform: "uppercase",
   },
   highlighted: { backgroundColor: colors.marker },
+  inner: {
+    borderColor: colors.border,
+    borderRadius: 2,
+    borderWidth: 1,
+    bottom: 3,
+    left: 3,
+    opacity: 0.7,
+    position: "absolute",
+    right: 3,
+    top: 3,
+  },
+  knob: {
+    backgroundColor: colors.goldHi,
+    borderColor: colors.gold,
+    borderRadius: 6,
+    borderWidth: 1,
+    height: 11,
+    width: 11,
+  },
   note: { color: colors.onWood, fontFamily: fonts.sans, fontSize: 15, marginBottom: 12 },
   pin: {
     alignSelf: "center",
@@ -235,6 +272,26 @@ const local = StyleSheet.create({
     top: 5,
     width: 7,
   },
+  ribbon: {
+    backgroundColor: colors.success,
+    borderBottomLeftRadius: 4,
+    paddingHorizontal: 9,
+    paddingVertical: 2,
+    position: "absolute",
+    right: 0,
+    top: -7,
+    zIndex: 1,
+  },
+  ribbonText: {
+    color: colors.onWood,
+    fontFamily: fonts.hand,
+    fontSize: 10,
+    fontWeight: "700",
+    letterSpacing: 1.2,
+    textTransform: "uppercase",
+  },
+  rod: { alignItems: "center", flexDirection: "row", marginBottom: -1, zIndex: 1 },
+  rodBar: { backgroundColor: colors.gold, flex: 1, height: 4 },
   seal: { color: colors.canvas, fontFamily: fonts.hand, fontSize: 18 },
   stacked: { gap: 8 },
   tick: { color: colors.success },

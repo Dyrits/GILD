@@ -1,9 +1,9 @@
 import type { MissionId, MissionSummary, WorkspaceId } from "@gild/contracts";
 import { type ComponentRef, createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Modal, Platform, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { ReserveRows } from "./budgets";
 import type { ServiceClient } from "./client";
-import { Badge, RealmsIcon } from "./emblems";
+import { Badge, Emblem, type EmblemName, RealmsIcon } from "./emblems";
 import { tokenCountOf } from "./labels";
 import { allMissions } from "./queries";
 import { GildMark } from "./sketches";
@@ -77,8 +77,11 @@ function NavItem({
   label,
   glyph,
   onPress,
+  emblem,
   realm,
 }: {
+  /** A drawn icon for the row, in place of the text glyph. */
+  emblem?: EmblemName;
   /** The id of the realm the row stands for, whose emblem replaces the glyph. */
   realm?: string;
   /** A number shown at the end of the row, such as a workspace's open missions; none when absent. */
@@ -108,6 +111,8 @@ function NavItem({
     >
       {realm !== undefined ? (
         <Badge id={realm} />
+      ) : emblem !== undefined ? (
+        <Emblem name={emblem} tint={isSelected ? colors.gold : colors.onWood} />
       ) : (
         <Text style={[local.glyph, isSelected && local.textSelected]}>{glyph}</Text>
       )}
@@ -189,7 +194,7 @@ function ArchivedItem({
         isSelected && local.itemSelected,
       ]}
     >
-      <Text style={local.archivedGlyph}>▤</Text>
+      <Emblem name="tower" tint={isSelected ? colors.gold : colors.onWood} />
       {!isCollapsed && (
         <Text numberOfLines={1} style={[local.itemText, local.archivedText, isSelected && local.textSelected]}>
           Archives
@@ -210,8 +215,22 @@ function PanelIcon({ side = "left" }: { side?: "left" | "right" }) {
 }
 
 /** A handwritten section label in the rail. */
-function Section({ isCollapsed = false, label }: { isCollapsed?: boolean; label: string }) {
-  return isCollapsed ? <View style={local.sectionRule} /> : <Text style={local.section}>{label}</Text>;
+function Section({
+  emblem,
+  isCollapsed = false,
+  label,
+}: {
+  emblem?: EmblemName;
+  isCollapsed?: boolean;
+  label: string;
+}) {
+  if (isCollapsed) return <View style={local.sectionRule} />;
+  return (
+    <View style={local.sectionHeading}>
+      {emblem !== undefined && <Emblem name={emblem} size={16} tint={colors.goldHi} />}
+      <Text style={local.sectionTitle}>{label}</Text>
+    </View>
+  );
 }
 
 /**
@@ -333,22 +352,23 @@ function Sidebar({
   return (
     <View style={[local.sidebar, isCollapsed && local.sidebarCollapsed]}>
       <View style={[local.brand, isCollapsed && local.brandCollapsed]}>
-        <GildMark />
-        {!isCollapsed && <Text style={local.brandText}>Gild</Text>}
+        {isCollapsed ? (
+          <GildMark />
+        ) : (
+          <>
+            <View style={local.crest}>
+              <GildMark size={38} />
+            </View>
+            <Text style={local.brandText}>Gild</Text>
+          </>
+        )}
       </View>
-      <NavItem
-        glyph={placeGlyphs.Control}
-        isCollapsed={isCollapsed}
-        isSelected={isOnBoard && workspaceId === null}
-        label="Guildmaster"
-        onPress={() => onPlace("Control")}
-      />
       <ScrollView contentContainerStyle={local.group} style={local.flex}>
         {isCollapsed ? (
           <RealmsMenu onWorkspace={onWorkspace} realms={realms} selected={isOnBoard ? workspaceId : null} />
         ) : (
           <>
-            <Section label="Realms" />
+            <Section emblem="compass" label="Realms" />
             {workspaces.length === 0 && <Text style={local.empty}>No quest in a realm yet.</Text>}
             {realms.map((realm) => (
               <NavItem
@@ -362,7 +382,7 @@ function Sidebar({
                 realm={realm.id}
               />
             ))}
-            <Section label="Quests" />
+            <Section emblem="sword" label="Quests" />
             {loose.length === 0 && <Text style={local.empty}>None outside a realm.</Text>}
             {loose.map((mission) => (
               <MissionItem
@@ -375,26 +395,43 @@ function Sidebar({
             ))}
           </>
         )}
+        <Section emblem="castle" isCollapsed={isCollapsed} label="The Keep" />
+        <NavItem
+          emblem="crown"
+          glyph={placeGlyphs.Control}
+          isCollapsed={isCollapsed}
+          isSelected={isOnBoard && workspaceId === null}
+          label="Guildmaster"
+          onPress={() => onPlace("Control")}
+        />
+        <NavItem
+          emblem="scroll"
+          glyph={placeGlyphs.Intel}
+          isCollapsed={isCollapsed}
+          isSelected={openMission === null && place === "Intel"}
+          label="Lore"
+          onPress={() => onPlace("Intel")}
+        />
         <ArchivedItem
           client={client}
           isCollapsed={isCollapsed}
           isSelected={openMission === null && place === "Archived"}
           onPress={() => onPlace("Archived")}
         />
+        <NavItem
+          emblem="key"
+          glyph={placeGlyphs.Settings}
+          isCollapsed={isCollapsed}
+          isSelected={openMission === null && place === "Settings"}
+          label="Settings"
+          onPress={() => onPlace("Settings")}
+        />
       </ScrollView>
-      <View style={local.footer}>
-        {(["Intel", "Settings"] as const).map((each) => (
-          <NavItem
-            glyph={placeGlyphs[each]}
-            isCollapsed={isCollapsed}
-            isSelected={openMission === null && place === each}
-            key={each}
-            label={each === "Intel" ? "Lore" : "Settings"}
-            onPress={() => onPlace(each)}
-          />
-        ))}
-        {!isCollapsed && <Spending client={client} />}
-      </View>
+      {!isCollapsed && (
+        <View style={local.footer}>
+          <Spending client={client} />
+        </View>
+      )}
     </View>
   );
 }
@@ -409,10 +446,7 @@ function Spending({ client }: { client: ServiceClient }) {
   const hasLimits = global.limits.cost !== null || global.limits.tokens !== null;
   return (
     <View style={local.spending}>
-      <View style={local.reservesHeading}>
-        <Text style={local.reservesTitle}>Reserves</Text>
-        <View style={local.reservesRule} />
-      </View>
+      <Section emblem="gem" label="Reserves" />
       {hasLimits ? (
         <ReserveRows use={global} />
       ) : (
@@ -689,14 +723,30 @@ export function Shell(
 }
 
 const local = StyleSheet.create({
-  // As wide as a mission's dot with its margins, so the label lines up with the missions' titles.
-  archivedGlyph: { color: colors.onWood, fontSize: fontSizes.sm, textAlign: "center", width: 13 },
   archivedText: { color: colors.onWood },
   attention: { backgroundColor: colors.warning, borderRadius: radii.pill, height: 7, width: 7 },
-  brand: { alignItems: "center", flexDirection: "row", gap: 8, paddingBottom: 12, paddingHorizontal: 8, paddingTop: 4 },
+  brand: { alignItems: "center", gap: 6, paddingBottom: 10, paddingTop: 2 },
   brandCollapsed: { justifyContent: "center", paddingHorizontal: 0 },
-  brandText: { color: colors.goldHi, fontFamily: fonts.hand, fontSize: 28, lineHeight: 32 },
+  brandText: {
+    color: colors.goldHi,
+    fontFamily: fonts.hand,
+    fontSize: 30,
+    fontWeight: "700",
+    letterSpacing: 5,
+    lineHeight: 34,
+    textTransform: "uppercase",
+  },
   count: { color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.sm },
+  crest: {
+    alignItems: "center",
+    backgroundColor: colors.danger,
+    height: 62,
+    justifyContent: "flex-start",
+    paddingTop: 8,
+    width: 56,
+    // The swallowtail notch is web-only; native shows a plain banner.
+    ...(Platform.OS === "web" ? ({ clipPath: "polygon(0 0, 100% 0, 100% 100%, 50% 82%, 0 100%)" } as object) : {}),
+  },
   crumb: { alignItems: "center", flexDirection: "row", flexShrink: 0, gap: 8 },
   crumbCurrent: { color: colors.onWood },
   crumbGlyph: { color: colors.onWood, fontSize: fontSizes.md },
@@ -732,7 +782,7 @@ const local = StyleSheet.create({
     paddingVertical: 4,
     textTransform: "uppercase",
   },
-  footer: { borderColor: colors.border, borderTopWidth: 1.5, paddingTop: 8 },
+  footer: { paddingBottom: 4 },
   frame: { backgroundColor: colors.wood, flex: 1, flexDirection: "row", overflow: "hidden" },
   glyph: { color: colors.onWood, fontSize: fontSizes.md, textAlign: "center", width: 16 },
   group: { gap: 2 },
@@ -805,26 +855,26 @@ const local = StyleSheet.create({
   questClose: { color: colors.goldHi, fontSize: fontSizes.base, paddingHorizontal: 4 },
   questColumn: { borderColor: colors.gold, borderLeftWidth: 1, width: 300 },
   questColumnNarrow: { flex: 1 },
-  reservesHeading: { alignItems: "center", flexDirection: "row", gap: 8, paddingBottom: 8, paddingTop: 12 },
-  reservesRule: { borderColor: colors.gold, borderTopWidth: 1, flex: 1 },
-  reservesTitle: {
-    color: colors.goldHi,
-    fontFamily: fonts.hand,
-    fontSize: 12,
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
-  },
-  section: {
-    color: colors.onWood,
-    fontFamily: fonts.hand,
-    fontSize: 12,
-    letterSpacing: 1.4,
-    paddingBottom: 2,
-    paddingHorizontal: 8,
-    paddingTop: 14,
-    textTransform: "uppercase",
+  sectionHeading: {
+    alignItems: "center",
+    borderBottomColor: colors.gold,
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    gap: 8,
+    marginBottom: 4,
+    marginTop: 14,
+    paddingBottom: 4,
+    paddingHorizontal: 6,
   },
   sectionRule: { borderColor: colors.border, borderTopWidth: 1, marginHorizontal: 10, marginVertical: 8 },
+  sectionTitle: {
+    color: colors.goldHi,
+    fontFamily: fonts.hand,
+    fontSize: 13,
+    fontWeight: "700",
+    letterSpacing: 1.6,
+    textTransform: "uppercase",
+  },
   sidebar: {
     backgroundColor: colors.leather,
     borderColor: colors.gold,
