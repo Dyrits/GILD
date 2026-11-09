@@ -17,6 +17,7 @@ import {
   meterLevelOf,
   promptQuestionOf,
   raisedLimitsOf,
+  reserveOf,
   startingContextPartsOf,
   startingContextWarningOf,
   suggestionLabels,
@@ -95,6 +96,12 @@ describe("budget meters", () => {
   it("says a limit's use in its own unit, never pricing tokens", () => {
     expect(budgetUseTextOf("cost", 1.2, 5)).toBe("$1.20 of $5.00");
     expect(budgetUseTextOf("tokens", 12000, 50000)).toBe("12,000 of 50,000 tokens");
+  });
+
+  it("says what a limit leaves, never below nothing", () => {
+    expect(reserveOf("cost", 2.4, 15)).toEqual({ fraction: 0.84, text: "$12.60 left" });
+    expect(reserveOf("tokens", 62, 100)).toEqual({ fraction: 0.38, text: "38% left" });
+    expect(reserveOf("cost", 20, 15)).toEqual({ fraction: 0, text: "$0.00 left" });
   });
 
   it("raises each set limit by the factor and leaves an empty one empty", () => {

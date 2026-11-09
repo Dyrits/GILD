@@ -85,6 +85,10 @@ function SkillHighlights({ skills, text }: { skills: ReadonlyArray<Skill>; text:
   );
 }
 
+/** The input's line height, and the height at which it stops growing and scrolls. */
+const composerLineHeight = 20;
+const composerMaxHeight = 200;
+
 /**
  * A message box that keeps the text until the service accepts it, sent with Enter or the arrow button. While a thread runs, a smaller second
  * button sends the other way (Steer or Queue) and Interrupt ends the thread's current turn (CHG-0039).
@@ -116,6 +120,8 @@ export function Composer({
     onChangeText?.(value);
   };
   const [isSending, setIsSending] = useState(false);
+  // The input is one line high and grows with the lines it holds, up to a ceiling where it scrolls.
+  const [inputHeight, setInputHeight] = useState(composerLineHeight);
   const isEmpty = text.trim() === "";
   const [error, setError] = useState<string | null>(null);
   const partial = /(^|\s)\/([\w:.-]*)$/.exec(text)?.[2] ?? null;
@@ -162,67 +168,81 @@ export function Composer({
           ))}
         </View>
       )}
-      <View>
-        <SkillHighlights skills={skills} text={text} />
-        <TextInput
-          multiline
-          onChangeText={setText}
-          onKeyPress={(event) => {
-            const native = event.nativeEvent as { key: string; shiftKey?: boolean };
-            if (highlighted !== undefined) {
-              const moves: Record<string, number> = { ArrowDown: 1, ArrowUp: -1 };
-              const move = moves[native.key];
-              if (move !== undefined) {
-                event.preventDefault();
-                setChosen((Math.min(chosen, suggestions.length - 1) + move + suggestions.length) % suggestions.length);
-                return;
-              }
-              if (native.key === "Tab" || (native.key === "Enter" && !native.shiftKey)) {
-                event.preventDefault();
-                pick(highlighted);
-                return;
-              }
+      <View style={styles.composerPill}>
+        <View style={styles.composerField}>
+          <SkillHighlights skills={skills} text={text} />
+          <TextInput
+            multiline
+            onChangeText={setText}
+            onContentSizeChange={(event) =>
+              setInputHeight(
+                Math.min(
+                  composerMaxHeight,
+                  Math.max(composerLineHeight, Math.ceil(event.nativeEvent.contentSize.height)),
+                ),
+              )
             }
-            if (native.key === "Enter" && !native.shiftKey) {
-              event.preventDefault();
-              void send(onSend);
-            }
-          }}
-          placeholder={placeholder}
-          placeholderTextColor={colors.placeholder}
-          style={[
-            styles.composerInput,
-            skillTokensOf(text).some((token) => skills.some((skill) => skill.name === token.name)) &&
-              styles.composerInputOverlaid,
-          ]}
-          value={text}
-        />
-      </View>
-      <View style={styles.composerActions}>
-        <View style={styles.composerAccessory}>{accessory}</View>
-        {onInterrupt !== undefined && (
-          <Pressable onPress={() => interrupt(onInterrupt)} style={styles.buttonSecondary}>
-            <Text style={styles.buttonSecondaryText}>Interrupt</Text>
-          </Pressable>
-        )}
-        {alternative !== undefined && (
+            onKeyPress={(event) => {
+              const native = event.nativeEvent as { key: string; shiftKey?: boolean };
+              if (highlighted !== undefined) {
+                const moves: Record<string, number> = { ArrowDown: 1, ArrowUp: -1 };
+                const move = moves[native.key];
+                if (move !== undefined) {
+                  event.preventDefault();
+                  setChosen(
+                    (Math.min(chosen, suggestions.length - 1) + move + suggestions.length) % suggestions.length,
+                  );
+                  return;
+                }
+                if (native.key === "Tab" || (native.key === "Enter" && !native.shiftKey)) {
+                  event.preventDefault();
+                  pick(highlighted);
+                  return;
+                }
+              }
+              if (native.key === "Enter" && !native.shiftKey) {
+                event.preventDefault();
+                void send(onSend);
+              }
+            }}
+            placeholder={placeholder}
+            placeholderTextColor={colors.placeholder}
+            rows={1}
+            style={[
+              styles.composerInput,
+              { height: inputHeight },
+              skillTokensOf(text).some((token) => skills.some((skill) => skill.name === token.name)) &&
+                styles.composerInputOverlaid,
+            ]}
+            value={text}
+          />
+        </View>
+        {accessory !== undefined && <View style={styles.composerAccessory}>{accessory}</View>}
+        <View style={styles.composerActions}>
+          {onInterrupt !== undefined && (
+            <Pressable onPress={() => interrupt(onInterrupt)} style={styles.buttonSecondary}>
+              <Text style={styles.buttonSecondaryText}>Interrupt</Text>
+            </Pressable>
+          )}
+          {alternative !== undefined && (
+            <Pressable
+              disabled={isSending}
+              onPress={() => send(alternative.onSend)}
+              style={[styles.buttonSecondary, isSending && styles.buttonDisabled]}
+            >
+              <Text style={styles.buttonSecondaryText}>{alternative.label}</Text>
+            </Pressable>
+          )}
           <Pressable
-            disabled={isSending}
-            onPress={() => send(alternative.onSend)}
-            style={[styles.buttonSecondary, isSending && styles.buttonDisabled]}
+            accessibilityLabel="Send"
+            accessibilityRole="button"
+            disabled={isSending || isEmpty}
+            onPress={() => send(onSend)}
+            style={[styles.sendButton, (isSending || isEmpty) && styles.buttonDisabled]}
           >
-            <Text style={styles.buttonSecondaryText}>{alternative.label}</Text>
+            <SendArrow />
           </Pressable>
-        )}
-        <Pressable
-          accessibilityLabel="Send"
-          accessibilityRole="button"
-          disabled={isSending || isEmpty}
-          onPress={() => send(onSend)}
-          style={[styles.sendButton, (isSending || isEmpty) && styles.buttonDisabled]}
-        >
-          <SendArrow />
-        </Pressable>
+        </View>
       </View>
       {error !== null && <Text style={styles.error}>{error}</Text>}
     </View>

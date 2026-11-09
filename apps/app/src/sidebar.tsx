@@ -1,7 +1,7 @@
 import type { MissionId, MissionSummary, WorkspaceId } from "@gild/contracts";
 import { type ComponentRef, createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
-import { BudgetMeters } from "./budgets";
+import { ReserveRows } from "./budgets";
 import type { ServiceClient } from "./client";
 import { Badge, RealmsIcon } from "./emblems";
 import { tokenCountOf } from "./labels";
@@ -409,9 +409,12 @@ function Spending({ client }: { client: ServiceClient }) {
   const hasLimits = global.limits.cost !== null || global.limits.tokens !== null;
   return (
     <View style={local.spending}>
-      <Section label="Reserves" />
+      <View style={local.reservesHeading}>
+        <Text style={local.reservesTitle}>Reserves</Text>
+        <View style={local.reservesRule} />
+      </View>
       {hasLimits ? (
-        <BudgetMeters use={global} />
+        <ReserveRows use={global} />
       ) : (
         <Text style={local.empty}>
           {tokenCountOf(global.spent.tokens)} tokens
@@ -802,6 +805,15 @@ const local = StyleSheet.create({
   questClose: { color: colors.goldHi, fontSize: fontSizes.base, paddingHorizontal: 4 },
   questColumn: { borderColor: colors.gold, borderLeftWidth: 1, width: 300 },
   questColumnNarrow: { flex: 1 },
+  reservesHeading: { alignItems: "center", flexDirection: "row", gap: 8, paddingBottom: 8, paddingTop: 12 },
+  reservesRule: { borderColor: colors.gold, borderTopWidth: 1, flex: 1 },
+  reservesTitle: {
+    color: colors.goldHi,
+    fontFamily: fonts.hand,
+    fontSize: 12,
+    letterSpacing: 1.4,
+    textTransform: "uppercase",
+  },
   section: {
     color: colors.onWood,
     fontFamily: fonts.hand,

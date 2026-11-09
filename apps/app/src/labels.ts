@@ -124,6 +124,18 @@ export const budgetUseTextOf = (unit: "cost" | "tokens", spent: number, limit: n
     ? `$${spent.toFixed(2)} of $${limit.toFixed(2)}`
     : `${tokenCountOf(spent)} of ${tokenCountOf(limit)} tokens`;
 
+/**
+ * What a limit leaves, for the rail's Reserves: the cost's remaining dollars, the tokens' remaining share, and the share
+ * of the limit still left (0 to 1) for the bar. Spending past a limit leaves nothing.
+ */
+export const reserveOf = (unit: "cost" | "tokens", spent: number, limit: number) => {
+  const left = Math.max(0, limit - spent);
+  return {
+    fraction: limit > 0 ? left / limit : 0,
+    text: unit === "cost" ? `$${left.toFixed(2)} left` : `${Math.round((limit > 0 ? left / limit : 0) * 100)}% left`,
+  };
+};
+
 /** The limits raised by a factor, for the quick raises (+25%, +50%, double); an empty limit stays empty. */
 export const raisedLimitsOf = (limits: BudgetLimits, factor: number): BudgetLimits => ({
   cost: limits.cost === null ? null : Math.round(limits.cost * factor * 100) / 100,

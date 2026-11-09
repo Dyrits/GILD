@@ -1269,3 +1269,17 @@ Emblems are not chosen by the owner yet; a chosen icon would need a stored field
 References: apps/app/src/{emblems,sidebar,board}.tsx.
 Validation: typecheck, lint, and 430 tests pass.
 Evidence: Baseline `e6db65d`; [proof](verification/2026-11-09-emblems.md). Not proven: the card hover, the realm choice in the menu, narrow widths, and the owner's acceptance of the look.
+
+
+## CHG-0082 · 2026-11-09 · Pill composer and rail reserves
+
+Type: Code
+Event: Delivery
+Scope: Guild interface
+
+Summary: The owner preferred a one-line, rounded message box that grows only for several lines, and showed a reserves block with a name, what is left, and a bar per resource.
+The composer is one pill: the text, the pickers (on the dashboard), the Interrupt and alternative buttons, and the send button share a row; the input is one line high and grows with its lines up to 200px, then scrolls. On a narrow box the pickers wrap below the text.
+The rail's Reserves show one row per set global limit: Mana for tokens, Gold for cost, each with what is left ("38% left", "$12.60 left") over a bar that drains, orange from 80% spent and red at the limit. Without limits the rail keeps its one line of spending. Gild does not read the harnesses' plan limits, so the rows show the global budget only.
+References: apps/app/src/{controls,styles,sidebar,budgets,labels}.ts*.
+Validation: typecheck, lint, and 431 tests pass.
+Evidence: Baseline `882402b`; [proof](verification/2026-11-09-composer-reserves.md). Not proven: warning colors, the skill highlight on a grown box, narrow widths, and the owner's acceptance of the look.

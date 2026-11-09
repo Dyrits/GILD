@@ -10,10 +10,10 @@ import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import type { ServiceClient } from "./client";
 import { timeOf } from "./formatting";
-import { budgetUseTextOf, meterLevelOf, raisedLimitsOf, tokenCountOf } from "./labels";
+import { budgetUseTextOf, meterLevelOf, raisedLimitsOf, reserveOf, tokenCountOf } from "./labels";
 import { Choice } from "./pickers";
 import { styles } from "./styles";
-import { colors } from "./theme";
+import { colors, fontSizes, fonts, radii } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
 
 const levelColors = { normal: colors.textMuted, reached: colors.danger, warning: colors.warning } as const;
@@ -53,6 +53,46 @@ export function BudgetMeters({ use, onPress }: { use: BudgetUse; onPress?: () =>
     </View>
   );
   return onPress === undefined ? content : <Pressable onPress={onPress}>{content}</Pressable>;
+}
+
+/** What each limit is called in the rail, and the color of its full bar: tokens are Mana, cost is Gold. */
+const reserveKinds = {
+  cost: { color: colors.goldHi, name: "Gold" },
+  tokens: { color: "#5b8fd6", name: "Mana" },
+} as const;
+
+/**
+ * The rail's reserves: one row per set limit, its name and what is left above a bar that drains as the budget is
+ * spent, turning orange from 80% spent and red when spent. Only what Gild counts is shown, not the harnesses' plans.
+ */
+export function ReserveRows({ use }: { use: BudgetUse }) {
+  return (
+    <View style={{ gap: 8 }}>
+      {(["tokens", "cost"] as const).map((unit) => {
+        const limit = use.limits[unit];
+        if (limit === null) return null;
+        const spent = use.spent[unit];
+        const level = meterLevelOf(spent, limit);
+        const color = level === "normal" ? reserveKinds[unit].color : levelColors[level];
+        const { fraction, text } = reserveOf(unit, spent, limit);
+        return (
+          <View accessibilityLabel={`Reserve ${reserveKinds[unit].name}`} key={unit} style={{ gap: 3 }}>
+            <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
+              <Text style={{ color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.md }}>
+                {reserveKinds[unit].name}
+              </Text>
+              <Text style={{ color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.md }}>{text}</Text>
+            </View>
+            <View style={{ backgroundColor: "#1f120c", borderRadius: radii.pill, height: 6, overflow: "hidden" }}>
+              <View
+                style={{ backgroundColor: color, borderRadius: radii.pill, height: 6, width: `${fraction * 100}%` }}
+              />
+            </View>
+          </View>
+        );
+      })}
+    </View>
+  );
 }
 
 const numberOrNull = (text: string) => {

@@ -30,6 +30,8 @@ Thread panel batch (CHG-0079): a panel beside each thread with its context gauge
 
 Emblems batch (CHG-0081): an emblem per realm and quest, one Realms menu in the collapsed rail, hover labels, Ctrl/Command+B, and card hover; typecheck, lint, and 430 tests pass; the look awaits the owner ([proof](verification/2026-11-09-emblems.md)).
 
+Composer and reserves batch (CHG-0082): a one-line pill message box growing only for several lines, and Mana and Gold reserve rows in the rail; typecheck, lint, and 431 tests pass; the look awaits the owner ([proof](verification/2026-11-09-composer-reserves.md)).
+
 ## Goal
 
 Build the first slice iteratively (CHG-0025): each batch leaves a runnable application with its checks. Design under review: [first-slice-design.md](first-slice-design.md) and the mission-tracking, thread-tree, and thread-messaging blueprints. Starting revision: `e445b44`.
