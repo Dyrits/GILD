@@ -81,7 +81,15 @@ export function Badge({
   state?: MissionState;
 }) {
   const { name, tint } = emblemOf(id);
-  const chip = isChip ? { backgroundColor: colors.leather, borderRadius: radii.pill, padding: size * 0.2 } : null;
+  const chip = isChip
+    ? {
+        backgroundColor: colors.leather,
+        borderColor: colors.gold,
+        borderRadius: radii.pill,
+        borderWidth: 1,
+        padding: size * 0.2,
+      }
+    : null;
   return (
     <View style={[chip, { height: size, width: size }]}>
       <Emblem name={name} size={isChip ? size * 0.6 : size} tint={tint} />

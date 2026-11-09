@@ -1349,3 +1349,17 @@ The breadcrumbs follow: Realms, Quests, and The Keep now lead to their places. Q
 References: apps/app/App.tsx, apps/app/src/{places,sidebar,dashboard}.tsx.
 Validation: typecheck, lint, and 431 tests pass.
 Evidence: Baseline `d1b7023`; [screenshots](verification/2026-11-09-places/) (fake harness, 1600px). Not proven: the selected heading's new fill, narrow widths, and the owner's acceptance.
+
+
+## CHG-0088 · 2026-11-09 · The quest panel and cards closer to the illustrated view
+
+Type: Code
+Event: Delivery
+Scope: Guild interface
+
+Summary: The owner shared their illustrated dashboard (`guild-dashboard 2`), asked for the interface to look more like it, and liked its selected-quest sidebar, asking for the same.
+The quest panel is now a parchment in a double gilt frame with corner diamonds and a red bookmark, the quest's emblem on a gilt tile beside its name in large capitals, a line of how it stands, tabs Knows (the journal, as a blue note with a quill) and Spends (budget, usage, meters), and a red-ruled Does box with gilt Mark as done and Archive buttons; it is 360px wide. Cards have larger capital titles, a brown double frame, no pin, and a rule over the cost; the columns have faint rules between them; emblem chips have a gilt ring. The owner's painted desk (`apps/app/assets/guild-desk.png`, from the mockup's `desk-props.png`) lies along the foot of the board's window.
+Left out because Gild has no such thing: the mockup's Counsel, Spoils, Chronicle, and Lore tabs, quest ordinals, party and branch lines, diff counts, the approval box, and the message box in the panel.
+References: apps/app/src/{parchment,questPanel,missionActions,board,dashboard,sketches,emblems,sidebar}.tsx.
+Validation: typecheck, lint, and 431 tests pass.
+Evidence: Baseline `e40d80e`; [proof](verification/2026-11-09-guild-panel.md). Not proven: Summons and Fulfilled cards, narrow widths, and the owner's acceptance.

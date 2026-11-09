@@ -932,7 +932,7 @@ const local = StyleSheet.create({
   panelIconRight: { justifyContent: "flex-end" },
   questBody: { backgroundColor: colors.paper, flex: 1 },
   questClose: { color: colors.goldHi, fontSize: fontSizes.base, paddingHorizontal: 4 },
-  questColumn: { borderColor: colors.gold, borderLeftWidth: 1, width: 300 },
+  questColumn: { borderColor: colors.gold, borderLeftWidth: 1, width: 360 },
   questColumnNarrow: { flex: 1 },
   sectionHeading: {
     alignItems: "center",

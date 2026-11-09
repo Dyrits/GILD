@@ -11,7 +11,7 @@ import { allMissions } from "./queries";
 import { QuestionCard } from "./questions";
 import { type Runner, RunnerPickers, useHarnesses } from "./runners";
 import { useHasSidebar } from "./sidebar";
-import { GuildHero } from "./sketches";
+import { GuildDesk, GuildHero } from "./sketches";
 import { styles } from "./styles";
 import { colors, fonts } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
@@ -143,6 +143,7 @@ export function Dashboard({
   }
   return (
     <View style={local.scroll}>
+      {!isArchived && <GuildDesk />}
       <ScrollView
         contentContainerStyle={local.content}
         onLayout={(event) => setWidth(event.nativeEvent.layout.width)}

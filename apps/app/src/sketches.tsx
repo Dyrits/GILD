@@ -49,6 +49,42 @@ export function GuildHero() {
   );
 }
 
+/**
+ * The guild's desk along the foot of the board's window, behind its scrolling cards (the owner's painted art): a lantern, books, a sealed scroll, a map, an
+ * astrolabe, and an inkwell on dark timber. Its edges fade into the wood so it needs no frame.
+ */
+export function GuildDesk() {
+  return (
+    <View pointerEvents="none" style={local.desk}>
+      <View style={local.deskArt}>
+        <Image resizeMode="cover" source={require("../assets/guild-desk.png")} style={local.deskImage} />
+        <Svg
+          height="100%"
+          preserveAspectRatio="none"
+          style={StyleSheet.absoluteFill}
+          viewBox="0 0 100 100"
+          width="100%"
+        >
+          <Defs>
+            <LinearGradient id="desk-sides" x1="0" x2="1" y1="0" y2="0">
+              <Stop offset="0" stopColor={colors.wood} stopOpacity={1} />
+              <Stop offset="0.14" stopColor={colors.wood} stopOpacity={0} />
+              <Stop offset="0.86" stopColor={colors.wood} stopOpacity={0} />
+              <Stop offset="1" stopColor={colors.wood} stopOpacity={1} />
+            </LinearGradient>
+            <LinearGradient id="desk-top" x1="0" x2="0" y1="0" y2="1">
+              <Stop offset="0" stopColor={colors.wood} stopOpacity={1} />
+              <Stop offset="0.3" stopColor={colors.wood} stopOpacity={0} />
+            </LinearGradient>
+          </Defs>
+          <Rect fill="url(#desk-sides)" height={100} width={100} />
+          <Rect fill="url(#desk-top)" height={100} width={100} />
+        </Svg>
+      </View>
+    </View>
+  );
+}
+
 /** The empty state of a place with nothing for the owner: an empty gilt frame and a handwritten line. */
 export function EmptyBoard({ line }: { line: string }) {
   return (
@@ -65,6 +101,9 @@ export function EmptyBoard({ line }: { line: string }) {
 }
 
 const local = StyleSheet.create({
+  desk: { alignItems: "center", bottom: 0, left: 0, position: "absolute", right: 0 },
+  deskArt: { aspectRatio: 814 / 116, maxWidth: 1100, width: "100%" },
+  deskImage: { height: "100%", width: "100%" },
   empty: { alignItems: "center", gap: 6, paddingVertical: 28 },
   emptyText: { color: colors.onWood, fontFamily: fonts.hand, fontSize: 21 },
   hero: { height: 150, position: "absolute", right: 0, top: 0, width: "70%", zIndex: -1 },

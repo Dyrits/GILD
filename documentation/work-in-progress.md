@@ -34,6 +34,8 @@ Composer and reserves batch (CHG-0082): a one-line pill message box growing only
 
 Mockup batch (CHG-0083): hanging banners, a drawn castle heading, a crest and The Keep in the rail, a quest panel header; typecheck, lint, and 431 tests pass; the look awaits the owner ([proof](verification/2026-11-09-guild-mockup.md)).
 
+Illustrated-view batch (CHG-0088): a parchment quest panel with gilt frame, bookmark, Knows and Spends tabs and a Does box; sturdier cards; the painted desk behind the board; typecheck, lint, and 431 tests pass; the look awaits the owner ([proof](verification/2026-11-09-guild-panel.md)).
+
 ## Goal
 
 Build the first slice iteratively (CHG-0025): each batch leaves a runnable application with its checks. Design under review: [first-slice-design.md](first-slice-design.md) and the mission-tracking, thread-tree, and thread-messaging blueprints. Starting revision: `e445b44`.

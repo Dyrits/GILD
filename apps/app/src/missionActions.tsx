@@ -3,6 +3,7 @@ import { useState } from "react";
 import { Pressable, type StyleProp, Text, TextInput, type TextStyle, View } from "react-native";
 import type { ServiceClient } from "./client";
 import { promptQuestionOf } from "./labels";
+import { GoldButton } from "./parchment";
 import { styles } from "./styles";
 import { useEnding } from "./useEnding";
 
@@ -25,28 +26,42 @@ function EndingConfirmation({ ending }: { ending: ReturnType<typeof useEnding> }
   );
 }
 
-/** Mark as done, Archive, or Reopen in the mission header, by how the mission stands. */
-export function MissionEndingActions({ client, mission }: { client: ServiceClient; mission: MissionSummary }) {
+/** Mark as done, Archive, or Reopen, by how the mission stands: as links in a card, or as gilt buttons in the quest panel. */
+export function MissionEndingActions({
+  client,
+  isButtons = false,
+  mission,
+}: {
+  client: ServiceClient;
+  isButtons?: boolean;
+  mission: MissionSummary;
+}) {
   const ending = useEnding(client, mission);
   const reopen = () => ending.run(() => client.request({ _tag: "ReopenMission", missionId: mission.id }));
+  const actions =
+    mission.state === "Archived"
+      ? [{ isPrimary: true, label: "Reopen", onPress: reopen }]
+      : [
+          ...(mission.state === "Done"
+            ? []
+            : [{ isPrimary: true, label: endingLabels.Done, onPress: () => ending.start("Done") }]),
+          {
+            isPrimary: mission.state === "Done",
+            label: endingLabels.Archived,
+            onPress: () => ending.start("Archived"),
+          },
+        ];
   return (
-    <View>
-      <View style={styles.inlineRow}>
-        {mission.state === "Archived" ? (
-          <Pressable onPress={reopen}>
-            <Text style={styles.link}>Reopen</Text>
-          </Pressable>
-        ) : (
-          <>
-            {mission.state !== "Done" && (
-              <Pressable disabled={ending.isBusy} onPress={() => ending.start("Done")}>
-                <Text style={styles.link}>Mark as done</Text>
-              </Pressable>
-            )}
-            <Pressable disabled={ending.isBusy} onPress={() => ending.start("Archived")}>
-              <Text style={styles.link}>Archive</Text>
+    <View style={isButtons && { gap: 8 }}>
+      <View style={[styles.inlineRow, isButtons && { gap: 10 }]}>
+        {actions.map(({ isPrimary, label, onPress }) =>
+          isButtons ? (
+            <GoldButton isDisabled={ending.isBusy} isPrimary={isPrimary} key={label} label={label} onPress={onPress} />
+          ) : (
+            <Pressable disabled={ending.isBusy && label !== "Reopen"} key={label} onPress={onPress}>
+              <Text style={styles.link}>{label}</Text>
             </Pressable>
-          </>
+          ),
         )}
       </View>
       <EndingConfirmation ending={ending} />

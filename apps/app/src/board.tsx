@@ -64,7 +64,6 @@ export function MissionCard({
       ]}
     >
       <View pointerEvents="none" style={local.inner} />
-      <View pointerEvents="none" style={local.pin} />
       {mission.state === "Done" && (
         <View pointerEvents="none" style={local.ribbon}>
           <Text style={local.ribbonText}>{stateLabels.Done}</Text>
@@ -162,19 +161,32 @@ const local = StyleSheet.create({
     ...cut,
     ...lift,
     backgroundColor: colors.canvas,
-    gap: 6,
-    marginBottom: 12,
-    padding: 13,
-    paddingTop: 20,
+    borderColor: "#9b7544",
+    borderWidth: 2,
+    gap: 8,
+    marginBottom: 18,
+    padding: 16,
+    paddingTop: 18,
+    shadowOffset: { height: 4, width: 2 },
+    shadowOpacity: 0.5,
+    shadowRadius: 7,
     // Web only: the tilt eases away and back instead of snapping.
     ...(Platform.OS === "web" ? ({ transitionDuration: "140ms", transitionProperty: "transform" } as object) : {}),
   },
-  cardAttention: { borderColor: colors.danger },
+  cardAttention: { borderColor: colors.danger, borderWidth: 2.5 },
   cardDone: { opacity: 0.8 },
   cardHovered: { borderColor: colors.goldHi, opacity: 1 },
   cardMain: { gap: 2 },
   cardMeta: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.sm },
-  cardTitle: { color: colors.text, fontFamily: fonts.hand, fontSize: fontSizes.base, fontWeight: "600" },
+  cardTitle: {
+    color: colors.text,
+    fontFamily: fonts.hand,
+    fontSize: fontSizes.lg,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+    lineHeight: 21,
+    textTransform: "uppercase",
+  },
   circle: {
     alignItems: "center",
     backgroundColor: colors.danger,
@@ -188,10 +200,24 @@ const local = StyleSheet.create({
     zIndex: 1,
   },
   coin: { backgroundColor: colors.gold, borderRadius: 6, height: 11, width: 11 },
-  column: { flex: 1, minWidth: 0 },
-  columns: { alignItems: "flex-start", flexDirection: "row", gap: 16 },
+  column: {
+    borderRightColor: "rgba(184,134,43,0.22)",
+    borderRightWidth: 1,
+    flex: 1,
+    minWidth: 0,
+    paddingRight: 16,
+  },
+  columns: { alignItems: "stretch", flexDirection: "row", gap: 16 },
   cost: { color: colors.text, fontFamily: fonts.mono, fontSize: fontSizes.sm },
-  costRow: { alignItems: "center", flexDirection: "row", gap: 5, marginTop: 2 },
+  costRow: {
+    alignItems: "center",
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    flexDirection: "row",
+    gap: 6,
+    marginTop: 6,
+    paddingTop: 8,
+  },
   highlighted: { backgroundColor: colors.marker },
   inner: {
     borderColor: colors.border,
@@ -205,17 +231,6 @@ const local = StyleSheet.create({
     top: 3,
   },
   note: { color: colors.onWood, fontFamily: fonts.sans, fontSize: 15, marginBottom: 12 },
-  pin: {
-    alignSelf: "center",
-    backgroundColor: colors.textMuted,
-    borderColor: colors.border,
-    borderRadius: 4,
-    borderWidth: 1,
-    height: 7,
-    position: "absolute",
-    top: 5,
-    width: 7,
-  },
   ribbon: {
     backgroundColor: colors.success,
     borderBottomLeftRadius: 4,
