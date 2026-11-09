@@ -1,9 +1,11 @@
 import type { MissionSummary } from "@gild/contracts";
+import { useState } from "react";
 import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
 import { type BoardColumn, boardColumns, boardOf, isStateShownOn } from "./boardColumns";
 import { BudgetMeters } from "./budgets";
 import type { ServiceClient } from "./client";
 import { StateBadge } from "./controls";
+import { Badge } from "./emblems";
 import { harnessLabels, modelLabelOf, timeOf, usageText } from "./formatting";
 import { threadCountOf } from "./labels";
 import { MissionEndingActions } from "./missionActions";
@@ -40,14 +42,19 @@ export function MissionCard({
     .filter((part) => part !== null)
     .join(" · ");
   const isCircled = mission.state === "Attention";
+  // A card under the pointer straightens and rises a little, so the board answers the hand.
+  const [isHovered, setIsHovered] = useState(false);
   const cost = mission.budget.spent.cost;
   return (
     <View
+      onPointerEnter={() => setIsHovered(true)}
+      onPointerLeave={() => setIsHovered(false)}
       style={[
         local.card,
         mission.state === "Done" && local.cardDone,
         isCircled && local.cardAttention,
-        { transform: [{ rotate: `${tiltOf(mission.id)}deg` }] },
+        isHovered && local.cardHovered,
+        { transform: [{ rotate: isHovered ? "0deg" : `${tiltOf(mission.id)}deg` }, { scale: isHovered ? 1.02 : 1 }] },
       ]}
     >
       <View pointerEvents="none" style={local.pin} />
@@ -57,10 +64,13 @@ export function MissionCard({
         </View>
       )}
       <Pressable accessibilityRole="button" onPress={onOpen} style={local.cardMain}>
-        <Text numberOfLines={2} style={local.cardTitle}>
-          {mission.state === "Done" && <Text style={local.tick}>✓ </Text>}
-          {mission.title}
-        </Text>
+        <View style={local.titleRow}>
+          <Badge id={mission.id} isChip size={28} />
+          <Text numberOfLines={2} style={[local.cardTitle, local.titleText]}>
+            {mission.state === "Done" && <Text style={local.tick}>✓ </Text>}
+            {mission.title}
+          </Text>
+        </View>
         {place !== "" && (
           <Text numberOfLines={1} style={styles.muted}>
             {place}
@@ -165,9 +175,12 @@ const local = StyleSheet.create({
     marginBottom: 12,
     padding: 13,
     paddingTop: 20,
+    // Web only: the tilt eases away and back instead of snapping.
+    ...(Platform.OS === "web" ? ({ transitionDuration: "140ms", transitionProperty: "transform" } as object) : {}),
   },
   cardAttention: { borderColor: colors.danger },
   cardDone: { opacity: 0.8 },
+  cardHovered: { borderColor: colors.goldHi, opacity: 1 },
   cardMain: { gap: 2 },
   cardMeta: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.sm },
   cardTitle: { color: colors.text, fontFamily: fonts.hand, fontSize: fontSizes.base, fontWeight: "600" },
@@ -225,4 +238,6 @@ const local = StyleSheet.create({
   seal: { color: colors.canvas, fontFamily: fonts.hand, fontSize: 18 },
   stacked: { gap: 8 },
   tick: { color: colors.success },
+  titleRow: { alignItems: "center", flexDirection: "row", gap: 8 },
+  titleText: { flex: 1 },
 });

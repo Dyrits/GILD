@@ -28,6 +28,8 @@ Board batch (CHG-0078): ribbon column headings and harness and model on cards; t
 
 Thread panel batch (CHG-0079): a panel beside each thread with its context gauge, built unattended; typecheck, lint, and 430 tests pass; the look, live per-call usage, and the unsettled points of the specification await the owner ([proof](verification/2026-11-09-thread-panel.md)).
 
+Emblems batch (CHG-0081): an emblem per realm and quest, one Realms menu in the collapsed rail, hover labels, Ctrl/Command+B, and card hover; typecheck, lint, and 430 tests pass; the look awaits the owner ([proof](verification/2026-11-09-emblems.md)).
+
 ## Goal
 
 Build the first slice iteratively (CHG-0025): each batch leaves a runnable application with its checks. Design under review: [first-slice-design.md](first-slice-design.md) and the mission-tracking, thread-tree, and thread-messaging blueprints. Starting revision: `e445b44`.

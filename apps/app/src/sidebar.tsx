@@ -1,12 +1,13 @@
 import type { MissionId, MissionSummary, WorkspaceId } from "@gild/contracts";
-import { createContext, type ReactNode, useContext, useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { type ComponentRef, createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { BudgetMeters } from "./budgets";
 import type { ServiceClient } from "./client";
+import { Badge, RealmsIcon } from "./emblems";
 import { tokenCountOf } from "./labels";
 import { allMissions } from "./queries";
 import { GildMark } from "./sketches";
-import { colors, cut, fontSizes, fonts, ink, lift, radii, stateTones } from "./theme";
+import { colors, cut, fontSizes, fonts, ink, lift, radii } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
 
 /** The places the sidebar leads to; a mission is opened from its list instead, a workspace's board from its own list. */
@@ -45,6 +46,28 @@ export type DetailsToggle = { isOpen: boolean; onToggle: () => void };
 /** The window width from which the sidebar shows beside the content; narrower windows keep the screens' own links. */
 const sidebarBreakpoint = 820;
 
+/** What the rail says about an icon the pointer rests on, and where: shown by the frame, outside the rail's scrolling. */
+type RailTip = { label: string; x: number; y: number };
+
+const RailTipSetter = createContext<(tip: RailTip | null) => void>(() => {});
+
+/**
+ * Hover handlers that name an icon-only row beside it: the label appears to the right of the row while the pointer
+ * rests there, and leaves with it. Rows with their labels showing need none.
+ */
+const useRailTip = (label: string, isActive: boolean) => {
+  const set = useContext(RailTipSetter);
+  const row = useRef<ComponentRef<typeof View>>(null);
+  return {
+    onHoverIn: () => {
+      if (isActive)
+        row.current?.measureInWindow((x, y, width, height) => set({ label, x: x + width + 10, y: y + height / 2 }));
+    },
+    onHoverOut: () => set(null),
+    ref: row,
+  };
+};
+
 const placeGlyphs = { Archived: "▤", Control: "◎", Intel: "◆", Settings: "⚙" } as const satisfies Record<Place, string>;
 
 function NavItem({
@@ -54,7 +77,10 @@ function NavItem({
   label,
   glyph,
   onPress,
+  realm,
 }: {
+  /** The id of the realm the row stands for, whose emblem replaces the glyph. */
+  realm?: string;
   /** A number shown at the end of the row, such as a workspace's open missions; none when absent. */
   count?: number;
   /** Whether the rail shows icons only, so the label and the count leave the row. */
@@ -64,19 +90,27 @@ function NavItem({
   glyph: string;
   onPress: () => void;
 }) {
+  const tip = useRailTip(label, isCollapsed);
   return (
     <Pressable
       accessibilityLabel={label}
       accessibilityRole="button"
+      onHoverIn={tip.onHoverIn}
+      onHoverOut={tip.onHoverOut}
       onPress={onPress}
-      style={({ pressed }) => [
+      ref={tip.ref}
+      style={(state) => [
         local.item,
         isCollapsed && local.itemCollapsed,
-        pressed && local.itemHovered,
+        (state.pressed || (state as { hovered?: boolean }).hovered === true) && local.itemHovered,
         isSelected && local.itemSelected,
       ]}
     >
-      <Text style={[local.glyph, isSelected && local.textSelected]}>{glyph}</Text>
+      {realm !== undefined ? (
+        <Badge id={realm} />
+      ) : (
+        <Text style={[local.glyph, isSelected && local.textSelected]}>{glyph}</Text>
+      )}
       {!isCollapsed && (
         <Text numberOfLines={1} style={[local.itemText, isSelected && local.textSelected]}>
           {label}
@@ -103,20 +137,20 @@ function MissionItem({
       accessibilityLabel={mission.title}
       accessibilityRole="button"
       onPress={onPress}
-      style={({ pressed }) => [
+      style={(state) => [
         local.item,
         isCollapsed && local.itemCollapsed,
-        pressed && local.itemHovered,
+        (state.pressed || (state as { hovered?: boolean }).hovered === true) && local.itemHovered,
         isSelected && local.itemSelected,
       ]}
     >
-      <View style={[local.dot, { backgroundColor: stateTones[mission.state].color }]} />
+      <Badge id={mission.id} state={mission.state} />
       {!isCollapsed && (
         <Text numberOfLines={1} style={[local.itemText, local.missionText, isSelected && local.textSelected]}>
           {mission.title}
         </Text>
       )}
-      {mission.prompt !== null && <View style={local.attention} />}
+      {mission.prompt !== null && !isCollapsed && <View style={local.attention} />}
     </Pressable>
   );
 }
@@ -139,15 +173,19 @@ function ArchivedItem({
   const request = { _tag: "ListMissions", isArchived: true, search: null, state: null, workspaceId: null } as const;
   const { data } = useServiceQuery(client, request, `missions:${JSON.stringify(request)}`);
   const count = data?.missions.length ?? 0;
+  const tip = useRailTip("Archives", isCollapsed);
   return (
     <Pressable
       accessibilityLabel="Archives"
       accessibilityRole="button"
+      onHoverIn={tip.onHoverIn}
+      onHoverOut={tip.onHoverOut}
       onPress={onPress}
-      style={({ pressed }) => [
+      ref={tip.ref}
+      style={(state) => [
         local.item,
         isCollapsed && local.itemCollapsed,
-        pressed && local.itemHovered,
+        (state.pressed || (state as { hovered?: boolean }).hovered === true) && local.itemHovered,
         isSelected && local.itemSelected,
       ]}
     >
@@ -177,9 +215,88 @@ function Section({ isCollapsed = false, label }: { isCollapsed?: boolean; label:
 }
 
 /**
+ * The collapsed rail's one Realms button: a rail of icons cannot name every realm, so they gather in a list that opens
+ * beside the button, each with its own emblem, the open ones counted, and the realm whose board shows marked.
+ */
+function RealmsMenu({
+  realms,
+  selected,
+  onWorkspace,
+}: {
+  realms: readonly { count: number; id: WorkspaceId; name: string }[];
+  /** The realm whose board shows, if any. */
+  selected: WorkspaceId | null;
+  onWorkspace: (id: WorkspaceId) => void;
+}) {
+  const [frame, setFrame] = useState<{ x: number; y: number } | null>(null);
+  const tip = useRailTip("Realms", frame === null);
+  const { height } = useWindowDimensions();
+  const close = () => setFrame(null);
+  const open = () => tip.ref.current?.measureInWindow((x, y, width) => setFrame({ x: x + width + 10, y }));
+  const isOpen = frame !== null;
+  return (
+    <>
+      <Pressable
+        accessibilityLabel="Realms"
+        accessibilityRole="button"
+        accessibilityState={{ expanded: isOpen }}
+        onHoverIn={tip.onHoverIn}
+        onHoverOut={tip.onHoverOut}
+        onPress={isOpen ? close : open}
+        ref={tip.ref}
+        style={(state) => [
+          local.item,
+          local.itemCollapsed,
+          (state.pressed || isOpen || (state as { hovered?: boolean }).hovered === true) && local.itemHovered,
+          selected !== null && local.itemSelected,
+        ]}
+      >
+        <RealmsIcon tint={colors.onWood} />
+        {realms.length > 0 && <Text style={local.menuCount}>{realms.length}</Text>}
+      </Pressable>
+      <Modal animationType="none" onRequestClose={close} transparent visible={isOpen}>
+        <Pressable accessibilityLabel="Close the realms" onPress={close} style={StyleSheet.absoluteFill} />
+        {frame !== null && (
+          <View
+            style={[local.flyout, { left: frame.x, maxHeight: Math.max(160, height - frame.y - 16), top: frame.y }]}
+          >
+            <Text style={local.flyoutTitle}>Realms</Text>
+            <ScrollView>
+              {realms.length === 0 && <Text style={local.flyoutEmpty}>No quest in a realm yet.</Text>}
+              {realms.map((realm) => (
+                <Pressable
+                  accessibilityRole="menuitem"
+                  key={realm.id}
+                  onPress={() => {
+                    close();
+                    onWorkspace(realm.id);
+                  }}
+                  style={(state) => [
+                    local.flyoutItem,
+                    (state.pressed || (state as { hovered?: boolean }).hovered === true) && local.flyoutItemHovered,
+                    realm.id === selected && local.flyoutItemSelected,
+                  ]}
+                >
+                  <Badge id={realm.id} size={20} />
+                  <Text numberOfLines={1} style={local.flyoutText}>
+                    {realm.name}
+                  </Text>
+                  {realm.count > 0 && <Text style={local.flyoutCount}>{realm.count}</Text>}
+                </Pressable>
+              ))}
+            </ScrollView>
+          </View>
+        )}
+      </Modal>
+    </>
+  );
+}
+
+/**
  * The left rail: the app's name; Control on top, the board of every mission where missions start and where
- * Control's own thread will be pinned; the workspaces with their missions still open; the missions with no
- * workspace; the other places; and the spending against the global budget.
+ * Control's own thread will be pinned; the realms with their open quests and the quests with no realm, each with its
+ * own emblem; the other places; and the spending against the global budget. Collapsed to icons, the rail gathers the
+ * realms in one menu and leaves the quests to the Guildmaster's board.
  */
 function Sidebar({
   client,
@@ -207,6 +324,11 @@ function Sidebar({
   const missions = [...(data?.missions ?? [])].sort((a, b) => b.lastActivityAt - a.lastActivityAt);
   const loose = missions.filter((mission) => mission.workspaceId === null);
   const workspaces = [...(data?.workspaces ?? [])].sort((a, b) => a.name.localeCompare(b.name));
+  const realms = workspaces.map((workspace) => ({
+    count: missions.filter((mission) => mission.workspaceId === workspace.id && mission.state !== "Done").length,
+    id: workspace.id,
+    name: workspace.name,
+  }));
   const isOnBoard = openMission === null && place === "Control";
   return (
     <View style={[local.sidebar, isCollapsed && local.sidebarCollapsed]}>
@@ -222,32 +344,37 @@ function Sidebar({
         onPress={() => onPlace("Control")}
       />
       <ScrollView contentContainerStyle={local.group} style={local.flex}>
-        <Section isCollapsed={isCollapsed} label="Realms" />
-        {!isCollapsed && workspaces.length === 0 && <Text style={local.empty}>No quest in a realm yet.</Text>}
-        {workspaces.map((workspace) => (
-          <NavItem
-            count={
-              missions.filter((mission) => mission.workspaceId === workspace.id && mission.state !== "Done").length
-            }
-            glyph="▱"
-            isCollapsed={isCollapsed}
-            isSelected={isOnBoard && workspaceId === workspace.id}
-            key={workspace.id}
-            label={workspace.name}
-            onPress={() => onWorkspace(workspace.id)}
-          />
-        ))}
-        <Section isCollapsed={isCollapsed} label="Quests" />
-        {!isCollapsed && loose.length === 0 && <Text style={local.empty}>None outside a realm.</Text>}
-        {loose.map((mission) => (
-          <MissionItem
-            isCollapsed={isCollapsed}
-            isSelected={mission.id === openMission}
-            key={mission.id}
-            mission={mission}
-            onPress={() => onOpenMission(mission.id)}
-          />
-        ))}
+        {isCollapsed ? (
+          <RealmsMenu onWorkspace={onWorkspace} realms={realms} selected={isOnBoard ? workspaceId : null} />
+        ) : (
+          <>
+            <Section label="Realms" />
+            {workspaces.length === 0 && <Text style={local.empty}>No quest in a realm yet.</Text>}
+            {realms.map((realm) => (
+              <NavItem
+                count={realm.count}
+                glyph="▱"
+                isCollapsed={false}
+                isSelected={isOnBoard && workspaceId === realm.id}
+                key={realm.id}
+                label={realm.name}
+                onPress={() => onWorkspace(realm.id)}
+                realm={realm.id}
+              />
+            ))}
+            <Section label="Quests" />
+            {loose.length === 0 && <Text style={local.empty}>None outside a realm.</Text>}
+            {loose.map((mission) => (
+              <MissionItem
+                isCollapsed={false}
+                isSelected={mission.id === openMission}
+                key={mission.id}
+                mission={mission}
+                onPress={() => onOpenMission(mission.id)}
+              />
+            ))}
+          </>
+        )}
         <ArchivedItem
           client={client}
           isCollapsed={isCollapsed}
@@ -468,10 +595,26 @@ export function Shell(
   const [questPanel, setQuestPanel] = useState<ReactNode>(null);
   const { data } = useServiceQuery(props.client, allMissions.request, allMissions.key);
   const hasRail = width >= sidebarBreakpoint;
+  const [tip, setTip] = useState<RailTip | null>(null);
   const toggle = () => {
     rememberCollapsed(!isCollapsed);
     setIsCollapsed(!isCollapsed);
+    setTip(null);
   };
+  // Command or Control with B shows or hides the rail, as in editors; the browser's own handling is kept elsewhere.
+  const toggleRef = useRef(toggle);
+  toggleRef.current = toggle;
+  useEffect(() => {
+    if (!hasRail || typeof document === "undefined") return;
+    const onKey = (event: KeyboardEvent) => {
+      if ((event.metaKey || event.ctrlKey) && !event.altKey && !event.shiftKey && event.key.toLowerCase() === "b") {
+        event.preventDefault();
+        toggleRef.current();
+      }
+    };
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [hasRail]);
   const workspaces = data?.workspaces ?? [];
   const crumbs = crumbsOf({
     missions: data?.missions ?? [],
@@ -507,28 +650,35 @@ export function Shell(
     <QuestPanelSetter.Provider value={setQuestPanel}>
       <SidebarShown.Provider value={true}>
         <TopBarShown.Provider value={true}>
-          <View style={local.window}>
-            <View style={local.windowMain}>
-              <TopBar client={props.client} crumbs={crumbs} details={details} />
-              <View style={local.frame}>
-                <Sidebar {...props} isCollapsed={isCollapsed} />
-                <Pressable
-                  accessibilityLabel={isCollapsed ? "Expand sidebar" : "Collapse sidebar"}
-                  accessibilityRole="button"
-                  onPress={toggle}
-                  style={({ pressed }) => [
-                    local.handle,
-                    { left: (isCollapsed ? collapsedWidth : expandedWidth) - handleSize / 2 },
-                    pressed && local.handlePressed,
-                  ]}
-                >
-                  <PanelIcon />
-                </Pressable>
-                <View style={local.panel}>{props.children}</View>
+          <RailTipSetter.Provider value={setTip}>
+            <View style={local.window}>
+              <View style={local.windowMain}>
+                <TopBar client={props.client} crumbs={crumbs} details={details} />
+                <View style={local.frame}>
+                  <Sidebar {...props} isCollapsed={isCollapsed} />
+                  <Pressable
+                    accessibilityLabel={isCollapsed ? "Expand sidebar (⌘B)" : "Collapse sidebar (⌘B)"}
+                    accessibilityRole="button"
+                    onPress={toggle}
+                    style={({ pressed }) => [
+                      local.handle,
+                      { left: (isCollapsed ? collapsedWidth : expandedWidth) - handleSize / 2 },
+                      pressed && local.handlePressed,
+                    ]}
+                  >
+                    <PanelIcon />
+                  </Pressable>
+                  <View style={local.panel}>{props.children}</View>
+                </View>
               </View>
+              {panelColumn}
+              {tip !== null && (
+                <View pointerEvents="none" style={[local.tip, { left: tip.x, top: tip.y - 15 }]}>
+                  <Text style={local.tipText}>{tip.label}</Text>
+                </View>
+              )}
             </View>
-            {panelColumn}
-          </View>
+          </RailTipSetter.Provider>
         </TopBarShown.Provider>
       </SidebarShown.Provider>
     </QuestPanelSetter.Provider>
@@ -553,9 +703,32 @@ const local = StyleSheet.create({
   crumbSeparator: { color: colors.gold, fontFamily: fonts.sans, fontSize: fontSizes.lg },
   crumbs: { alignItems: "center", flex: 1, flexDirection: "row", gap: 8, overflow: "hidden" },
   crumbText: { fontFamily: fonts.hand, fontSize: fontSizes.lg },
-  dot: { borderRadius: radii.pill, height: 7, marginHorizontal: 3, width: 7 },
   empty: { color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.md, paddingHorizontal: 10 },
   flex: { flex: 1 },
+  flyout: {
+    ...ink,
+    ...cut,
+    ...lift,
+    backgroundColor: colors.canvas,
+    minWidth: 220,
+    padding: 6,
+    position: "absolute",
+  },
+  flyoutCount: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.sm },
+  flyoutEmpty: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.md, padding: 8 },
+  flyoutItem: { alignItems: "center", borderRadius: radii.sm, flexDirection: "row", gap: 10, padding: 8 },
+  flyoutItemHovered: { backgroundColor: colors.controlHover },
+  flyoutItemSelected: { backgroundColor: colors.controlActive },
+  flyoutText: { color: colors.text, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.md },
+  flyoutTitle: {
+    color: colors.textMuted,
+    fontFamily: fonts.hand,
+    fontSize: 12,
+    letterSpacing: 1.4,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    textTransform: "uppercase",
+  },
   footer: { borderColor: colors.border, borderTopWidth: 1.5, paddingTop: 8 },
   frame: { backgroundColor: colors.wood, flex: 1, flexDirection: "row", overflow: "hidden" },
   glyph: { color: colors.onWood, fontSize: fontSizes.md, textAlign: "center", width: 16 },
@@ -589,6 +762,20 @@ const local = StyleSheet.create({
   itemHovered: { backgroundColor: colors.wood },
   itemSelected: { ...ink, ...lift, backgroundColor: colors.canvas },
   itemText: { color: colors.onWood, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.md },
+  menuCount: {
+    backgroundColor: colors.gold,
+    borderRadius: radii.pill,
+    color: colors.leather,
+    fontFamily: fonts.sans,
+    fontSize: 10,
+    fontWeight: "700",
+    lineHeight: 14,
+    minWidth: 14,
+    position: "absolute",
+    right: 4,
+    textAlign: "center",
+    top: 1,
+  },
   missionText: { fontSize: fontSizes.md },
   narrow: { backgroundColor: colors.paper, flex: 1 },
   narrowContent: { flex: 1 },
@@ -637,6 +824,17 @@ const local = StyleSheet.create({
   sidebarCollapsed: { paddingHorizontal: 6, width: collapsedWidth },
   spending: { paddingBottom: 4 },
   textSelected: { color: colors.text, fontWeight: "600" },
+  tip: {
+    ...cut,
+    backgroundColor: colors.canvas,
+    borderColor: colors.gold,
+    borderWidth: 1,
+    paddingHorizontal: 10,
+    paddingVertical: 4,
+    position: "absolute",
+    zIndex: 10,
+  },
+  tipText: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.md },
   topBar: {
     alignItems: "center",
     backgroundColor: colors.leather,

@@ -1253,3 +1253,19 @@ Summary: The owner asked for a simpler board background. The repeating timber se
 References: apps/app/src/dashboard.tsx, apps/app/src/sketches.tsx.
 Validation: typecheck, lint, and 430 tests pass.
 Evidence: Baseline `7caf116`; not proven: the look was not seen in the running window and awaits the owner.
+
+
+## CHG-0081 · 2026-11-09 · Emblems, realms menu, and rail interactions
+
+Type: Code
+Event: Delivery
+Scope: Guild interface
+
+Summary: The owner found the interface short of interactions and its quests alike, and suggested gathering the realms in one menu when the rail is short.
+Every realm and quest wears an emblem (sixteen line drawings in eight tints) chosen from its id, so it never changes; a quest's emblem carries a dot in its state's color. Emblems show in the rail, the realms menu, and on quest cards (on a leather chip).
+The collapsed rail shows one Realms button with a count; it opens a list of the realms with their emblems and open quests. The quests are left to Guildmaster's board, and the Archives, Lore, and Settings icons remain.
+Interactions: rows highlight on hover; a collapsed row names itself in a label beside it; Ctrl or Command with B collapses and expands the rail; a quest card under the pointer straightens and rises.
+Emblems are not chosen by the owner yet; a chosen icon would need a stored field (backlog candidate).
+References: apps/app/src/{emblems,sidebar,board}.tsx.
+Validation: typecheck, lint, and 430 tests pass.
+Evidence: Baseline `e6db65d`; [proof](verification/2026-11-09-emblems.md). Not proven: the card hover, the realm choice in the menu, narrow widths, and the owner's acceptance of the look.
