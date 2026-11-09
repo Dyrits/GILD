@@ -10,8 +10,8 @@ import { GildMark } from "./sketches";
 import { colors, cut, fontSizes, fonts, ink, lift, radii } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
 
-/** The places the sidebar leads to; a mission is opened from its list instead, a workspace's board from its own list. */
-export type Place = "Control" | "Intel" | "Archived" | "Settings";
+/** The places the sidebar leads to; a mission is opened from its list instead, a realm's quests from its own list. */
+export type Place = "Guildmaster" | "Realms" | "Quests" | "Keep" | "Intel" | "Archived" | "Settings";
 
 const SidebarShown = createContext(false);
 
@@ -67,8 +67,6 @@ const useRailTip = (label: string, isActive: boolean) => {
     ref: row,
   };
 };
-
-const placeGlyphs = { Archived: "▤", Control: "◎", Intel: "◆", Settings: "⚙" } as const satisfies Record<Place, string>;
 
 function NavItem({
   count,
@@ -214,17 +212,8 @@ function PanelIcon({ side = "left" }: { side?: "left" | "right" }) {
   );
 }
 
-/** A handwritten section label in the rail. */
-function Section({
-  emblem,
-  isCollapsed = false,
-  label,
-}: {
-  emblem?: EmblemName;
-  isCollapsed?: boolean;
-  label: string;
-}) {
-  if (isCollapsed) return <View style={local.sectionRule} />;
+/** A section label in the rail: a drawn icon, a title, and a gilt rule beneath. */
+function Section({ emblem, label }: { emblem?: EmblemName; label: string }) {
   return (
     <View style={local.sectionHeading}>
       {emblem !== undefined && <Emblem name={emblem} size={16} tint={colors.goldHi} />}
@@ -234,14 +223,58 @@ function Section({
 }
 
 /**
+ * A category of the rail that leads to its own place: its heading is pressed to go there, and stands out while that place
+ * shows. Collapsed to icons, it is one icon row.
+ */
+function Category({
+  emblem,
+  isCollapsed,
+  isSelected,
+  label,
+  onPress,
+}: {
+  emblem: EmblemName;
+  isCollapsed: boolean;
+  isSelected: boolean;
+  label: string;
+  onPress: () => void;
+}) {
+  if (isCollapsed) {
+    return <NavItem emblem={emblem} glyph="" isCollapsed isSelected={isSelected} label={label} onPress={onPress} />;
+  }
+  return (
+    <Pressable
+      accessibilityLabel={label}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={(state) => [
+        local.sectionHeading,
+        local.categoryHeading,
+        (state.pressed || (state as { hovered?: boolean }).hovered === true) && local.itemHovered,
+        isSelected && local.categorySelected,
+      ]}
+    >
+      <Emblem name={emblem} size={16} tint={colors.goldHi} />
+      <Text style={[local.sectionTitle, isSelected && local.categoryTitleSelected]}>{label}</Text>
+    </Pressable>
+  );
+}
+
+/**
  * The collapsed rail's one Realms button: a rail of icons cannot name every realm, so they gather in a list that opens
  * beside the button, each with its own emblem, the open ones counted, and the realm whose board shows marked.
  */
 function RealmsMenu({
+  isSelected,
+  onAll,
   realms,
   selected,
   onWorkspace,
 }: {
+  /** Whether the Realms place shows. */
+  isSelected: boolean;
+  /** Opens the Realms place, every realm at once. */
+  onAll: () => void;
   realms: readonly { count: number; id: WorkspaceId; name: string }[];
   /** The realm whose board shows, if any. */
   selected: WorkspaceId | null;
@@ -267,7 +300,7 @@ function RealmsMenu({
           local.item,
           local.itemCollapsed,
           (state.pressed || isOpen || (state as { hovered?: boolean }).hovered === true) && local.itemHovered,
-          selected !== null && local.itemSelected,
+          (selected !== null || isSelected) && local.itemSelected,
         ]}
       >
         <RealmsIcon tint={colors.onWood} />
@@ -279,7 +312,15 @@ function RealmsMenu({
           <View
             style={[local.flyout, { left: frame.x, maxHeight: Math.max(160, height - frame.y - 16), top: frame.y }]}
           >
-            <Text style={local.flyoutTitle}>Realms</Text>
+            <Pressable
+              accessibilityRole="menuitem"
+              onPress={() => {
+                close();
+                onAll();
+              }}
+            >
+              <Text style={[local.flyoutTitle, local.flyoutLink]}>All realms ›</Text>
+            </Pressable>
             <ScrollView>
               {realms.length === 0 && <Text style={local.flyoutEmpty}>No quest in a realm yet.</Text>}
               {realms.map((realm) => (
@@ -348,7 +389,7 @@ function Sidebar({
     id: workspace.id,
     name: workspace.name,
   }));
-  const isOnBoard = openMission === null && place === "Control";
+  const isHere = (each: Place) => openMission === null && place === each;
   return (
     <View style={[local.sidebar, isCollapsed && local.sidebarCollapsed]}>
       <View style={[local.brand, isCollapsed && local.brandCollapsed]}>
@@ -363,67 +404,93 @@ function Sidebar({
           </>
         )}
       </View>
-      <NavItem
-        emblem="crown"
-        glyph={placeGlyphs.Control}
-        isCollapsed={isCollapsed}
-        isSelected={isOnBoard && workspaceId === null}
-        label="Guildmaster"
-        onPress={() => onPlace("Control")}
-      />
-      <View style={local.topRule} />
       <ScrollView contentContainerStyle={local.group} style={local.flex}>
+        <Category
+          emblem="crown"
+          isCollapsed={isCollapsed}
+          isSelected={isHere("Guildmaster")}
+          label="Guildmaster"
+          onPress={() => onPlace("Guildmaster")}
+        />
         {isCollapsed ? (
-          <RealmsMenu onWorkspace={onWorkspace} realms={realms} selected={isOnBoard ? workspaceId : null} />
+          <RealmsMenu
+            isSelected={isHere("Realms")}
+            onAll={() => onPlace("Realms")}
+            onWorkspace={onWorkspace}
+            realms={realms}
+            selected={isHere("Quests") ? workspaceId : null}
+          />
         ) : (
           <>
-            <Section emblem="compass" label="Realms" />
+            <Category
+              emblem="compass"
+              isCollapsed={false}
+              isSelected={isHere("Realms")}
+              label="Realms"
+              onPress={() => onPlace("Realms")}
+            />
             {workspaces.length === 0 && <Text style={local.empty}>No quest in a realm yet.</Text>}
             {realms.map((realm) => (
               <NavItem
                 count={realm.count}
                 glyph="▱"
                 isCollapsed={false}
-                isSelected={isOnBoard && workspaceId === realm.id}
+                isSelected={isHere("Quests") && workspaceId === realm.id}
                 key={realm.id}
                 label={realm.name}
                 onPress={() => onWorkspace(realm.id)}
                 realm={realm.id}
               />
             ))}
-            <Section emblem="sword" label="Quests" />
-            {loose.length === 0 && <Text style={local.empty}>None outside a realm.</Text>}
-            {loose.map((mission) => (
-              <MissionItem
-                isCollapsed={false}
-                isSelected={mission.id === openMission}
-                key={mission.id}
-                mission={mission}
-                onPress={() => onOpenMission(mission.id)}
-              />
-            ))}
           </>
         )}
-        <Section emblem="castle" isCollapsed={isCollapsed} label="The Keep" />
-        <NavItem
-          emblem="scroll"
-          glyph={placeGlyphs.Intel}
+        <Category
+          emblem="sword"
           isCollapsed={isCollapsed}
-          isSelected={openMission === null && place === "Intel"}
-          label="Lore"
-          onPress={() => onPlace("Intel")}
+          isSelected={isHere("Quests") && workspaceId === null}
+          label="Quests"
+          onPress={() => onPlace("Quests")}
         />
-        <ArchivedItem
-          client={client}
+        {!isCollapsed && loose.length === 0 && <Text style={local.empty}>None outside a realm.</Text>}
+        {!isCollapsed &&
+          loose.map((mission) => (
+            <MissionItem
+              isCollapsed={false}
+              isSelected={mission.id === openMission}
+              key={mission.id}
+              mission={mission}
+              onPress={() => onOpenMission(mission.id)}
+            />
+          ))}
+        <Category
+          emblem="castle"
           isCollapsed={isCollapsed}
-          isSelected={openMission === null && place === "Archived"}
-          onPress={() => onPlace("Archived")}
+          isSelected={isHere("Keep")}
+          label="The Keep"
+          onPress={() => onPlace("Keep")}
         />
-        <NavItem
+        {!isCollapsed && (
+          <>
+            <NavItem
+              emblem="scroll"
+              glyph=""
+              isCollapsed={false}
+              isSelected={isHere("Intel")}
+              label="Lore"
+              onPress={() => onPlace("Intel")}
+            />
+            <ArchivedItem
+              client={client}
+              isCollapsed={false}
+              isSelected={isHere("Archived")}
+              onPress={() => onPlace("Archived")}
+            />
+          </>
+        )}
+        <Category
           emblem="key"
-          glyph={placeGlyphs.Settings}
           isCollapsed={isCollapsed}
-          isSelected={openMission === null && place === "Settings"}
+          isSelected={isHere("Settings")}
           label="Settings"
           onPress={() => onPlace("Settings")}
         />
@@ -551,12 +618,13 @@ function TopBar({
 }
 
 /**
- * The path to where the owner is, for the top bar, following the rail: the Guildmaster board; a realm under Realms; a
- * quest under its realm, or under Quests when it has none; the archives under Quests. Realms and Quests are the rail's
- * section labels, so they lead nowhere. Lore and Settings stand alone.
+ * The path to where the owner is, for the top bar, following the rail: a place on its own; a realm under Realms; a quest
+ * under its realm, or under Quests when it has none; Lore and Archives under The Keep. Each step before the last leads
+ * back to its place.
  */
 const crumbsOf = ({
   missions,
+  onPlace,
   onWorkspace,
   openMission,
   place,
@@ -564,26 +632,31 @@ const crumbsOf = ({
   workspaces,
 }: {
   missions: readonly MissionSummary[];
+  onPlace: (place: Place) => void;
   onWorkspace: (id: WorkspaceId) => void;
   openMission: MissionId | null;
   place: Place | null;
   realm: { id: WorkspaceId; name: string } | null;
   workspaces: readonly { id: WorkspaceId; name: string }[];
 }): Crumb[] => {
-  const realms: Crumb = { label: "Realms", onPress: null };
-  const quests: Crumb = { label: "Quests", onPress: null };
+  const to = (label: string, target: Place): Crumb => ({ label, onPress: () => onPlace(target) });
+  const here = (label: string, glyph?: string): Crumb =>
+    glyph === undefined ? { label, onPress: null } : { glyph, label, onPress: null };
   if (openMission !== null) {
     const mission = missions.find((each) => each.id === openMission);
     const own = workspaces.find((each) => each.id === mission?.workspaceId);
-    const current: Crumb = { label: mission?.title ?? "Quest", onPress: null };
-    if (own === undefined) return [quests, current];
-    return [realms, { label: own.name, onPress: () => onWorkspace(own.id) }, current];
+    const current = here(mission?.title ?? "Quest");
+    if (own === undefined) return [to("Quests", "Quests"), current];
+    return [to("Realms", "Realms"), { label: own.name, onPress: () => onWorkspace(own.id) }, current];
   }
-  if (place === "Intel") return [{ label: "Lore", onPress: null }];
-  if (place === "Settings") return [{ label: "Settings", onPress: null }];
-  if (place === "Archived") return [quests, { glyph: "▤", label: "Archives", onPress: null }];
-  if (realm !== null) return [realms, { label: realm.name, onPress: null }];
-  return [{ label: "Guildmaster", onPress: null }];
+  if (place === "Intel") return [to("The Keep", "Keep"), here("Lore")];
+  if (place === "Archived") return [to("The Keep", "Keep"), here("Archives", "▤")];
+  if (place === "Keep") return [here("The Keep")];
+  if (place === "Settings") return [here("Settings")];
+  if (place === "Realms") return [here("Realms")];
+  if (place === "Quests" && realm !== null) return [to("Realms", "Realms"), here(realm.name)];
+  if (place === "Quests") return [here("Quests")];
+  return [here("Guildmaster")];
 };
 
 /** The spending of the global budget's period as one line; nothing while it is unread. */
@@ -656,6 +729,7 @@ export function Shell(
   const workspaces = data?.workspaces ?? [];
   const crumbs = crumbsOf({
     missions: data?.missions ?? [],
+    onPlace: props.onPlace,
     onWorkspace: props.onWorkspace,
     openMission: props.openMission,
     place: props.place,
@@ -737,6 +811,9 @@ const local = StyleSheet.create({
     lineHeight: 34,
     textTransform: "uppercase",
   },
+  categoryHeading: { borderRadius: radii.sm, marginTop: 10 },
+  categorySelected: { backgroundColor: colors.canvas },
+  categoryTitleSelected: { color: colors.text },
   count: { color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.sm },
   crest: {
     alignItems: "center",
@@ -773,6 +850,7 @@ const local = StyleSheet.create({
   flyoutItem: { alignItems: "center", borderRadius: radii.sm, flexDirection: "row", gap: 10, padding: 8 },
   flyoutItemHovered: { backgroundColor: colors.controlHover },
   flyoutItemSelected: { backgroundColor: colors.controlActive },
+  flyoutLink: { color: colors.accentText },
   flyoutText: { color: colors.text, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.md },
   flyoutTitle: {
     color: colors.textMuted,
@@ -911,7 +989,6 @@ const local = StyleSheet.create({
   topBarTitle: { paddingLeft: 82 },
   topIcon: { alignItems: "center", borderRadius: radii.sm, height: 28, justifyContent: "center", width: 28 },
   topIconActive: { backgroundColor: colors.wood },
-  topRule: { borderBottomColor: colors.gold, borderBottomWidth: 1, marginBottom: 2, marginTop: 6 },
   topSpending: { color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.sm },
   window: { backgroundColor: colors.wood, flex: 1, flexDirection: "row" },
   windowMain: { flex: 1 },

@@ -8,27 +8,19 @@ import { Dashboard } from "./src/dashboard";
 import { IntelScreen } from "./src/intel";
 import { useAttentionNotice } from "./src/notifications";
 import { PermissionsScreen } from "./src/permissions";
+import { GuildmasterScreen, KeepScreen, RealmsScreen } from "./src/places";
 import { SettingsScreen } from "./src/settings";
 import { type Place, Shell } from "./src/sidebar";
 import { colors, fontSizes, fonts } from "./src/theme";
-
-/** The sidebar place the open screen belongs to; the Permissions page belongs to Settings. */
-const placeOf = (open: { isArchivedOpen: boolean; isIntelOpen: boolean; isSettingsOpen: boolean }): Place => {
-  if (open.isSettingsOpen) return "Settings";
-  if (open.isIntelOpen) return "Intel";
-  if (open.isArchivedOpen) return "Archived";
-  return "Control";
-};
 
 export default function App() {
   const [client, setClient] = useState<ServiceClient | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [openMission, setOpenMission] = useState<MissionId | null>(null);
-  const [isSettingsOpen, setIsSettingsOpen] = useState(false);
+  // The place the rail leads to; a quest, when one is open, shows in its stead.
+  const [place, setPlace] = useState<Place>("Guildmaster");
   const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
-  const [isArchivedOpen, setIsArchivedOpen] = useState(false);
-  const [isIntelOpen, setIsIntelOpen] = useState(false);
-  // The workspace whose board Control shows, or null for every mission.
+  // The realm whose quests the Quests place shows, or null for every quest.
   const [workspaceId, setWorkspaceId] = useState<WorkspaceId | null>(null);
   // Counts openings from the sidebar, so choosing the open mission again goes back to its threads.
   const [openCount, setOpenCount] = useState(0);
@@ -54,61 +46,61 @@ export default function App() {
     );
   }
   // The sidebar leads to one place at a time: going there closes whatever else is open.
-  const goTo = (place: Place) => {
+  const goTo = (next: Place) => {
     setOpenMission(null);
     setIsPermissionsOpen(false);
-    setIsIntelOpen(place === "Intel");
-    setIsArchivedOpen(place === "Archived");
-    setIsSettingsOpen(place === "Settings");
-    if (place === "Control") setWorkspaceId(null);
+    setPlace(next);
+    if (next !== "Quests") setWorkspaceId(null);
   };
   const openWorkspace = (id: WorkspaceId) => {
-    goTo("Control");
+    goTo("Quests");
     setWorkspaceId(id);
   };
   const openMissionFromAnywhere = (id: MissionId) => {
-    setOpenMission(null);
     setIsPermissionsOpen(false);
-    setIsIntelOpen(false);
-    setIsArchivedOpen(false);
-    setIsSettingsOpen(false);
     setOpenMission(id);
     setOpenCount(openCount + 1);
   };
-  const place = placeOf({ isArchivedOpen, isIntelOpen, isSettingsOpen: isSettingsOpen || isPermissionsOpen });
-  const content = isIntelOpen ? (
-    <IntelScreen client={client} onBack={() => setIsIntelOpen(false)} threadId={null} title="All lore" />
-  ) : isPermissionsOpen ? (
-    <PermissionsScreen client={client} onBack={() => setIsPermissionsOpen(false)} />
-  ) : isSettingsOpen ? (
-    <SettingsScreen
-      client={client}
-      onBack={() => setIsSettingsOpen(false)}
-      onPermissions={() => setIsPermissionsOpen(true)}
-    />
-  ) : openMission === null ? (
-    <Dashboard
-      client={client}
-      isArchived={isArchivedOpen}
-      key={isArchivedOpen ? "archived" : "missions"}
-      onArchived={() => setIsArchivedOpen(true)}
-      onBack={() => setIsArchivedOpen(false)}
-      onIntel={() => setIsIntelOpen(true)}
-      onOpen={setOpenMission}
-      onSettings={() => setIsSettingsOpen(true)}
-      onWorkspace={setWorkspaceId}
-      workspaceId={workspaceId}
-    />
-  ) : (
-    <Conversation
-      client={client}
-      key={`${openMission}:${openCount}`}
-      missionId={openMission}
-      onBack={() => setOpenMission(null)}
-      onOpenMission={setOpenMission}
-      onSetDetails={setAreDetailsOpen}
-    />
-  );
+  const content =
+    openMission !== null ? (
+      <Conversation
+        client={client}
+        key={`${openMission}:${openCount}`}
+        missionId={openMission}
+        onBack={() => setOpenMission(null)}
+        onOpenMission={setOpenMission}
+        onSetDetails={setAreDetailsOpen}
+      />
+    ) : place === "Intel" ? (
+      <IntelScreen client={client} onBack={() => goTo("Keep")} threadId={null} title="All lore" />
+    ) : place === "Settings" && isPermissionsOpen ? (
+      <PermissionsScreen client={client} onBack={() => setIsPermissionsOpen(false)} />
+    ) : place === "Settings" ? (
+      <SettingsScreen
+        client={client}
+        onBack={() => goTo("Guildmaster")}
+        onPermissions={() => setIsPermissionsOpen(true)}
+      />
+    ) : place === "Guildmaster" ? (
+      <GuildmasterScreen client={client} onOpen={openMissionFromAnywhere} />
+    ) : place === "Realms" ? (
+      <RealmsScreen client={client} onWorkspace={openWorkspace} />
+    ) : place === "Keep" ? (
+      <KeepScreen client={client} onPlace={goTo} />
+    ) : (
+      <Dashboard
+        client={client}
+        isArchived={place === "Archived"}
+        key={place}
+        onArchived={() => goTo("Archived")}
+        onBack={() => goTo("Keep")}
+        onIntel={() => goTo("Intel")}
+        onOpen={openMissionFromAnywhere}
+        onSettings={() => goTo("Settings")}
+        onWorkspace={(id) => (id === null ? goTo("Quests") : openWorkspace(id))}
+        workspaceId={workspaceId}
+      />
+    );
   return (
     <Shell
       client={client}

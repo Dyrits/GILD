@@ -1335,3 +1335,17 @@ Summary: The owner asked for Guildmaster to be its own category on top. It leave
 References: apps/app/src/sidebar.tsx.
 Validation: typecheck and lint pass; seen in the fake-harness render, expanded and collapsed.
 Evidence: Baseline `6d07d55`; not proven: the owner's acceptance of the look.
+
+
+## CHG-0087 · 2026-11-09 · Places: Guildmaster, Realms, Quests, The Keep, Settings
+
+Type: Code
+Event: Delivery
+Scope: Guild interface
+
+Summary: The owner asked for every rail category to be clickable and of one kind, with Guildmaster holding only the quest input, the quest dashboard under Quests, the realms listed under Realms, and Settings in its own menu apart from The Keep.
+The rail has five categories, each a heading that leads to its place and stands out while it shows: Guildmaster (the quest input alone), Realms (cards of the workspaces with their folders and open quests; a card shows that realm's quests), Quests (the board, optionally of one realm), The Keep (cards for Lore and Archives), and Settings. Realms keep their rows under their heading, as do the quests outside a realm, and Lore and Archives under The Keep. Collapsed, each category is one icon; the Realms icon opens a list with "All realms ›" on top.
+The breadcrumbs follow: Realms, Quests, and The Keep now lead to their places. Quests are no longer started from a realm's board; the Guildmaster starts them. The app opens on the Guildmaster.
+References: apps/app/App.tsx, apps/app/src/{places,sidebar,dashboard}.tsx.
+Validation: typecheck, lint, and 431 tests pass.
+Evidence: Baseline `d1b7023`; [screenshots](verification/2026-11-09-places/) (fake harness, 1600px). Not proven: the selected heading's new fill, narrow widths, and the owner's acceptance.

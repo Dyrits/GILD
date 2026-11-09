@@ -25,7 +25,7 @@ const boardBreakpoint = 560;
  * Starts a mission with one message, prefilled from the last mission's choices (mission-tracking). On a workspace's
  * board the mission starts in that workspace, and the workspace cannot be changed there.
  */
-function MissionStarter({
+export function MissionStarter({
   client,
   onOpen,
   workspace: lockedWorkspace,
@@ -130,8 +130,6 @@ export function Dashboard({
   // The questions cover every mission on the dashboard, whatever the filters show.
   const { data: all } = useServiceQuery(client, allMissions.request, allMissions.key);
   const asking = isArchived ? [] : (all?.missions.filter((mission) => mission.prompt !== null) ?? []);
-  // On a workspace's board, the starter waits for the workspace's folder, so a mission never starts elsewhere.
-  const openWorkspace = data?.workspaces.find((each) => each.id === workspaceId) ?? null;
   const workspaceNames = new Map((data?.workspaces ?? []).map((w) => [w.id, w.name]));
   if (isGlobalBudgetOpen) {
     return (
@@ -218,9 +216,6 @@ export function Dashboard({
               />
             ))}
           </View>
-        )}
-        {!isArchived && (workspaceId === null || openWorkspace !== null) && (
-          <MissionStarter client={client} onOpen={onOpen} workspace={openWorkspace} />
         )}
         <TextInput
           accessibilityLabel="Search quests"
