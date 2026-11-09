@@ -1363,3 +1363,27 @@ Left out because Gild has no such thing: the mockup's Counsel, Spoils, Chronicle
 References: apps/app/src/{parchment,questPanel,missionActions,board,dashboard,sketches,emblems,sidebar}.tsx.
 Validation: typecheck, lint, and 431 tests pass.
 Evidence: Baseline `e40d80e`; [proof](verification/2026-11-09-guild-panel.md). Not proven: Summons and Fulfilled cards, narrow widths, and the owner's acceptance.
+
+
+## CHG-0089 · 2026-11-09 · No rule under Guildmaster and Settings
+
+Type: Code
+Event: Delivery
+Scope: Guild interface
+
+Summary: The owner asked to remove the gilt underline under Guildmaster and Settings, since they have no rows beneath them. Realms, Quests, and The Keep keep theirs; the heading's height is unchanged.
+References: apps/app/src/sidebar.tsx.
+Validation: typecheck and lint pass; seen in the fake-harness render at 1600px.
+Evidence: Baseline `4e76098`; not proven: the owner's acceptance of the look.
+
+
+## CHG-0090 · 2026-11-09 · Realms, Quests, and The Keep unfold
+
+Type: Code
+Event: Delivery
+Scope: Guild interface
+
+Summary: The owner asked for Realms, Quests, and The Keep to be unfoldable. Each of the three headings has a chevron on its right that folds its rows away and brings them back; pressing the label still opens the place. Which are folded is remembered in browser storage; all start unfolded, and the collapsed rail is unchanged.
+References: apps/app/src/sidebar.tsx.
+Validation: typecheck, lint, and tests pass; seen in the fake-harness render at 1600px (folded Realms and The Keep, then Realms unfolded).
+Evidence: Baseline `4e76098`; not proven: keyboard use of the chevron, the narrow window, and the owner's acceptance.

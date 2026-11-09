@@ -228,15 +228,24 @@ function Section({ emblem, label }: { emblem?: EmblemName; label: string }) {
  */
 function Category({
   emblem,
+  hasRule = true,
   isCollapsed,
+  isFolded,
   isSelected,
   label,
+  onFold,
   onPress,
 }: {
   emblem: EmblemName;
+  /** Whether a gilt rule runs under the heading: only a category with rows beneath it has one. */
+  hasRule?: boolean;
   isCollapsed: boolean;
+  /** Whether its rows are folded away; only a category with rows has this and `onFold`. */
+  isFolded?: boolean;
   isSelected: boolean;
   label: string;
+  /** Folds or unfolds its rows. */
+  onFold?: () => void;
   onPress: () => void;
 }) {
   if (isCollapsed) {
@@ -250,12 +259,25 @@ function Category({
       style={(state) => [
         local.sectionHeading,
         local.categoryHeading,
+        !hasRule && local.unruled,
         (state.pressed || (state as { hovered?: boolean }).hovered === true) && local.itemHovered,
         isSelected && local.categorySelected,
       ]}
     >
       <Emblem name={emblem} size={16} tint={colors.goldHi} />
       <Text style={[local.sectionTitle, isSelected && local.categoryTitleSelected]}>{label}</Text>
+      {onFold !== undefined && (
+        <Pressable
+          accessibilityLabel={`${isFolded === true ? "Unfold" : "Fold"} ${label}`}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: isFolded !== true }}
+          hitSlop={6}
+          onPress={onFold}
+          style={local.fold}
+        >
+          <Text style={[local.foldMark, isFolded !== true && local.foldMarkOpen]}>›</Text>
+        </Pressable>
+      )}
     </Pressable>
   );
 }
@@ -390,6 +412,14 @@ function Sidebar({
     name: workspace.name,
   }));
   const isHere = (each: Place) => openMission === null && place === each;
+  const [folded, setFolded] = useState(readFolded);
+  const fold = (category: Foldable) => {
+    const next = new Set(folded);
+    if (!next.delete(category)) next.add(category);
+    rememberFolded(next);
+    setFolded(next);
+  };
+  const props = (category: Foldable) => ({ isFolded: folded.has(category), onFold: () => fold(category) });
   return (
     <View style={[local.sidebar, isCollapsed && local.sidebarCollapsed]}>
       <View style={[local.brand, isCollapsed && local.brandCollapsed]}>
@@ -407,6 +437,7 @@ function Sidebar({
       <ScrollView contentContainerStyle={local.group} style={local.flex}>
         <Category
           emblem="crown"
+          hasRule={false}
           isCollapsed={isCollapsed}
           isSelected={isHere("Guildmaster")}
           label="Guildmaster"
@@ -428,20 +459,24 @@ function Sidebar({
               isSelected={isHere("Realms")}
               label="Realms"
               onPress={() => onPlace("Realms")}
+              {...props("Realms")}
             />
-            {workspaces.length === 0 && <Text style={local.empty}>No quest in a realm yet.</Text>}
-            {realms.map((realm) => (
-              <NavItem
-                count={realm.count}
-                glyph="▱"
-                isCollapsed={false}
-                isSelected={isHere("Quests") && workspaceId === realm.id}
-                key={realm.id}
-                label={realm.name}
-                onPress={() => onWorkspace(realm.id)}
-                realm={realm.id}
-              />
-            ))}
+            {!folded.has("Realms") && workspaces.length === 0 && (
+              <Text style={local.empty}>No quest in a realm yet.</Text>
+            )}
+            {!folded.has("Realms") &&
+              realms.map((realm) => (
+                <NavItem
+                  count={realm.count}
+                  glyph="▱"
+                  isCollapsed={false}
+                  isSelected={isHere("Quests") && workspaceId === realm.id}
+                  key={realm.id}
+                  label={realm.name}
+                  onPress={() => onWorkspace(realm.id)}
+                  realm={realm.id}
+                />
+              ))}
           </>
         )}
         <Category
@@ -450,9 +485,13 @@ function Sidebar({
           isSelected={isHere("Quests") && workspaceId === null}
           label="Quests"
           onPress={() => onPlace("Quests")}
+          {...props("Quests")}
         />
-        {!isCollapsed && loose.length === 0 && <Text style={local.empty}>None outside a realm.</Text>}
+        {!isCollapsed && !folded.has("Quests") && loose.length === 0 && (
+          <Text style={local.empty}>None outside a realm.</Text>
+        )}
         {!isCollapsed &&
+          !folded.has("Quests") &&
           loose.map((mission) => (
             <MissionItem
               isCollapsed={false}
@@ -468,8 +507,9 @@ function Sidebar({
           isSelected={isHere("Keep")}
           label="The Keep"
           onPress={() => onPlace("Keep")}
+          {...props("Keep")}
         />
-        {!isCollapsed && (
+        {!isCollapsed && !folded.has("Keep") && (
           <>
             <NavItem
               emblem="scroll"
@@ -489,6 +529,7 @@ function Sidebar({
         )}
         <Category
           emblem="key"
+          hasRule={false}
           isCollapsed={isCollapsed}
           isSelected={isHere("Settings")}
           label="Settings"
@@ -550,6 +591,33 @@ const readCollapsed = (): boolean => {
 const rememberCollapsed = (isCollapsed: boolean) => {
   try {
     globalThis.localStorage?.setItem(collapsedKey, isCollapsed ? "1" : "0");
+  } catch {}
+};
+
+/** The key under which the browser remembers which rail categories are folded. */
+const foldedKey = "gild:sidebar-folded";
+
+/** The rail's categories that can fold their rows away. */
+type Foldable = "Realms" | "Quests" | "Keep";
+
+/** Reads the remembered folded categories; a platform without browser storage starts with all unfolded. */
+const readFolded = (): ReadonlySet<Foldable> => {
+  try {
+    const stored: unknown = JSON.parse(globalThis.localStorage?.getItem(foldedKey) ?? "[]");
+    return new Set(
+      Array.isArray(stored)
+        ? stored.filter((x): x is Foldable => x === "Realms" || x === "Quests" || x === "Keep")
+        : [],
+    );
+  } catch {
+    return new Set();
+  }
+};
+
+/** Remembers the folded categories where the platform allows; a refusal only loses the memory. */
+const rememberFolded = (folded: ReadonlySet<Foldable>) => {
+  try {
+    globalThis.localStorage?.setItem(foldedKey, JSON.stringify([...folded]));
   } catch {}
 };
 
@@ -861,6 +929,9 @@ const local = StyleSheet.create({
     paddingVertical: 4,
     textTransform: "uppercase",
   },
+  fold: { alignItems: "center", height: 20, justifyContent: "center", marginLeft: "auto", width: 20 },
+  foldMark: { color: colors.goldHi, fontFamily: fonts.sans, fontSize: 18, lineHeight: 20 },
+  foldMarkOpen: { transform: [{ rotate: "90deg" }] },
   footer: { paddingBottom: 4 },
   frame: { backgroundColor: colors.wood, flex: 1, flexDirection: "row", overflow: "hidden" },
   glyph: { color: colors.onWood, fontSize: fontSizes.md, textAlign: "center", width: 16 },
@@ -990,6 +1061,7 @@ const local = StyleSheet.create({
   topIcon: { alignItems: "center", borderRadius: radii.sm, height: 28, justifyContent: "center", width: 28 },
   topIconActive: { backgroundColor: colors.wood },
   topSpending: { color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.sm },
+  unruled: { borderBottomColor: "transparent" },
   window: { backgroundColor: colors.wood, flex: 1, flexDirection: "row" },
   windowMain: { flex: 1 },
 });
