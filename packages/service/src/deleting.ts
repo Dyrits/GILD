@@ -5,6 +5,7 @@ import { SqlClient } from "effect/sql";
 import { eraseAttachmentsOf } from "./attachments.ts";
 import { Commands, changed } from "./commands.ts";
 import { invalid, notFound, ServiceFailure } from "./errors.ts";
+import { refuseGuildmaster } from "./guildmaster.ts";
 import { haltThreads, releaseResolvedChatter } from "./lifecycle.ts";
 import { eraseThreadsLore } from "./loreStore.ts";
 import { removeScratch } from "./scratch.ts";
@@ -21,6 +22,7 @@ const readSubtree = Effect.fn("readSubtree")(function* (threadId: string) {
       EXISTS(SELECT 1 FROM turns WHERE thread_id = t.id AND status = 'running') AS running
     FROM threads t JOIN subtree s ON s.id = t.id ORDER BY s.depth, t.id`;
   if (rows.length === 0) return yield* notFound("No such thread.");
+  if (rows[0]?.parentId === null) yield* refuseGuildmaster(rows[0].missionId, "deleted");
   return rows;
 });
 

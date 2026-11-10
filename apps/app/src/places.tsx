@@ -1,8 +1,7 @@
-import type { MissionId, WorkspaceId } from "@gild/contracts";
+import type { WorkspaceId } from "@gild/contracts";
 import type { ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import type { ServiceClient } from "./client";
-import { MissionStarter } from "./dashboard";
 import { Emblem, type EmblemName } from "./emblems";
 import { allMissions } from "./queries";
 import { RealmCard } from "./realmCard";
@@ -37,16 +36,6 @@ function Page({
   );
 }
 
-/** The Guildmaster: the one message that starts a quest, and nothing else. */
-export function GuildmasterScreen({ client, onOpen }: { client: ServiceClient; onOpen: (id: MissionId) => void }) {
-  return (
-    <View style={local.stagePage}>
-      <Text style={local.title}>Guildmaster</Text>
-      <MissionStarter client={client} onOpen={onOpen} stage workspace={null} />
-    </View>
-  );
-}
-
 /** The realms: one card per workspace, with its folder and its quests; pressing one shows its quests. */
 export function RealmsScreen({
   client,
@@ -61,7 +50,7 @@ export function RealmsScreen({
   return (
     <Page hasHero={false}>
       {data !== null && realms.length === 0 && (
-        <EmptyBoard line="No realm yet. Start a quest in a folder from the Guildmaster." />
+        <EmptyBoard line="No realm yet. Ask the Guildmaster for a quest in a folder." />
       )}
       <View style={local.grid}>
         {realms.map((realm) => (

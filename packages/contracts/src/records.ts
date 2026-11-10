@@ -282,6 +282,8 @@ export const Suggestion = Schema.Struct({
   id: SuggestionId,
   /** Whether the setting opened a new mission without asking. */
   isAutomatic: Schema.Boolean,
+  /** Whether the Guildmaster asked: it offers no aside, and opens the quest in the realm the owner named. */
+  isFromGuildmaster: Schema.Boolean,
   /** Matching missions, best first, at most 3. */
   matches: Schema.Array(SuggestionMatch),
   /** The suggesting thread's model, prefilled for Open as new mission. */
@@ -299,6 +301,10 @@ export const Suggestion = Schema.Struct({
   title: Schema.String,
 });
 export type Suggestion = typeof Suggestion.Type;
+
+/** Where the Guildmaster's conversation is: its hidden quest and the thread the owner writes in. */
+export const GuildmasterPlace = Schema.Struct({ missionId: MissionId, threadId: ThreadId });
+export type GuildmasterPlace = typeof GuildmasterPlace.Type;
 
 /** What a new thread's starting context takes, in estimated tokens, by part (thread-tree, Opening a thread). */
 export const StartingContextParts = Schema.Struct({

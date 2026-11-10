@@ -3,8 +3,15 @@ import type { HarnessName, ModelChoice, ModelOption, StartingContext } from "@gi
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { notFound } from "./errors.ts";
+import { guildmasterContextOf } from "./guildmaster.ts";
 import { claudeModels } from "./harnessCatalog.ts";
-import { approvalInstructionsOf, positionLineOf, type ThreadPosition, threadInstructionsOf } from "./instructions.ts";
+import {
+  approvalInstructionsOf,
+  guildmasterInstructionsOf,
+  positionLineOf,
+  type ThreadPosition,
+  threadInstructionsOf,
+} from "./instructions.ts";
 import { journalContextOf, journalInstructions, openerContextOf, openerMessagesOf, tokensOf } from "./journal.ts";
 import { contextWindowOf, loreContextOf, loreInstructions } from "./lore.ts";
 import { listThreadPermissions } from "./permissions.ts";
@@ -46,6 +53,8 @@ interface Sections {
 
 /** Whom a starting context is for: a thread, or one about to be opened. */
 interface Subject {
+  /** Whether it is the Guildmaster's thread, which starts from the realms and the quest list, not a journal. */
+  readonly isGuildmaster?: boolean;
   /** The thread whose scope the lore comes from: the thread itself, or the opener of one about to be opened. */
   readonly loreThreadId: string;
   readonly missionId: string;
@@ -67,8 +76,12 @@ const readSections = (subject: Subject, workspace: string) =>
   Effect.gen(function* () {
     return {
       budget: yield* budgetLineOf(subject.missionId),
-      instructions: [threadInstructionsOf(subject.position), journalInstructions, loreInstructions].join("\n\n"),
-      journal: yield* journalContextOf(subject.missionId),
+      instructions: (subject.isGuildmaster === true
+        ? [guildmasterInstructionsOf(subject.position.threadId), loreInstructions]
+        : [threadInstructionsOf(subject.position), journalInstructions, loreInstructions]
+      ).join("\n\n"),
+      journal:
+        subject.isGuildmaster === true ? yield* guildmasterContextOf : yield* journalContextOf(subject.missionId),
       lore: yield* loreContextOf(subject.loreThreadId),
       openerMessages: openerContextOf(subject.openerMessages),
       position: positionLineOf(subject.position),
@@ -92,6 +105,7 @@ const readThreadSubject = (threadId: string) =>
     const [row] = yield* sql<{
       harness: HarnessName;
       isAside: number;
+      isGuildmaster: number;
       missionId: string;
       openerMessages: string | null;
       parentId: string | null;
@@ -99,8 +113,9 @@ const readThreadSubject = (threadId: string) =>
       title: string;
     }>`
       SELECT t.mission_id AS missionId, t.harness, t.title, t.parent_id AS parentId, p.title AS parentTitle,
-        t.is_aside AS isAside, t.opener_messages AS openerMessages
-      FROM threads t LEFT JOIN threads p ON p.id = t.parent_id WHERE t.id = ${threadId}`;
+        t.is_aside AS isAside, t.opener_messages AS openerMessages, m.is_guildmaster AS isGuildmaster
+      FROM threads t JOIN missions m ON m.id = t.mission_id LEFT JOIN threads p ON p.id = t.parent_id
+      WHERE t.id = ${threadId}`;
     if (row === undefined) return yield* notFound("No such thread.");
     const position = {
       isAside: row.isAside === 1,
@@ -110,7 +125,13 @@ const readThreadSubject = (threadId: string) =>
     };
     return {
       harness: row.harness,
-      subject: { loreThreadId: threadId, missionId: row.missionId, openerMessages: row.openerMessages, position },
+      subject: {
+        isGuildmaster: row.isGuildmaster === 1,
+        loreThreadId: threadId,
+        missionId: row.missionId,
+        openerMessages: row.openerMessages,
+        position,
+      },
       workspace: yield* readThreadWorkspace(threadId),
     };
   });

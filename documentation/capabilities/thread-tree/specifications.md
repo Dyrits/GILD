@@ -10,7 +10,7 @@ Work with AI agents spreads across disconnected chats, and subagents run out of 
 
 ### Threads and missions
 
-- Every thread has its own identifier and at most one parent thread. A thread with no parent is a mission's top thread, except Control (see [mission-coordination](../mission-coordination/specifications.md)); the mission is that thread and every thread beneath it.
+- Every thread has its own identifier and at most one parent thread. A thread with no parent is a mission's top thread, except Guildmaster (see [mission-coordination](../mission-coordination/specifications.md)); the mission is that thread and every thread beneath it.
 - The user can open a thread beneath any thread, or a new mission. A thread can open threads only beneath itself.
 - Each thread shows its harness, agent (when one is chosen), model, effort, workspace (or none), state, and spending.
 

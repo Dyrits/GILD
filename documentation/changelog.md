@@ -1573,3 +1573,15 @@ References: documentation/glossary.md, apps/app/src/{sidebar.tsx,settingsParts.t
 Validation: The owner's choice of 2026-11-10; typecheck, Biome, and the full tests pass (552 passed, 10 skipped).
 Evidence: Not driven in the running window; the gear is now also one of the line drawings a realm's crest can pick.
 Open: the look awaits the owner.
+
+## CHG-0106 · 2026-11-10 · Guildmaster becomes the one place quests start
+
+Type: Documentation
+Event: Agreement
+Scope: Quest coordination, Guildmaster
+
+Summary: The owner found that two quests on one ticket were not seen as one, because the Guildmaster screen was only a start box that opened a quest directly, and wanted the Guildmaster to be a central control panel with its own conversation, routing and orchestrating all work. This was the plan of quest coordination (CHG-0043), never built. The owner chose to build the whole specification, in three increments: (A) the conversation, matching, opening and continuing quests, action cards, and the realm hand-off; (B) hearing back from quests, `act_on_mission`, `@Guildmaster` forwarding, and cross-quest event lines; (C) tiers, the Guildmaster's budget, and the hide setting.
+Agreed with it: every start goes through the Guildmaster, so the realm page's box sends its message there with the realm attached and fixed; `find_missions` also searches each quest's opening request and weighs ticket keys and links above words, and a match is always offered as Continue in with "Open a new quest anyway"; the realm tiles stand in the right side panel of the Guildmaster screen; the specification and glossary now say Guildmaster and quest, keeping tool names, contracts, and the folder name `mission-coordination`.
+Stored as a hidden quest (`is_guildmaster`) so its turns, messages, usage, and cards reuse the quest machinery; it is left out of every list, search, and the dashboard text.
+References: documentation/capabilities/mission-coordination/specifications.md, documentation/glossary.md, documentation/work-in-progress.md.
+Validation: The owner's choices of 2026-11-10 (full specification, in increments starting with A; every start through the Guildmaster; realm tiles in the right side panel; rename).

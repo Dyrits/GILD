@@ -1,6 +1,7 @@
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, notFound } from "./errors.ts";
+import { refuseGuildmaster } from "./guildmaster.ts";
 import type { ToolHandlers } from "./threadTools.ts";
 
 /** The title of a quest or thread whose first message holds only images. */
@@ -28,6 +29,7 @@ export const renameMission = Effect.fn("renameMission")(function* (missionId: st
   if (cleaned === "") return yield* invalid("The title is empty.");
   const [mission] = yield* sql<{ id: string }>`SELECT id FROM missions WHERE id = ${missionId}`;
   if (mission === undefined) return yield* notFound("No such mission.");
+  yield* refuseGuildmaster(missionId, "renamed");
   yield* writeTitle(missionId, cleaned, true);
   return null;
 });

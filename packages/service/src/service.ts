@@ -18,6 +18,7 @@ import { endpointsLayer } from "./endpoints.ts";
 import { invalid, ServiceFailure } from "./errors.ts";
 import type { Harness } from "./execution.ts";
 import { addBrowsableRoot, browseFolders, createFolder, seedBrowsableRoots } from "./folders.ts";
+import { readGuildmaster } from "./guildmaster.ts";
 import { changeThreadRunner } from "./handover.ts";
 import { fakeHarnessToolsLayer, HarnessTools } from "./harnessTools.ts";
 import { type JournalOutcome, readJournalView, updateJournal } from "./journal.ts";
@@ -307,6 +308,7 @@ const make = Effect.gen(function* () {
           ).pipe(Effect.provideService(ScratchRoot, scratchRoot)),
         ReadAttachment: (read) => withFiles(readAttachment(read.attachmentId)),
         ReadBudget: (read) => readBudgetWindow(read.missionId),
+        ReadGuildmaster: () => change(readGuildmaster),
         ReadIntelHistory: (read) => readLoreHistory(read.loreEntryId),
         ReadJournal: (read) => readJournalView(read.missionId),
         ReadMission: (read) => readMission(read.missionId, read.threadId),
@@ -367,9 +369,13 @@ const make = Effect.gen(function* () {
               once(
                 send.requestId,
                 send._tag,
-                insertUserMessage(send.threadId, text, delivery === "Queue", attachmentIds).pipe(
-                  Effect.map((sent) => changed(sent, { threadsToWake: [send.threadId] })),
-                ),
+                insertUserMessage(
+                  send.threadId,
+                  text,
+                  delivery === "Queue",
+                  attachmentIds,
+                  send.realmPath ?? null,
+                ).pipe(Effect.map((sent) => changed(sent, { threadsToWake: [send.threadId] }))),
                 () => wakingOnly(send.threadId),
               ),
             );

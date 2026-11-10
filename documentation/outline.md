@@ -16,7 +16,7 @@ The first build serves one user. The [architecture](architecture.md#future-multi
 ## Capabilities
 
 - **[mission-tracking](capabilities/mission-tracking/specifications.md)**: starting missions and following their state, threads, and spending on the dashboard.
-- **[mission-coordination](capabilities/mission-coordination/specifications.md)**: talking to Control, the one permanent thread that opens or continues the right mission for any request, relays what missions report, and forwards messages that name no thread; threads reference threads in other missions with `@`.
+- **[mission-coordination](capabilities/mission-coordination/specifications.md)**: talking to Guildmaster, the one permanent thread that opens or continues the right mission for any request, relays what missions report, and forwards messages that name no thread; threads reference threads in other missions with `@`.
 - **[mission-journal](capabilities/mission-journal/specifications.md)**: keeping each mission's briefing and change log, read by every thread in the mission and updated as it works.
 - **[thread-tree](capabilities/thread-tree/specifications.md)**: opening threads beneath a thread, by the user or by a thread, each with its own harness, agent, model, and effort; every subagent a harness starts shows up as a thread beneath the one that started it, so the user can follow it.
 - **[thread-messaging](capabilities/thread-messaging/specifications.md)**: thread messages in both directions along the tree, with replies and interruptions; the user can write in any open thread, including a subagent's.
@@ -29,7 +29,7 @@ The first build serves one user. The [architecture](architecture.md#future-multi
 - **[tool-and-skill-loading](capabilities/tool-and-skill-loading/specifications.md)**: giving every thread its selected global and workspace MCP servers, required thread tools, and skill names and descriptions, with full instructions loaded when used and harness-specific skill preference.
 - **[scoped-intel](capabilities/scoped-intel/specifications.md)**: gathering and recalling intel at thread, workspace, or global scope.
 - **[action-approval](capabilities/action-approval/specifications.md)**: asking the user in plain language before a risky action, one approval per action and thread, with standing permissions for what the user always allows.
-- **[budget-control](capabilities/budget-control/specifications.md)**: budgets on each mission, on Control, and on all spending over a period, stopping new spending at the limit and shown as rings that fill as they are used.
+- **[budget-control](capabilities/budget-control/specifications.md)**: budgets on each mission, on Guildmaster, and on all spending over a period, stopping new spending at the limit and shown as rings that fill as they are used.
 - **device-pairing**: pairing a phone with one pairing code and using Gild from it on any network.
 
 See also the [requirements](requirements.md) and the [glossary](glossary.md).

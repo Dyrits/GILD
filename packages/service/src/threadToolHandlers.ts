@@ -5,12 +5,13 @@ import type { Approvals } from "./approvals.ts";
 import { countChatter } from "./chatter.ts";
 import { type CommandRunner, changed, unchanged, type WithFollowUps } from "./commands.ts";
 import { HarnessFailure, type HarnessPrompt, type PromptAnswer } from "./execution.ts";
+import { isGuildmasterThread, openedAnswerOf, openMissionByGuildmaster, refusedOpening } from "./guildmaster.ts";
 import { journalToolsOf } from "./journalTools.ts";
 import { loreToolsOf } from "./loreTools.ts";
 import { insertMessage } from "./messaging.ts";
 import type { Resolution, Suggested, Suggestions } from "./suggestions.ts";
 import type { Threads } from "./threads.ts";
-import { type ToolAnswer, type ToolHandlers, threadTools as toolCatalogue } from "./threadTools.ts";
+import { type ArgumentsOf, type ToolAnswer, type ToolHandlers, threadTools as toolCatalogue } from "./threadTools.ts";
 import { titleToolsOf } from "./titles.ts";
 import { isBeneath, isWithinReach, openThreadByAgent, refusedOf, reportResult } from "./tree.ts";
 
@@ -51,6 +52,8 @@ export const askOwnerFor =
     );
 
 const carryOn = "Carry on as if that message had not been sent to you; do not answer it.";
+// The Guildmaster answers its owner instead: one sentence saying where the request went.
+const confirmInstead = "Tell the owner in one sentence where it went; do not repeat the request.";
 
 /** What `suggest_mission` tells the thread for each way the owner resolved its suggestion. */
 const resolutionTextOf = (resolution: Resolution) =>
@@ -101,6 +104,27 @@ export const makeToolHandlers = (dependencies: {
 
   const answer = (text: string, isError = false): ToolAnswer => ({ isError, text });
 
+  const openThread =
+    ({ effort, harness, model, request, title }: ArgumentsOf<"open_thread">) =>
+    (threadIdOf: string) =>
+      runTool(
+        openThreadByAgent(threadIdOf, request, title ?? null, {
+          effort: effort ?? null,
+          harness: harness ?? null,
+          model: model ?? null,
+        }).pipe(
+          // A refused account comes back to the thread as a refusal.
+          Effect.catchTag("ServiceFailure", (failure) => Effect.succeed(refusedOf(failure.message))),
+        ),
+      ).pipe(
+        Effect.map((outcome) =>
+          Match.valueTags(outcome, {
+            Opened: (opened) => answer(`Opened thread ${opened.threadId}. Its result will come to you as a message.`),
+            Refused: (refused) => answer(refused.reason, true),
+          }),
+        ),
+      );
+
   const handlers: ToolHandlers = {
     ...loreToolsOf(commit),
     ...journalToolsOf(commit),
@@ -134,22 +158,24 @@ export const makeToolHandlers = (dependencies: {
         ),
         Effect.catch((reason: string) => Effect.succeed(answer(reason, true))),
       ),
-    open_thread: (threadId, { effort, harness, model, request, title }) =>
+    open_mission: (threadId, args) =>
       runTool(
-        openThreadByAgent(threadId, request, title ?? null, {
-          effort: effort ?? null,
-          harness: harness ?? null,
-          model: model ?? null,
-        }).pipe(
-          // A refused account comes back to the thread as a refusal.
-          Effect.catchTag("ServiceFailure", (failure) => Effect.succeed(refusedOf(failure.message))),
+        openMissionByGuildmaster(threadId, args).pipe(
+          // A refused account or a reached budget comes back to the Guildmaster as a refusal.
+          Effect.catchTag("ServiceFailure", (failure) => Effect.succeed(refusedOpening(failure.message))),
         ),
-      ).pipe(
-        Effect.map((outcome) =>
-          Match.valueTags(outcome, {
-            Opened: (opened) => answer(`Opened thread ${opened.threadId}. Its result will come to you as a message.`),
-            Refused: (refused) => answer(refused.reason, true),
-          }),
+      ).pipe(Effect.map(openedAnswerOf)),
+    open_thread: (threadId, args) =>
+      commit(isGuildmasterThread(threadId)).pipe(
+        Effect.flatMap((isGuildmaster) =>
+          isGuildmaster
+            ? Effect.succeed(
+                answer(
+                  "Not opened: the Guildmaster opens no threads. Open a quest with open_mission, or continue one with suggest_mission.",
+                  true,
+                ),
+              )
+            : openThread(args)(threadId),
         ),
       ),
     report_result: (threadId, { journal, result }) =>
@@ -192,7 +218,16 @@ export const makeToolHandlers = (dependencies: {
         ? Effect.succeed(toolCatalogue.suggest_mission.invalid)
         : suggestions.suggest(threadId, args).pipe(
             Effect.tap(({ followUps }) => commands.apply(followUps)),
-            Effect.map(({ value }) => suggestedAnswerOf(value)),
+            Effect.flatMap(({ value }) =>
+              commit(isGuildmasterThread(threadId)).pipe(
+                Effect.map((isGuildmaster) => {
+                  const answered = suggestedAnswerOf(value);
+                  return isGuildmaster
+                    ? { ...answered, text: answered.text.replace(carryOn, confirmInstead) }
+                    : answered;
+                }),
+              ),
+            ),
           ),
   };
   return handlers;

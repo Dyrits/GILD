@@ -3,6 +3,7 @@ import { Clock, Effect, Layer, Schedule } from "effect";
 import { SqlClient } from "effect/sql";
 import { Commands, changed } from "./commands.ts";
 import { invalid, notFound, ServiceFailure } from "./errors.ts";
+import { refuseGuildmaster } from "./guildmaster.ts";
 import { updateJournal } from "./journal.ts";
 import { activeStates, haltThreads } from "./lifecycle.ts";
 import { dayMillis, readSettings } from "./settings.ts";
@@ -30,6 +31,7 @@ const readWorkingIds = Effect.fn("readWorkingIds")(function* (missionId: string)
   const sql = yield* SqlClient.SqlClient;
   const [mission] = yield* sql<{ ending: MissionEnding | null }>`SELECT ending FROM missions WHERE id = ${missionId}`;
   if (mission === undefined) return yield* notFound("No such mission.");
+  yield* refuseGuildmaster(missionId, "ended or archived");
   const rows = yield* sql<{ id: string }>`SELECT id FROM threads
     WHERE mission_id = ${missionId} AND is_deleting = 0 AND state IN ${sql.in(activeStates)} ORDER BY id`;
   return rows.map((row) => row.id);

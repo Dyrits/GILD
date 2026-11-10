@@ -455,6 +455,15 @@ const migrations = {
     )`;
     yield* sql`CREATE INDEX attachments_message ON attachments(message_id)`;
   }),
+  // The Guildmaster (quest coordination): one hidden quest whose top thread the owner talks to, left out of every list.
+  // `realm_path` is the realm the owner attached to a message for the Guildmaster; a suggestion keeps it for the quest
+  // it may open.
+  "0029_guildmaster": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE missions ADD COLUMN is_guildmaster INTEGER NOT NULL DEFAULT 0`;
+    yield* sql`ALTER TABLE messages ADD COLUMN realm_path TEXT`;
+    yield* sql`ALTER TABLE suggestions ADD COLUMN realm_path TEXT`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

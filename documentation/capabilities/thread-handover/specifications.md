@@ -27,7 +27,7 @@ A quest runs on one harness and model for its whole life. When a limit is reache
 - Resolving skills and tools again for the new harness (tool-and-skill-loading is not built).
 - Summarizing the oldest part of a long conversation.
 - Replaying what the earlier harness did in its turns (its tool calls and results): only messages are stored, so only messages are replayed.
-- Handing over the quest's Control or a routine's thread.
+- Handing over the Guildmaster or a routine's thread.
 
 ## Acceptance
 

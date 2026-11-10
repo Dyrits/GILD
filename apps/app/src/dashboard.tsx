@@ -1,116 +1,24 @@
-import { type MissionId, startingModel, type WorkspaceChoice, type WorkspaceId } from "@gild/contracts";
+import type { MissionId, WorkspaceId } from "@gild/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { imageRefusalOf } from "./attachmentRules";
 import { MissionBoard, MissionCard } from "./board";
 import { BudgetMeters, BudgetScreen, BudgetStopCard } from "./budgets";
-import { newRequestId, type ServiceClient } from "./client";
-import { Composer } from "./controls";
+import type { ServiceClient } from "./client";
 import { CrestStudio } from "./crestStudio";
+import { GuildmasterHandoff } from "./guildmaster";
 import { JournalScreen } from "./journal";
 import { LoreScreen } from "./lore";
 import { MissionPromptCard } from "./missionActions";
 import { allMissions } from "./queries";
 import { QuestionCard } from "./questions";
 import { QuestOverview, QuestPreview, RealmPanel } from "./questPanel";
-import { type Runner, RunnerPickers, useHarnesses } from "./runners";
 import { useHasSidebar, useQuestPanel } from "./sidebar";
 import { styles } from "./styles";
 import { colors, fonts } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
-import { useSkills } from "./useSkills";
-import { RealmChooser } from "./workspaces";
 
 /** The panel width from which the board's columns stand side by side. */
 const boardBreakpoint = 560;
-
-/**
- * Starts a mission with one message, prefilled from the last mission's choices (mission-tracking). On a workspace's
- * board the mission starts in that workspace, and the workspace cannot be changed there.
- */
-export function MissionStarter({
-  client,
-  onOpen,
-  stage = false,
-  workspace: lockedWorkspace,
-}: {
-  client: ServiceClient;
-  onOpen: (id: MissionId) => void;
-  /** The Guildmaster's layout: the realm tiles large in the middle of the screen, the message at the foot. */
-  stage?: boolean;
-  /** The workspace whose board shows, or null on the board of every mission. */
-  workspace: WorkspaceChoice | null;
-}) {
-  const { data: last } = useServiceQuery(client, { _tag: "ReadStartChoices" }, "start-choices");
-  const { data: harnesses } = useHarnesses(client);
-  // The realms that exist, to choose from under the message.
-  const { data: known } = useServiceQuery(client, allMissions.request, allMissions.key);
-  // Null until the owner picks; the last mission's runner applies until then.
-  const [runner, setRunner] = useState<Runner | null>(null);
-  // Null until the owner picks a realm; a quest starts with none until then.
-  const [workspace, setWorkspace] = useState<{ readonly path: string | null } | null>(null);
-  const chosen: Runner =
-    runner ??
-    (last === null
-      ? { accountId: null, effort: "default", harness: "claude", model: startingModel }
-      : { accountId: last.accountId, effort: last.effort, harness: last.harness, model: last.model });
-  const chosenWorkspace =
-    lockedWorkspace !== null
-      ? lockedWorkspace.path
-      : // No realm until the owner picks one, whatever the last quest used.
-        (workspace?.path ?? null);
-  const skills = useSkills(client, chosenWorkspace);
-  const chooser =
-    lockedWorkspace === null ? (
-      <RealmChooser
-        isBig={stage}
-        missions={known?.missions ?? []}
-        onChange={(path) => setWorkspace({ path })}
-        onCreate={(realm) =>
-          client
-            .request({ _tag: "CreateRealm", crest: realm.crest, name: realm.name, path: realm.path })
-            .then(() => setWorkspace({ path: realm.path }))
-        }
-        realms={known?.workspaces ?? []}
-        value={chosenWorkspace}
-      />
-    ) : (
-      <Text style={styles.muted}>
-        Starts in <Text style={styles.code}>{lockedWorkspace.name}</Text>.
-      </Text>
-    );
-  return (
-    // Above the list below it, so a picker's open list covers the search and the filters.
-    <View style={[styles.section, styles.raised, stage && local.stage]}>
-      {stage && <View style={local.stageCenter}>{chooser}</View>}
-      <Composer
-        accessory={<RunnerPickers harnesses={harnesses} isCompact={true} onChange={setRunner} value={chosen} />}
-        attachments={{ client, refusal: imageRefusalOf(harnesses, chosen.harness, chosen.model) }}
-        mentions={{ client, workspacePath: chosenWorkspace }}
-        onSend={async (text, attachmentIds) =>
-          onOpen(
-            (
-              await client.request({
-                _tag: "StartMission",
-                accountId: chosen.accountId,
-                attachmentIds,
-                effort: chosen.effort,
-                harness: chosen.harness,
-                model: chosen.model,
-                requestId: newRequestId(),
-                text,
-                workspacePath: chosenWorkspace,
-              })
-            ).missionId,
-          )
-        }
-        placeholder="Start a quest with one message…"
-        skills={skills}
-      />
-      {!stage && chooser}
-    </View>
-  );
-}
 
 /**
  * The missions as a board by what needs the owner, with a workspace breadcrumb and search: the dashboard; or, for
@@ -123,6 +31,7 @@ export function Dashboard({
   onBack,
   onOpen,
   onSelect,
+  onSendToGuildmaster,
   onSettings,
   onLore,
   selectedId,
@@ -137,6 +46,8 @@ export function Dashboard({
   onSelect: (id: MissionId | null) => void;
   /** The quest the panel beside the board shows, or null. */
   selectedId: MissionId | null;
+  /** Goes to the Guildmaster after a message from a realm's page, with that realm's folder chosen there. */
+  onSendToGuildmaster: (realmPath: string) => void;
   onSettings: () => void;
   /** Opens the lore panel with all lore. */
   onLore: () => void;
@@ -362,10 +273,10 @@ export function Dashboard({
           ))}
       </ScrollView>
       {!isArchived && realm !== null && (
-        // On a realm's board the message at the foot starts a quest in that realm. The board of every quest has none:
-        // the Guildmaster is where quests start.
+        // On a realm's board the message at the foot goes to the Guildmaster with the realm attached, and no quest starts
+        // from here. The board of every quest has none: the Guildmaster is where quests start.
         <View style={local.footer}>
-          <MissionStarter client={client} onOpen={onOpen} workspace={realm} />
+          <GuildmasterHandoff client={client} onSent={() => onSendToGuildmaster(realm.path)} realm={realm} />
         </View>
       )}
     </View>

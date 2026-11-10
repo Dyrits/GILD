@@ -12,7 +12,7 @@ Subagents in today's harnesses report once at the end and cannot be asked or red
 
 - A thread can message its parent and the threads directly beneath it. Siblings reach each other through their parent.
 - A thread, or the user writing in it, can also message any thread or mission it references explicitly with `@`, for example `@Read my emails › Triage`, in its own mission or another. A reference to a mission reaches its top thread. The reply comes straight back (see [mission-coordination](../mission-coordination/specifications.md#references-between-missions)).
-- Without a reference, a thread reaches another mission only through `@Control`.
+- Without a reference, a thread reaches another mission only through `@Guildmaster`.
 - The user can write to any open thread, including a subagent's (for mirrored subagents, see [thread-tree](../thread-tree/specifications.md#subagents)).
 - Every message shows its sender: the user, or the sending thread.
 - A message can ask for a reply.
@@ -41,7 +41,7 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
 
 | Tool | Purpose | Arguments | Answer |
 | --- | --- | --- | --- |
-| `send_thread_message` | Send a message | Receiving thread (a parent, a thread directly beneath, a referenced thread or mission, or Control), text, whether a reply is wanted | The message's identifier, queued until explicit resume when the receiver is Stopped; or a refusal and its reason when the target is outside its reach |
+| `send_thread_message` | Send a message | Receiving thread (a parent, a thread directly beneath, a referenced thread or mission, or Guildmaster), text, whether a reply is wanted | The message's identifier, queued until explicit resume when the receiver is Stopped; or a refusal and its reason when the target is outside its reach |
 | `report_result` | Report the thread's result to its parent | The result | — |
 | `interrupt_thread` | Interrupt a thread directly beneath the caller | The thread | Done, or a refusal and its reason when the thread is not directly beneath the caller or is not running |
 
@@ -69,6 +69,6 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
 
 ## Exclusions
 
-- Messages between threads in different missions without an explicit reference or Control.
+- Messages between threads in different missions without an explicit reference or Guildmaster.
 - Attachments other than text between threads. The owner's images are in [message-attachments](../message-attachments/specifications.md).
 - Editing or deleting a sent message.

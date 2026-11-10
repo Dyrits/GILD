@@ -1,5 +1,14 @@
 # Work in progress
 
+## Guildmaster batch · 2026-11-10 · increment A implemented and checked, owner review pending
+
+Agreed in CHG-0106: the Guildmaster is the one place quests start, built from the full [quest coordination](capabilities/mission-coordination/specifications.md) in three increments. Starting revision: `b913921`.
+Increment A (built): a hidden Guildmaster quest and thread; `find_missions` over title, briefing, and opening request, with ticket keys and links weighed; `open_mission` (Guildmaster only) and `suggest_mission` as Continue in or Open a new quest anyway; the realm carried on a message; the screen as the conversation with the realm tiles in the right panel; the realm page's box sending to the Guildmaster.
+Checks: 11 new fake-harness tests; typecheck and Biome pass; full suite 562 passed with one timing-sensitive failure under machine load that passes alone; window driven on a throwaway database ([proof](verification/2026-11-10-guildmaster.md)).
+Awaiting the owner: the look; a live Claude Code, Codex, or OpenCode run of the Guildmaster's prompt (does it search first and never open a quest that fits?).
+Pending, increment B: hearing back from quests it opened, `act_on_mission`, `@Guildmaster` forwarding, event lines, `read_control_history`. Increment C: tiers, the Guildmaster's budget, the hide setting, a prefilled cheapest model.
+Open: the owner's own message does not show its realm in the conversation; the Guildmaster thread carries the delivered note only.
+
 ## Guild-board batch · 2026-11-09 · implemented and checked, owner review pending
 
 The owner selected [the Guild direction](art-direction/2026-11-08-guild-board.html) and requested its naming through iterate.

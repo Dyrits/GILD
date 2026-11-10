@@ -25,6 +25,7 @@ import { PermissionsView, Question } from "./questions.ts";
 import {
   EffortChoice,
   EndingPreview,
+  GuildmasterPlace,
   MessageDelivery,
   MissionDetail,
   MissionEnding,
@@ -103,6 +104,8 @@ export const SendMessage = Schema.TaggedStruct("SendMessage", {
   attachmentIds: AttachmentIds,
   /** Steer or Queue while the thread runs; null uses the owner's default. */
   delivery: Schema.NullOr(MessageDelivery),
+  /** The realm's folder the owner attached, for the Guildmaster: a quest it opens starts there. */
+  realmPath: Schema.optionalKey(Schema.NullOr(Schema.String)),
   requestId: RequestId,
   text: OwnerMessageText,
   threadId: ThreadId,
@@ -115,6 +118,8 @@ export const ListMissions = Schema.TaggedStruct("ListMissions", {
   state: Schema.NullOr(MissionState),
   workspaceId: Schema.NullOr(WorkspaceId),
 });
+/** Where the Guildmaster's conversation is; the service makes it on first use. */
+export const ReadGuildmaster = Schema.TaggedStruct("ReadGuildmaster", {});
 /** Asks for the new-mission choices prefilled from the last mission started. */
 export const ReadStartChoices = Schema.TaggedStruct("ReadStartChoices", {});
 /** The owner renames a mission; `set_mission_title` is refused afterwards. */
@@ -374,6 +379,7 @@ export const Request = Schema.Union([
   SendMessage,
   ListMissions,
   ReadStartChoices,
+  ReadGuildmaster,
   RenameMission,
   PreviewEnding,
   EndMission,
@@ -480,6 +486,7 @@ export const Results = {
   PreviewStartingContext: StartingContext,
   ReadAttachment: AttachmentContent,
   ReadBudget: BudgetWindow,
+  ReadGuildmaster: GuildmasterPlace,
   ReadIntelHistory: LoreHistory,
   ReadJournal: JournalView,
   ReadMission: MissionDetail,

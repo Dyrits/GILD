@@ -74,8 +74,8 @@ _Avoid_: Summary, journal summary, description, brief
 The one overview of all missions with their state, threads, spending, and the start of each briefing. Control reads it as text.
 _Avoid_: Mission dashboard, index, mission list, board, kanban
 
-**Control**:
-The one permanent thread outside every mission that the user can talk to about anything. It opens a mission for each task and never does the work itself.
+**Guildmaster** (technical term: Control):
+The one permanent thread outside every mission that the user can talk to about anything. Every quest starts through it: it looks for a quest that already fits, offers to continue it, or opens a new one, and it never does the work itself.
 _Avoid_: Coordinator, dispatcher, orchestrator, main thread, Mission control
 
 **Workspace**:

@@ -17,7 +17,10 @@ export function SuggestionLine({
   onSelectThread: (threadId: ThreadId) => void;
 }) {
   if (suggestion.outcome === null) return null;
-  const label = suggestionLabels[suggestion.outcome];
+  const label =
+    suggestion.isFromGuildmaster && suggestion.outcome === "MovedToMission"
+      ? "Opened quest"
+      : suggestionLabels[suggestion.outcome];
   const { targetMissionId, targetThreadId } = suggestion;
   const open =
     suggestion.outcome === "KeptAsAside"
@@ -35,7 +38,7 @@ export function SuggestionLine({
         <Pressable onPress={open}>
           <Text style={styles.link}>
             {label}: {suggestion.targetTitle}
-            {suggestion.isAutomatic ? " (opened without asking)" : ""}
+            {suggestion.isAutomatic && !suggestion.isFromGuildmaster ? " (opened without asking)" : ""}
           </Text>
         </Pressable>
       )}
@@ -60,7 +63,11 @@ export function SuggestionCard({ client, suggestion }: { client: ServiceClient; 
     );
   return (
     <View style={styles.question}>
-      <Text style={styles.questionText}>This message seems off this quest's topic. Where should it go?</Text>
+      <Text style={styles.questionText}>
+        {suggestion.isFromGuildmaster
+          ? "A quest may already cover this. Continue it, or open a new quest?"
+          : "This message seems off this quest's topic. Where should it go?"}
+      </Text>
       <Text style={styles.body}>{suggestion.text}</Text>
       {suggestion.matches.map((match) => (
         <Pressable
@@ -78,13 +85,17 @@ export function SuggestionCard({ client, suggestion }: { client: ServiceClient; 
           onPress={() => send({ _tag: "NewMission", ...runner })}
           style={[styles.answer, styles.answerPrimary]}
         >
-          <Text style={[styles.answerText, styles.answerTextPrimary]}>Open as new quest "{suggestion.title}"</Text>
+          <Text style={[styles.answerText, styles.answerTextPrimary]}>
+            {suggestion.isFromGuildmaster ? "Open a new quest anyway" : "Open as new quest"} "{suggestion.title}"
+          </Text>
         </Pressable>
         <RunnerPickers harnesses={harnesses} isCompact={false} onChange={setRunner} value={runner} />
       </View>
-      <Pressable onPress={() => send({ _tag: "Aside" })} style={styles.answer}>
-        <Text style={styles.answerText}>Keep as aside</Text>
-      </Pressable>
+      {!suggestion.isFromGuildmaster && (
+        <Pressable onPress={() => send({ _tag: "Aside" })} style={styles.answer}>
+          <Text style={styles.answerText}>Keep as aside</Text>
+        </Pressable>
+      )}
       {error !== null && <Text style={styles.error}>{error}</Text>}
     </View>
   );

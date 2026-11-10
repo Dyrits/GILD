@@ -5,6 +5,7 @@ import { makeOwnerWaits } from "./attention.ts";
 import { Changes } from "./changes.ts";
 import { changed, unchanged, type WithFollowUps } from "./commands.ts";
 import { invalid, notFound, type ServiceFailure } from "./errors.ts";
+import { findRealm, isGuildmasterThread } from "./guildmaster.ts";
 import { resumeInTurn } from "./lifecycle.ts";
 import { findMissions, findMissionsTextOf, maxMatches } from "./matching.ts";
 import { insertUserMessage } from "./messaging.ts";
@@ -91,10 +92,15 @@ export const suggestionsLayer = Layer.effect(
         resolve(suggestionId, threadId, withdrawn).pipe(Effect.tap(() => sql.afterCommit(changes.publish))),
       );
 
-    /** Opens a mission with only the off-topic part, under the proposed title, with no workspace. */
-    const openMission = (text: string, title: string, choice: Parameters<typeof insertMission>[1]) =>
+    /** Opens a mission with only the off-topic part, under the proposed title, with no workspace unless the Guildmaster's owner chose a realm. */
+    const openMission = (
+      text: string,
+      title: string,
+      choice: Parameters<typeof insertMission>[1],
+      realmPath: string | null = null,
+    ) =>
       Effect.gen(function* () {
-        const started = yield* insertMission(text, choice, null, false);
+        const started = yield* insertMission(text, choice, realmPath, false);
         if (titleOf(title) !== "") yield* proposeTitle(started.missionId, title);
         const [mission] = yield* sql<{ title: string }>`SELECT title FROM missions WHERE id = ${started.missionId}`;
         return {
@@ -109,20 +115,18 @@ export const suggestionsLayer = Layer.effect(
     const carryOut = (suggestion: Suggestion, given: SuggestionAnswer) =>
       Match.valueTags(given, {
         Aside: () =>
-          openAside(suggestion.threadId, suggestion.text, suggestion.title).pipe(
-            Effect.flatMap(({ value: opened }) =>
-              sql<{ title: string }>`SELECT title FROM threads WHERE id = ${opened.threadId}`.pipe(
-                Effect.map(
-                  ([row]): Resolution => ({
-                    outcome: "KeptAsAside",
-                    targetMissionId: null,
-                    targetThreadId: opened.threadId,
-                    targetTitle: row?.title ?? suggestion.title,
-                  }),
-                ),
-              ),
-            ),
-          ),
+          Effect.gen(function* () {
+            if (suggestion.isFromGuildmaster)
+              return yield* invalid("The Guildmaster keeps no asides: continue in a quest or open a new one.");
+            const { value: opened } = yield* openAside(suggestion.threadId, suggestion.text, suggestion.title);
+            const [row] = yield* sql<{ title: string }>`SELECT title FROM threads WHERE id = ${opened.threadId}`;
+            return {
+              outcome: "KeptAsAside",
+              targetMissionId: null,
+              targetThreadId: opened.threadId,
+              targetTitle: row?.title ?? suggestion.title,
+            } satisfies Resolution;
+          }),
         Continue: ({ missionId }) =>
           Effect.gen(function* () {
             if (!suggestion.matches.some((match) => match.missionId === missionId))
@@ -140,13 +144,24 @@ export const suggestionsLayer = Layer.effect(
             } satisfies Resolution;
           }),
         NewMission: (chosen) =>
-          // Left out, the harness and account are the suggesting thread's, as Open as new mission prefills them.
-          openMission(suggestion.text, suggestion.title, {
-            accountId:
-              chosen.harness === undefined && chosen.accountId === undefined ? suggestion.accountId : chosen.accountId,
-            effort: chosen.effort,
-            harness: chosen.harness ?? suggestion.harness,
-            model: chosen.model,
+          Effect.gen(function* () {
+            const [stored] = yield* sql<{ realmPath: string | null }>`
+              SELECT realm_path AS realmPath FROM suggestions WHERE id = ${suggestion.id}`;
+            // Left out, the harness and account are the suggesting thread's, as Open as new mission prefills them.
+            return yield* openMission(
+              suggestion.text,
+              suggestion.title,
+              {
+                accountId:
+                  chosen.harness === undefined && chosen.accountId === undefined
+                    ? suggestion.accountId
+                    : chosen.accountId,
+                effort: chosen.effort,
+                harness: chosen.harness ?? suggestion.harness,
+                model: chosen.model,
+              },
+              stored?.realmPath ?? null,
+            );
           }),
       });
 
@@ -170,14 +185,21 @@ export const suggestionsLayer = Layer.effect(
      * Opens the suggestion, puts the thread in Attention, and waits with no time limit for the owner; null
      * when the thread is not at work in a turn, so nobody is asked.
      */
-    const ask = (threadId: string, missionId: string, text: string, title: string, matches: ReadonlyArray<string>) =>
+    const ask = (
+      threadId: string,
+      missionId: string,
+      text: string,
+      title: string,
+      matches: ReadonlyArray<string>,
+      realmPath: string | null,
+    ) =>
       waits.ask({
         // A caller that gave up leaves nobody to carry on: the suggestion is withdrawn.
         abandon: (id) => withdrawOne(id, threadId),
         missionId,
         record: (id, now) =>
-          sql`INSERT INTO suggestions (id, mission_id, thread_id, text, title, matches, asked_at)
-            VALUES (${id}, ${missionId}, ${threadId}, ${text}, ${title}, ${JSON.stringify(matches)}, ${now})`.pipe(
+          sql`INSERT INTO suggestions (id, mission_id, thread_id, text, title, matches, asked_at, realm_path)
+            VALUES (${id}, ${missionId}, ${threadId}, ${text}, ${title}, ${JSON.stringify(matches)}, ${now}, ${realmPath})`.pipe(
             Effect.asVoid,
           ),
         threadId,
@@ -224,7 +246,10 @@ export const suggestionsLayer = Layer.effect(
         const named = [...new Set(missions)]
           .filter((id) => existing.has(id) && id !== caller.missionId)
           .slice(0, maxMatches);
-        const { shouldOpenOffTopicMissions } = yield* readSettings;
+        // The Guildmaster always asks: it is where the owner decides whether a quest continues or a new one opens.
+        const isGuildmaster = yield* isGuildmasterThread(threadId);
+        const realm = isGuildmaster && args.realm !== undefined ? yield* findRealm(args.realm) : null;
+        const shouldOpenOffTopicMissions = !isGuildmaster && (yield* readSettings).shouldOpenOffTopicMissions;
         // Opening without asking needs no mission to match, so it is checked here, not taken from the thread.
         const matches =
           shouldOpenOffTopicMissions && named.length === 0
@@ -242,7 +267,7 @@ export const suggestionsLayer = Layer.effect(
             { _tag: "OpenedWithoutAsking", resolution: opened },
             { threadsToWake: opened.targetThreadId === null ? [] : [opened.targetThreadId] },
           );
-        const resolution = yield* ask(threadId, caller.missionId, text, title, matches);
+        const resolution = yield* ask(threadId, caller.missionId, text, title, matches, realm?.path ?? null);
         return unchanged<Suggested>(resolution === null ? { _tag: "NotAsked" } : { _tag: "Resolved", resolution });
       }).pipe(Effect.provideService(SqlClient.SqlClient, sql), Effect.orDie);
 

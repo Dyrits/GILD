@@ -49,7 +49,7 @@ const rememberThreadPanelOpen = (isOpen: boolean) => {
 };
 
 /** The reply a thread is writing, while the service streams it. */
-function useDraft(client: ServiceClient, threadId: string | null) {
+export function useDraft(client: ServiceClient, threadId: string | null) {
   const [draft, setDraft] = useState("");
   useEffect(() => {
     setDraft("");
@@ -67,7 +67,7 @@ function useDraft(client: ServiceClient, threadId: string | null) {
  * Keeps the newest entry in view, so a reply or a question is seen as it arrives,
  * unless the owner has scrolled up to read earlier entries. Sending follows again.
  */
-function useFollowNewest() {
+export function useFollowNewest() {
   const list = useRef<FlatList<Entry>>(null);
   const isAtEnd = useRef(true);
   return {

@@ -348,5 +348,5 @@ const local = StyleSheet.create({
   // The large cards: two to a row while they fit, one when they do not, the add card and the no-realm sign beneath.
   stack: { gap: 16, maxWidth: 820, width: "100%" },
   stackCards: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
-  stackFoot: { alignItems: "center", flexDirection: "row", gap: 16 },
+  stackFoot: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 16 },
 });

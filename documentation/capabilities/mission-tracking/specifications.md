@@ -92,4 +92,4 @@ Threads use this thread tool (see [0005](../../architecture-decision-record/0005
 ## Exclusions
 
 - Budgets and their limits belong to budget-control.
-- Control, which opens missions for the user, belongs to mission-coordination.
+- Guildmaster, which opens missions for the user, belongs to mission-coordination.

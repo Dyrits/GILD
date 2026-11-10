@@ -81,6 +81,26 @@ export const threadTools = {
     isUnasked: true,
     schema: Schema.Struct({ thread: text("The id of the thread beneath you to interrupt.") }),
   }),
+  open_mission: definitionOf({
+    description:
+      "Only the Guildmaster uses it. Open a new quest for a request, after find_missions found no quest that fits or the owner chose a new quest. The quest's top thread starts on the request alone, in the realm you name, with your harness, model, and effort unless you choose others. The owner sees the new quest as a card in your conversation.",
+    invalid: invalid("Invalid arguments: give request."),
+    isUnasked: true,
+    schema: Schema.Struct({
+      effort: Schema.optionalKey(
+        EffortChoice.annotate({ description: "How hard the quest's thread works, low to max. Yours when left out." }),
+      ),
+      harness: Schema.optionalKey(
+        HarnessName.annotate({ description: "The harness: claude, codex, or opencode. Yours when left out." }),
+      ),
+      model: Schema.optionalKey(ModelChoice.annotate({ description: "The model. Yours when left out." })),
+      realm: optionalText(
+        "The name or folder of one of the realms listed in your context, when the request belongs in it, or the realm the owner chose for the message; none when left out.",
+      ),
+      request: text("The owner's request, complete enough to act on: the new quest sees none of your conversation."),
+      title: optionalText("A short title for the quest, a few words."),
+    }),
+  }),
   open_thread: definitionOf({
     description:
       "Open a thread beneath you to work on one request on its own, in parallel with you. It starts with your request, in your working folder, with your harness, account, model, and effort unless you choose others, and reports its result to you as a message. Use it instead of subagents. A harness other than yours (claude for Claude Code, codex, opencode) runs on its own sign-in and default model unless you name one of its models.",
@@ -209,7 +229,7 @@ export const threadTools = {
   }),
   suggest_mission: definitionOf({
     description:
-      "Ask the owner where an off-topic message goes: continue in a matching mission, open a new mission, or keep it as an aside beneath you. Wait for the answer, then carry on as if the message had not been sent to you.",
+      "Ask the owner where an off-topic message goes: continue in a matching mission, open a new mission, or keep it as an aside beneath you. Wait for the answer, then carry on as if the message had not been sent to you. The Guildmaster uses it when a quest fits a request: the owner chooses Continue in or Open a new quest, and it offers no aside.",
     invalid: invalid("Invalid arguments: give text, title, and missions."),
     isUnasked: true,
     schema: Schema.Struct({
@@ -218,6 +238,7 @@ export const threadTools = {
           description: "The ids of the missions from find_missions that fit, best first, at most 3.",
         }),
       ),
+      realm: optionalText("The Guildmaster only: the realm for a new quest, when the owner chose or named one."),
       text: text("The off-topic part of the owner's message, as written."),
       title: text("A short title of a few words for a new mission or aside."),
     }),

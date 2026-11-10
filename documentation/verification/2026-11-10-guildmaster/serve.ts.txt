@@ -1,0 +1,31 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { Effect, Layer } from "effect";
+import { fakeHarnessLayer, fakeHarnessToolsLayer, Service, serveLoopback, serviceLayer } from "./src/index.ts";
+
+const dir = process.env.GILD_DATA_DIR ?? "/tmp/gild-guildmaster";
+mkdirSync(join(dir, "app"), { recursive: true });
+const layer = serviceLayer({
+  accountsRoot: join(dir, "accounts"),
+  filename: join(dir, "gild.sqlite"),
+  harness: fakeHarnessLayer("800 millis"),
+  harnessTools: fakeHarnessToolsLayer(),
+  homeFolder: dir,
+  scratchRoot: join(dir, "missions"),
+});
+const program = Effect.gen(function* () {
+  const service = yield* Service;
+  const seeded = (yield* service.handle({
+    _tag: "StartMission",
+    effort: "default",
+    model: "default",
+    requestId: crypto.randomUUID(),
+    text: "Fix the checkout total rounding. Ticket PAY-481",
+    workspacePath: join(dir, "app"),
+  })) as { missionId: string };
+  writeFileSync("/tmp/gild-seed.json", JSON.stringify({ missionId: seeded.missionId }));
+  const { port } = yield* serveLoopback({ port: 0, token: "t" });
+  console.log(`ENDPOINT ws://127.0.0.1:${port}/?token=t`);
+  return yield* Effect.never;
+}).pipe(Effect.scoped, Effect.provide(Layer.fresh(layer)));
+Effect.runFork(program);

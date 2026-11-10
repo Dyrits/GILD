@@ -5,10 +5,11 @@ import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { ServiceClient } from "./src/client";
 import { Conversation } from "./src/conversation";
 import { Dashboard } from "./src/dashboard";
+import { GuildmasterScreen } from "./src/guildmaster";
 import { LoreScreen } from "./src/lore";
 import { useAttentionNotice } from "./src/notifications";
 import { PermissionsScreen } from "./src/permissions";
-import { GuildmasterScreen, KeepScreen, RealmsScreen } from "./src/places";
+import { KeepScreen, RealmsScreen } from "./src/places";
 import { RitualsScreen } from "./src/rituals";
 import { SettingsScreen } from "./src/settings";
 import { type Place, Shell } from "./src/sidebar";
@@ -23,6 +24,8 @@ export default function App() {
   // The quest picked on the board, shown in the side panel without opening it.
   const [selectedMission, setSelectedMission] = useState<MissionId | null>(null);
   const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
+  // The realm chosen for the Guildmaster's next message: from its side panel, or from a realm's page.
+  const [guildmasterRealm, setGuildmasterRealm] = useState<string | null>(null);
   // The realm whose quests the Quests place shows, or null for every quest.
   const [workspaceId, setWorkspaceId] = useState<WorkspaceId | null>(null);
   // Counts openings from the sidebar, so choosing the open mission again goes back to its threads.
@@ -75,6 +78,8 @@ export default function App() {
   const isBoard = openMission === null && place === "Quests";
   // The Charter's guide is pinned open like the board's panel; the Permissions screen it leads to has none.
   const isCharter = openMission === null && place === "Settings" && !isPermissionsOpen;
+  // The Guildmaster's realm tiles stand in a pinned panel, as the board's overview does.
+  const isGuildmaster = openMission === null && place === "Guildmaster";
   const content =
     openMission !== null ? (
       <Conversation
@@ -96,7 +101,12 @@ export default function App() {
         onPermissions={() => setIsPermissionsOpen(true)}
       />
     ) : place === "Guildmaster" ? (
-      <GuildmasterScreen client={client} onOpen={openMissionFromAnywhere} />
+      <GuildmasterScreen
+        client={client}
+        onOpenMission={openMissionFromAnywhere}
+        onRealm={setGuildmasterRealm}
+        realmPath={guildmasterRealm}
+      />
     ) : place === "Realms" ? (
       <RealmsScreen client={client} onWorkspace={openWorkspace} />
     ) : place === "Rituals" ? (
@@ -113,6 +123,10 @@ export default function App() {
         onLore={() => goTo("Lore")}
         onOpen={openMissionFromAnywhere}
         onSelect={selectMission}
+        onSendToGuildmaster={(path) => {
+          goTo("Guildmaster");
+          setGuildmasterRealm(path);
+        }}
         onSettings={() => goTo("Settings")}
         selectedId={selectedMission}
         workspaceId={workspaceId}
@@ -122,7 +136,7 @@ export default function App() {
     <Shell
       client={client}
       details={
-        isBoard || isCharter
+        isBoard || isCharter || isGuildmaster
           ? { isOpen: true, isPinned: true, onToggle: () => {} }
           : openMission === null && selectedMission === null
             ? null
