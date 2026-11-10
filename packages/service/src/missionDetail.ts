@@ -70,8 +70,9 @@ export const readMission = (missionId: string, threadId: string | null) =>
     >`
       SELECT m.id, m.thread_id AS threadId, m.sender_kind AS sender, m.model, m.harness, m.text, m.sequence, m.sent_at AS sentAt,
         m.sender_thread_id AS fromThreadId, COALESCE(s.title, m.sender_title) AS fromTitle, m.is_result AS isResult,
+        CASE WHEN sm.is_guildmaster = 0 THEN s.mission_id END AS fromMissionId,
         (m.is_queued = 1 AND m.delivered_turn_id IS NULL) AS isQueued
-      FROM messages m LEFT JOIN threads s ON s.id = m.sender_thread_id
+      FROM messages m LEFT JOIN threads s ON s.id = m.sender_thread_id LEFT JOIN missions sm ON sm.id = s.mission_id
       WHERE m.thread_id = ${selected.id} ORDER BY m.sequence`;
     const cards = yield* readCards(messages.map((message) => message.id));
     const questions = yield* listThreadQuestions(selected.id);

@@ -185,6 +185,11 @@ export type StartChoices = typeof StartChoices.Type;
 export const Message = Schema.Struct({
   /** The files attached to it, in the order the owner added them (message-attachments). */
   attachments: Schema.Array(AttachmentCard),
+  /**
+   * The quest the sending thread belongs to, for a thread message, so a conversation can link to it; null otherwise and
+   * for a message from the Guildmaster, whose quest has no page of its own.
+   */
+  fromMissionId: Schema.NullOr(MissionId),
   /** The sending thread, for a thread message; null otherwise. */
   fromThreadId: Schema.NullOr(ThreadId),
   /** The sending thread's title, for a thread message; null otherwise. */

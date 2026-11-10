@@ -9,7 +9,7 @@ A user who is new to agents does not know which harness, model, or quest fits a 
 ### Place
 
 - Guildmaster is one permanent thread outside every quest. It is pinned at the top of the dashboard, on the desktop and on the phone, and cannot be deleted, archived, or ended.
-- Guildmaster is the place the rail's first entry leads to: its conversation fills the screen, with the message box at the foot. The realms show as tiles in the right side panel, and the owner can pick one for the next message. Every action it takes shows in the conversation as a card: the quest it opened or continued, with a link, and the Companion it chose.
+- Guildmaster is the place the rail's first entry leads to: its conversation fills the screen, with the message box at the foot. The realms show as tiles in the right side panel, and the owner can pick one for the next message. Every action it takes shows in the conversation as a card: the quest or Ritual it opened, created, or continued, with a link, and the Companion it chose. The link stands after the Guildmaster's own confirmation of it, never before. Each report from a quest it opened (a result, a Summons, a failure) is likewise followed by a link to that quest, after the Guildmaster's reply to it.
 - A setting hides Guildmaster. Guildmaster is shown by default. Its spending appears on the dashboard like a quest's, and it can have its own [budget](../budget-control/specifications.md).
 
 ### What Guildmaster does itself

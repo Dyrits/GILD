@@ -366,6 +366,31 @@ describe("hearing back from quests it opened", () => {
     }).pipe(Effect.provide(setup().layer)),
   );
 
+  it.live("labels each report with the quest it came from, so the conversation can link to it", () =>
+    Effect.gen(function* () {
+      const place = yield* guildmaster;
+      const opened = yield* tool(place.threadId, "open_mission", {
+        request: 'call report_result {"journal":"nothing to record","result":"All checked"}',
+        title: "Checks",
+      });
+      const missionId = /id ([0-9a-f-]{36})/.exec(opened)?.[1];
+      const told = yield* settle(
+        place.missionId,
+        (d) => threadMessages(d).some((text) => text.includes("reported its result")),
+        place.threadId,
+      );
+      const report = told.messages.find((m) => m.sender === "thread");
+      expect(report?.fromMissionId).toBe(missionId);
+      // A message the Guildmaster sends to a quest names no quest to link to.
+      const target = yield* startIdle("Target");
+      yield* tool(place.threadId, "send_thread_message", { text: "Please take it.", to: target.threadId });
+      const received = yield* settle(target.missionId, (d) =>
+        d.messages.some((m) => m.text.includes("Please take it")),
+      );
+      expect(received.messages.find((m) => m.text.includes("Please take it"))?.fromMissionId).toBeNull();
+    }).pipe(Effect.provide(setup().layer)),
+  );
+
   it.live("is told when a quest it opened needs the owner", () =>
     Effect.gen(function* () {
       const place = yield* guildmaster;

@@ -134,6 +134,16 @@ export function EntryView({
       </View>
     );
   }
+  if (entry._tag === "QuestLink") {
+    const { missionId, title } = entry;
+    return (
+      <View style={styles.questionLine}>
+        <Pressable onPress={() => onOpenMission(missionId)}>
+          <Text style={styles.link}>Open quest: {shortened(title)}</Text>
+        </Pressable>
+      </View>
+    );
+  }
   if (entry._tag === "BudgetEvent")
     return (
       <View style={styles.questionLine}>
