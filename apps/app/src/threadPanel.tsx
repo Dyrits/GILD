@@ -1,6 +1,7 @@
-import type { ContextGauge, ContextPartKind, MissionDetail, ThreadId } from "@gild/contracts";
+import type { BackupCompanion, ContextGauge, ContextPartKind, MissionDetail, ThreadId } from "@gild/contracts";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
+import { BackupsEditor } from "./backupsEditor";
 import type { ServiceClient } from "./client";
 import { effortLabel, harnessLabels, modelLabelOf } from "./formatting";
 import {
@@ -13,6 +14,7 @@ import {
 } from "./labels";
 import { GoldButton } from "./parchment";
 import { QuestSidebar, Row } from "./questPanel";
+import { useHarnesses } from "./runners";
 import { colors, fontSizes, fonts, radii } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
 import { useSkills } from "./useSkills";
@@ -54,6 +56,42 @@ function ContextMeter({ gauge }: { gauge: ContextGauge }) {
   );
 }
 
+/**
+ * The thread's backup Companions, edited in place under their row (thread-panel, Backup companions): what the list
+ * does, then the order. Every change is saved at once. The harnesses are read only while the list shows.
+ */
+function BackupsInline({
+  client,
+  saved,
+  threadId,
+}: {
+  client: ServiceClient;
+  saved: ReadonlyArray<BackupCompanion>;
+  threadId: ThreadId;
+}) {
+  const { data: harnesses } = useHarnesses(client);
+  // The list is the owner's own once they change it; until then it is the saved one.
+  const [own, setOwn] = useState<ReadonlyArray<BackupCompanion> | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const save = (next: ReadonlyArray<BackupCompanion>) => {
+    setOwn(next);
+    setError(null);
+    client
+      .request({ _tag: "SetThreadBackups", backups: next, threadId })
+      .catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
+  };
+  return (
+    <View style={local.backups}>
+      <Text style={local.backupsNote}>
+        When a turn of this thread fails, it carries on with the first of these that differs from its own, with the
+        conversation so far.
+      </Text>
+      <BackupsEditor backups={own ?? saved} harnesses={harnesses} isBare={true} isCompact={true} onChange={save} />
+      {error !== null && <Text style={local.error}>{error}</Text>}
+    </View>
+  );
+}
+
 /** The side-quest's own "Mark as done": it ends the side-quest and leaves its quest as it is. */
 function SideQuestDone({ client, state, threadId }: { client: ServiceClient; state: string; threadId: ThreadId }) {
   const [error, setError] = useState<string | null>(null);
@@ -81,7 +119,6 @@ function SideQuestDone({ client, state, threadId }: { client: ServiceClient; sta
 export function ThreadPanel({
   client,
   detail,
-  onOpenBackups,
   onOpenBudget,
   onOpenJournal,
   onOpenLore,
@@ -89,7 +126,6 @@ export function ThreadPanel({
 }: {
   client: ServiceClient;
   detail: MissionDetail;
-  onOpenBackups: () => void;
   onOpenBudget: () => void;
   onOpenJournal: () => void;
   onOpenLore: () => void;
@@ -100,6 +136,7 @@ export function ThreadPanel({
   const { data: panel } = useServiceQuery(client, { _tag: "ReadThreadPanel", threadId: thread.id }, thread.id);
   const skills = useSkills(client, thread.workspace?.path ?? null);
   const [isShowingSkills, setIsShowingSkills] = useState(false);
+  const [isEditingBackups, setIsEditingBackups] = useState(false);
   const modelValue = `${modelLabelOf(thread.model)} · ${effortLabel(thread.effort)}`;
   const harnessValue =
     thread.accountId === null
@@ -112,9 +149,10 @@ export function ThreadPanel({
       <Row
         icon="shield"
         label="Backup companions"
-        onPress={onOpenBackups}
+        onPress={() => setIsEditingBackups(!isEditingBackups)}
         value={panel === null || panel.backups.length === 0 ? "None" : `${panel.backups.length}`}
       />
+      {isEditingBackups && <BackupsInline client={client} saved={panel?.backups ?? []} threadId={thread.id} />}
       <View style={local.contextRow}>
         {panel === null || panel.context === null ? (
           <Text style={local.empty}>Context not measured yet</Text>
@@ -166,6 +204,14 @@ export function ThreadPanel({
 }
 
 const local = StyleSheet.create({
+  backups: { borderTopColor: colors.border, borderTopWidth: 1 },
+  backupsNote: {
+    color: colors.textMuted,
+    fontFamily: fonts.sans,
+    fontSize: fontSizes.sm,
+    padding: 12,
+    paddingBottom: 4,
+  },
   bar: {
     backgroundColor: colors.controlActive,
     borderRadius: radii.sm,

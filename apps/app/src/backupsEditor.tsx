@@ -15,11 +15,14 @@ export const maxBackups = 5;
 export function BackupsEditor({
   backups,
   harnesses,
+  isBare = false,
   isCompact,
   onChange,
 }: {
   backups: ReadonlyArray<BackupCompanion>;
   harnesses: HarnessList | null;
+  /** Without its own frame, for a list drawn inside another card. */
+  isBare?: boolean;
   /** Compact underlined words beside each number; named fields beneath it otherwise. */
   isCompact: boolean;
   onChange: (backups: ReadonlyArray<BackupCompanion>) => void;
@@ -45,12 +48,37 @@ export function BackupsEditor({
     ]);
   };
   return (
-    <View style={local.card}>
+    <View style={isBare ? undefined : local.card}>
       {backups.map((backup, index) => (
         // A backup has no identity but its place in the list.
         // biome-ignore lint/suspicious/noArrayIndexKey: see above
-        <View key={index} style={[local.item, !isCompact && local.itemTop, index > 0 && local.itemRuled]}>
-          <Text style={local.number}>{index + 1}</Text>
+        <View key={index} style={[local.item, index > 0 && local.itemRuled]}>
+          <View style={local.header}>
+            <Text style={local.number}>{index + 1}</Text>
+            <Pressable
+              accessibilityLabel={`Move backup ${index + 1} up`}
+              accessibilityRole="button"
+              disabled={index === 0}
+              onPress={() => move(index, -1)}
+            >
+              <Text style={[local.control, index === 0 && local.controlOff]}>↑</Text>
+            </Pressable>
+            <Pressable
+              accessibilityLabel={`Move backup ${index + 1} down`}
+              accessibilityRole="button"
+              disabled={index === backups.length - 1}
+              onPress={() => move(index, 1)}
+            >
+              <Text style={[local.control, index === backups.length - 1 && local.controlOff]}>↓</Text>
+            </Pressable>
+            <Pressable
+              accessibilityLabel={`Remove backup ${index + 1}`}
+              accessibilityRole="button"
+              onPress={() => onChange(backups.filter((_, other) => other !== index))}
+            >
+              <Text style={local.remove}>Remove</Text>
+            </Pressable>
+          </View>
           <View style={[local.pickers, !isCompact && local.pickersNamed]}>
             <RunnerPickers
               harnesses={harnesses}
@@ -59,29 +87,6 @@ export function BackupsEditor({
               value={backup}
             />
           </View>
-          <Pressable
-            accessibilityLabel={`Move backup ${index + 1} up`}
-            accessibilityRole="button"
-            disabled={index === 0}
-            onPress={() => move(index, -1)}
-          >
-            <Text style={[local.control, index === 0 && local.controlOff]}>↑</Text>
-          </Pressable>
-          <Pressable
-            accessibilityLabel={`Move backup ${index + 1} down`}
-            accessibilityRole="button"
-            disabled={index === backups.length - 1}
-            onPress={() => move(index, 1)}
-          >
-            <Text style={[local.control, index === backups.length - 1 && local.controlOff]}>↓</Text>
-          </Pressable>
-          <Pressable
-            accessibilityLabel={`Remove backup ${index + 1}`}
-            accessibilityRole="button"
-            onPress={() => onChange(backups.filter((_, other) => other !== index))}
-          >
-            <Text style={local.remove}>Remove</Text>
-          </Pressable>
         </View>
       ))}
       {backups.length < maxBackups ? (
@@ -106,11 +111,11 @@ const local = StyleSheet.create({
   },
   control: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.lg, paddingHorizontal: 4 },
   controlOff: { color: colors.textMuted, opacity: 0.4 },
-  item: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 10, minHeight: 46, padding: 12 },
+  header: { alignItems: "center", flexDirection: "row", gap: 10 },
+  item: { gap: 8, minHeight: 46, padding: 12 },
   itemRuled: { borderTopColor: colors.border, borderTopWidth: 1 },
-  itemTop: { alignItems: "flex-start" },
-  number: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.md, width: 16 },
-  pickers: { alignItems: "center", flex: 1, flexDirection: "row", flexWrap: "wrap", gap: 10, minWidth: 200 },
+  number: { color: colors.textMuted, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.md },
+  pickers: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 10 },
   pickersNamed: { alignItems: "stretch", flexDirection: "column", gap: 6 },
   remove: { color: colors.dangerText, fontFamily: fonts.sans, fontSize: fontSizes.md, fontWeight: "500" },
 });

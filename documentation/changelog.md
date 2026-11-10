@@ -1665,3 +1665,13 @@ Scope: Development tooling
 Summary: `apps/desktop/scripts/dev.ts` rebuilds and relaunches Electron when files under `packages/contracts/src`, `packages/service/src`, or `apps/desktop/src` change (the renderer already hot-reloads through Metro); `apps/desktop/src/main.ts` quits on SIGINT and SIGTERM so the service stops with it. A relaunch stops running turns.
 References: `apps/desktop/scripts/dev.ts`, `apps/desktop/src/main.ts`.
 Validation: Biome, desktop typecheck, and desktop build pass; the relaunch path was not run live.
+
+## CHG-0115 · 2026-11-10 · Backup companions are chosen in the side panel
+
+Type: Code
+Event: Delivery
+Scope: Thread panel
+
+Summary: At the owner's request the thread's backup Companions are edited in place in the side panel, under the Backup companions row, instead of in a full screen; the full screen (`BackupsScreen`) is removed. Each backup shows a header with its number, move up, move down, and Remove, with its pickers beneath.
+References: documentation/capabilities/thread-panel/specifications.md (Backup companions), documentation/verification/2026-11-10-one-side-panel.md.
+Validation: Biome passes and the app's 117 tests pass; driven in a browser on the fake harness (add, move, remove, reload). The typecheck has errors in `conversationEntries.tsx` and `entries.test.ts` that belong to another session's uncommitted work, not these files. The owner's look is pending.
