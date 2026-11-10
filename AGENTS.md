@@ -27,6 +27,8 @@
 
 ## Handoffs
 
+To resume left-aligned conversation actions and check their appearance, read the [current handoff](.agents/handoffs/2026-11-10-1551-left-aligned-actions.md). Handoffs are shared and committed.
+
 To resume the conversation terminal and its blue message bubble, read the [current handoff](.agents/handoffs/2026-11-10-1538-conversation-terminal.md). Handoffs are shared and committed.
 
 To resume the small quest navigation button (existing sword at the top right, no left icon; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1425-quest-navigation.md). Handoffs are shared and committed.
