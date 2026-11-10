@@ -1,6 +1,6 @@
 # Rituals
 
-Status: drafted on 2026-11-10 from the owner's answers (instruction, schedule and models; fallback models; a card of its own on the board; runs in the main quest; schedule presets; one quest per Ritual; missed runs skipped; manual run). Not built. Everything the owner did not decide is **provisional** until the owner reviews it.
+Status: built on 2026-11-10 from the owner's answers (instruction, schedule and models; fallback models shown explicitly; a card of its own on the board; runs in the main quest; schedule presets; one quest per Ritual; missed runs skipped; manual run) (CHG-0098). Everything the owner did not decide is **provisional** until the owner reviews it.
 
 ## Problem and outcome
 
@@ -11,13 +11,13 @@ The owner repeats the same request: a morning digest, a weekly dependency check.
 - **A Ritual** has a title, an instruction, a schedule, a harness with account, Companion (model) and effort, an ordered list of fallback Companions, an optional realm (workspace), and an on or off switch.
 - **One quest per Ritual**: creating a Ritual creates its quest. Each run is a turn in that quest's main thread, so the quest holds the whole history of the Ritual. The owner opens side-quests beneath it as in any quest.
 - **Schedule presets only** (no cron): every day at a time; weekdays at a time; every week on a day at a time; every month on a day at a time; every N hours. Times are the computer's local time.
-- **Where the scheduler runs**: the local service. A run missed because the app was closed or the computer asleep is skipped, not caught up; the quest says nothing for it.
-- **Run now**: a button on the Ritual's quest and card starts a run at any moment, whatever the schedule and the switch. A scheduled or manual run is refused while the previous run is still in a turn (the manual one says why); a scheduled one is skipped.
-- **What a run does**: it sends the instruction to the main thread as a message from the Ritual, marked with its trigger ("Ritual · scheduled 07:00" or "Ritual · run by you"). The thread runs it on the Ritual's Companion with its approval level; actions the instruction names are approved, others ask and the thread goes to Summons (action-approval).
-- **Fallback Companions**: when a run's turn fails (usage limit, overload, model unavailable, harness signed out), the run is handed over to the next Companion of the list, which may be on another harness, and the instruction is run again with the conversation so far (thread-handover, ADR 0006). Each switch is a visible line in the quest's conversation and on the run, for example "Fell back to Codex · gpt-6.1-sol: Claude Code hit its usage limit · 07:00", and the replies keep their own author. When the list is used up the run fails and the quest shows Failed (Summons if it asks). The quest then carries on with the Companion that finished the run.
+- **Where the scheduler runs**: the local service. It sleeps until the next Ritual is due, wakes on any change and at least hourly. A run that starts more than 5 minutes after its time (the app was closed or the computer asleep) is skipped, not caught up; the quest says nothing for it, and the Ritual moves to its next time.
+- **Run now**: a button on the Ritual's card and in its quest's panel starts a run at any moment, whatever the schedule and the switch. A run is refused while the quest's main thread is at work (Running, Awaiting word, or Summons) or Stopped, with the reason for a manual run; a scheduled one is skipped.
+- **What a run does**: the thread takes the primary Companion again (a handover line if it had fallen back), then receives the instruction as a message under its trigger (first line "Ritual · scheduled 07:00" or "Ritual · run by you"; it is stored as an owner message). The thread runs it with its approval level; actions the instruction names are approved, others ask and the thread goes to Summons (action-approval).
+- **Fallback Companions**: when a run's turn fails (usage limit, overload, model unavailable, harness signed out), the run is handed over to the next Companion of the list, which may be on another harness, and the instruction is run again with the conversation so far (thread-handover, ADR 0006). Each switch is a visible line in the quest's conversation, for example "Fell back to Codex · gpt-6.1-sol · default effort · Usage limit reached · 07:00" (the failure's first line, then the time the conversation shows), and the replies keep their own author. A Companion that is already the thread's, or whose account was removed, is passed over. When the list is used up the run fails and the quest shows Failed (Summons if it asks). The quest then carries on with the Companion that finished the run.
 - **The board**: a Ritual shows as a card in its quest's column with a style of its own (a ritual mark, its schedule, "Next run" and the last run's result) so the owner tells it from a quest at a glance. An off Ritual is dimmed.
-- **Edit and delete**: every field can be edited; a change applies to the next run. Deleting a Ritual asks whether to keep its quest, which then becomes an ordinary quest.
-- **Budget**: runs draw on the Ritual quest's budget; a run is refused, with the reason, when it is exhausted.
+- **Edit and delete**: every field can be edited, in the quest's panel; a change applies to the next run, and the next time is worked out again only when the schedule or the switch changed. Deleting a Ritual asks once and keeps its quest, which becomes an ordinary quest; the quest is deleted separately, as any quest is.
+- **Budget**: runs draw on the Ritual quest's budget; under a reached budget the run's message waits and the thread is in Summons, as for any quest (budget-control).
 
 ## Not built (out of the first version)
 
@@ -29,13 +29,17 @@ The owner repeats the same request: a morning digest, a weekly dependency check.
 ## Provisional choices to review
 
 - Fallback happens on a failed turn only, not on a slow or poor answer.
-- The Ritual's starting model is the Settings default.
+- The Ritual form starts on Sonnet 5.5 (`startingModel`), not on the last quest's Companion.
+- A run's state is Underway, Fulfilled (a turn completed, even after a fallback), Interrupted (a Stopped thread, or a service restart mid-run), or Failed (every Companion failed).
+- A run is an owner message, so the thread's chatter and ended-quest rules treat it as the owner writing.
 - A run waits behind a running turn only by being skipped (scheduled) or refused (manual).
 
-## Acceptance (to build)
+## Acceptance
 
-- A Ritual due now runs in its quest's main thread with its trigger line; one not due does not (service test on a fake clock).
-- A missed run is skipped after a restart (service test).
-- Run now works with the switch off and is refused during a turn.
-- A failed turn falls back to the next Companion, shows the switch line, and keeps earlier replies' authors; the last failure fails the run (service test on the fake harness).
-- The board shows a Ritual card in its own style; the form creates, edits, and deletes (app drive on the fake harness).
+- A Ritual due runs in its quest's main thread with its trigger line; one not due, or off, does not (`rituals.test.ts`, test clock).
+- A run missed beyond the grace is skipped and the Ritual moves to its next time (`rituals.test.ts`).
+- Run now works with the switch off and is refused during a turn (`rituals.test.ts`).
+- A failed turn falls back to the next Companion, shows the switch line, and finishes there; every failure fails the run; the next run starts on the primary Companion again (`rituals.test.ts`, fake harness).
+- Each schedule preset's next time (`ritualSchedule.test.ts`); the labels and the form's time check (`ritualLabels.test.ts`).
+- In the running app on the fake harness: the form, the card in its own style, Run now, the fallback line ([proof](../../verification/2026-11-10-rituals.md)).
+- Not run: a Ritual left to fire on a live harness; the look at other widths.

@@ -5,6 +5,7 @@ import { HarnessName } from "./harnesses.ts";
 import { AccountId, MessageId, MissionId, SuggestionId, ThreadId, WorkspaceId } from "./ids.ts";
 import { LoreChange, LoreGauge } from "./lore.ts";
 import { ApprovalLevel, Question } from "./questions.ts";
+import { RitualCard } from "./ritualSchedules.ts";
 import { Workspace, WorkspaceChoice } from "./workspaces.ts";
 
 // Stored and wire names keep `intel` so existing data and agents still work: settings keys (`intelHalfLives`, `intelWarningPercent`).
@@ -118,6 +119,8 @@ export const MissionSummary = Schema.Struct({
   model: ModelChoice,
   /** The question the dashboard asks of it, or null. */
   prompt: Schema.NullOr(MissionPrompt),
+  /** The Ritual this quest belongs to, or null for an ordinary quest. */
+  ritual: Schema.NullOr(RitualCard),
   /** Threads Running now. */
   runningCount: Schema.Number,
   state: MissionState,

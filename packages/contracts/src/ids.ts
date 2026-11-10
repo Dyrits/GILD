@@ -6,6 +6,10 @@ import { Schema } from "effect";
 export const MissionId = Schema.String.pipe(Schema.brand("MissionId"));
 export type MissionId = typeof MissionId.Type;
 
+/** Identifies a Ritual (rituals). */
+export const RitualId = Schema.String.pipe(Schema.brand("RitualId"));
+export type RitualId = typeof RitualId.Type;
+
 /** Identifies a thread. */
 export const ThreadId = Schema.String.pipe(Schema.brand("ThreadId"));
 export type ThreadId = typeof ThreadId.Type;

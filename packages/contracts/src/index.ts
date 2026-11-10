@@ -11,5 +11,7 @@ export * from "./lore.ts";
 export * from "./questions.ts";
 export * from "./records.ts";
 export * from "./requests.ts";
+export * from "./ritualSchedules.ts";
+export * from "./rituals.ts";
 export * from "./skills.ts";
 export * from "./workspaces.ts";

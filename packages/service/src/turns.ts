@@ -7,6 +7,7 @@ import { Changes } from "./changes.ts";
 import type { TurnOutcome } from "./execution.ts";
 import { endTurn, failTurn, holdThread, startRunning } from "./lifecycle.ts";
 import { deliverMessages, insertReply, listPending } from "./messaging.ts";
+import { finishRitualRun } from "./rituals.ts";
 import { maxRunning, runningCountOf } from "./tree.ts";
 import { readThreadWorkspace } from "./workspaces.ts";
 
@@ -152,6 +153,7 @@ export const completeTurn = (threadId: string, turn: Admitted, outcome: TurnOutc
         const status = isInterrupted ? "interrupted" : "completed";
         yield* sql`UPDATE turns SET status = ${status}, ended_at = ${now} WHERE id = ${turn.turnId}`;
         yield* endTurn(threadId, turn.turnId, sessionId);
+        yield* finishRitualRun(threadId, isInterrupted ? "Interrupted" : "Done");
         yield* touchMission(turn.missionId, now);
         yield* sql.afterCommit(changes.publish);
         // Spending is known at the turn's end: a reached budget stops the work under it.

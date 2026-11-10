@@ -37,6 +37,15 @@ import {
   Suggestion,
   ThreadPanel,
 } from "./records.ts";
+import {
+  CreateRitual,
+  CreateRitualResult,
+  DeleteRitual,
+  ReadRitual,
+  Ritual,
+  RunRitual,
+  UpdateRitual,
+} from "./rituals.ts";
 import { Skill } from "./skills.ts";
 import { Folder, FolderListing } from "./workspaces.ts";
 
@@ -365,6 +374,11 @@ export const Request = Schema.Union([
   StopThread,
   RetryThread,
   ChangeThreadRunner,
+  CreateRitual,
+  UpdateRitual,
+  RunRitual,
+  DeleteRitual,
+  ReadRitual,
   InterruptThread,
   OpenThread,
   PreviewStartingContext,
@@ -407,7 +421,9 @@ export const Results = {
   ChangeThreadRunner: Schema.Null,
   CreateFolder: Folder,
   CreateRealm: Schema.Null,
+  CreateRitual: CreateRitualResult,
   DeleteIntel: Schema.Null,
+  DeleteRitual: Schema.Null,
   DeleteThread: Schema.Null,
   DismissMissionPrompt: Schema.Null,
   EditIntel: Schema.Null,
@@ -428,6 +444,7 @@ export const Results = {
   ReadJournal: JournalView,
   ReadMission: MissionDetail,
   ReadPermissions: PermissionsView,
+  ReadRitual: Schema.NullOr(Ritual),
   ReadSettings: Settings,
   ReadStartChoices: StartChoices,
   ReadThreadPanel: ThreadPanel,
@@ -444,6 +461,7 @@ export const Results = {
   ResumeThread: Schema.Null,
   RetryThread: Schema.Null,
   RewriteBriefing: JournalView,
+  RunRitual: Schema.Null,
   SendMessage: SendMessageResult,
   SetMissionBudget: Schema.Null,
   SetRealmCrest: Schema.Null,
@@ -452,6 +470,7 @@ export const Results = {
   StopAtBudget: Schema.Null,
   StopThread: Schema.Null,
   UndoIntelChange: Schema.Null,
+  UpdateRitual: Schema.Null,
   UpdateSettings: Settings,
   WidenPermission: Schema.Null,
 } as const;

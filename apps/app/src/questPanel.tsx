@@ -10,6 +10,7 @@ import { timeOf, usageDetail } from "./formatting";
 import { threadCountOf, tokenCountOf } from "./labels";
 import { MissionEndingActions, MissionTitle } from "./missionActions";
 import { ParchmentFrame } from "./parchment";
+import { RitualControls } from "./rituals";
 import { styles } from "./styles";
 import { colors, fontSizes, fonts, ink, radii, stateLabels, stateTones } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
@@ -150,6 +151,7 @@ export function QuestSidebar({
               .join("")}
           </Text>
         </View>
+        {mission.ritual !== null && <RitualControls client={client} missionId={mission.id} />}
         <Tabs figures={cost > 0 ? { Spends: `$${cost.toFixed(2)}` } : {}} onChange={setTab} value={tab} />
         {tab === "Knows" ? (
           <Pressable accessibilityRole="button" onPress={onOpenJournal} style={local.note}>

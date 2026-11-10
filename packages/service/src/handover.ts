@@ -17,20 +17,22 @@ import { checkAccount, type Runner } from "./runners.ts";
 const historyWindowPercent = 50;
 
 /** What a handover line says: the new runner in words, as the thread's conversation shows it. */
-const handoverTextOf = (runner: Runner, accountLabel: string | null) =>
+const handoverTextOf = (runner: Runner, accountLabel: string | null, fellBackAfter: string | null) =>
   [
-    `Handed over to ${harnessLabels[runner.harness]}`,
+    `${fellBackAfter === null ? "Handed over" : "Fell back"} to ${harnessLabels[runner.harness]}`,
     runner.model === "default" ? "default model" : runner.model,
     ...(accountLabel === null ? [] : [accountLabel]),
     `${runner.effort} effort`,
+    ...(fellBackAfter === null ? [] : [fellBackAfter.trim().split("\n")[0]?.slice(0, 160) ?? ""]),
   ].join(" · ");
 
 /**
  * Changes the thread's runner. Refused while the thread is in a turn. A change of harness or account forgets the
  * harness session, so the thread's next turn starts a new one with the conversation so far; a message already
- * waiting for the thread runs on the new runner at once.
+ * waiting for the thread runs on the new runner at once. A Ritual's fallback (rituals) passes the failure that caused it,
+ * which the line then gives after the new runner.
  */
-export const changeThreadRunner = (threadId: string, runner: Runner) =>
+export const changeThreadRunner = (threadId: string, runner: Runner, fellBackAfter: string | null = null) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const [thread] = yield* sql<{
@@ -56,7 +58,7 @@ export const changeThreadRunner = (threadId: string, runner: Runner) =>
         ? []
         : yield* sql<{ label: string }>`SELECT label FROM accounts WHERE id = ${runner.accountId}`;
     yield* sql`INSERT INTO handovers (id, thread_id, text, at)
-      VALUES (${crypto.randomUUID()}, ${threadId}, ${handoverTextOf(runner, account?.label ?? null)}, ${now})`;
+      VALUES (${crypto.randomUUID()}, ${threadId}, ${handoverTextOf(runner, account?.label ?? null, fellBackAfter)}, ${now})`;
     return changed(null, { threadsToWake: [threadId] });
   });
 

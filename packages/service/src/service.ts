@@ -37,6 +37,7 @@ import { readMission } from "./missionDetail.ts";
 import { insertMission } from "./missions.ts";
 import { listPermissions, removePermission, widenPermission } from "./permissions.ts";
 import { listOpenQuestions, listQuestionHistory } from "./questions.ts";
+import { createRitual, deleteRitual, readRitual, ritualsLayer, runRitual, updateRitual } from "./rituals.ts";
 import { sandboxProblem } from "./sandbox.ts";
 import { readSettings, readStartChoices, writeSettings } from "./settings.ts";
 import { listSkills } from "./skills.ts";
@@ -167,7 +168,24 @@ const make = Effect.gen(function* () {
           ),
         CreateFolder: (create) => createFolder(create.parent, create.name),
         CreateRealm: (create) => change(createRealm(create.path, create.name, create.crest)),
+        CreateRitual: (create) =>
+          commands.run(
+            once(
+              create.requestId,
+              create._tag,
+              createRitual({
+                fallbacks: create.fallbacks,
+                instruction: create.instruction,
+                primary: create.primary,
+                realm: create.realm ?? null,
+                schedule: create.schedule,
+                title: create.title,
+                workspacePath: create.workspacePath,
+              }),
+            ),
+          ),
         DeleteIntel: (given) => change(deleteLoreEntryByOwner(given.loreEntryId)),
+        DeleteRitual: (given) => commands.run(deleteRitual(given.ritualId)),
         DeleteThread: (given) =>
           deleteThread(given.threadId, given.confirmation).pipe(
             Effect.provideService(ScratchRoot, scratchRoot),
@@ -234,6 +252,7 @@ const make = Effect.gen(function* () {
               sandboxProblem: problem,
             };
           }),
+        ReadRitual: (read) => readRitual(read.missionId),
         ReadSettings: () => readSettings,
         ReadStartChoices: () => readStartChoices,
         ReadThreadPanel: (read) => readThreadPanel(read.threadId).pipe(Effect.provideService(ScratchRoot, scratchRoot)),
@@ -269,6 +288,7 @@ const make = Effect.gen(function* () {
             ),
           );
         },
+        RunRitual: (given) => commands.run(runRitual(given.ritualId)),
         SendMessage: (send) =>
           Effect.gen(function* () {
             const text = yield* nonBlank(send.text);
@@ -314,6 +334,18 @@ const make = Effect.gen(function* () {
         StopAtBudget: (given) => commands.run(stopAtBudget(given.stopId)),
         StopThread: (stop) => threads.stop(stop.threadId).pipe(Effect.as(null)),
         UndoIntelChange: (given) => change(undoLoreChange(given.entryId)),
+        UpdateRitual: (update) =>
+          commands.run(
+            updateRitual({
+              fallbacks: update.fallbacks,
+              instruction: update.instruction,
+              isOn: update.isOn,
+              primary: update.primary,
+              ritualId: update.ritualId,
+              schedule: update.schedule,
+              title: update.title,
+            }),
+          ),
         UpdateSettings: (update) =>
           change(writeSettings(update.settings)).pipe(
             // A changed global budget stops work at its limit or releases the threads it held.
@@ -367,7 +399,7 @@ export const serviceLayer = (options: ServiceOptions) => {
     Layer.provideMerge(foundation),
   );
   return Layer.effect(Service, make).pipe(
-    Layer.provideMerge(Layer.mergeAll(autoArchiveLayer, budgetPeriodsLayer, toolServerLayer)),
+    Layer.provideMerge(Layer.mergeAll(autoArchiveLayer, budgetPeriodsLayer, ritualsLayer, toolServerLayer)),
     Layer.provideMerge(commandsLayer),
     Layer.provideMerge(running),
   );

@@ -12,6 +12,7 @@ import { readConversationSoFar } from "./handover.ts";
 import { makeLifecycle, recoverThreadStates, releaseThread, resumeStopped, stopThread } from "./lifecycle.ts";
 import { listPending, listThreadsWithPending } from "./messaging.ts";
 import { listThreadPermissions } from "./permissions.ts";
+import { fallBackAfterFailure } from "./rituals.ts";
 import { removedAccountReasonOf } from "./runners.ts";
 import { readSettings } from "./settings.ts";
 import { prepareStartingContext } from "./startingContext.ts";
@@ -194,6 +195,8 @@ export const threadsLayer = Layer.effect(
         yield* draft(threadId, "");
         if (outcome._tag === "Failure") {
           yield* fail(threadId, turn, outcome.failure.reason);
+          // A Ritual's run carries on with its next Companion, or fails once they are used up (rituals).
+          yield* commands.run(fallBackAfterFailure(threadId, outcome.failure.reason)).pipe(Effect.orDie);
           return yield* wakeWaiting(turn.missionId, threadId);
         }
         const halted = yield* local(completeTurn(threadId, turn, outcome.success));

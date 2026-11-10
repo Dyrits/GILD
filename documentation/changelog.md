@@ -1467,3 +1467,15 @@ Summary: The owner saw only Haiku, Sonnet, and Opus in the Companion picker and 
 References: documentation/capabilities/provider-accounts/specifications.md, packages/service/src/{harnessCatalog,harnesses,harnessTools,accounts,settings}.ts, packages/contracts/src/{records,harnesses}.ts, apps/app/src/{formatting,runners,dashboard}.ts(x).
 Validation: format, typecheck, and tests pass (475 passed, 10 skipped); the four identifiers each answered through `claude -p --model` on 2026-11-10 (Fable 5.2 printed an `unrecognized_model` warning from the CLI and ran).
 Evidence: Baseline `b7a0f16`; not proven: the look in the running window, the picker on Codex and OpenCode without Default, and a stored Settings default of `default`, which stays until changed.
+
+## CHG-0098 · 2026-11-10 · Rituals: scheduled runs in a quest of their own, with fallback Companions
+
+Type: Code
+Event: Delivery
+Scope: Rituals
+
+Summary: The owner asked for Rituals, the routines of Gild: an instruction with a schedule and models, fallback models, a card of its own on the board, runs in the main quest, schedule presets, missed runs skipped, and a manual run at any time. A Ritual is a quest (migration 0027 adds `rituals`) whose main thread receives the instruction at each run, under "Ritual · scheduled 07:00" or "Ritual · run by you". Schedules are presets in local time (daily, weekdays, weekly, monthly, every N hours). The scheduler sleeps until the next Ritual is due and wakes on any change; a run later than 5 minutes after its time is skipped. When a run's turn fails, the thread is handed over to the next fallback Companion, which may be on another harness, with a line "Fell back to ... · reason"; the next run starts on the primary Companion again. The board shows a Ritual as a violet dashed card with a "Ritual" ribbon, its schedule, next run, last run, and Run now; the quest's panel holds the switch, Run now, Edit, and Delete (which keeps the quest). New requests: CreateRitual, UpdateRitual, RunRitual, DeleteRitual, ReadRitual.
+References: documentation/capabilities/rituals/specifications.md, packages/contracts/src/{rituals,ritualSchedules,records,requests,ids}.ts, packages/service/src/{rituals,ritualSchedule,missions,handover,turns,threads,service,store,deleting}.ts, apps/app/src/{rituals.tsx,ritualLabels.ts,board.tsx,questPanel.tsx,dashboard.tsx}.
+Validation: format, typecheck, lint, and tests pass (496 passed, 10 skipped); the service checks fail under mutation; driven in the web export on the fake harness ([proof](verification/2026-11-10-rituals.md)).
+Evidence: Baseline `9ae8b19`; not proven: the look, which awaits the owner, a scheduled run firing on a live harness, and the fallback on real usage-limit failures.
+

@@ -17,6 +17,7 @@ import { applyDefaultBudget } from "./budgets.ts";
 import { invalid } from "./errors.ts";
 import { insertJournal } from "./journal.ts";
 import { insertMessage } from "./messaging.ts";
+import { runStateOf, scheduleOf } from "./ritualSchedule.ts";
 import { checkAccount, type RunnerChoice, runnerOf } from "./runners.ts";
 import { dayMillis, readSettings, saveStartChoices } from "./settings.ts";
 import { isReached, readGlobalBudget, tokenSum } from "./spending.ts";
@@ -41,7 +42,27 @@ export const insertMission = (
   shouldRememberChoices = true,
   realm: { crest: Crest | null; name: string } | null = null,
 ) =>
+  insertQuest({ firstMessage: text, realm, shouldRememberChoices, title: titleOf(text) }, choice, workspacePath).pipe(
+    Effect.map((started) => started as StartMissionResult),
+  );
+
+/**
+ * Records a quest, its top thread, and its first message when it has one; a Ritual's quest has none until its first run
+ * (rituals). A title given by `isTitleByOwner` is kept against agents' renames. Callers run it in a transaction.
+ */
+export const insertQuest = (
+  quest: {
+    readonly firstMessage: string | null;
+    readonly isTitleByOwner?: boolean;
+    readonly realm: { crest: Crest | null; name: string } | null;
+    readonly shouldRememberChoices: boolean;
+    readonly title: string;
+  },
+  choice: RunnerChoice & { readonly effort: EffortChoice; readonly model: ModelChoice },
+  workspacePath: string | null,
+) =>
   Effect.gen(function* () {
+    const { realm, shouldRememberChoices } = quest;
     const sql = yield* SqlClient.SqlClient;
     const global = yield* readGlobalBudget;
     // A reached global budget refuses new missions (budget-control, Reaching a limit).
@@ -59,11 +80,20 @@ export const insertMission = (
     const now = yield* Clock.currentTimeMillis;
     const missionId = crypto.randomUUID();
     const threadId = crypto.randomUUID();
-    yield* sql`INSERT INTO missions (id, top_thread_id, title, created_at, last_activity_at)
-      VALUES (${missionId}, ${threadId}, ${titleOf(text)}, ${now}, ${now})`;
+    yield* sql`INSERT INTO missions (id, top_thread_id, title, created_at, last_activity_at, is_title_by_user)
+      VALUES (${missionId}, ${threadId}, ${quest.title}, ${now}, ${now}, ${quest.isTitleByOwner === true ? 1 : 0})`;
     yield* sql`INSERT INTO threads (id, mission_id, state, harness, account_id, model, effort, workspace_id, title)
-      VALUES (${threadId}, ${missionId}, 'Idle', ${harness}, ${accountId}, ${model}, ${effort}, ${workspaceId}, ${titleOf(text)})`;
-    const messageId = yield* insertMessage({ fromThreadId: null, isQueued: false, isResult: false, text, threadId });
+      VALUES (${threadId}, ${missionId}, 'Idle', ${harness}, ${accountId}, ${model}, ${effort}, ${workspaceId}, ${quest.title})`;
+    const messageId =
+      quest.firstMessage === null
+        ? null
+        : yield* insertMessage({
+            fromThreadId: null,
+            isQueued: false,
+            isResult: false,
+            text: quest.firstMessage,
+            threadId,
+          });
     yield* insertJournal(missionId);
     yield* applyDefaultBudget(missionId, settings.defaultMissionBudget);
     // A mission opened from an off-topic suggestion is not the owner's own start, so the prefill stays.
@@ -75,7 +105,7 @@ export const insertMission = (
         model,
         workspacePath,
       });
-    return { messageId, missionId, threadId } as StartMissionResult;
+    return { messageId, missionId, threadId };
   });
 
 type MissionRow = {
@@ -100,6 +130,13 @@ type MissionRow = {
   workspaceName: string | null;
   budgetCost: number | null;
   budgetTokens: number | null;
+  ritualId: string | null;
+  ritualIsOn: number | null;
+  ritualLastRunAt: number | null;
+  ritualLastRunState: string | null;
+  ritualNextRunAt: number | null;
+  ritualSchedule: string | null;
+  topState: string;
   spentCost: number;
   spentTokens: number;
 };
@@ -125,6 +162,17 @@ const summaryOf = (row: MissionRow, now: number, settings: Settings): MissionSum
     lastActivityAt: row.lastActivityAt,
     model: row.model,
     prompt: promptOf(row, now, settings),
+    ritual:
+      row.ritualId === null || row.ritualSchedule === null
+        ? null
+        : {
+            id: row.ritualId,
+            isOn: row.ritualIsOn === 1,
+            lastRunAt: row.ritualLastRunAt,
+            lastRunState: runStateOf(row.ritualLastRunState, row.topState),
+            nextRunAt: row.ritualNextRunAt,
+            schedule: scheduleOf(row.ritualSchedule),
+          },
     runningCount: states.filter((state) => state === "Running").length,
     state: row.ending ?? workedOutStateOf(states),
     threadCount: row.threadCount,
@@ -148,9 +196,12 @@ const missionRows = (sql: SqlClient.SqlClient, where: Statement.Fragment) =>
       COALESCE(SUM(u.cache_read), 0) AS cacheRead, COALESCE(SUM(u.cache_creation), 0) AS cacheCreation,
       m.budget_cost AS budgetCost, m.budget_tokens AS budgetTokens, COALESCE(SUM(u.cost), 0) AS spentCost,
       COALESCE(SUM(${sql.literal(tokenSum)}), 0) AS spentTokens,
-      w.id AS workspaceId, w.name AS workspaceName, w.crest AS workspaceCrest
+      w.id AS workspaceId, w.name AS workspaceName, w.crest AS workspaceCrest,
+      r.id AS ritualId, r.is_on AS ritualIsOn, r.last_run_at AS ritualLastRunAt, r.last_run_state AS ritualLastRunState,
+      r.next_run_at AS ritualNextRunAt, r.schedule AS ritualSchedule, top.state AS topState
     FROM missions m
       JOIN threads top ON top.id = m.top_thread_id
+      LEFT JOIN rituals r ON r.mission_id = m.id
       LEFT JOIN workspaces w ON w.id = top.workspace_id
       LEFT JOIN usage u ON u.mission_id = m.id
     WHERE ${where}

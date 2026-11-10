@@ -75,6 +75,7 @@ const eraseSubtree = Effect.fn("eraseSubtree")(function* (rows: Subtree, root: S
   }
   for (const row of rows.toReversed()) yield* sql`DELETE FROM threads WHERE id = ${row.id}`;
   if (root.parentId === null) {
+    yield* sql`DELETE FROM rituals WHERE mission_id = ${root.missionId}`;
     yield* sql`DELETE FROM standing_permissions WHERE mission_id = ${root.missionId}`;
     yield* sql`DELETE FROM budget_events WHERE mission_id = ${root.missionId}`;
     yield* sql`DELETE FROM budget_stops WHERE mission_id = ${root.missionId}`;

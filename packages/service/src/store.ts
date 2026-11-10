@@ -419,6 +419,26 @@ const migrations = {
       WHERE sender_kind = 'agent' AND model IS NULL
         AND (SELECT model FROM threads WHERE threads.id = messages.thread_id) != 'default'`;
   }),
+  // A Ritual: an instruction on a schedule in a quest of its own (rituals). Schedule, primary Companion, and fallbacks
+  // are stored as JSON; `last_run_state` is Underway, Done, Interrupted, or Failed, null before the first run, and
+  // `fallback_step` counts the fallbacks the current run has used.
+  "0027_rituals": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE rituals (
+      id TEXT PRIMARY KEY,
+      mission_id TEXT NOT NULL UNIQUE REFERENCES missions(id),
+      instruction TEXT NOT NULL,
+      schedule TEXT NOT NULL,
+      primary_companion TEXT NOT NULL,
+      fallbacks TEXT NOT NULL,
+      is_on INTEGER NOT NULL DEFAULT 1,
+      next_run_at INTEGER,
+      last_run_at INTEGER,
+      last_run_state TEXT,
+      fallback_step INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL
+    )`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */
