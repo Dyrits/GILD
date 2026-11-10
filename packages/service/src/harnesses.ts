@@ -4,7 +4,7 @@ import { type Duration, Effect, Queue, type Scope } from "effect";
 import { makeClaudeHarness } from "./claude.ts";
 import { makeCodexHarness } from "./codex.ts";
 import { type HarnessAdapter, routeHarnesses } from "./execution.ts";
-import { accountEnvironmentOf, claudeModels, defaultModel, type HarnessFacts, harnessFacts } from "./harnessCatalog.ts";
+import { accountEnvironmentOf, claudeModels, type HarnessFacts, harnessFacts } from "./harnessCatalog.ts";
 import type { SignInStatus } from "./harnessTools.ts";
 import { fieldOf, harnessEnvironmentOf, runHarnessCommand, startRpcProcess, textFieldOf } from "./lineProcess.ts";
 import { makeOpenCodeHarness } from "./opencode.ts";
@@ -93,8 +93,7 @@ const claude: HarnessDefinition = {
 const codex: HarnessDefinition = {
   ...harnessFacts.codex,
   makeAdapter: ({ command, idleTimeout }) => makeCodexHarness({ command, idleTimeout }),
-  readModels: (command, configDirectory) =>
-    listCodexModels(command, configDirectory).pipe(Effect.map((listed) => [defaultModel, ...listed])),
+  readModels: (command, configDirectory) => listCodexModels(command, configDirectory),
   readSignIn: (command, env) =>
     runHarnessCommand(command, ["login", "status"], env).pipe(
       Effect.map(({ code, output }): SignInStatus => {
@@ -112,14 +111,13 @@ const opencode: HarnessDefinition = {
   makeAdapter: ({ command, idleTimeout }) => makeOpenCodeHarness({ command, idleTimeout }),
   readModels: (command, configDirectory) =>
     runHarnessCommand(command, ["models"], accountEnvironmentOf("opencode", configDirectory)).pipe(
-      Effect.map(({ stdout }) => [
-        defaultModel,
-        ...stdout
+      Effect.map(({ stdout }) =>
+        stdout
           .split("\n")
           .map((line) => line.trim())
           .filter((line) => /^[\w.-]+\/\S+$/.test(line))
           .map((id) => ({ id, label: id })),
-      ]),
+      ),
     ),
   // OpenCode lists one line per stored sign-in, each naming its provider.
   readSignIn: (command, env) =>

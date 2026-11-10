@@ -641,7 +641,7 @@ describe("reading and saving settings", () => {
         defaultEffort: "default",
         defaultHarness: "claude",
         defaultMissionBudget: { cost: null, tokens: null },
-        defaultModel: "default",
+        defaultModel: "claude-sonnet-5-5",
         globalBudget: { cost: null, tokens: null },
         globalBudgetPeriod: "Month",
         inactivityDays: 14,

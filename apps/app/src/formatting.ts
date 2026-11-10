@@ -10,7 +10,9 @@ export const harnessLabels = {
 /** A model's label from its harness's list, or its identifier when the list does not name it. */
 export const modelLabelOf = (model: ModelChoice, options: ReadonlyArray<ModelOption> = []) =>
   options.find((option) => option.id === model)?.label ??
-  (model === "default" ? "Default model" : model.charAt(0).toUpperCase() + model.slice(1));
+  (model === "default"
+    ? "Default model"
+    : (knownModelOf(model)?.name ?? model.charAt(0).toUpperCase() + model.slice(1)));
 
 /** Each harness's usual model company, when the model's own identifier names none. */
 const harnessProviders = { claude: "Anthropic", codex: "OpenAI", opencode: "OpenCode" } as const satisfies Record<
@@ -25,14 +27,14 @@ const knownModelOf = (id: string): { name: string; provider: string } | null => 
   const withoutDate = id.replace(/-\d{8}$/, "");
   // Claude: `claude-sonnet-5-5` and `claude-opus-4-1`, or the older `claude-3-5-sonnet`.
   const claude =
-    /^claude-(opus|sonnet|haiku)-(\d+(?:-\d+)?)$/.exec(withoutDate) ??
+    /^claude-(fable|opus|sonnet|haiku)-(\d+(?:-\d+)?)$/.exec(withoutDate) ??
     /^claude-(\d+(?:-\d+)?)-(opus|sonnet|haiku)$/.exec(withoutDate);
   if (claude !== null) {
     const [family, version] = /^\d/.test(claude[1] ?? "") ? [claude[2], claude[1]] : [claude[1], claude[2]];
     return { name: `${titled(family ?? "")} ${(version ?? "").replace("-", ".")}`, provider: "Anthropic" };
   }
   // The bare Claude aliases the thread's chosen model uses: `sonnet`.
-  if (/^(opus|sonnet|haiku)$/.test(withoutDate)) return { name: titled(withoutDate), provider: "Anthropic" };
+  if (/^(fable|opus|sonnet|haiku)$/.test(withoutDate)) return { name: titled(withoutDate), provider: "Anthropic" };
   // OpenAI: `gpt-5.1-codex` as "GPT-5.1 Codex".
   const gpt = /^gpt-(.+)$/.exec(withoutDate);
   if (gpt !== null) return { name: `GPT-${(gpt[1] ?? "").split("-").map(titled).join(" ")}`, provider: "OpenAI" };

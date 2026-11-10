@@ -101,7 +101,7 @@ describe("prefilling a new mission's choices", () => {
         accountId: null,
         effort: "default",
         harness: "claude",
-        model: "default",
+        model: "claude-sonnet-5-5",
         workspacePath: null,
       });
     }).pipe(Effect.provide(make().layer)),

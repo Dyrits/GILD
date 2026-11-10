@@ -1,4 +1,4 @@
-import type { MissionId, WorkspaceChoice, WorkspaceId } from "@gild/contracts";
+import { type MissionId, startingModel, type WorkspaceChoice, type WorkspaceId } from "@gild/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { MissionBoard, MissionCard } from "./board";
@@ -51,7 +51,7 @@ export function MissionStarter({
   const chosen: Runner =
     runner ??
     (last === null
-      ? { accountId: null, effort: "default", harness: "claude", model: "default" }
+      ? { accountId: null, effort: "default", harness: "claude", model: startingModel }
       : { accountId: last.accountId, effort: last.effort, harness: last.harness, model: last.model });
   const chosenWorkspace =
     lockedWorkspace !== null

@@ -3,16 +3,15 @@ import type { HarnessName, ModelOption } from "@gild/contracts";
 // What Gild knows of each harness without running it (provider-accounts). The registry (harnesses.ts)
 // adds how each one runs; these facts stay apart so the modules a harness's adapter needs can read them.
 
-/** The harness's own default model, first in every list. */
-export const defaultModel: ModelOption = { id: "default", label: "Default model" };
-
-/** Claude Code's model aliases, which follow each family's latest model. */
+/**
+ * Claude Code's models, each by its full identifier so the owner picks a version, newest family first. The
+ * aliases (`opus`, `sonnet`) stay valid for threads that already use them but are no longer offered.
+ */
 export const claudeModels: ReadonlyArray<ModelOption> = [
-  defaultModel,
-  { id: "fable", label: "Fable" },
-  { id: "opus", label: "Opus" },
-  { id: "sonnet", label: "Sonnet" },
-  { id: "haiku", label: "Haiku" },
+  { id: "claude-fable-5-2", label: "Fable 5.2" },
+  { id: "claude-opus-5-5", label: "Opus 5.5" },
+  { id: "claude-sonnet-5-5", label: "Sonnet 5.5" },
+  { id: "claude-haiku-5-5", label: "Haiku 5.5" },
 ];
 
 /** What Gild knows of one harness without running it. */

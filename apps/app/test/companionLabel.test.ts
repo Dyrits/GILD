@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { companionLabelOf, replyWriterOf } from "../src/formatting";
+import { companionLabelOf, modelLabelOf, replyWriterOf } from "../src/formatting";
 
 describe("companionLabelOf", () => {
   it("names the company, then the model's name and version, from the reported model", () => {
@@ -40,5 +40,18 @@ describe("replyWriterOf", () => {
       harness: "codex",
       label: "OpenAI - Default model",
     });
+  });
+});
+
+describe("modelLabelOf", () => {
+  it("reads a full Claude identifier as the family and version, Fable included", () => {
+    expect(modelLabelOf("claude-fable-5-2")).toBe("Fable 5.2");
+    expect(modelLabelOf("claude-haiku-5-5")).toBe("Haiku 5.5");
+    expect(companionLabelOf("claude", "claude-fable-5-2", "claude-fable-5-2")).toBe("Anthropic - Fable 5.2");
+  });
+
+  it("prefers the harness's own label, and still names a legacy default", () => {
+    expect(modelLabelOf("claude-opus-5-5", [{ id: "claude-opus-5-5", label: "Opus (latest)" }])).toBe("Opus (latest)");
+    expect(modelLabelOf("default")).toBe("Default model");
   });
 });

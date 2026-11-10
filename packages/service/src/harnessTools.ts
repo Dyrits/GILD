@@ -4,7 +4,7 @@ import { join } from "node:path";
 import type { HarnessName, ModelOption, SignInState } from "@gild/contracts";
 import { Clock, Context, Effect, Layer } from "effect";
 import { invalid, type ServiceFailure } from "./errors.ts";
-import { accountEnvironmentOf, defaultModel, harnessFacts } from "./harnessCatalog.ts";
+import { accountEnvironmentOf, harnessFacts } from "./harnessCatalog.ts";
 import { harnesses } from "./harnesses.ts";
 import { runHarnessCommand } from "./lineProcess.ts";
 
@@ -122,10 +122,7 @@ export const fakeHarnessToolsLayer = (signIns: Array<string> = []) =>
     inspect: () => Effect.succeed({ problem: null, version: "fake" }),
     listModels: (harness) =>
       Effect.succeed(
-        harnessFacts[harness].fixedModels ?? [
-          defaultModel,
-          { id: `${harness}-fake-model`, label: `${harness} fake model` },
-        ],
+        harnessFacts[harness].fixedModels ?? [{ id: `${harness}-fake-model`, label: `${harness} fake model` }],
       ),
     openSignIn: (harness, configDirectory) =>
       Effect.sync(() => void signIns.push(`${harness}:${configDirectory ?? ""}`)),

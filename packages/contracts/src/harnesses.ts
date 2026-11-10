@@ -31,7 +31,7 @@ export type AccountStatus = typeof AccountStatus.Type;
 /** One harness as the pickers and Settings list it. */
 export const HarnessInfo = Schema.Struct({
   accounts: Schema.Array(AccountStatus),
-  /** The harness's own default model is always first, as "default". */
+  /** The models the harness offers, none when it cannot list them; no entry stands for "the harness's own default". */
   models: Schema.Array(ModelOption),
   name: HarnessName,
   /** Why the harness cannot run, such as not being installed, or null. */

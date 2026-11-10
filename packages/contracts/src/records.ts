@@ -23,11 +23,15 @@ export const SenderKind = Schema.Literals(["user", "agent", "thread"]);
 export type SenderKind = typeof SenderKind.Type;
 
 /**
- * The model a thread runs with, by the identifier its harness takes, such as "opus" for Claude Code or
- * "gpt-6.1-sol" for Codex; "default" is the harness's own (provider-accounts, Models).
+ * The model a thread runs with, by the identifier its harness takes, such as "claude-opus-5-5" for Claude Code or
+ * "gpt-6.1-sol" for Codex; "default" is the harness's own, kept for threads that began before models were always
+ * chosen and no longer offered (provider-accounts, Models).
  */
 export const ModelChoice = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200));
 export type ModelChoice = typeof ModelChoice.Type;
+
+/** The model a new quest starts on until the owner picks another (Claude Code's Sonnet 5.5). */
+export const startingModel: ModelChoice = "claude-sonnet-5-5";
 
 /** The effort a thread runs with; default is the harness's own. */
 export const EffortChoice = Schema.Literals(["default", "low", "medium", "high", "xhigh", "max"]);

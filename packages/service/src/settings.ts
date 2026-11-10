@@ -1,4 +1,4 @@
-import { Settings, StartChoices } from "@gild/contracts";
+import { Settings, StartChoices, startingModel } from "@gild/contracts";
 import { Effect, Exit, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid } from "./errors.ts";
@@ -18,7 +18,7 @@ export const defaultSettings: Settings = {
   defaultEffort: "default",
   defaultHarness: "claude",
   defaultMissionBudget: { cost: null, tokens: null },
-  defaultModel: "default",
+  defaultModel: startingModel,
   globalBudget: { cost: null, tokens: null },
   globalBudgetPeriod: "Month",
   inactivityDays: 14,

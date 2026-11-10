@@ -508,8 +508,14 @@ describe("managing provider accounts", () => {
       expect(harnesses.map((harness) => harness.name)).toEqual(["claude", "codex", "opencode"]);
       for (const harness of harnesses) {
         expect(harness.accounts[0]).toMatchObject({ id: null, label: "This computer", signIn: "SignedIn" });
-        expect(harness.models[0]?.id).toBe("default");
+        expect(harness.models.map((model) => model.id)).not.toContain("default");
       }
+      expect(harnesses[0]?.models.map((model) => model.label)).toEqual([
+        "Fable 5.2",
+        "Opus 5.5",
+        "Sonnet 5.5",
+        "Haiku 5.5",
+      ]);
     }).pipe(Effect.provide(layer));
   });
 

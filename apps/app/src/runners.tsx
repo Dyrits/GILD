@@ -50,7 +50,7 @@ const harnessNames: ReadonlyArray<HarnessName> = ["claude", "codex", "opencode"]
 
 /** A harness's model list, with the chosen model kept in it when the harness no longer lists it. */
 const modelIdsOf = (harness: HarnessInfo | undefined, model: ModelChoice) => {
-  const ids = harness?.models.map((option) => option.id) ?? ["default"];
+  const ids = harness?.models.map((option) => option.id) ?? [];
   return ids.includes(model) ? ids : [...ids, model];
 };
 
@@ -85,7 +85,13 @@ export function RunnerPickers({
     onChange(
       harnessName === value.harness
         ? value
-        : { accountId: null, effort: value.effort, harness: harnessName, model: "default" },
+        : {
+            accountId: null,
+            effort: value.effort,
+            harness: harnessName,
+            // The harness's first listed model; "default" only while its list is not read yet.
+            model: harnesses?.harnesses.find((candidate) => candidate.name === harnessName)?.models[0]?.id ?? "default",
+          },
     );
   const accountLabel = (id: AccountId | null) => {
     const account = accounts.find((candidate) => candidate.id === id);

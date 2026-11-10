@@ -58,7 +58,7 @@ const readHarness = (harness: HarnessName, rows: ReadonlyArray<AccountRow>) =>
       installation.problem === null ? yield* tools.listModels(harness, signedIn?.configDirectory ?? null) : [];
     return {
       accounts: accounts.map(({ configDirectory: _, ...account }) => account),
-      models: models.length === 0 ? [{ id: "default", label: "Default model" }] : models,
+      models,
       name: harness,
       problem: installation.problem,
       version: installation.version,

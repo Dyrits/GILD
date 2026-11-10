@@ -1457,3 +1457,13 @@ References: documentation/capabilities/thread-handover/specifications.md, packag
 Validation: format, typecheck, and tests pass (473 passed, 10 skipped); each key check fails under a mutation ([proof](verification/2026-11-10-thread-handover.md)).
 Evidence: Baseline `b7a0f16`; not proven: the look, which awaits the owner, and a handover between live harnesses.
 
+## CHG-0097 · 2026-11-10 · Claude Code models by version, no Default model
+
+Type: Code
+Event: Delivery
+Scope: Provider accounts
+
+Summary: The owner saw only Haiku, Sonnet, and Opus in the Companion picker and asked for versions (Fable 5.2, Haiku 5.5) and no Default model on any harness. Claude Code now offers `claude-fable-5-2`, `claude-opus-5-5`, `claude-sonnet-5-5`, and `claude-haiku-5-5`, labelled "Fable 5.2" and so on; Codex and OpenCode list only the models their tools report. A new quest starts on Sonnet 5.5 (`startingModel`, provisional: the owner has not chosen it); choosing another harness in a picker takes its first listed model. Threads and settings that already hold `default`, `opus`, or `sonnet` keep running and keep their label.
+References: documentation/capabilities/provider-accounts/specifications.md, packages/service/src/{harnessCatalog,harnesses,harnessTools,accounts,settings}.ts, packages/contracts/src/{records,harnesses}.ts, apps/app/src/{formatting,runners,dashboard}.ts(x).
+Validation: format, typecheck, and tests pass (475 passed, 10 skipped); the four identifiers each answered through `claude -p --model` on 2026-11-10 (Fable 5.2 printed an `unrecognized_model` warning from the CLI and ran).
+Evidence: Baseline `b7a0f16`; not proven: the look in the running window, the picker on Codex and OpenCode without Default, and a stored Settings default of `default`, which stays until changed.
