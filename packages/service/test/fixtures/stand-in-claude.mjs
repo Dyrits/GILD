@@ -84,7 +84,9 @@ const finish = (isInterrupted) => {
 };
 
 const startTurn = (input) => {
-  const text = input.message.content;
+  // A message with images carries a list of blocks: the text, then one image block each.
+  const content = input.message.content;
+  const text = typeof content === "string" ? content : (content.find((block) => block.type === "text")?.text ?? "");
   turn += 1;
   emit({ message: input.message, type: "user", uuid: input.uuid ?? "stand-in" });
   if (mode === "error-result") {

@@ -20,6 +20,7 @@ The first build serves one user. The [architecture](architecture.md#future-multi
 - **[mission-journal](capabilities/mission-journal/specifications.md)**: keeping each mission's briefing and change log, read by every thread in the mission and updated as it works.
 - **[thread-tree](capabilities/thread-tree/specifications.md)**: opening threads beneath a thread, by the user or by a thread, each with its own harness, agent, model, and effort; every subagent a harness starts shows up as a thread beneath the one that started it, so the user can follow it.
 - **[thread-messaging](capabilities/thread-messaging/specifications.md)**: thread messages in both directions along the tree, with replies and interruptions; the user can write in any open thread, including a subagent's.
+- **[message-attachments](capabilities/message-attachments/specifications.md)**: attaching images to the owner's messages by pasting, dropping, or choosing files, stored by Gild and read by the thread's harness.
 - **thread-handover**: changing a thread's harness, agent, model, or effort mid-thread, with the full history given to the new one.
 - **[workspace-attachment](capabilities/workspace-attachment/specifications.md)**: attaching each thread, before it starts, to one workspace browsed under the allowed roots or cloned from a repository, or to none; with an optional own copy of a git workspace.
 - **routine-running**: running a routine on its trigger, in its own thread or by opening new threads.

@@ -181,6 +181,49 @@ describe("choosing a thread's runner", () => {
   });
 });
 
+/** A file that starts like a PNG, which is all the service checks. */
+const pngBytes = () =>
+  Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(20, 1)]);
+
+const attachedPng = () => call({ _tag: "AddAttachment", data: pngBytes().toString("base64"), name: "shot.png" });
+
+describe("handing images to a harness", () => {
+  it.live("gives Codex one localImage item per image, by the stored path", () => {
+    const { layer, requests } = withHarnesses();
+    return Effect.gen(function* () {
+      const card = yield* attachedPng();
+      const started = yield* start({ attachmentIds: [card.id], harness: "codex", model: "gpt-x", text: "See" });
+      yield* settle(started.missionId, idleWith(1));
+      const input = requests("turn/start")[0]?.params as { input: Array<Record<string, unknown>> };
+      expect(input.input[0]).toMatchObject({ text: expect.stringContaining("See"), type: "text" });
+      expect(input.input[1]).toMatchObject({ type: "localImage" });
+      expect(readFileSync(String(input.input[1]?.path)).subarray(0, 4)).toEqual(pngBytes().subarray(0, 4));
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("gives OpenCode one base64 ACP image block per image", () => {
+    const { layer, requests } = withHarnesses();
+    return Effect.gen(function* () {
+      const card = yield* attachedPng();
+      const started = yield* start({
+        attachmentIds: [card.id],
+        harness: "opencode",
+        model: "provider/model-a",
+        text: "See",
+      });
+      yield* settle(started.missionId, idleWith(1));
+      const params = requests("session/prompt")[0]?.params as { prompt: Array<Record<string, unknown>> } | undefined;
+      const prompt = params?.prompt ?? [];
+      expect(prompt[0]).toMatchObject({ type: "text" });
+      expect(prompt[1]).toEqual({
+        data: pngBytes().toString("base64"),
+        mimeType: "image/png",
+        type: "image",
+      });
+    }).pipe(Effect.provide(layer));
+  });
+});
+
 describe("running Codex threads", () => {
   it.live("runs a thread through the app server with its model, effort, tools, and no Gild secrets", () => {
     const { layer, logged, requests } = withHarnesses();

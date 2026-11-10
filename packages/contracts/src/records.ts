@@ -1,4 +1,5 @@
 import { Schema } from "effect";
+import { AttachmentCard } from "./attachments.ts";
 import { BudgetEvent, BudgetLimits, BudgetPeriod, BudgetStop, BudgetUse, Spending } from "./budgets.ts";
 import { Crest } from "./crest.ts";
 import { HarnessName } from "./harnesses.ts";
@@ -165,6 +166,8 @@ export type StartChoices = typeof StartChoices.Type;
 
 /** One message in a thread's conversation. */
 export const Message = Schema.Struct({
+  /** The files attached to it, in the order the owner added them (message-attachments). */
+  attachments: Schema.Array(AttachmentCard),
   /** The sending thread, for a thread message; null otherwise. */
   fromThreadId: Schema.NullOr(ThreadId),
   /** The sending thread's title, for a thread message; null otherwise. */

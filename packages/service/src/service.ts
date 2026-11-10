@@ -4,6 +4,7 @@ import { Context, Effect, Layer, Match, Semaphore } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
 import { addAccount, listHarnesses, removeAccount, renameAccount, signInAccount } from "./accounts.ts";
 import { Approvals, approvalsLayer } from "./approvals.ts";
+import { AttachmentsRoot, addAttachment, discardAttachment, readAttachment, sweepDrafts } from "./attachments.ts";
 import { budgetPeriodsLayer } from "./budgetPeriods.ts";
 import { applyGlobalBudget, setMissionBudget, stopAtBudget } from "./budgets.ts";
 import { readBudgetWindow } from "./budgetViews.ts";
@@ -46,6 +47,7 @@ import {
   runRitual,
   updateRitual,
 } from "./rituals.ts";
+import { runnerOf } from "./runners.ts";
 import { sandboxProblem } from "./sandbox.ts";
 import { readSettings, readStartChoices, writeSettings } from "./settings.ts";
 import { listSkills } from "./skills.ts";
@@ -56,6 +58,7 @@ import { readThreadPanel } from "./threadPanel.ts";
 import { AccountsRoot, Threads, threadsLayer } from "./threads.ts";
 import { renameMission } from "./titles.ts";
 import { openThreadByOwner } from "./tree.ts";
+import { imageRefusalOf, readThreadRunner } from "./vision.ts";
 import { listWorkspaceEntries } from "./workspaceEntries.ts";
 import { createRealm, renameRealm, ScratchRoot, setRealmCrest } from "./workspaces.ts";
 
@@ -99,6 +102,31 @@ const make = Effect.gen(function* () {
   const problem = yield* sandboxProblem;
   const harnessTools = yield* HarnessTools;
   const accountsRoot = yield* AccountsRoot;
+  const attachmentsRoot = yield* AttachmentsRoot;
+  /** Runs a step that stores or reads attached files. */
+  const withFiles = <A, E>(step: Effect.Effect<A, E, SqlClient.SqlClient | AttachmentsRoot>) =>
+    Effect.provideService(step, AttachmentsRoot, attachmentsRoot);
+  /**
+   * Refuses attached images for a runner that cannot read them, before the message is recorded; a message
+   * without files is never refused (message-attachments).
+   */
+  const refuseUnreadableImages = (
+    attachmentIds: ReadonlyArray<string>,
+    runner: Effect.Effect<Parameters<typeof imageRefusalOf>[0] | null, SqlError.SqlError, SqlClient.SqlClient>,
+  ) =>
+    Effect.gen(function* () {
+      if (attachmentIds.length === 0) return;
+      const resolved = yield* runner;
+      if (resolved === null) return;
+      const reason = yield* imageRefusalOf(resolved).pipe(
+        Effect.provideService(HarnessTools, harnessTools),
+        Effect.provideService(AccountsRoot, accountsRoot),
+      );
+      if (reason !== null) return yield* invalid(reason);
+    });
+  /** An owner's text, which may be empty when files are attached. */
+  const textWith = (text: string, attachmentIds: ReadonlyArray<string>) =>
+    attachmentIds.length === 0 ? nonBlank(text) : Effect.succeed(text);
   /** Runs storage work as a command whose only follow-up is announcing the change. */
   const change = <A, E, R>(work: Effect.Effect<A, E, R>) => commands.run(Effect.map(work, (value) => changed(value)));
   /** Runs an account change, then lists the harnesses as they stand after it. */
@@ -143,6 +171,7 @@ const make = Effect.gen(function* () {
       request,
       {
         AddAccount: (add) => thenListHarnesses(addAccount(add.harness, add.label)),
+        AddAttachment: (add) => withFiles(addAttachment(add.name, add.data)),
         AddBrowsableRoot: (add) => change(addBrowsableRoot(add.path)),
         AddJournalEntry: (add) =>
           nonBlank(add.text).pipe(
@@ -167,14 +196,25 @@ const make = Effect.gen(function* () {
           ),
         BrowseFolders: (browse) => browseFolders(browse.path, browse.shouldIncludeHidden),
         ChangeThreadRunner: (change) =>
-          commands.run(
-            changeThreadRunner(change.threadId, {
-              accountId: change.accountId,
-              effort: change.effort,
-              harness: change.harness,
-              model: change.model,
-            }),
-          ),
+          Effect.gen(function* () {
+            // Messages still waiting that hold images stay with a runner that cannot read them: refused.
+            const waiting = yield* sql<{
+              id: string;
+            }>`SELECT a.id FROM attachments a JOIN messages m ON m.id = a.message_id
+              WHERE m.thread_id = ${change.threadId} AND m.delivered_turn_id IS NULL AND m.sender_kind != 'agent' LIMIT 1`;
+            yield* refuseUnreadableImages(
+              waiting.map((row) => row.id),
+              Effect.succeed({ accountId: change.accountId, harness: change.harness, model: change.model }),
+            );
+            return yield* commands.run(
+              changeThreadRunner(change.threadId, {
+                accountId: change.accountId,
+                effort: change.effort,
+                harness: change.harness,
+                model: change.model,
+              }),
+            );
+          }),
         CreateFolder: (create) => createFolder(create.parent, create.name),
         CreateRealm: (create) => change(createRealm(create.path, create.name, create.crest)),
         CreateRitual: (create) =>
@@ -198,8 +238,10 @@ const make = Effect.gen(function* () {
         DeleteThread: (given) =>
           deleteThread(given.threadId, given.confirmation).pipe(
             Effect.provideService(ScratchRoot, scratchRoot),
+            Effect.provideService(AttachmentsRoot, attachmentsRoot),
             Effect.provideService(Commands, commands),
           ),
+        DiscardAttachment: (given) => withFiles(discardAttachment(given.attachmentId)).pipe(Effect.as(null)),
         DismissMissionPrompt: (given) => commands.run(dismissPrompt(given.missionId, given.prompt)),
         EditIntel: (given) => change(editLoreEntryByOwner(given.loreEntryId, given.text)),
         EndMission: (given) => commands.run(endMission(given.missionId, given.ending, given.snapshot)),
@@ -223,23 +265,37 @@ const make = Effect.gen(function* () {
         ListSkills: (given) => listSkills(given.workspacePath),
         ListWorkspaceEntries: (given) => listWorkspaceEntries(given.workspacePath, given.query),
         OpenThread: (open) =>
-          nonBlank(open.text).pipe(
-            Effect.andThen((text) =>
-              commands.run(
-                once(
-                  open.requestId,
-                  open._tag,
-                  openThreadByOwner(
-                    open.parentThreadId,
-                    text,
-                    { accountId: open.accountId, effort: open.effort, harness: open.harness, model: open.model },
-                    open.shouldStartAnyway,
-                  ).pipe(Effect.provideService(ScratchRoot, scratchRoot)),
-                  (opened) => wakingOnly(opened.threadId),
+          Effect.gen(function* () {
+            const attachmentIds = open.attachmentIds ?? [];
+            const text = yield* textWith(open.text, attachmentIds);
+            yield* refuseUnreadableImages(
+              attachmentIds,
+              readThreadRunner(open.parentThreadId).pipe(
+                Effect.map((parent) =>
+                  parent === null
+                    ? null
+                    : runnerOf(
+                        { ...parent, effort: "default" },
+                        { accountId: open.accountId, harness: open.harness, model: open.model },
+                      ),
                 ),
               ),
-            ),
-          ),
+            );
+            return yield* commands.run(
+              once(
+                open.requestId,
+                open._tag,
+                openThreadByOwner(
+                  open.parentThreadId,
+                  text,
+                  { accountId: open.accountId, effort: open.effort, harness: open.harness, model: open.model },
+                  open.shouldStartAnyway,
+                  attachmentIds,
+                ).pipe(Effect.provideService(ScratchRoot, scratchRoot)),
+                (opened) => wakingOnly(opened.threadId),
+              ),
+            );
+          }),
         PinIntel: (given) => change(pinLoreEntryByOwner(given.loreEntryId, given.isPinned)),
         PreviewDeletion: (given) => previewDeletion(given.threadId),
         PreviewEnding: (given) => previewEnding(given.missionId, given.ending),
@@ -249,6 +305,7 @@ const make = Effect.gen(function* () {
             { harness: given.harness ?? null, model: given.model },
             given.text,
           ).pipe(Effect.provideService(ScratchRoot, scratchRoot)),
+        ReadAttachment: (read) => withFiles(readAttachment(read.attachmentId)),
         ReadBudget: (read) => readBudgetWindow(read.missionId),
         ReadIntelHistory: (read) => readLoreHistory(read.loreEntryId),
         ReadJournal: (read) => readJournalView(read.missionId),
@@ -302,13 +359,15 @@ const make = Effect.gen(function* () {
         RunRitual: (given) => commands.run(runRitual(given.ritualId)),
         SendMessage: (send) =>
           Effect.gen(function* () {
-            const text = yield* nonBlank(send.text);
+            const attachmentIds = send.attachmentIds ?? [];
+            const text = yield* textWith(send.text, attachmentIds);
+            yield* refuseUnreadableImages(attachmentIds, readThreadRunner(send.threadId));
             const delivery = send.delivery ?? (yield* readSettings).defaultDelivery;
             return yield* commands.run(
               once(
                 send.requestId,
                 send._tag,
-                insertUserMessage(send.threadId, text, delivery === "Queue").pipe(
+                insertUserMessage(send.threadId, text, delivery === "Queue", attachmentIds).pipe(
                   Effect.map((sent) => changed(sent, { threadsToWake: [send.threadId] })),
                 ),
                 () => wakingOnly(send.threadId),
@@ -324,24 +383,36 @@ const make = Effect.gen(function* () {
             Effect.as(null),
           ),
         StartMission: (start) =>
-          nonBlank(start.text).pipe(
-            Effect.andThen((text) =>
-              commands.run(
-                once(
-                  start.requestId,
-                  start._tag,
-                  insertMission(
-                    text,
-                    { accountId: start.accountId, effort: start.effort, harness: start.harness, model: start.model },
-                    start.workspacePath,
-                    true,
-                    start.realm ?? null,
-                  ).pipe(Effect.map((started) => changed(started, { threadsToWake: [started.threadId] }))),
-                  (started) => wakingOnly(started.threadId),
+          Effect.gen(function* () {
+            const attachmentIds = start.attachmentIds ?? [];
+            const text = yield* textWith(start.text, attachmentIds);
+            yield* refuseUnreadableImages(
+              attachmentIds,
+              readSettings.pipe(
+                Effect.map((settings) =>
+                  runnerOf(
+                    { accountId: null, effort: "default", harness: settings.defaultHarness, model: "default" },
+                    { accountId: start.accountId, harness: start.harness, model: start.model },
+                  ),
                 ),
               ),
-            ),
-          ),
+            );
+            return yield* commands.run(
+              once(
+                start.requestId,
+                start._tag,
+                insertMission(
+                  text,
+                  { accountId: start.accountId, effort: start.effort, harness: start.harness, model: start.model },
+                  start.workspacePath,
+                  true,
+                  start.realm ?? null,
+                  attachmentIds,
+                ).pipe(Effect.map((started) => changed(started, { threadsToWake: [started.threadId] }))),
+                (started) => wakingOnly(started.threadId),
+              ),
+            );
+          }),
         StopAtBudget: (given) => commands.run(stopAtBudget(given.stopId)),
         StopThread: (stop) => threads.stop(stop.threadId).pipe(Effect.as(null)),
         UndoIntelChange: (given) => change(undoLoreChange(given.entryId)),
@@ -378,6 +449,8 @@ const make = Effect.gen(function* () {
 export interface ServiceOptions {
   /** Where provider accounts added in Gild keep their folders; beside the database when left out. */
   readonly accountsRoot?: string;
+  /** Where attached files are kept; beside the database when left out (message-attachments). */
+  readonly attachmentsRoot?: string;
   readonly filename: string;
   readonly harness: Layer.Layer<Harness>;
   /** The harnesses' own tools for sign-ins and models; every harness signed in, for checks, when left out. */
@@ -394,6 +467,7 @@ export interface ServiceOptions {
  * runner, which it calls; Threads and the tool server meet at the endpoints.
  */
 export const serviceLayer = (options: ServiceOptions) => {
+  const attachmentsRoot = options.attachmentsRoot ?? join(dirname(options.filename), "attachments");
   const foundation = Layer.mergeAll(
     changesLayer,
     endpointsLayer,
@@ -401,8 +475,11 @@ export const serviceLayer = (options: ServiceOptions) => {
     options.harnessTools ?? fakeHarnessToolsLayer(),
     Layer.succeed(ScratchRoot, options.scratchRoot),
     Layer.succeed(AccountsRoot, options.accountsRoot ?? join(dirname(options.filename), "accounts")),
+    Layer.succeed(AttachmentsRoot, attachmentsRoot),
   ).pipe(
     Layer.provideMerge(Layer.effectDiscard(seedBrowsableRoots(options.homeFolder))),
+    // The root is handed in here: layers stacked beneath the one that provides it never see it.
+    Layer.provideMerge(Layer.effectDiscard(Effect.provideService(sweepDrafts, AttachmentsRoot, attachmentsRoot))),
     Layer.provideMerge(storeLayer(options.filename)),
   );
   const running = threadsLayer.pipe(

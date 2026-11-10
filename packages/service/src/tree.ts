@@ -9,7 +9,7 @@ import { insertMessage } from "./messaging.ts";
 import { checkAccount, type Runner, type RunnerChoice, runnerOf } from "./runners.ts";
 import { budgetRefusalOf } from "./spending.ts";
 import { readStartingContext, startingContextRefusalOf } from "./startingContext.ts";
-import { titleOf } from "./titles.ts";
+import { attachmentsTitle, titleOf } from "./titles.ts";
 
 /** At most this many threads run at once in a mission (thread-tree, Limits; CHG-0037). */
 export const maxRunning = 8;
@@ -42,6 +42,8 @@ export const runningCountOf = (missionId: string) =>
   });
 
 interface Opening {
+  /** The files attached to the first message, added beforehand as drafts (message-attachments). */
+  readonly attachmentIds?: ReadonlyArray<string>;
   /** The opener's choices; what it leaves out comes from the parent (runnerOf). */
   readonly choice: RunnerChoice;
   /** An off-topic request the owner kept beneath the thread (thread-tree, Off-topic requests). */
@@ -80,7 +82,7 @@ const insertThread = (opening: Opening) =>
     const openerMessages = opening.isAside ? null : yield* openerMessagesOf(opening.parentId);
     yield* sql`INSERT INTO threads (id, mission_id, parent_id, state, harness, account_id, model, effort, workspace_id, title, is_opened_by_agent, opener_messages, is_aside)
       VALUES (${threadId}, ${parent.missionId}, ${opening.parentId}, 'Idle', ${runner.harness}, ${runner.accountId},
-        ${runner.model}, ${runner.effort}, ${parent.workspaceId}, ${titleOf(opening.title ?? opening.text)}, ${opening.isOpenedByAgent ? 1 : 0},
+        ${runner.model}, ${runner.effort}, ${parent.workspaceId}, ${titleOf(opening.title ?? opening.text) || attachmentsTitle}, ${opening.isOpenedByAgent ? 1 : 0},
         ${openerMessages}, ${opening.isAside ? 1 : 0})`;
     const messageId = yield* insertMessage({
       fromThreadId: opening.isOpenedByAgent ? opening.parentId : null,
@@ -88,6 +90,7 @@ const insertThread = (opening: Opening) =>
       isResult: false,
       text: opening.text,
       threadId,
+      ...(opening.attachmentIds === undefined ? {} : { attachmentIds: opening.attachmentIds }),
     });
     return { messageId, threadId: threadId as ThreadId } satisfies OpenThreadResult;
   });
@@ -101,6 +104,7 @@ export const openThreadByOwner = (
   text: string,
   choice: RunnerChoice & { readonly model: string },
   shouldStartAnyway: boolean,
+  attachmentIds: ReadonlyArray<string> = [],
 ) =>
   Effect.gen(function* () {
     if ((yield* depthOf(parentId)) + 1 > maxOwnerDepth) {
@@ -112,7 +116,15 @@ export const openThreadByOwner = (
       );
       if (refusal !== null) return yield* invalid(refusal);
     }
-    const opened = yield* insertThread({ choice, isAside: false, isOpenedByAgent: false, parentId, text, title: null });
+    const opened = yield* insertThread({
+      attachmentIds,
+      choice,
+      isAside: false,
+      isOpenedByAgent: false,
+      parentId,
+      text,
+      title: null,
+    });
     return changed(opened, { threadsToWake: [opened.threadId] });
   });
 

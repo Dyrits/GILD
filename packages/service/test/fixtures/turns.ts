@@ -11,6 +11,7 @@ export const turnRequestOf = (fields: Partial<TurnRequest> = {}): TurnRequest =>
   cwd: tmpdir(),
   effort: "default",
   harness: "claude",
+  images: [],
   model: "default",
   note: null,
   onEvent: () => Effect.void,

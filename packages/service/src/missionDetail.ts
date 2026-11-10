@@ -1,6 +1,7 @@
 import type { Message, MissionDetail, ThreadSummary } from "@gild/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
+import { readCards } from "./attachments.ts";
 import { listBudgetEvents, readHeldStop } from "./budgetViews.ts";
 import { readChatter } from "./chatter.ts";
 import { notFound } from "./errors.ts";
@@ -64,12 +65,15 @@ export const readMission = (missionId: string, threadId: string | null) =>
       FROM threads t LEFT JOIN accounts a ON a.id = t.account_id WHERE t.id = ${selected.id}`;
     if (thread === undefined) return yield* notFound("No such thread in this mission.");
     const workspace = yield* readThreadWorkspace(selected.id);
-    const messages = yield* sql<Omit<Message, "isResult" | "isQueued"> & { isResult: number; isQueued: number }>`
+    const messages = yield* sql<
+      Omit<Message, "attachments" | "isResult" | "isQueued"> & { isResult: number; isQueued: number }
+    >`
       SELECT m.id, m.thread_id AS threadId, m.sender_kind AS sender, m.model, m.harness, m.text, m.sequence, m.sent_at AS sentAt,
         m.sender_thread_id AS fromThreadId, COALESCE(s.title, m.sender_title) AS fromTitle, m.is_result AS isResult,
         (m.is_queued = 1 AND m.delivered_turn_id IS NULL) AS isQueued
       FROM messages m LEFT JOIN threads s ON s.id = m.sender_thread_id
       WHERE m.thread_id = ${selected.id} ORDER BY m.sequence`;
+    const cards = yield* readCards(messages.map((message) => message.id));
     const questions = yield* listThreadQuestions(selected.id);
     const suggestions = yield* listThreadSuggestions(selected.id);
     return {
@@ -81,6 +85,7 @@ export const readMission = (missionId: string, threadId: string | null) =>
       loreGauge: yield* readGauge(selected.id),
       messages: messages.map((message) => ({
         ...message,
+        attachments: cards.get(message.id) ?? [],
         isQueued: message.isQueued === 1,
         isResult: message.isResult === 1,
       })),

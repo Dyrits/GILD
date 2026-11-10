@@ -1,6 +1,7 @@
 import { type MissionId, startingModel, type WorkspaceChoice, type WorkspaceId } from "@gild/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { imageRefusalOf } from "./attachmentRules";
 import { MissionBoard, MissionCard } from "./board";
 import { BudgetMeters, BudgetScreen, BudgetStopCard } from "./budgets";
 import { newRequestId, type ServiceClient } from "./client";
@@ -84,13 +85,15 @@ export function MissionStarter({
       {stage && <View style={local.stageCenter}>{chooser}</View>}
       <Composer
         accessory={<RunnerPickers harnesses={harnesses} isCompact={true} onChange={setRunner} value={chosen} />}
+        attachments={{ client, refusal: imageRefusalOf(harnesses, chosen.harness, chosen.model) }}
         mentions={{ client, workspacePath: chosenWorkspace }}
-        onSend={async (text) =>
+        onSend={async (text, attachmentIds) =>
           onOpen(
             (
               await client.request({
                 _tag: "StartMission",
                 accountId: chosen.accountId,
+                attachmentIds,
                 effort: chosen.effort,
                 harness: chosen.harness,
                 model: chosen.model,

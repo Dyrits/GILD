@@ -2,12 +2,13 @@ import { join } from "node:path";
 import { Clock, Context, Effect, FiberMap, FiberSet, Layer, Match, PubSub } from "effect";
 import { SqlClient } from "effect/sql";
 import { Approvals } from "./approvals.ts";
+import { AttachmentsRoot, type StoredAttachment } from "./attachments.ts";
 import { Changes } from "./changes.ts";
 import { requireChatterDecision } from "./chatter.ts";
 import { changed, makeCommands } from "./commands.ts";
 import { Endpoints } from "./endpoints.ts";
 import { invalid, type ServiceFailure } from "./errors.ts";
-import { Harness, type HarnessEvent } from "./execution.ts";
+import { Harness, type HarnessEvent, type ImageAttachment } from "./execution.ts";
 import { readConversationSoFar } from "./handover.ts";
 import { makeLifecycle, recoverThreadStates, releaseThread, resumeStopped, stopThread } from "./lifecycle.ts";
 import { listPending, listThreadsWithPending } from "./messaging.ts";
@@ -74,6 +75,10 @@ export const threadsLayer = Layer.effect(
     const changes = yield* Changes;
     const scratchRoot = yield* ScratchRoot;
     const accountsRoot = yield* AccountsRoot;
+    const attachmentsRoot = yield* AttachmentsRoot;
+    /** The stored files as a harness takes them: where each is kept. */
+    const imagesOf = (files: ReadonlyArray<StoredAttachment>): ReadonlyArray<ImageAttachment> =>
+      files.map((file) => ({ mediaType: file.mediaType, name: file.name, path: join(attachmentsRoot, file.file) }));
     const approvals = yield* Approvals;
     const suggestions = yield* Suggestions;
     /** Withdraws everything the thread waits on the owner for: questions and suggestions. */
@@ -120,7 +125,8 @@ export const threadsLayer = Layer.effect(
           turn.written.add(message.id);
           const text = message.text;
           // Not taken: the turn just ended, and the message starts the next one.
-          if (!(yield* harness.steer(threadId, { id: message.id, text }))) turn.written.delete(message.id);
+          if (!(yield* harness.steer(threadId, { id: message.id, images: imagesOf(message.attachments), text })))
+            turn.written.delete(message.id);
         }
       }).pipe(Effect.orDie);
 
@@ -178,6 +184,7 @@ export const threadsLayer = Layer.effect(
             cwd,
             effort: turn.effort,
             harness: turn.harness,
+            images: imagesOf(turn.attachments),
             model: turn.model,
             note: history === null ? note : `${history}\n\n${note}`,
             onEvent,

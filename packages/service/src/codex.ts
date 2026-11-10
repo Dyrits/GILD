@@ -1,6 +1,12 @@
 import type { EffortChoice, TokenUsage } from "@gild/contracts";
 import { type Duration, Effect, Queue } from "effect";
-import { HarnessFailure, type ThreadAccess, type TurnRequest, turnMessageOf } from "./execution.ts";
+import {
+  HarnessFailure,
+  type ImageAttachment,
+  type ThreadAccess,
+  type TurnRequest,
+  turnMessageOf,
+} from "./execution.ts";
 import { accountEnvironmentOf } from "./harnessCatalog.ts";
 import {
   type HarnessConnection,
@@ -56,6 +62,12 @@ const policyOf = (access: ThreadAccess) => ({
 });
 
 /** The thread's settings: its tools at its own endpoint, no native subagents, and Gild's context. */
+/** A turn's input: the text, then one `localImage` item per image, by the stored path (message-attachments). */
+const inputOf = (text: string, images: ReadonlyArray<ImageAttachment>) => [
+  { text, text_elements: [], type: "text" },
+  ...images.map((image) => ({ path: image.path, type: "localImage" })),
+];
+
 const threadSettingsOf = (request: TurnRequest) => ({
   ...policyOf(request.access),
   config: {
@@ -211,7 +223,7 @@ const codexProtocolOf = (options: CodexOptions): HarnessProtocol<CodexConnection
       const effort = effortOf(request.effort);
       connection.turnId = null;
       const started = yield* connection.rpc.request("turn/start", {
-        input: [{ text: turnMessageOf(request), text_elements: [], type: "text" }],
+        input: inputOf(turnMessageOf(request), request.images),
         threadId: connection.sessionId,
         ...(effort === null ? {} : { effort }),
         ...(request.model === "default" ? {} : { model: request.model }),
@@ -267,7 +279,7 @@ const codexProtocolOf = (options: CodexOptions): HarnessProtocol<CodexConnection
         .request("turn/steer", {
           clientUserMessageId: message.id,
           expectedTurnId: connection.turnId,
-          input: [{ text: message.text, text_elements: [], type: "text" }],
+          input: inputOf(message.text, message.images),
           threadId: connection.sessionId,
         })
         .pipe(

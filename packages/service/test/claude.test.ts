@@ -538,6 +538,32 @@ describe("steering and interrupting Claude Code", () => {
     call({ _tag: "StartMission", effort: "low", model: "haiku", requestId: "r1", text, workspacePath: null });
   const isRunning = (detail: MissionDetail) => detail.thread.state === "Running";
 
+  it.live("gives Claude Code the text then one base64 image block per image, as the turn's message", () => {
+    const { directory, layer } = withClaude();
+    process.env.STAND_IN_INPUT = join(directory, "input.jsonl");
+    const bytes = Buffer.concat([Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]), Buffer.alloc(20, 1)]);
+    return Effect.gen(function* () {
+      const card = yield* call({ _tag: "AddAttachment", data: bytes.toString("base64"), name: "shot.png" });
+      const started = yield* call({
+        _tag: "StartMission",
+        attachmentIds: [card.id],
+        effort: "low",
+        model: "haiku",
+        requestId: "r1",
+        text: "See",
+        workspacePath: null,
+      });
+      const detail = yield* settle(started.missionId, idleWith(1));
+      expect(withoutNote(detail.messages.at(-1)?.text)).toMatch(/to: See$/);
+      const message = inputLines(directory)[0]?.message as { content: Array<Record<string, unknown>> };
+      expect(message.content[0]).toMatchObject({ type: "text" });
+      expect(message.content[1]).toEqual({
+        source: { data: bytes.toString("base64"), media_type: "image/png", type: "base64" },
+        type: "image",
+      });
+    }).pipe(Effect.provide(layer));
+  });
+
   it.live("writes a steered message with its identifier into the running turn and marks it delivered", () => {
     const { directory, layer, starts } = withClaude();
     process.env.STAND_IN_INPUT = join(directory, "input.jsonl");

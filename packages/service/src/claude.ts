@@ -1,7 +1,7 @@
 import type { TokenUsage } from "@gild/contracts";
 import { type Duration, Effect, Layer, Queue } from "effect";
 import { type AccessOptions, accessArgsOf, baseArgs, noTimeLimit } from "./claudeArgs.ts";
-import { Harness, HarnessFailure, turnMessageOf } from "./execution.ts";
+import { Harness, HarnessFailure, type ImageAttachment, readImages, turnMessageOf } from "./execution.ts";
 import { accountEnvironmentOf } from "./harnessCatalog.ts";
 import { type HarnessConnection, type HarnessProtocol, makeHarnessProcesses } from "./harnessProcesses.ts";
 import {
@@ -63,6 +63,20 @@ const usageOf = (usage: unknown): TokenUsage | null =>
 const contextOf = (usage: TokenUsage | null) =>
   usage === null ? null : usage.input + usage.cacheRead + usage.cacheCreation + usage.output;
 
+/** A user message's content: the text alone, or the text then one base64 image block per image (message-attachments). */
+const contentOf = (text: string, images: ReadonlyArray<ImageAttachment>) =>
+  Effect.gen(function* () {
+    if (images.length === 0) return text;
+    const read = yield* readImages(images);
+    return [
+      { text, type: "text" },
+      ...read.map((image) => ({
+        source: { data: image.data, media_type: image.mediaType, type: "base64" },
+        type: "image",
+      })),
+    ];
+  });
+
 const textOf = (content: unknown) =>
   Array.isArray(content)
     ? content
@@ -108,7 +122,8 @@ const claudeProtocolOf = (options: ClaudeOptions): HarnessProtocol<ClaudeConnect
 
   runTurn: (connection, request, turn) =>
     Effect.gen(function* () {
-      connection.process.write({ message: { content: turnMessageOf(request), role: "user" }, type: "user" });
+      const content = yield* contentOf(turnMessageOf(request), request.images);
+      connection.process.write({ message: { content, role: "user" }, type: "user" });
       let draft = "";
       let reportedError: string | null = null;
       // The latest call's own usage is the context then; the result's usage sums every call of the turn.
@@ -184,10 +199,13 @@ const claudeProtocolOf = (options: ClaudeOptions): HarnessProtocol<ClaudeConnect
   // A user message written mid-turn joins it after the current tool call; its uuid comes back in the echo
   // once taken in (probe of 2026-11-06, Claude Code 2.1.302).
   steer: (connection, message) =>
-    Effect.sync(() => {
-      connection.process.write({ message: { content: message.text, role: "user" }, type: "user", uuid: message.id });
-      return true;
-    }),
+    contentOf(message.text, message.images).pipe(
+      Effect.map((content) => {
+        connection.process.write({ message: { content, role: "user" }, type: "user", uuid: message.id });
+        return true;
+      }),
+      Effect.catch(() => Effect.succeed(false)),
+    ),
 });
 
 /** The Claude Code adapter, whose processes close with the scope that made it. */

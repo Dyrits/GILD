@@ -439,6 +439,22 @@ const migrations = {
       created_at INTEGER NOT NULL
     )`;
   }),
+  // Images attached to the owner's messages (message-attachments): `message_id` is null for a draft not yet sent.
+  "0028_attachments": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE attachments (
+      id TEXT PRIMARY KEY,
+      file TEXT NOT NULL,
+      name TEXT NOT NULL,
+      media_type TEXT NOT NULL,
+      size INTEGER NOT NULL,
+      sha256 TEXT NOT NULL,
+      message_id TEXT REFERENCES messages(id),
+      position INTEGER NOT NULL DEFAULT 0,
+      created_at INTEGER NOT NULL
+    )`;
+    yield* sql`CREATE INDEX attachments_message ON attachments(message_id)`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

@@ -1,4 +1,5 @@
 import { useEffect, useImperativeHandle, useRef, useState } from "react";
+import { bulkPasteLength, insertBulkText } from "./bulkPaste";
 import type { Chip, ChipEditorProps, Trigger } from "./chipEditorTypes";
 import { iconPaths } from "./chips";
 import { colors, fontSizes, fonts, radii } from "./theme";
@@ -91,13 +92,13 @@ const triggerBeforeCaret = (root: HTMLElement) => {
   return { end: selection.anchorOffset, node, start: before.length - query.length - 1, trigger };
 };
 
-export function ChipEditor({ onChange, onKeyDown, placeholder, ref }: ChipEditorProps) {
+export function ChipEditor({ onChange, onFiles, onKeyDown, placeholder, ref }: ChipEditorProps) {
   const root = useRef<HTMLDivElement>(null);
   const [isEmpty, setIsEmpty] = useState(true);
   // The trigger as last read, kept because choosing from the list takes the focus and the caret with it.
   const triggered = useRef<ReturnType<typeof triggerBeforeCaret>>(null);
-  const handlers = useRef({ onChange, onKeyDown });
-  handlers.current = { onChange, onKeyDown };
+  const handlers = useRef({ onChange, onFiles, onKeyDown });
+  handlers.current = { onChange, onFiles, onKeyDown };
 
   const report = () => {
     const element = root.current;
@@ -167,6 +168,16 @@ export function ChipEditor({ onChange, onKeyDown, placeholder, ref }: ChipEditor
       <div
         aria-multiline="true"
         contentEditable
+        onDragOver={(event) => {
+          if (handlers.current.onFiles !== undefined && event.dataTransfer.types.includes("Files"))
+            event.preventDefault();
+        }}
+        onDrop={(event) => {
+          const files = Array.from(event.dataTransfer.files);
+          if (handlers.current.onFiles === undefined || files.length === 0) return;
+          event.preventDefault();
+          handlers.current.onFiles(files);
+        }}
         onInput={report}
         onKeyDown={(event) => {
           if (event.nativeEvent.isComposing) return;
@@ -179,7 +190,17 @@ export function ChipEditor({ onChange, onKeyDown, placeholder, ref }: ChipEditor
         }}
         onPaste={(event) => {
           event.preventDefault();
-          document.execCommand("insertText", false, event.clipboardData.getData("text/plain"));
+          const text = event.clipboardData.getData("text/plain");
+          const files = Array.from(event.clipboardData.files);
+          // A copied image comes with no text; a copied table or web page comes with both, and stays text.
+          if (text === "" && files.length > 0 && handlers.current.onFiles !== undefined) {
+            handlers.current.onFiles(files);
+          } else if (text.length > bulkPasteLength && root.current !== null) {
+            insertBulkText(root.current, text);
+            report();
+          } else {
+            document.execCommand("insertText", false, text);
+          }
         }}
         ref={root}
         role="textbox"

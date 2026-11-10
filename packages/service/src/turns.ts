@@ -2,6 +2,7 @@ import type { EffortChoice, HarnessName, ModelChoice } from "@gild/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { touchMission } from "./activity.ts";
+import type { StoredAttachment } from "./attachments.ts";
 import { enforceBudgets, holdIfReached } from "./budgets.ts";
 import { Changes } from "./changes.ts";
 import type { TurnOutcome } from "./execution.ts";
@@ -17,6 +18,8 @@ import { readThreadWorkspace } from "./workspaces.ts";
 /** A turn admitted for a thread, with the runner it takes and the messages delivered to it. */
 export interface Admitted {
   readonly accountId: string | null;
+  /** The files attached to the delivered messages, in order (message-attachments). */
+  readonly attachments: ReadonlyArray<StoredAttachment>;
   readonly effort: EffortChoice;
   readonly harness: HarnessName;
   readonly messages: ReadonlyArray<string>;
@@ -103,6 +106,7 @@ export const admitTurn = (threadId: string) =>
         yield* sql.afterCommit(changes.publish);
         return {
           accountId: thread.accountId,
+          attachments: pending.flatMap((message) => message.attachments),
           effort: thread.effort,
           harness: thread.harness,
           messages: pending.map((m) => m.text),

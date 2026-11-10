@@ -1,13 +1,16 @@
-import type { MissionState, Skill, ThreadState } from "@gild/contracts";
+import type { AttachmentId, MissionState, Skill, ThreadState } from "@gild/contracts";
 import { type ReactNode, useRef, useState } from "react";
 import { Pressable, Switch, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
+import { AttachButton } from "./attachButton";
+import { AttachmentStrip } from "./attachmentViews";
 import { ChipEditor } from "./chipEditor";
 import type { Chip, ChipEditorHandle, Trigger } from "./chipEditorTypes";
 import { ChipIcon } from "./chips";
 import type { ServiceClient } from "./client";
 import { styles } from "./styles";
 import { colors, stateLabels, stateTones } from "./theme";
+import { useAttachments } from "./useAttachments";
 import { useWorkspaceEntries } from "./useWorkspaceEntries";
 
 // The web's switch takes the thumb's color when on from a prop the native types do not declare.
@@ -81,6 +84,7 @@ export function Composer({
   placeholder,
   onSend,
   alternative,
+  attachments: attachable,
   onInterrupt,
   onChangeText,
   accessory,
@@ -88,8 +92,16 @@ export function Composer({
   mentions,
 }: {
   placeholder: string;
-  onSend: (text: string) => Promise<unknown>;
-  alternative?: { readonly label: string; readonly onSend: (text: string) => Promise<unknown> };
+  onSend: (text: string, attachmentIds: ReadonlyArray<AttachmentId>) => Promise<unknown>;
+  alternative?: {
+    readonly label: string;
+    readonly onSend: (text: string, attachmentIds: ReadonlyArray<AttachmentId>) => Promise<unknown>;
+  };
+  /**
+   * Images can be attached to the message (message-attachments): pasted, dropped, or chosen with the file button, and uploaded through
+   * the client. `refusal` is why the Companion about to read the message cannot read images, or null; the message is then not sent.
+   */
+  attachments?: { readonly client: ServiceClient; readonly refusal: string | null };
   onInterrupt?: () => Promise<unknown>;
   /** Hears the text as it is typed and cleared, such as to preview what it would send. */
   onChangeText?: (text: string) => void;
@@ -104,7 +116,11 @@ export function Composer({
   const [trigger, setTrigger] = useState<Trigger | null>(null);
   const editor = useRef<ChipEditorHandle>(null);
   const [isSending, setIsSending] = useState(false);
-  const isEmpty = text.trim() === "";
+  const files = useAttachments(attachable?.client ?? null);
+  // A message may hold images alone.
+  const isEmpty = text.trim() === "" && files.ids.length === 0;
+  const refusal = files.ids.length > 0 ? (attachable?.refusal ?? null) : null;
+  const cannotSend = isEmpty || files.isBusy || refusal !== null;
   const [error, setError] = useState<string | null>(null);
   const partial = trigger?.character === "/" ? trigger.query : null;
   const mentioned = trigger?.character === "@" ? trigger.query : null;
@@ -136,12 +152,13 @@ export function Composer({
   const [chosen, setChosen] = useState(0);
   const highlighted = options[Math.min(chosen, options.length - 1)];
   const pick = (option: Completion) => editor.current?.insertChip(option);
-  const send = async (handler: (text: string) => Promise<unknown>) => {
-    if (isEmpty || isSending) return;
+  const send = async (handler: (text: string, attachmentIds: ReadonlyArray<AttachmentId>) => Promise<unknown>) => {
+    if (cannotSend || isSending) return;
     setIsSending(true);
     try {
-      await handler(text.trim());
+      await handler(text.trim(), files.ids);
       editor.current?.clear();
+      files.clear();
       setError(null);
     } catch (reason) {
       setError((reason as Error).message);
@@ -173,9 +190,12 @@ export function Composer({
           ))}
         </View>
       )}
+      {attachable !== undefined && <AttachmentStrip files={files.files} onRemove={files.remove} />}
       <View style={styles.composerPill}>
+        {attachable !== undefined && <AttachButton onFiles={files.attach} />}
         <View style={styles.composerField}>
           <ChipEditor
+            {...(attachable === undefined ? {} : { onFiles: files.attach })}
             onChange={(value, typed) => {
               setText(value);
               setTrigger(typed);
@@ -214,9 +234,9 @@ export function Composer({
           )}
           {alternative !== undefined && (
             <Pressable
-              disabled={isSending}
+              disabled={isSending || cannotSend}
               onPress={() => send(alternative.onSend)}
-              style={[styles.buttonSecondary, isSending && styles.buttonDisabled]}
+              style={[styles.buttonSecondary, (isSending || cannotSend) && styles.buttonDisabled]}
             >
               <Text style={styles.buttonSecondaryText}>{alternative.label}</Text>
             </Pressable>
@@ -224,14 +244,16 @@ export function Composer({
           <Pressable
             accessibilityLabel="Send"
             accessibilityRole="button"
-            disabled={isSending || isEmpty}
+            disabled={isSending || cannotSend}
             onPress={() => send(onSend)}
-            style={[styles.sendButton, (isSending || isEmpty) && styles.buttonDisabled]}
+            style={[styles.sendButton, (isSending || cannotSend) && styles.buttonDisabled]}
           >
             <SendArrow />
           </Pressable>
         </View>
       </View>
+      {refusal !== null && <Text style={styles.error}>{refusal}</Text>}
+      {files.error !== null && <Text style={styles.error}>{files.error}</Text>}
       {error !== null && <Text style={styles.error}>{error}</Text>}
     </View>
   );

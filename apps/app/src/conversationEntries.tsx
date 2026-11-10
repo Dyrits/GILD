@@ -1,5 +1,6 @@
 import type { HarnessName, Message, MissionId, Skill, ThreadId } from "@gild/contracts";
 import { Pressable, Text, View } from "react-native";
+import { MessageImages } from "./attachmentViews";
 import { ChipText } from "./chips";
 import type { ServiceClient } from "./client";
 import type { Entry } from "./entries";
@@ -87,10 +88,13 @@ function MessageBubble({
         {/* The owner's own messages need no label, as in a chat; a queued one says it waits. */}
         {sender !== null && <Text style={styles.senderName}>{sender}</Text>}
         {message.sender === "user" ? (
-          <ChipText client={client} skills={skills} text={message.text} workspacePath={workspacePath} />
+          message.text === "" ? null : (
+            <ChipText client={client} skills={skills} text={message.text} workspacePath={workspacePath} />
+          )
         ) : (
           <Text style={styles.body}>{message.text}</Text>
         )}
+        <MessageImages cards={message.attachments} client={client} />
       </View>
     </View>
   );

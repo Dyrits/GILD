@@ -1507,6 +1507,7 @@ References: documentation/capabilities/rituals/specifications.md, packages/contr
 Validation: format, typecheck, lint, and tests pass (500 passed, 10 skipped); the listing test fails without the quest-list exclusion; driven in the web export on the fake harness ([proof](verification/2026-11-10-rituals.md)).
 Evidence: Baseline `9e6e2e3`; not proven: the look, which awaits the owner, the rail with many Rituals, and the narrow window (no rail).
 
+
 ## CHG-0101 · 2026-11-10 · The Workshop follows the owner's mockup, with provider logos
 
 Type: Code
@@ -1517,3 +1518,30 @@ Summary: The owner supplied a mockup of the settings page and asked for it, with
 References: apps/app/{App.tsx,src/settings.tsx,src/settingsParts.tsx,src/settingsSections.ts,src/settingsIcons.tsx,src/accounts.tsx,src/sidebar.tsx}, apps/app/test/settingsSections.test.ts.
 Validation: format, typecheck, lint, and tests pass (505 passed, 10 skipped); five new tests cover the section the menu marks and fail when the foot rule or the early margin is removed; the web export builds.
 Evidence: Baseline `77d925b`; driven once in the web export on the fake harness at 1440px ([proof](verification/2026-11-10-workshop.md)); not proven: the look, which awaits the owner, the narrow window (a row menu and no guide), and that choosing a section near the page's foot marks that section rather than the last one.
+
+## CHG-0102 · 2026-11-10 · Images attached to the owner's messages
+
+Type: Documentation
+Event: Agreement
+Scope: Message attachments
+
+Summary: The owner asked to attach media to a message, starting with an image pasted from the clipboard, and to see how the products in the inspirations handle it.
+The owner chose: paste, drop, and a file picker through one step; every message the owner sends (messages between threads are a later batch); upload first and then reference, as OpenBot does; and a refusal to send when the harness or model cannot read images.
+This reverses thread-messaging's exclusion of attachments for the owner's messages and adds the capability message-attachments.
+References: documentation/capabilities/message-attachments/specifications.md, documentation/inspirations.md, documentation/capabilities/thread-messaging/specifications.md.
+Validation: The owner's answers of 2026-11-10 to the batch questions.
+Evidence: Claude Code 2.1.311 (stream-json image block) and Codex 0.160.1 (`localImage` from outside the folder, `model/list` with `inputModalities`) each answered the colour of a one-colour image in a live turn; OpenCode 2.2.0 advertises `promptCapabilities.image` through ACP `initialize` and reports no per-model vision.
+
+## CHG-0103 · 2026-11-10 · Images on the owner's messages built; a large paste no longer freezes the window; the service starts again
+
+Type: Feature
+Event: Delivery
+Scope: Message attachments, message box
+
+Summary: Images attach to the owner's messages by paste, drop, or a file button, show as thumbnails with a × above the box and on the sent message, and reach Claude Code, Codex, and OpenCode in their own forms; a Companion that cannot read images refuses the message.
+Pasting a very large text (17,000 lines froze the window) now goes in as one text node above 20,000 characters.
+The service failed to start with `Service not found: gild/AttachmentsRoot`; the draft sweep is now given the root.
+References: documentation/capabilities/message-attachments/specifications.md, documentation/changelog.md (CHG-0102).
+Validation: Typecheck, Biome, and 545 tests pass; the window was driven on a throwaway data folder with the fake harness.
+Evidence: [message-attachments proof](verification/2026-11-10-message-attachments.md).
+Open: the look awaits the owner; undo does not take back a large paste in one step; OpenCode was not run live.

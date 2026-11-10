@@ -7,6 +7,7 @@ import {
   HarnessFailure,
   type HarnessPrompt,
   type PromptAnswer,
+  readImages,
   type ThreadAccess,
   type TurnRequest,
   turnMessageOf,
@@ -230,9 +231,17 @@ const readPrompt = (
 ) =>
   Effect.gen(function* () {
     const answer = yield* Deferred.make<Result.Result<unknown, HarnessFailure>>();
+    // The turn's images go with its first prompt only: a later prompt carries the refusals as text.
+    const images = text === turnMessageOf(request) ? yield* readImages(request.images) : [];
     yield* Effect.forkChild(
       connection.rpc
-        .request("session/prompt", { prompt: [{ text, type: "text" }], sessionId: connection.sessionId })
+        .request("session/prompt", {
+          prompt: [
+            { text, type: "text" },
+            ...images.map((image) => ({ data: image.data, mimeType: image.mediaType, type: "image" })),
+          ],
+          sessionId: connection.sessionId,
+        })
         .pipe(
           Effect.result,
           Effect.flatMap((result) => Deferred.succeed(answer, result)),

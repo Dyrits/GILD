@@ -1,5 +1,5 @@
 import { Deferred, type Duration, Effect, Layer } from "effect";
-import { Harness, HarnessFailure, type TurnRequest } from "./execution.ts";
+import { Harness, HarnessFailure, type ImageAttachment, type TurnRequest } from "./execution.ts";
 import { fieldOf } from "./lineProcess.ts";
 
 /** Calls one tool on a thread's MCP endpoint and returns its text, as a harness would; for the fake and checks. */
@@ -61,6 +61,10 @@ const scriptedCall = (request: TurnRequest, line: string, turn: FakeTurn) => {
   return null;
 };
 
+/** What the echo says of the images a message carries, so checks see that they reached the harness. */
+const imagesNoteOf = (images: ReadonlyArray<ImageAttachment>) =>
+  images.length === 0 ? "" : ` [images: ${images.map((image) => image.name).join(", ")}]`;
+
 /** A fake turn in progress: the messages steered into it, and its interrupt signal. */
 interface FakeTurn {
   readonly interrupted: Deferred.Deferred<void>;
@@ -89,7 +93,7 @@ export const fakeHarnessLayer = (replyDelay: Duration.Input) =>
             }
             return results.length === 0 ? text : results.join(" | ");
           });
-        let echo = yield* echoOf(request.text);
+        let echo = (yield* echoOf(request.text)) + imagesNoteOf(request.images);
         // Steered messages are acted on too, including those steered in while one is acted on.
         for (let index = 0; index < turn.steered.length; index++) {
           echo += ` + ${yield* echoOf(turn.steered[index] ?? "")}`;
@@ -131,7 +135,7 @@ export const fakeHarnessLayer = (replyDelay: Duration.Input) =>
         Effect.suspend(() => {
           const turn = running.get(threadId);
           if (turn === undefined) return Effect.succeed(false);
-          turn.steered.push(message.text);
+          turn.steered.push(message.text + imagesNoteOf(message.images));
           return turn.onEvent({ _tag: "Delivered", messageId: message.id }).pipe(Effect.as(true));
         }),
     };

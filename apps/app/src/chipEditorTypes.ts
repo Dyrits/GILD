@@ -26,6 +26,8 @@ export interface ChipEditorHandle {
 export interface ChipEditorProps {
   /** Hears the message as plain text, each chip as its token, and the trigger at the caret. */
   onChange: (text: string, trigger: Trigger | null) => void;
+  /** Hears the files pasted or dropped on the field, where files can be; text pasted with files stays text. */
+  onFiles?: (files: ReadonlyArray<File>) => void;
   /** Hears a key before the field does; answering true says it was handled. */
   onKeyDown: (key: { readonly key: string; readonly shiftKey: boolean }) => boolean;
   placeholder: string;

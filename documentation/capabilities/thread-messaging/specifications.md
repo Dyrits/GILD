@@ -70,5 +70,5 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
 ## Exclusions
 
 - Messages between threads in different missions without an explicit reference or Control.
-- Attachments other than text.
+- Attachments other than text between threads. The owner's images are in [message-attachments](../message-attachments/specifications.md).
 - Editing or deleting a sent message.

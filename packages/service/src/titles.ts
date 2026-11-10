@@ -3,6 +3,9 @@ import { SqlClient } from "effect/sql";
 import { invalid, notFound } from "./errors.ts";
 import type { ToolHandlers } from "./threadTools.ts";
 
+/** The title of a quest or thread whose first message holds only images. */
+export const attachmentsTitle = "Attached images";
+
 /** A title from a text: its first line, trimmed, at most 200 characters. */
 export const titleOf = (text: string) => text.trim().split("\n", 1)[0]?.trim().slice(0, 200) ?? "";
 

@@ -143,7 +143,7 @@ describe("interrupting and steering a pooled turn", () => {
 
       const first = yield* Effect.forkChild(pool.runTurn(turnRequestOf({ onEvent })));
       yield* Deferred.await(running);
-      expect(yield* pool.steer("thread-1", { id: "taken", text: "Also this" })).toBe(true);
+      expect(yield* pool.steer("thread-1", { id: "taken", images: [], text: "Also this" })).toBe(true);
       yield* Deferred.succeed(release, void 0);
       yield* Fiber.join(first);
       expect(delivered).toEqual(["taken"]);
@@ -159,7 +159,7 @@ describe("interrupting and steering a pooled turn", () => {
       const other = yield* makeHarnessProcesses(holding, { idleTimeout: "10 minutes" });
       const second = yield* Effect.forkChild(other.runTurn(turnRequestOf()));
       yield* Deferred.await(again);
-      expect(yield* other.steer("thread-1", { id: "untaken", text: "Too late" })).toBe(true);
+      expect(yield* other.steer("thread-1", { id: "untaken", images: [], text: "Too late" })).toBe(true);
       yield* Fiber.join(second);
       expect(later[0]?.isClosed).toBe(true);
     }).pipe(Effect.scoped),

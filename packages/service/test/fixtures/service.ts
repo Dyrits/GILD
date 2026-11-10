@@ -10,19 +10,20 @@ import type {
   ResultOf,
   ThreadId,
 } from "@gild/contracts";
-import { Effect } from "effect";
+import { Effect, type Layer } from "effect";
 import { Endpoints } from "../../src/endpoints.ts";
 import { callThreadTool } from "../../src/fakeHarness.ts";
-import { fakeHarnessLayer, Service, serviceLayer } from "../../src/index.ts";
+import { fakeHarnessLayer, type HarnessTools, Service, serviceLayer } from "../../src/index.ts";
 
 /** An isolated service with the scripted fake harness and real temporary SQLite. */
-export const fixture = () => {
+export const fixture = (harnessTools?: Layer.Layer<HarnessTools>) => {
   const directory = mkdtempSync(join(tmpdir(), "gild-service-"));
   return {
     directory,
     layer: serviceLayer({
       filename: join(directory, "store.sqlite"),
       harness: fakeHarnessLayer("10 millis"),
+      ...(harnessTools === undefined ? {} : { harnessTools }),
       homeFolder: directory,
       scratchRoot: join(directory, "missions"),
     }),

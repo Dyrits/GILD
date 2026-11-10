@@ -1,4 +1,4 @@
-import type { BudgetScope, MessageDelivery, MissionDetail, MissionId, ThreadId } from "@gild/contracts";
+import type { AttachmentId, BudgetScope, MessageDelivery, MissionDetail, MissionId, ThreadId } from "@gild/contracts";
 import { useEffect, useRef, useState } from "react";
 import {
   FlatList,
@@ -9,6 +9,7 @@ import {
   useWindowDimensions,
   View,
 } from "react-native";
+import { imageRefusalOf } from "./attachmentRules";
 import { BudgetScreen, BudgetStopCard } from "./budgets";
 import { newRequestId, type ServiceClient } from "./client";
 import { Composer, StateBadge } from "./controls";
@@ -132,9 +133,16 @@ function ThreadPane({
   const other = ({ Queue: "Steer", Steer: "Queue" } as const satisfies Record<MessageDelivery, MessageDelivery>)[
     defaultDelivery
   ];
-  const sendAs = (delivery: MessageDelivery | null) => (text: string) => {
+  const sendAs = (delivery: MessageDelivery | null) => (text: string, attachmentIds: ReadonlyArray<AttachmentId>) => {
     followNewest.follow();
-    return client.request({ _tag: "SendMessage", delivery, requestId: newRequestId(), text, threadId: thread.id });
+    return client.request({
+      _tag: "SendMessage",
+      attachmentIds,
+      delivery,
+      requestId: newRequestId(),
+      text,
+      threadId: thread.id,
+    });
   };
   const act = (request: Promise<unknown>) =>
     request.then(
@@ -253,6 +261,7 @@ function ThreadPane({
         />
       ) : (
         <Composer
+          attachments={{ client, refusal: imageRefusalOf(harnesses, thread.harness, thread.model) }}
           mentions={{ client, workspacePath: thread.workspace?.path ?? null }}
           skills={skills}
           // The harness, account, Companion, and effort can change between turns: a handover (thread-handover).

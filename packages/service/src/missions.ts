@@ -21,7 +21,7 @@ import { runStateOf, scheduleOf } from "./ritualSchedule.ts";
 import { checkAccount, type RunnerChoice, runnerOf } from "./runners.ts";
 import { dayMillis, readSettings, saveStartChoices } from "./settings.ts";
 import { isReached, readGlobalBudget, tokenSum } from "./spending.ts";
-import { titleOf } from "./titles.ts";
+import { attachmentsTitle, titleOf } from "./titles.ts";
 import { attachWorkspace, crestOfRow } from "./workspaces.ts";
 
 // Ordered from most to least urgent (mission-tracking specification). Done and
@@ -41,10 +41,13 @@ export const insertMission = (
   workspacePath: string | null,
   shouldRememberChoices = true,
   realm: { crest: Crest | null; name: string } | null = null,
+  attachmentIds: ReadonlyArray<string> = [],
 ) =>
-  insertQuest({ firstMessage: text, realm, shouldRememberChoices, title: titleOf(text) }, choice, workspacePath).pipe(
-    Effect.map((started) => started as StartMissionResult),
-  );
+  insertQuest(
+    { attachmentIds, firstMessage: text, realm, shouldRememberChoices, title: titleOf(text) || attachmentsTitle },
+    choice,
+    workspacePath,
+  ).pipe(Effect.map((started) => started as StartMissionResult));
 
 /**
  * Records a quest, its top thread, and its first message when it has one; a Ritual's quest has none until its first run
@@ -52,6 +55,8 @@ export const insertMission = (
  */
 export const insertQuest = (
   quest: {
+    /** The files attached to the first message, added beforehand as drafts (message-attachments). */
+    readonly attachmentIds?: ReadonlyArray<string>;
     readonly firstMessage: string | null;
     readonly isTitleByOwner?: boolean;
     readonly realm: { crest: Crest | null; name: string } | null;
@@ -93,6 +98,7 @@ export const insertQuest = (
             isResult: false,
             text: quest.firstMessage,
             threadId,
+            ...(quest.attachmentIds === undefined ? {} : { attachmentIds: quest.attachmentIds }),
           });
     yield* insertJournal(missionId);
     yield* applyDefaultBudget(missionId, settings.defaultMissionBudget);

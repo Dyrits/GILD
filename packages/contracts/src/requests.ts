@@ -1,9 +1,11 @@
 import { Schema } from "effect";
+import { AttachmentCard, AttachmentContent, maxAttachmentsPerMessage } from "./attachments.ts";
 import { BudgetLimits, BudgetWindow } from "./budgets.ts";
 import { Crest } from "./crest.ts";
 import { HarnessList, HarnessName } from "./harnesses.ts";
 import {
   AccountId,
+  AttachmentId,
   BudgetStopId,
   LoreChangeId,
   LoreEntryId,
@@ -54,11 +56,29 @@ import { Folder, FolderListing } from "./workspaces.ts";
 // Requests
 
 const MessageText = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(100_000));
+/** The text of an owner's message, which may be empty when files are attached (message-attachments). */
+const OwnerMessageText = Schema.String.check(Schema.isMaxLength(100_000));
+/** The files an owner's message carries, added beforehand with `AddAttachment`; absent is none. */
+const AttachmentIds = Schema.optionalKey(
+  Schema.Array(AttachmentId).check(Schema.isMaxLength(maxAttachmentsPerMessage)),
+);
+
+/** Adds a file to the message the owner is writing: it is checked, stored as a draft, and answered as a card. */
+export const AddAttachment = Schema.TaggedStruct("AddAttachment", {
+  /** The file's bytes, base64. */
+  data: Schema.String,
+  name: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(255)),
+});
+/** Removes a draft the owner took out of the message before sending it. */
+export const DiscardAttachment = Schema.TaggedStruct("DiscardAttachment", { attachmentId: AttachmentId });
+/** Reads an attached file's bytes; they never ride inside a conversation. */
+export const ReadAttachment = Schema.TaggedStruct("ReadAttachment", { attachmentId: AttachmentId });
 
 /** Starts a mission with its first message, model, effort, and workspace. */
 export const StartMission = Schema.TaggedStruct("StartMission", {
   /** The provider account, or null for the harness's own sign-in on this computer; absent is null. */
   accountId: Schema.optionalKey(Schema.NullOr(AccountId)),
+  attachmentIds: AttachmentIds,
   effort: EffortChoice,
   /** Absent starts on the Settings default harness. */
   harness: Schema.optionalKey(HarnessName),
@@ -74,16 +94,17 @@ export const StartMission = Schema.TaggedStruct("StartMission", {
     }),
   ),
   requestId: RequestId,
-  text: MessageText,
+  text: OwnerMessageText,
   /** An existing folder, chosen in the system's folder dialog, or null for the mission's scratch folder. */
   workspacePath: Schema.NullOr(Schema.String),
 });
 /** Sends the owner's message to a thread, steered or queued. */
 export const SendMessage = Schema.TaggedStruct("SendMessage", {
+  attachmentIds: AttachmentIds,
   /** Steer or Queue while the thread runs; null uses the owner's default. */
   delivery: Schema.NullOr(MessageDelivery),
   requestId: RequestId,
-  text: MessageText,
+  text: OwnerMessageText,
   threadId: ThreadId,
 });
 /** The dashboard (not archived) or the Archived view, filtered by state and workspace and searched. */
@@ -124,6 +145,7 @@ export const ReadThreadPanel = Schema.TaggedStruct("ReadThreadPanel", { threadId
 export const OpenThread = Schema.TaggedStruct("OpenThread", {
   /** Absent keeps the parent's account when the harness is the parent's, else the computer's own sign-in. */
   accountId: Schema.optionalKey(Schema.NullOr(AccountId)),
+  attachmentIds: AttachmentIds,
   effort: EffortChoice,
   /** Absent runs on the parent's harness. */
   harness: Schema.optionalKey(HarnessName),
@@ -132,7 +154,7 @@ export const OpenThread = Schema.TaggedStruct("OpenThread", {
   requestId: RequestId,
   /** The owner chose to start it although its starting context is over the warning share. */
   shouldStartAnyway: Schema.Boolean,
-  text: MessageText,
+  text: OwnerMessageText,
 });
 /** What a thread the owner opens beneath a thread would start with, before it starts (thread-tree, Opening a thread). */
 export const PreviewStartingContext = Schema.TaggedStruct("PreviewStartingContext", {
@@ -342,6 +364,9 @@ export const SignInAccount = Schema.TaggedStruct("SignInAccount", {
 
 /** Every request the app can make of the service. */
 export const Request = Schema.Union([
+  AddAttachment,
+  DiscardAttachment,
+  ReadAttachment,
   StartMission,
   PreviewDeletion,
   ResolveChatter,
@@ -423,6 +448,7 @@ export type OpenThreadResult = typeof OpenThreadResult.Type;
 /** The result schema of each request, used by both sides to encode and decode. */
 export const Results = {
   AddAccount: HarnessList,
+  AddAttachment: AttachmentCard,
   AddBrowsableRoot: FolderListing,
   AddJournalEntry: JournalView,
   AnswerQuestion: Question,
@@ -435,6 +461,7 @@ export const Results = {
   DeleteIntel: Schema.Null,
   DeleteRitual: Schema.Null,
   DeleteThread: Schema.Null,
+  DiscardAttachment: Schema.Null,
   DismissMissionPrompt: Schema.Null,
   EditIntel: Schema.Null,
   EndMission: Schema.Null,
@@ -451,6 +478,7 @@ export const Results = {
   PreviewDeletion: DeletionPreview,
   PreviewEnding: EndingPreview,
   PreviewStartingContext: StartingContext,
+  ReadAttachment: AttachmentContent,
   ReadBudget: BudgetWindow,
   ReadIntelHistory: LoreHistory,
   ReadJournal: JournalView,

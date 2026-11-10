@@ -54,6 +54,10 @@ _Avoid_: Side thread, tangent
 A message one thread sends another, in either direction along the tree, or to any thread it references with `@`, that can ask for a reply.
 _Avoid_: Ping, notification
 
+**Attachment**:
+A file the owner adds to a message, kept by Gild and given to the thread's harness with the message's text. Only images are supported so far.
+_Avoid_: Upload, media, file (alone)
+
 **Steer**:
 To deliver a message into a thread's current turn, changing its course without waiting for the turn to end. Its counterpart is to queue the message for the next turn.
 _Avoid_: Inject, nudge

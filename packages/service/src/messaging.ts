@@ -2,6 +2,7 @@ import { type HarnessName, MessageId, type SendMessageResult } from "@gild/contr
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { touchMission } from "./activity.ts";
+import { attachToMessage, readStoredAttachments, type StoredAttachment } from "./attachments.ts";
 import { resetOwnerChatter, resetResultChatter } from "./chatter.ts";
 import { notFound } from "./errors.ts";
 import { listSkills, withSkillInstructions } from "./skills.ts";
@@ -64,6 +65,8 @@ export const insertReply = (
 
 /** A message waiting to be delivered, as its receiver's harness reads it. */
 export interface PendingMessage {
+  /** The files attached to it, in order (message-attachments). */
+  readonly attachments: ReadonlyArray<StoredAttachment>;
   readonly id: string;
   readonly text: string;
 }
@@ -92,8 +95,10 @@ export const listPending = (threadId: string, isSteering: boolean) =>
     const skills = rows.some((row) => row.fromThreadId === null && row.text.includes("/"))
       ? yield* listSkills((yield* readThreadWorkspace(threadId))?.path ?? null)
       : [];
+    const attachments = yield* readStoredAttachments(rows.map((row) => row.id));
     return rows.map(
       (row): PendingMessage => ({
+        attachments: attachments.get(row.id) ?? [],
         id: row.id,
         text: deliveredTextOf({
           ...row,
@@ -127,6 +132,8 @@ export const deliverMessages = (messageIds: ReadonlyArray<string>, turnId: strin
 /** A message to record in a thread: from the owner, or from another thread of its mission. */
 interface NewMessage {
   /** The sending thread, for a thread message. */
+  /** The files the owner attached, added beforehand as drafts (message-attachments). */
+  readonly attachmentIds?: ReadonlyArray<string>;
   readonly fromThreadId: string | null;
   /** Whether it waits for the receiver's next turn instead of joining a running one (CHG-0039). */
   readonly isQueued: boolean;
@@ -150,17 +157,25 @@ export const insertMessage = (message: NewMessage) =>
       // in the journal (mission-tracking, Ending a mission).
       yield* sql`UPDATE missions SET ending = NULL WHERE id = ${thread.missionId} AND ending IS NOT NULL`;
     } else if (message.isResult) yield* resetResultChatter(message.fromThreadId, message.threadId);
-    return yield* appendMessage({
-      ...message,
+    const { attachmentIds = [], ...recorded } = message;
+    const messageId = yield* appendMessage({
+      ...recorded,
       missionId: thread.missionId,
       now: yield* Clock.currentTimeMillis,
       senderKind: message.fromThreadId === null ? "user" : "thread",
     });
+    yield* attachToMessage(messageId, attachmentIds);
+    return messageId;
   });
 
 /** Records an owner message for a thread, queued or to steer a running turn. Callers run it in a transaction. */
-export const insertUserMessage = (threadId: string, text: string, isQueued: boolean) =>
-  insertMessage({ fromThreadId: null, isQueued, isResult: false, text, threadId }).pipe(
+export const insertUserMessage = (
+  threadId: string,
+  text: string,
+  isQueued: boolean,
+  attachmentIds: ReadonlyArray<string> = [],
+) =>
+  insertMessage({ attachmentIds, fromThreadId: null, isQueued, isResult: false, text, threadId }).pipe(
     Effect.map((messageId) => ({ messageId }) satisfies SendMessageResult),
   );
 

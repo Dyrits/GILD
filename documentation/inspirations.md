@@ -10,6 +10,7 @@ Review this list when starting a capability, and every few weeks: read each prod
 
 - **Good ideas**: an agent panel per agent; installing and updating each harness's command-line tool from its official package, checked against the published hash; how permissions are asked of casual users.
 - **Taken**: harness installs and updates ([architecture](architecture.md)); the thread panel idea ([backlog](backlog.md)); built-in safe git (CHG-0032 in the [changelog](changelog.md)); (2026-11-07) the window's look: a sidebar on a grey frame beside a raised panel, a neutral palette with one blue accent, tinted state pills, and a composer with its pickers inside (CHG-0056).
+- **Attachments** (2026-11-10, from its source `nightly-labs/openbot`): a file added to a message is first written to a managed drafts folder; sending moves it to a transfers folder with a manifest (name, type, size, sha256), and the message carries cards that survive the file's deletion ("file not found"); limits of 10 files, 100 MB each, 250 MB in all; Codex-style `localImage` items turned into base64 `image` blocks for ACP; Claude Code receives only a text list of local files; image or plain file is told by extension, so HEIC and TIFF are never sent as images. Taken: upload first then reference, and cards that outlive the file (CHG-0102).
 - **License**: PolyForm Noncommercial 1.0.0. Ideas only, no code ([0001](architecture-decision-record/0001-new-codebase-not-a-fork.md)).
 - **Check on**: its memory, routine, and approval features, as the closest product to Gild.
 
@@ -17,6 +18,7 @@ Review this list when starting a capability, and every few weeks: read each prod
 
 - **Good ideas**: runtime event and driver contracts, an ACP client and vendor adapters, Claude Code and Codex drivers, a delegation-tree state machine, process and recovery helpers.
 - **Taken**: these modules may be cherry-picked under Apache 2.0 with their notices ([0001](architecture-decision-record/0001-new-codebase-not-a-fork.md)).
+- **Attachments** (2026-11-10, from `milind-soni/OpenMausBot`): paste, drop, and a picker; Electron's native `clipboard.readImage()` keeps the Paste item enabled for images; uploaded over HTTP, the message carries `<attached-image path>` tags; Claude Code gets a base64 block, Codex an `image` item with a data URL (its box could not see paths), ACP an `image` block only when `promptCapabilities.image` is true, with a clear error otherwise; 10 MB per image, 10 per turn.
 - **License**: Apache 2.0, except its `enterprise/` folder, which is not used. Its brand is not reused.
 - **Check on**: new versions of the drivers Gild takes code from.
 
@@ -24,6 +26,7 @@ Review this list when starting a capability, and every few weeks: read each prod
 
 - **Good ideas**: a relay Worker with end-to-end encryption; an Electron window that loads the Expo app's web build.
 - **Taken**: the relay and its encryption ([0001](architecture-decision-record/0001-new-codebase-not-a-fork.md), [0003](architecture-decision-record/0003-per-user-relay-carrying-all-traffic.md)); the desktop shell approach ([0004](architecture-decision-record/0004-electron-desktop-shell.md)). Its shared, project-run relay was rejected.
+- **Attachments** (2026-11-10): paste listener on web and Electron, a native paste module on mobile; the image travels as base64 inside the WebSocket message (the same path serves the phone through the relay); Claude Code gets a base64 block, Codex a temp file (mode 0600) as `localImage`; no capability check for ACP, so an unsupported type reaches Claude as a silent skip.
 - **License**: Apache 2.0.
 - **Check on**: relay and encryption changes.
 
@@ -46,6 +49,7 @@ Review this list when starting a capability, and every few weeks: read each prod
   - automations started by a git push, Sentry, Stripe, email, Slack, Discord, or cron, with an optional filter command deciding whether to wake an agent;
   - secrets injected only into turns that may use them, never written to disk.
 - **Taken**: none yet. Several ideas are already planned for Gild; compare before adding to the [backlog](backlog.md).
+- **Attachments** (2026-11-10): paste, drop, and a paperclip all call one `attach()`; chips with thumbnails and upload progress; files uploaded at once to the workspace and the message carries paths; Claude Code reads them through a path note, Codex takes `localImage`, ACP an `image` block only when `promptCapabilities.image` is true; abandoned uploads leave files on disk. Taken: one step for paste, drop, and picker (CHG-0102).
 - **License**: MIT (sandbox, CLI, workspace, platform). Code may be reused with its notice where a decision record allows it.
 - **Check on**: its [changelog](https://intentic.dev/changelog/), [releases](https://github.com/intentic/intentic/releases), and [docs](https://intentic.dev/docs/), especially UI changes and whether it adds nested agents or threads. Its name is close to "Intent", a candidate for Gild's mission term.
 
@@ -62,6 +66,7 @@ Review this list when starting a capability, and every few weeks: read each prod
   - reachable from Slack, and when self-hosted from iMessage or SMS, WhatsApp, and Telegram;
   - a summary per run (archived, replied, drafted, flagged) and a mobile inbox showing which rows wait on the user.
 - **Taken**: none yet. Its approvals, a model per agent, and delegation are already in Gild. Learning by demonstration, event triggers, and the held pile of drafts are candidates; compare them before adding to the [backlog](backlog.md).
+- **Attachments** (2026-11-10): paste only when `clipboardData.files` is not empty, so text paste is untouched; 10 MB and 4 files per message; jpeg and png shrunk to 1600 px at quality 0.7 on web and mobile; the server refuses an image for a model without vision, and the client offers to send it as a file. Taken: the paste check and the refusal for a model without vision (CHG-0102).
 - **License**: Apache 2.0 according to its site; not checked in the repository. Ideas only until it is checked.
 - **Check on**: its [docs](https://rakazo.com/docs/), [releases](https://github.com/elie222/rakazo/releases), and [integrations](https://rakazo.com/integrations/), especially how skills learned by demonstration are stored and how approvals are configured.
 
@@ -95,6 +100,7 @@ Review this list when starting a capability, and every few weeks: read each prod
   - usage controls and cost attribution for teams;
   - an honest local-first statement: "Local-first does not mean no data ever leaves your device", naming what leaves (model requests, sync, remote access, plugins).
 - **Taken**: none yet. Separate harness and model choice, a thread per worker on its own runner, approvals answered from the phone, and budgets are already in Gild. A planning, workers, and review split as a mission template, checkpoints, and its local-first statement are candidates; compare them before adding to the [backlog](backlog.md).
+- **Attachments** (2026-11-10): a pasted bitmap is written to disk as `clipboard-<time>.png`; Claude Code gets a base64 block after a magic-byte check and a resize to 1568 px (webp, 85), under 5 MB encoded, else an `@path` mention; Codex a `localImage`; its vision-bridge design records that a model such as GLM drops images silently, so only an up-front check catches it. Taken: the 1568 px reduction and the signature check (CHG-0102).
 - **License**: Apache 2.0 according to its site; not checked in the repository. Code may be reused with its notice where a decision record allows it, once checked.
 - **Check on**: its [docs](https://github.com/makecindy/cindy/tree/main/docs) and [releases](https://github.com/makecindy/cindy/releases), especially its Pi harness, how it moves a task between devices, and how the review step is wired; as the open-source product closest to Gild's multi-harness tree.
 

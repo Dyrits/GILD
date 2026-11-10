@@ -18,6 +18,10 @@ export type ThreadId = typeof ThreadId.Type;
 export const MessageId = Schema.String.pipe(Schema.brand("MessageId"));
 export type MessageId = typeof MessageId.Type;
 
+/** Identifies an attached file (message-attachments). */
+export const AttachmentId = Schema.String.pipe(Schema.brand("AttachmentId"));
+export type AttachmentId = typeof AttachmentId.Type;
+
 /** Identifies a workspace folder by identity, not by path. */
 export const WorkspaceId = Schema.String.pipe(Schema.brand("WorkspaceId"));
 export type WorkspaceId = typeof WorkspaceId.Type;

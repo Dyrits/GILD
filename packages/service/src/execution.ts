@@ -1,4 +1,12 @@
-import type { ApprovalLevel, EffortChoice, HarnessName, ModelChoice, TokenUsage } from "@gild/contracts";
+import { readFile } from "node:fs/promises";
+import type {
+  ApprovalLevel,
+  AttachmentMediaType,
+  EffortChoice,
+  HarnessName,
+  ModelChoice,
+  TokenUsage,
+} from "@gild/contracts";
 import { Context, Effect, Schema } from "effect";
 
 /** What a harness reports while a turn runs. */
@@ -15,9 +23,17 @@ export type HarnessEvent =
   /** A message steered into the running turn was taken in by it (CHG-0039). */
   | { readonly _tag: "Delivered"; readonly messageId: string };
 
+/** An image attached to a message, as a harness takes it: the file where the service keeps it. */
+export interface ImageAttachment {
+  readonly mediaType: AttachmentMediaType;
+  readonly name: string;
+  readonly path: string;
+}
+
 /** A message to steer into a thread's running turn, by its identifier. */
 export interface SteeredMessage {
   readonly id: string;
+  readonly images: ReadonlyArray<ImageAttachment>;
   readonly text: string;
 }
 
@@ -62,6 +78,8 @@ export interface TurnRequest {
   readonly cwd: string;
   readonly effort: EffortChoice;
   readonly harness: HarnessName;
+  /** The images attached to the turn's messages, in order (message-attachments). */
+  readonly images: ReadonlyArray<ImageAttachment>;
   readonly model: ModelChoice;
   /**
    * What changes from turn to turn, such as the budget line, given with the turn's message rather than
@@ -141,6 +159,19 @@ export const routeHarnesses = (adapters: Record<HarnessName, HarnessAdapter>): H
     steer: (threadId, message) => running.get(threadId)?.steer(threadId, message) ?? Effect.succeed(false),
   };
 };
+
+/** The images' bytes, base64, for a harness that takes them inline; a file that cannot be read fails the turn with the reason. */
+export const readImages = (images: ReadonlyArray<ImageAttachment>) =>
+  Effect.tryPromise({
+    catch: (error) => new HarnessFailure({ reason: `Could not read an attached image: ${String(error)}` }),
+    try: () =>
+      Promise.all(
+        images.map(async (image) => ({
+          data: (await readFile(image.path)).toString("base64"),
+          mediaType: image.mediaType,
+        })),
+      ),
+  });
 
 /** The turn's message as the harness receives it: the note (journal, lore, budget) first, set off from the messages. */
 export const turnMessageOf = (request: TurnRequest) =>

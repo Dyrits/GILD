@@ -1,6 +1,7 @@
-import type { ModelChoice, ThreadId, ThreadSummary, ThreadView } from "@gild/contracts";
+import type { AttachmentId, ModelChoice, ThreadId, ThreadSummary, ThreadView } from "@gild/contracts";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
+import { imageRefusalOf } from "./attachmentRules";
 import { newRequestId, type ServiceClient } from "./client";
 import { Composer } from "./controls";
 import { foldThreads } from "./folding";
@@ -115,10 +116,11 @@ export function OpenThreadForm({
     },
     `starting:${parent.id}:${runner.harness}:${model}:${request.settled}`,
   );
-  const openWith = (shouldStartAnyway: boolean) => async (text: string) => {
+  const openWith = (shouldStartAnyway: boolean) => async (text: string, attachmentIds: ReadonlyArray<AttachmentId>) => {
     const opened = await client.request({
       _tag: "OpenThread",
       accountId: runner.accountId,
+      attachmentIds,
       effort: runner.effort,
       harness: runner.harness,
       model,
@@ -173,6 +175,7 @@ export function OpenThreadForm({
         </View>
       )}
       <Composer
+        attachments={{ client, refusal: imageRefusalOf(harnesses, runner.harness, model) }}
         mentions={{ client, workspacePath: parent.workspace?.path ?? null }}
         skills={skills}
         {...(isOverWarning ? { alternative: { label: "Start anyway", onSend: openWith(true) } } : {})}

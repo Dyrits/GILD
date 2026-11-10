@@ -8,7 +8,12 @@ export const HarnessName = Schema.Literals(["claude", "codex", "opencode"]);
 export type HarnessName = typeof HarnessName.Type;
 
 /** One model a harness offers, by the identifier the harness takes. */
-export const ModelOption = Schema.Struct({ id: Schema.String, label: Schema.String });
+export const ModelOption = Schema.Struct({
+  id: Schema.String,
+  /** Whether the model reads images, when the harness says; absent when it does not (message-attachments). */
+  inputsImages: Schema.optionalKey(Schema.Boolean),
+  label: Schema.String,
+});
 export type ModelOption = typeof ModelOption.Type;
 
 /** Whether an account's harness is signed in, as the harness's own status command says. */
