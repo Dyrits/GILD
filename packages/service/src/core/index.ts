@@ -28,6 +28,16 @@ export {
   realFolderOf,
   seedBrowsableRoots,
 } from "./folders.ts";
+export { modelsDevSourceLayer, noPriceSourceLayer, rowsOfModelsDev } from "./priceSources.ts";
+export {
+  type Estimate,
+  PriceReadFailed,
+  type PriceRow,
+  PriceSource,
+  PriceTable,
+  priceOf,
+  priceTableLayer,
+} from "./prices.ts";
 export { fieldOf, numberFieldOf, textFieldOf } from "./records.ts";
 export { sandboxProblem } from "./sandbox.ts";
 export { removeScratch } from "./scratch.ts";
@@ -36,6 +46,8 @@ export {
   budgetLineOf,
   budgetRefusalOf,
   changeTextOf,
+  consumptionColumns,
+  costSum,
   isEmpty,
   isReached,
   limitsTextOf,

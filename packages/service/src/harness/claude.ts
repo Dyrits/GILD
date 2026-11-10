@@ -1,4 +1,4 @@
-import type { TokenUsage } from "@gild/contracts";
+import type { BillingKind, TokenUsage } from "@gild/contracts";
 import { type Duration, Effect, Layer, Queue } from "effect";
 import {
   fieldOf,
@@ -28,6 +28,8 @@ export interface ClaudeOptions extends AccessOptions {
 }
 
 interface ClaudeConnection extends HarnessConnection {
+  /** How the process was signed in, from the init event; Unknown until it reports (budget-control, Billing kind). */
+  billing: BillingKind;
   /** The cost Claude Code last reported for this process, which it adds up across turns (provisional, unprobed). */
   lastTotalCost: number;
   readonly process: StreamJsonProcess;
@@ -37,6 +39,16 @@ interface ClaudeConnection extends HarnessConnection {
 const reportedModelOf = (message: unknown): string | null => {
   const model = textFieldOf(message, "model");
   return model === null || model.startsWith("<") ? null : model;
+};
+
+/**
+ * How a Claude Code process was billed, from the `apiKeySource` of its init event: `none` is the subscription
+ * sign-in, any other source is an API key, and an event without the field says nothing. Unprobed live (backlog,
+ * Consumption and cost, build order).
+ */
+const billingOf = (event: unknown, previous: BillingKind): BillingKind => {
+  const source = textFieldOf(event, "apiKeySource");
+  return source === null ? previous : source === "none" ? "Subscription" : "ApiKey";
 };
 
 /** The turn's own cost from the result's running total; a total that fell means a fresh count. */
@@ -135,7 +147,9 @@ const claudeProtocolOf = (options: ClaudeOptions): HarnessProtocol<ClaudeConnect
         if (item._tag === "Exit") return yield* new HarnessFailure({ reason: item.reason });
         const event = item.message;
         const type = textFieldOf(event, "type");
-        if (type === "user") {
+        if (type === "system" && textFieldOf(event, "subtype") === "init") {
+          connection.billing = billingOf(event, connection.billing);
+        } else if (type === "user") {
           // Only steered messages are tracked; the turn's own message and tool results are not.
           const uuid = textFieldOf(event, "uuid");
           if (uuid !== null) yield* turn.deliver(uuid);
@@ -163,10 +177,10 @@ const claudeProtocolOf = (options: ClaudeOptions): HarnessProtocol<ClaudeConnect
           // An interrupted turn ends with an error result, which is no failure (probe of 2026-11-06).
           const usage = usageOf(fieldOf(event, "usage"));
           const cost = turnCostOf(connection, fieldOf(event, "total_cost_usd"));
-          if (turn.isInterrupting()) return { context, cost, isInterrupted: true, usage };
+          if (turn.isInterrupting()) return { billing: connection.billing, context, cost, isInterrupted: true, usage };
           if (fieldOf(event, "is_error") === true || reportedError !== null)
             return yield* new HarnessFailure({ reason: failureReasonOf(event, reportedError) });
-          return { context, cost, isInterrupted: false, usage };
+          return { billing: connection.billing, context, cost, isInterrupted: false, usage };
         }
       }
     }),
@@ -190,6 +204,7 @@ const claudeProtocolOf = (options: ClaudeOptions): HarnessProtocol<ClaudeConnect
         label: "Claude Code",
       });
       return {
+        billing: "Unknown",
         close: process.close,
         hasExited: process.hasExited,
         lastTotalCost: 0,

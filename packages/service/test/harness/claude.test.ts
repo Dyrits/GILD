@@ -26,6 +26,7 @@ const temporary = () => {
 afterEach(() => {
   delete process.env.STAND_IN_MODE;
   delete process.env.STAND_IN_COST;
+  delete process.env.STAND_IN_API_KEY_SOURCE;
   delete process.env.STAND_IN_MODEL;
   delete process.env.STAND_IN_INPUT;
   for (const directory of directories.splice(0)) rmSync(directory, { force: true, recursive: true });
@@ -310,8 +311,9 @@ describe("running Claude Code threads", () => {
     }).pipe(Effect.provide(layer));
   });
 
-  it.live("records each turn's own cost from the running total Claude Code reports", () => {
+  it.live("records each turn's own cost from the running total Claude Code reports, on an API key", () => {
     process.env.STAND_IN_COST = "1";
+    process.env.STAND_IN_API_KEY_SOURCE = "ANTHROPIC_API_KEY";
     const { layer } = withClaude();
     return Effect.gen(function* () {
       const started = yield* call({
@@ -327,6 +329,43 @@ describe("running Claude Code threads", () => {
       const detail = yield* settle(started.missionId, idleWith(2));
 
       expect(detail.mission.budget.spent.cost).toBeCloseTo(0.02, 6);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("counts a subscription turn's tokens, not the cost Claude Code reports, when no API key signed it in", () => {
+    process.env.STAND_IN_COST = "1";
+    process.env.STAND_IN_API_KEY_SOURCE = "none";
+    const { layer } = withClaude();
+    return Effect.gen(function* () {
+      const started = yield* call({
+        _tag: "StartMission",
+        effort: "low",
+        model: "haiku",
+        requestId: "r1",
+        text: "One",
+        workspacePath: null,
+      });
+      const detail = yield* settle(started.missionId, idleWith(1));
+      expect(detail.mission.budget.spent.cost).toBe(0);
+      expect(detail.mission.budget.spent.tokens).toBeGreaterThan(0);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("counts a turn as subscription tokens when Claude Code does not report how it signed in", () => {
+    process.env.STAND_IN_COST = "1";
+    const { layer } = withClaude();
+    return Effect.gen(function* () {
+      const started = yield* call({
+        _tag: "StartMission",
+        effort: "low",
+        model: "haiku",
+        requestId: "r1",
+        text: "One",
+        workspacePath: null,
+      });
+      const detail = yield* settle(started.missionId, idleWith(1));
+      expect(detail.mission.budget.spent.cost).toBe(0);
+      expect(detail.mission.budget.spent.tokens).toBeGreaterThan(0);
     }).pipe(Effect.provide(layer));
   });
 
@@ -507,6 +546,7 @@ describe("running Claude Code threads", () => {
           intelHalfLives: { decision: 45, fact: 45, preference: 90, temporary: 3 },
           intelWarningPercent: 10,
           shouldAutoArchive: false,
+          shouldFetchPrices: true,
           shouldOpenOffTopicMissions: false,
           shouldShowAgentThreads: true,
           shouldShowFinishedQuests: false,
@@ -681,6 +721,7 @@ describe("reading and saving settings", () => {
         intelHalfLives: { decision: 45, fact: 45, preference: 90, temporary: 3 },
         intelWarningPercent: 10,
         shouldAutoArchive: false,
+        shouldFetchPrices: true,
         shouldOpenOffTopicMissions: false,
         shouldShowAgentThreads: true,
         shouldShowFinishedQuests: false,
@@ -706,6 +747,7 @@ describe("reading and saving settings", () => {
         intelHalfLives: { decision: 30, fact: 60, preference: 120, temporary: 5 },
         intelWarningPercent: 25,
         shouldAutoArchive: true,
+        shouldFetchPrices: true,
         shouldOpenOffTopicMissions: true,
         shouldShowAgentThreads: true,
         shouldShowFinishedQuests: false,
@@ -740,6 +782,7 @@ describe("reading and saving settings", () => {
         intelHalfLives: { decision: 45, fact: 45, preference: 90, temporary: 3 },
         intelWarningPercent: 10,
         shouldAutoArchive: false,
+        shouldFetchPrices: true,
         shouldOpenOffTopicMissions: false,
         shouldShowAgentThreads: true,
         shouldShowFinishedQuests: false,

@@ -25,12 +25,12 @@ import { useHasSidebar, useQuestPanel } from "../foundation/shellContext";
 import { styles } from "../foundation/styles";
 import { colors, fontSizes, fonts } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
-import { Toggle } from "../ui/controls";
 import { GoldButton } from "../ui/parchment";
 import { Choice } from "../ui/pickers";
 import { AccountsCard, HarnessesCard } from "./accounts";
 import { GuildmasterSettings } from "./guildmasterSettings";
-import { SettingsCard, SettingsGuide, SettingsHeading, SettingsMenu, SettingsRule } from "./settingsParts";
+import { PricesCard } from "./pricesCard";
+import { SettingsCard, SettingsGuide, SettingsHeading, SettingsMenu, SettingsRule, ToggleRow } from "./settingsParts";
 import { activeSectionOf, type SettingsSectionId } from "./settingsSections";
 
 // Stored and wire names keep `intel` so existing data and agents still work: settings keys (`intelHalfLives`, `intelWarningPercent`).
@@ -86,16 +86,6 @@ function NumberSetting(props: Parameters<typeof NumberField>[0]) {
     <View style={local.settingRow}>
       <Text style={[styles.body, styles.flex, local.settingLabel]}>{props.label}</Text>
       <NumberField {...props} />
-    </View>
-  );
-}
-
-/** An on and off switch with its words. */
-function ToggleRow({ label, onChange, value }: { label: string; onChange: (value: boolean) => void; value: boolean }) {
-  return (
-    <View style={local.toggleRow}>
-      <Toggle onValueChange={onChange} value={value} />
-      <Text style={[styles.body, local.toggleLabel]}>{label}</Text>
     </View>
   );
 }
@@ -356,6 +346,7 @@ export function SettingsScreen({
                   />
                 ))}
               </SettingsCard>
+              <PricesCard client={client} onSave={save} settings={settings} />
               <SettingsCard icon="gem" title="Global budget, over the period">
                 <Choice
                   label={(period) => period}
@@ -391,6 +382,4 @@ const local = StyleSheet.create({
   section: { gap: 14 },
   settingLabel: { minWidth: 200 },
   settingRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 12 },
-  toggleLabel: { flexShrink: 1 },
-  toggleRow: { alignItems: "center", flexDirection: "row", gap: 10 },
 });

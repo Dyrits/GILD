@@ -481,6 +481,34 @@ const migrations = {
     yield* sql`ALTER TABLE threads ADD COLUMN backups TEXT NOT NULL DEFAULT '[]'`;
     yield* sql`ALTER TABLE threads ADD COLUMN backup_step INTEGER NOT NULL DEFAULT 0`;
   }),
+  // How each turn was billed (budget-control, Billing kind); null for turns recorded before, which keep counting by
+  // whether they have a cost.
+  "0032_usage_billing": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE usage ADD COLUMN billing TEXT`;
+  }),
+  // What each turn ran on and what it was estimated to cost, stamped when it ended and never changed (budget-control,
+  // Estimated cost); the model price table, kept from the public table or the snapshot (decision record 0014).
+  "0033_estimates_and_prices": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE usage ADD COLUMN harness TEXT`;
+    yield* sql`ALTER TABLE usage ADD COLUMN model TEXT`;
+    yield* sql`ALTER TABLE usage ADD COLUMN account_id TEXT`;
+    yield* sql`ALTER TABLE usage ADD COLUMN estimate REAL`;
+    yield* sql`ALTER TABLE usage ADD COLUMN estimate_source TEXT`;
+    yield* sql`ALTER TABLE usage ADD COLUMN priced_at INTEGER`;
+    yield* sql`CREATE TABLE prices (
+      provider TEXT NOT NULL,
+      model TEXT NOT NULL,
+      input REAL NOT NULL,
+      output REAL NOT NULL,
+      cache_read REAL,
+      cache_write REAL,
+      source TEXT NOT NULL,
+      fetched_at INTEGER NOT NULL,
+      PRIMARY KEY (provider, model)
+    )`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

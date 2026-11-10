@@ -1,0 +1,46 @@
+import { mkdirSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import { Effect, Layer } from "effect";
+import { PriceSource } from "./src/core/index.ts";
+import { fakeHarnessLayer, fakeHarnessToolsLayer, Service, serveLoopback, serviceLayer } from "./src/index.ts";
+
+// A throwaway service on the scripted fake harness with a stand-in price table: one model, "test-model", at $3 per
+// million input tokens, $15 output, $0.30 cache read, $3.75 cache write.
+const dir = process.env.GILD_DATA_DIR ?? "/tmp/gild-consumption";
+mkdirSync(join(dir, "app"), { recursive: true });
+const prices = Layer.succeed(PriceSource, {
+  read: Effect.succeed([
+    { cacheRead: 0.3, cacheWrite: 3.75, input: 3, model: "test-model", output: 15, provider: "test" },
+  ]),
+});
+const layer = serviceLayer({
+  accountsRoot: join(dir, "accounts"),
+  filename: join(dir, "gild.sqlite"),
+  harness: fakeHarnessLayer("300 millis"),
+  harnessTools: fakeHarnessToolsLayer(),
+  homeFolder: dir,
+  priceSource: prices,
+  scratchRoot: join(dir, "missions"),
+});
+const program = Effect.gen(function* () {
+  const service = yield* Service;
+  const start = (text: string) =>
+    service.handle({
+      _tag: "StartMission",
+      effort: "default",
+      model: "test-model",
+      requestId: crypto.randomUUID(),
+      text,
+      workspacePath: join(dir, "app"),
+    }) as Effect.Effect<{ missionId: string }>;
+  // One quest on a subscription (1M input tokens: estimated $3.00) and one on an API key that reports its cost.
+  const subscription = yield* start("billing Subscription\nspend 1000000");
+  yield* Effect.sleep("1500 millis");
+  const apiKey = yield* start("billing ApiKey\nspend 500000 1.25");
+  yield* Effect.sleep("1500 millis");
+  writeFileSync("/tmp/gild-seed.json", JSON.stringify({ apiKey: apiKey.missionId, subscription: subscription.missionId }));
+  const { port } = yield* serveLoopback({ port: 0, token: "t" });
+  console.log(`ENDPOINT ws://127.0.0.1:${port}/?token=t`);
+  return yield* Effect.never;
+}).pipe(Effect.scoped, Effect.provide(Layer.fresh(layer)));
+Effect.runFork(program);

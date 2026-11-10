@@ -3,14 +3,37 @@ import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { readSettings } from "./settings.ts";
 
-// Budget control (budget-control specifications; work-in-progress Batch 11). A turn with a reported cost
-// counts as API-key spending; one without counts its tokens, cache reads included, as subscription spending.
+// Budget control (budget-control specifications; work-in-progress Batch 11). A turn counts toward one unit, chosen by its
+// billing kind: an API-key turn counts its reported cost, every other turn counts its tokens, cache reads included.
+// A turn recorded before billing kinds (billing NULL) counts as it always did, by whether it has a cost.
 
-/** Tokens a usage row counts when it carries no cost. */
-export const tokenSum = "CASE WHEN u.cost IS NULL THEN u.input + u.output + u.cache_read + u.cache_creation ELSE 0 END";
+/** Whether usage row `u` counts toward the cost unit: an API-key turn, or an earlier one that reported a cost. */
+const isApiKey = "COALESCE(u.billing, CASE WHEN u.cost IS NULL THEN 'Subscription' ELSE 'ApiKey' END) = 'ApiKey'";
+
+/** Tokens a usage row counts: those of every turn that is not API-key. */
+export const tokenSum = `CASE WHEN ${isApiKey} THEN 0 ELSE u.input + u.output + u.cache_read + u.cache_creation END`;
+
+/** The cost a usage row counts: an API-key turn's reported cost, or its estimate when the harness reported none. */
+export const costSum = `CASE WHEN ${isApiKey} THEN COALESCE(u.cost, u.estimate, 0) ELSE 0 END`;
 
 /** The cost and tokens columns summed over usage rows `u`. */
-export const spendingColumns = `COALESCE(SUM(u.cost), 0) AS cost, COALESCE(SUM(${tokenSum}), 0) AS tokens`;
+export const spendingColumns = `COALESCE(SUM(${costSum}), 0) AS cost, COALESCE(SUM(${tokenSum}), 0) AS tokens`;
+
+/** Whether usage row `u` carries a cost its harness reported on an API-key turn, which is shown as reported. */
+const isReported = `(${isApiKey} AND u.cost IS NOT NULL)`;
+
+/**
+ * The columns of what usage rows `u` used, shown rather than counted (budget-control, Estimated cost): `reported`
+ * is the cost of API-key turns, `estimated` the estimate of every other turn, `unpricedTurns` the turns since
+ * estimates began with neither, and `earlierTurns` those recorded before billing kinds.
+ */
+export const consumptionColumns = `COUNT(u.turn_id) AS turns,
+  COALESCE(SUM(u.input), 0) AS input, COALESCE(SUM(u.output), 0) AS output,
+  COALESCE(SUM(u.cache_read), 0) AS cacheRead, COALESCE(SUM(u.cache_creation), 0) AS cacheCreation,
+  COALESCE(SUM(CASE WHEN ${isReported} THEN u.cost ELSE 0 END), 0) AS reported,
+  COALESCE(SUM(CASE WHEN ${isReported} THEN 0 ELSE COALESCE(u.estimate, 0) END), 0) AS estimated,
+  COALESCE(SUM(CASE WHEN u.billing IS NOT NULL AND NOT ${isReported} AND u.estimate IS NULL THEN 1 ELSE 0 END), 0) AS unpricedTurns,
+  COALESCE(SUM(CASE WHEN u.turn_id IS NOT NULL AND u.billing IS NULL AND NOT ${isReported} THEN 1 ELSE 0 END), 0) AS earlierTurns`;
 
 /** A budget with neither limit. */
 const noLimits: BudgetLimits = { cost: null, tokens: null };

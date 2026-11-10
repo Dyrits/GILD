@@ -143,6 +143,22 @@ _Avoid_: Quota, cap
 The budget on all spending, across every mission and Control, over a day, week, or month.
 _Avoid_: Total budget, monthly cap
 
+**Account budget**:
+A limit, or a credit, on one provider account, counted from Gild's own turns on it, over a day, week, month, or no period.
+_Avoid_: Credit limit, account cap
+
+**Billing kind**:
+Whether a turn ran on a subscription, on an API key, or on an unknown sign-in; it decides which unit of a budget the turn counts toward.
+_Avoid_: Billing type, plan type
+
+**Estimated cost**:
+A turn's cost in dollars worked out by Gild from its tokens and the price table, shown with `≈`, never counting toward a limit except for an API-key turn the harness reported no cost for.
+_Avoid_: Price, bill, fake cost
+
+**Plan limit**:
+A limit a harness reports for a subscription, such as a 5-hour or weekly window, shown and never enforced by Gild.
+_Avoid_: Quota, rate limit
+
 ## Automation
 
 **Routine**:

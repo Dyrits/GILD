@@ -11,7 +11,14 @@ import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { messageOf, type ServiceClient } from "../foundation/client";
 import { Emblem, type EmblemName } from "../foundation/emblems";
 import { timeOf } from "../foundation/formatting";
-import { budgetUseTextOf, meterLevelOf, raisedLimitsOf, reserveOf, tokenCountOf } from "../foundation/labels";
+import {
+  budgetUseTextOf,
+  consumptionDetailsOf,
+  meterLevelOf,
+  raisedLimitsOf,
+  reserveOf,
+  usedTextOf,
+} from "../foundation/labels";
 import { styles } from "../foundation/styles";
 import { colors, fonts, radii } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
@@ -267,9 +274,7 @@ export function BudgetScreen({
       {data !== null && (
         <View style={styles.section}>
           {data.limits.cost === null && data.limits.tokens === null ? (
-            <Text style={styles.muted}>
-              No limit. Spent ${data.spent.cost.toFixed(2)} and {tokenCountOf(data.spent.tokens)} tokens.
-            </Text>
+            <Text style={styles.muted}>No limit. Used {usedTextOf(data.consumption)}.</Text>
           ) : (
             <BudgetMeters use={data} />
           )}
@@ -292,10 +297,28 @@ export function BudgetScreen({
               <Text numberOfLines={1} style={[styles.body, styles.flex]}>
                 {part.title}
               </Text>
-              <Text style={styles.muted}>
-                {tokenCountOf(part.spent.tokens)} tokens
-                {part.spent.cost > 0 ? ` · $${part.spent.cost.toFixed(2)}` : ""}
+              <Text style={styles.muted}>{usedTextOf(part.consumption)}</Text>
+            </View>
+          ))}
+          {consumptionDetailsOf(data.consumption) !== "" && (
+            <Text style={styles.muted}>{consumptionDetailsOf(data.consumption)}</Text>
+          )}
+          <Text style={styles.label}>By harness</Text>
+          {data.byHarness.map((part) => (
+            <View key={part.id} style={styles.toggle}>
+              <Text numberOfLines={1} style={[styles.body, styles.flex]}>
+                {part.title}
               </Text>
+              <Text style={styles.muted}>{usedTextOf(part.consumption)}</Text>
+            </View>
+          ))}
+          <Text style={styles.label}>By model</Text>
+          {data.byModel.map((part) => (
+            <View key={part.id} style={styles.toggle}>
+              <Text numberOfLines={1} style={[styles.body, styles.flex]}>
+                {part.title}
+              </Text>
+              <Text style={styles.muted}>{usedTextOf(part.consumption)}</Text>
             </View>
           ))}
         </View>

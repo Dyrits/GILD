@@ -18,6 +18,9 @@
 - **Local data**: missions, threads, intel, and workspace contents stay on the user's computer; nothing leaves it except what a harness, provider, or connected service needs for the work, and the encrypted traffic to a paired device.
   Source: the user. Reason: product decision.
   Hosted multiplayer exception (CHG-0021): invited guests may receive shared mission conversations and results. The first hosted version keeps mission documents and data on the host. Future guest local copies require a separate design for their scope, synchronization, and retention. Removing access cannot erase information a guest has already saved or copied.
+- **Price table read carries no owner data**: the local service's read of the model price table sends nothing about missions, workspaces, accounts, or the owner, and the owner can switch it off, leaving the price table shipped with Gild.
+  Source: the user, 2026-11-10 (CHG-0126). Reason: Local data allows only what a harness, provider, or connected service needs for the work; a price lookup is not needed for the work.
+  Check: a test on the request the service sends for the price table, and the Charter switch.
 - **Bring your own provider**: users connect their own provider subscriptions or API keys; Gild resells no model use.
   Source: the user. Reason: product decision.
 - **Comply with provider terms**: Gild never offers a provider's sign-in as its own, nor collects, stores, or relays provider credentials or session tokens; each harness signs in through its own unmodified tool and the provider's own flow, and the documentation states each provider's terms plainly.

@@ -6,7 +6,14 @@ import { BudgetMeters } from "../editors/budgets";
 import { boardOf, columnOf } from "../foundation/boardColumns";
 import type { ServiceClient } from "../foundation/client";
 import { timeOf, usageDetail } from "../foundation/formatting";
-import { threadCountOf, tokenCountOf } from "../foundation/labels";
+import {
+  consumptionDetailsOf,
+  costTextOf,
+  threadCountOf,
+  tokenCountOf,
+  totalTokensOf,
+  usedTextOf,
+} from "../foundation/labels";
 import { styles } from "../foundation/styles";
 import { colors, fontSizes, fonts, ink, radii, stateLabels, stateTones } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
@@ -115,7 +122,6 @@ export function QuestSidebar({
 }) {
   const { usage } = mission;
   const tone = stateTones[mission.state];
-  const cost = mission.budget.spent.cost;
   return (
     <View style={local.panel}>
       <ScrollView contentContainerStyle={local.content} style={styles.flex}>
@@ -173,11 +179,7 @@ export function QuestSidebar({
         <Group label="Does">
           {thread?.spends}
           <Row icon="wallet" label="Quest budget" onPress={onOpenBudget} value={budgetValueOf(mission.budget)} />
-          <Row
-            icon="chart"
-            label="Quest usage"
-            value={`${tokenCountOf(usage.input + usage.cacheRead + usage.cacheCreation + usage.output)} tokens${cost > 0 ? ` · $${cost.toFixed(2)}` : ""}`}
-          />
+          <Row icon="chart" label="Quest usage" value={usedTextOf(mission.consumption)} />
           {/* A Ritual is never marked done or archived: it is switched off or deleted from its controls above. */}
           {thread?.sideQuest != null ? (
             <View style={local.does}>{thread.sideQuest.action}</View>
@@ -192,6 +194,9 @@ export function QuestSidebar({
         <View style={local.spends}>
           <BudgetMeters onPress={onOpenBudget} use={mission.budget} />
           <Text style={styles.muted}>{usageDetail(usage)}</Text>
+          {consumptionDetailsOf(mission.consumption) !== "" && (
+            <Text style={styles.muted}>{consumptionDetailsOf(mission.consumption)}</Text>
+          )}
         </View>
       </ScrollView>
       <ParchmentFrame bookmark={bookmarkOf(mission.state)} hasFrame={false} />
@@ -394,12 +399,12 @@ export function RealmPanel({
     );
   };
   const lastActivity = missions.length === 0 ? null : Math.max(...missions.map((mission) => mission.lastActivityAt));
-  const cost = missions.reduce((sum, mission) => sum + mission.budget.spent.cost, 0);
-  const tokens = missions.reduce(
-    (sum, { usage }) => sum + usage.input + usage.cacheRead + usage.cacheCreation + usage.output,
-    0,
-  );
-  const spentText = `${tokenCountOf(tokens)} tokens${cost > 0 ? ` · $${cost.toFixed(2)}` : ""}`;
+  const cost = costTextOf({
+    estimated: missions.reduce((sum, { consumption }) => sum + consumption.estimated, 0),
+    reported: missions.reduce((sum, { consumption }) => sum + consumption.reported, 0),
+  });
+  const tokens = missions.reduce((sum, { consumption }) => sum + totalTokensOf(consumption), 0);
+  const spentText = `${tokenCountOf(tokens)} tokens${cost === null ? "" : ` · ${cost}`}`;
   return (
     <View style={local.panel}>
       <ScrollView contentContainerStyle={local.content} style={styles.flex}>

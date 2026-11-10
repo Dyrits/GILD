@@ -2,7 +2,7 @@ import type { MissionId, MissionSummary, Ritual, WorkspaceId } from "@gild/contr
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { ServiceClient } from "../foundation/client";
-import { tokenCountOf } from "../foundation/labels";
+import { usedTextOf } from "../foundation/labels";
 import { colors, fontSizes, fonts, radii } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
 import type { Place } from "./sidebar";
@@ -156,12 +156,7 @@ export const crumbsOf = ({
 function SpendingLine({ client }: { client: ServiceClient }) {
   const { data: global } = useServiceQuery(client, { _tag: "ReadBudget", missionId: null }, "budget:global");
   if (global === null) return null;
-  return (
-    <Text style={local.topSpending}>
-      {tokenCountOf(global.spent.tokens)} tokens
-      {global.spent.cost > 0 ? ` · $${global.spent.cost.toFixed(2)}` : ""}
-    </Text>
-  );
+  return <Text style={local.topSpending}>{usedTextOf(global.consumption)}</Text>;
 }
 
 /**

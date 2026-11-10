@@ -1,16 +1,58 @@
-import type { BudgetEvent, BudgetPart, BudgetStop, BudgetWindow } from "@gild/contracts";
+import type { BudgetEvent, BudgetPart, BudgetStop, BudgetWindow, HarnessName } from "@gild/contracts";
 import { Effect } from "effect";
-import { SqlClient } from "effect/sql";
-import { missionLimitsOf, missionSpendingOf, notFound, readGlobalBudget, spendingColumns } from "../core/index.ts";
+import { SqlClient, type Statement } from "effect/sql";
+import {
+  consumptionColumns,
+  missionLimitsOf,
+  missionSpendingOf,
+  notFound,
+  readGlobalBudget,
+  spendingColumns,
+} from "../core/index.ts";
+import { harnessLabels } from "../harness/index.ts";
 import { stopScopeOf } from "./budgets.ts";
+import { type ConsumptionRow, consumptionOf } from "./consumption.ts";
 
 // What the owner reads of budgets: open stops, budget lines, and the budget window (budget-control, Seeing use).
 
 /** One part of a budget window's split: a thread or a mission, with what it spent. */
-type PartRow = { id: string; title: string; cost: number; tokens: number };
+type PartRow = ConsumptionRow & { id: string; title: string; cost: number; tokens: number };
 
 const partsOf = (rows: ReadonlyArray<PartRow>) =>
-  rows.map((row): BudgetPart => ({ id: row.id, spent: { cost: row.cost, tokens: row.tokens }, title: row.title }));
+  rows.map(
+    (row): BudgetPart => ({
+      consumption: consumptionOf(row),
+      id: row.id,
+      spent: { cost: row.cost, tokens: row.tokens },
+      title: row.title,
+    }),
+  );
+
+/** The name shown for turns recorded before their harness and model were. */
+const earlierTurnsTitle = "Earlier turns";
+
+/** The use of the usage rows `where` selects, split by the harness each turn ran on and then by its model. */
+const splitsOf = (where: Statement.Fragment) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const byHarness = yield* sql<PartRow>`
+      SELECT COALESCE(u.harness, '') AS id, '' AS title, ${sql.literal(spendingColumns)}, ${sql.literal(consumptionColumns)}
+      FROM usage u WHERE ${where} GROUP BY COALESCE(u.harness, '') ORDER BY tokens DESC, cost DESC`;
+    const byModel = yield* sql<PartRow>`
+      SELECT COALESCE(u.model, '') AS id, '' AS title, ${sql.literal(spendingColumns)}, ${sql.literal(consumptionColumns)}
+      FROM usage u WHERE ${where} GROUP BY COALESCE(u.model, '') ORDER BY tokens DESC, cost DESC`;
+    const total = yield* sql<ConsumptionRow>`SELECT ${sql.literal(consumptionColumns)} FROM usage u WHERE ${where}`;
+    return {
+      byHarness: partsOf(
+        byHarness.map((row) => ({
+          ...row,
+          title: Object.hasOwn(harnessLabels, row.id) ? harnessLabels[row.id as HarnessName] : earlierTurnsTitle,
+        })),
+      ),
+      byModel: partsOf(byModel.map((row) => ({ ...row, title: row.id === "" ? earlierTurnsTitle : row.id }))),
+      consumption: consumptionOf(total[0] as ConsumptionRow),
+    };
+  });
 
 /** The stops with their mission titles, to filter. */
 const selectStops = (sql: SqlClient.SqlClient) => sql`
@@ -53,10 +95,12 @@ export const readBudgetWindow = (missionId: string | null) =>
     if (missionId === null) {
       const global = yield* readGlobalBudget;
       const parts = yield* sql<PartRow>`
-        SELECT COALESCE(m.id, 'deleted') AS id, COALESCE(m.title, 'Deleted missions') AS title, ${sql.literal(spendingColumns)}
+        SELECT COALESCE(m.id, 'deleted') AS id, COALESCE(m.title, 'Deleted missions') AS title, ${sql.literal(spendingColumns)},
+          ${sql.literal(consumptionColumns)}
         FROM usage u LEFT JOIN missions m ON m.id = u.mission_id
         WHERE u.ended_at >= ${global.since} GROUP BY COALESCE(m.id, 'deleted') ORDER BY tokens DESC, cost DESC`;
       return {
+        ...(yield* splitsOf(sql`u.ended_at >= ${global.since}`)),
         limits: global.limits,
         nextStart: global.nextStart,
         parts: partsOf(parts),
@@ -69,10 +113,12 @@ export const readBudgetWindow = (missionId: string | null) =>
     const [mission] = yield* sql<{ id: string }>`SELECT id FROM missions WHERE id = ${missionId}`;
     if (mission === undefined) return yield* notFound("No such mission.");
     const parts = yield* sql<PartRow>`
-      SELECT COALESCE(th.id, 'deleted') AS id, COALESCE(th.title, 'Deleted threads') AS title, ${sql.literal(spendingColumns)}
+      SELECT COALESCE(th.id, 'deleted') AS id, COALESCE(th.title, 'Deleted threads') AS title, ${sql.literal(spendingColumns)},
+        ${sql.literal(consumptionColumns)}
       FROM usage u LEFT JOIN threads th ON th.id = u.thread_id
       WHERE u.mission_id = ${missionId} GROUP BY COALESCE(th.id, 'deleted') ORDER BY tokens DESC, cost DESC`;
     return {
+      ...(yield* splitsOf(sql`u.mission_id = ${missionId}`)),
       limits: yield* missionLimitsOf(missionId),
       nextStart: null,
       parts: partsOf(parts),

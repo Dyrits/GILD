@@ -1,5 +1,6 @@
 import type {
   BudgetLimits,
+  Consumption,
   ContextGauge,
   ContextPartKind,
   LoreChange,
@@ -10,6 +11,7 @@ import type {
   LoreHistoryKind,
   LoreOrigin,
   LoreProposal,
+  PriceStatus,
   StartingContext,
   StartingContextParts,
   SuggestionOutcome,
@@ -110,13 +112,50 @@ export const contextPartLabels = {
 export const contextUseTextOf = (gauge: Pick<ContextGauge, "tokens" | "windowTokens">) =>
   `${tokenCountOf(gauge.tokens)} of ${tokenCountOf(gauge.windowTokens)} tokens · ${percentOf(gauge.tokens, gauge.windowTokens)}%`;
 
-/** What a thread alone spent, for example "3 turns · $1.50 · 12,000 tokens"; a unit with nothing is left out. */
-export const threadSpendingTextOf = (panel: Pick<ThreadPanel, "spending" | "turnCount">) => {
-  const { cost, tokens } = panel.spending;
-  const turns = countedOf(panel.turnCount, "turn");
+/** A cost marked as the owner should read it: `$1.20` as the harness reported it, `≈ $1.20` when any of it is estimated; null when nothing is priced. */
+export const costTextOf = (consumption: Pick<Consumption, "estimated" | "reported">) => {
+  const total = consumption.reported + consumption.estimated;
+  if (total <= 0) return null;
+  return `${consumption.estimated > 0 ? "≈ " : ""}$${total.toFixed(2)}`;
+};
+
+/** How much of a cost was reported and how much estimated, and which turns have no price; empty when nothing says more. */
+export const consumptionDetailsOf = (consumption: Consumption) =>
+  [
+    ...(consumption.reported > 0 && consumption.estimated > 0 ? [`$${consumption.reported.toFixed(2)} reported`] : []),
+    ...(consumption.reported > 0 && consumption.estimated > 0
+      ? [`≈ $${consumption.estimated.toFixed(2)} estimated`]
+      : []),
+    ...(consumption.unpricedTurns > 0 ? [`${countedOf(consumption.unpricedTurns, "turn")} without a price`] : []),
+    ...(consumption.earlierTurns > 0 ? [`${countedOf(consumption.earlierTurns, "earlier turn")} not priced`] : []),
+  ].join(" · ");
+
+/** Every token a set of turns used, of every kind. */
+export const totalTokensOf = (consumption: Pick<Consumption, "tokens">) =>
+  consumption.tokens.input +
+  consumption.tokens.output +
+  consumption.tokens.cacheRead +
+  consumption.tokens.cacheCreation;
+
+/** Where the price table in use came from, for example "Prices from models.dev · fetched 10 Nov". */
+export const priceStatusTextOf = (status: PriceStatus) => {
+  const day = new Date(status.at).toLocaleDateString("en-GB", { day: "numeric", month: "short" });
+  return status.source === "Fetched" ? `Prices from models.dev · fetched ${day}` : `Prices from the snapshot of ${day}`;
+};
+
+/** What a set of turns used in one line, for example "12,000 tokens · ≈ $1.20"; the cost only when a turn is priced. */
+export const usedTextOf = (consumption: Consumption) => {
+  const cost = costTextOf(consumption);
+  return `${tokenCountOf(totalTokensOf(consumption))} tokens${cost === null ? "" : ` · ${cost}`}`;
+};
+
+/** What a thread alone used, for example "3 turns · ≈ $1.50 · 12,000 tokens"; the cost and tokens are left out when there are none. */
+export const threadSpendingTextOf = (panel: Pick<ThreadPanel, "consumption">) => {
+  const cost = costTextOf(panel.consumption);
+  const tokens = totalTokensOf(panel.consumption);
   return [
-    turns,
-    ...(cost > 0 ? [`$${cost.toFixed(2)}`] : []),
+    countedOf(panel.consumption.turns, "turn"),
+    ...(cost === null ? [] : [cost]),
     ...(tokens > 0 ? [`${tokenCountOf(tokens)} tokens`] : []),
   ].join(" · ");
 };

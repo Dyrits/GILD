@@ -66,6 +66,26 @@ describe("counting spending against budgets", () => {
     }).pipe(Effect.provide(setup().layer)),
   );
 
+  it.live("counts a subscription turn's tokens even when the harness reported a cost", () =>
+    Effect.gen(function* () {
+      const started = yield* startWithBudget({ cost: 1, tokens: 1000 });
+      yield* send(started.threadId, "billing Subscription\nspend 500 1.5");
+      const detail = yield* settle(started.missionId, (d) => isIdle(d) && d.mission.budget.spent.tokens >= 500);
+      expect(detail.mission.budget.spent).toEqual({ cost: 0, tokens: 500 });
+    }).pipe(Effect.provide(setup().layer)),
+  );
+
+  it.live("counts an unknown billing kind as subscription tokens, and an API-key turn as cost", () =>
+    Effect.gen(function* () {
+      const started = yield* startWithBudget({ cost: 10, tokens: 10_000 });
+      yield* send(started.threadId, "billing Unknown\nspend 300 2");
+      yield* settle(started.missionId, (d) => isIdle(d) && d.mission.budget.spent.tokens >= 300);
+      yield* send(started.threadId, "billing ApiKey\nspend 700 4");
+      const detail = yield* settle(started.missionId, (d) => isIdle(d) && d.mission.budget.spent.cost >= 4);
+      expect(detail.mission.budget.spent).toEqual({ cost: 4, tokens: 300 });
+    }).pipe(Effect.provide(setup().layer)),
+  );
+
   it.live("never stops on an empty budget", () =>
     Effect.gen(function* () {
       const started = yield* start("spend 5000000 100");

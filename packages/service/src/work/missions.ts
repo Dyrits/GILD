@@ -14,6 +14,8 @@ import type {
 import { Clock, Effect } from "effect";
 import { SqlClient, type Statement } from "effect/sql";
 import {
+  consumptionColumns,
+  costSum,
   dayMillis,
   invalid,
   isReached,
@@ -24,6 +26,7 @@ import {
 } from "../core/index.ts";
 import { checkAccount, type RunnerChoice, runnerOf } from "../harness/index.ts";
 import { applyDefaultBudget } from "./budgets.ts";
+import { consumptionOf } from "./consumption.ts";
 import { insertJournal } from "./journal.ts";
 import { insertMessage } from "./messaging.ts";
 import { runStateOf, scheduleOf } from "./ritualSchedule.ts";
@@ -138,6 +141,11 @@ type MissionRow = {
   output: number;
   cacheRead: number;
   cacheCreation: number;
+  reported: number;
+  estimated: number;
+  turns: number;
+  unpricedTurns: number;
+  earlierTurns: number;
   workspaceId: string | null;
   workspaceCrest: string | null;
   workspaceName: string | null;
@@ -169,6 +177,7 @@ const summaryOf = (row: MissionRow, now: number, settings: Settings): MissionSum
       limits: { cost: row.budgetCost, tokens: row.budgetTokens },
       spent: { cost: row.spentCost, tokens: row.spentTokens },
     },
+    consumption: consumptionOf(row),
     harness: row.harness,
     id: row.id,
     isTitleByUser: row.isTitleByUser === 1,
@@ -205,9 +214,8 @@ const missionRows = (sql: SqlClient.SqlClient, where: Statement.Fragment) =>
       (SELECT COUNT(*) FROM threads t WHERE t.mission_id = m.id) AS threadCount,
       m.ending, m.is_title_by_user AS isTitleByUser, m.is_asking_done AS isAskingDone,
       m.inactivity_dismissed_at AS inactivityDismissedAt,
-      COALESCE(SUM(u.input), 0) AS input, COALESCE(SUM(u.output), 0) AS output,
-      COALESCE(SUM(u.cache_read), 0) AS cacheRead, COALESCE(SUM(u.cache_creation), 0) AS cacheCreation,
-      m.budget_cost AS budgetCost, m.budget_tokens AS budgetTokens, COALESCE(SUM(u.cost), 0) AS spentCost,
+      ${sql.literal(consumptionColumns)},
+      m.budget_cost AS budgetCost, m.budget_tokens AS budgetTokens, COALESCE(SUM(${sql.literal(costSum)}), 0) AS spentCost,
       COALESCE(SUM(${sql.literal(tokenSum)}), 0) AS spentTokens,
       w.id AS workspaceId, w.name AS workspaceName, w.crest AS workspaceCrest,
       r.id AS ritualId, r.is_on AS ritualIsOn, r.last_run_at AS ritualLastRunAt, r.last_run_state AS ritualLastRunState,

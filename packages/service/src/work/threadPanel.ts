@@ -3,6 +3,7 @@ import { Effect, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { missionLimitsOf, missionSpendingOf, notFound, spendingColumns } from "../core/index.ts";
 import { contextWindowOf } from "../lore/index.ts";
+import { readThreadConsumption } from "./consumption.ts";
 import { readSentContextSize } from "./startingContext.ts";
 
 // What the thread panel shows beyond the thread itself (thread-panel).
@@ -60,6 +61,7 @@ export const readThreadPanel = (threadId: string) =>
     return {
       backups: decodeBackups(JSON.parse(thread.backups)),
       budget: { limits: yield* missionLimitsOf(thread.missionId), spent: yield* missionSpendingOf(thread.missionId) },
+      consumption: yield* readThreadConsumption(threadId),
       context: yield* readContextGauge(threadId, thread.model),
       spending: { cost: spent?.cost ?? 0, tokens: spent?.tokens ?? 0 },
       turnCount: spent?.turnCount ?? 0,

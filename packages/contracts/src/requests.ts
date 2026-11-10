@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 import { AttachmentCard, AttachmentContent, maxAttachmentsPerMessage } from "./attachments.ts";
-import { BudgetLimits, BudgetWindow } from "./budgets.ts";
+import { BudgetLimits, BudgetWindow, PriceStatus } from "./budgets.ts";
 import { Crest } from "./crest.ts";
 import { HarnessList, HarnessName } from "./harnesses.ts";
 import {
@@ -193,6 +193,10 @@ export const ResolveChatter = Schema.TaggedStruct("ResolveChatter", {
 
 /** Reads the owner's settings. */
 export const ReadSettings = Schema.TaggedStruct("ReadSettings", {});
+/** The model price table in use and where it came from (budget-control, The price table). */
+export const ReadPriceStatus = Schema.TaggedStruct("ReadPriceStatus", {});
+/** Reads the public price table now, as Refresh now in the Charter does. */
+export const RefreshPrices = Schema.TaggedStruct("RefreshPrices", {});
 
 /** Reads a mission's journal. */
 export const ReadJournal = Schema.TaggedStruct("ReadJournal", { missionId: MissionId });
@@ -399,6 +403,8 @@ export const Request = Schema.Union([
   ReadMission,
   ReadThreadPanel,
   ReadSettings,
+  ReadPriceStatus,
+  RefreshPrices,
   UpdateSettings,
   ReadJournal,
   RewriteBriefing,
@@ -506,10 +512,12 @@ export const Results = {
   ReadJournal: JournalView,
   ReadMission: MissionDetail,
   ReadPermissions: PermissionsView,
+  ReadPriceStatus: PriceStatus,
   ReadRitual: Schema.NullOr(Ritual),
   ReadSettings: Settings,
   ReadStartChoices: StartChoices,
   ReadThreadPanel: ThreadPanel,
+  RefreshPrices: PriceStatus,
   RemoveAccount: HarnessList,
   RemovePermission: Schema.Null,
   RenameAccount: HarnessList,

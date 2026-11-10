@@ -1,4 +1,4 @@
-import type { TokenUsage } from "@gild/contracts";
+import type { BillingKind, TokenUsage } from "@gild/contracts";
 import { Deferred, Duration, Effect } from "effect";
 import {
   type HarnessAdapter,
@@ -36,6 +36,8 @@ export interface PooledTurn {
 
 /** How a turn ended, as the harness reported it. */
 export interface TurnEnd {
+  /** How the turn was billed, when the harness reports its sign-in; absent counts as Unknown. */
+  readonly billing?: BillingKind;
   /** What the thread's context held after the turn's latest model call; absent or null when unreported. */
   readonly context?: number | null;
   /** The turn's own cost in dollars when the harness reported one; absent or null counts its tokens. */
@@ -184,8 +186,9 @@ export const makeHarnessProcesses = <Connection extends HarnessConnection>(
         // (CHG-0039, provisional).
         if (turn.untaken.size > 0) close(request.threadId);
         else entry.idleTimer = setTimeout(() => close(request.threadId), idleMillis);
-        const { context, cost, isInterrupted, usage } = ended.success.end;
+        const { billing, context, cost, isInterrupted, usage } = ended.success.end;
         return {
+          billing: billing ?? "Unknown",
           context: context ?? null,
           cost: cost ?? null,
           isInterrupted: isInterrupted || turn.isInterrupting,

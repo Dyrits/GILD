@@ -52,7 +52,8 @@ When work runs in many threads across harnesses, the user loses track of which m
 
 ### Spending
 
-- A mission's spending is the total of its threads' spending, in each provider's own unit: a cost for API-key providers, tokens for subscriptions, which report no price. Tokens are never converted into a price.
+- A mission's spending is the total of its threads' spending, in each provider's own unit: a cost for API-key turns, tokens for subscription turns, chosen by each turn's billing kind. What counts toward a limit, and the one case where an estimate does, is agreed in [budget-control](../budget-control/specifications.md#budgets).
+- Beside them, every turn whose model has a price carries an estimated cost, shown as `≈ $1.20` on the mission's card, row, and information, and on each side-quest's. Estimates, billing kinds, and the price table are agreed in [budget-control](../budget-control/specifications.md#estimated-cost) (CHG-0126).
 
 ### Compact left navigation
 
@@ -77,7 +78,7 @@ Threads use this thread tool (see [0005](../../architecture-decision-record/0005
   - the top thread's result asking "Mark as done?" without ending the mission;
   - the inactivity question after the set duration, agent activity resetting it, and a dismissed question coming back;
   - the confirmation naming running threads before Done or archiving, and those threads stopped;
-  - spending totalled per provider unit, with subscription tokens never priced;
+  - spending totalled per provider unit by billing kind, with an estimated cost beside it that never counts toward a limit (budget-control);
   - auto-archive off by default, and archiving a Done mission after the set duration when on;
   - writing in a Done or archived mission bringing it back;
   - reopening from the Archived view;

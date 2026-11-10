@@ -1,6 +1,15 @@
 import { Schema } from "effect";
 import { AttachmentCard } from "./attachments.ts";
-import { BudgetEvent, BudgetLimits, BudgetPeriod, BudgetStop, BudgetUse, Spending } from "./budgets.ts";
+import {
+  BudgetEvent,
+  BudgetLimits,
+  BudgetPeriod,
+  BudgetStop,
+  BudgetUse,
+  Consumption,
+  Spending,
+  TokenUsage,
+} from "./budgets.ts";
 import { Crest } from "./crest.ts";
 import { HarnessName } from "./harnesses.ts";
 import { AccountId, MessageId, MissionId, SuggestionId, ThreadId, WorkspaceId } from "./ids.ts";
@@ -38,15 +47,6 @@ export const startingModel: ModelChoice = "claude-sonnet-5-5";
 /** The effort a thread runs with; default is the harness's own. */
 export const EffortChoice = Schema.Literals(["default", "low", "medium", "high", "xhigh", "max"]);
 export type EffortChoice = typeof EffortChoice.Type;
-
-/** Token counts in the provider's own unit; never converted to a price. */
-export const TokenUsage = Schema.Struct({
-  cacheCreation: Schema.Number,
-  cacheRead: Schema.Number,
-  input: Schema.Number,
-  output: Schema.Number,
-});
-export type TokenUsage = typeof TokenUsage.Type;
 
 /** How an owner message reaches a running thread: joining its current turn, or waiting for its next (thread-messaging, Delivery; CHG-0039). */
 export const MessageDelivery = Schema.Literals(["Steer", "Queue"]);
@@ -110,6 +110,8 @@ export const Settings = Schema.Struct({
   intelWarningPercent: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1), Schema.isLessThanOrEqualTo(100)),
   /** Whether Done missions are archived automatically, off by default (mission-tracking, Ending a mission). */
   shouldAutoArchive: Schema.Boolean,
+  /** Whether Gild reads the public model price table; off leaves the snapshot shipped with it (budget-control, The price table). */
+  shouldFetchPrices: Schema.Boolean,
   /** Whether an off-topic request opens a new mission without asking when no mission matches (thread-tree). */
   shouldOpenOffTopicMissions: Schema.Boolean,
   shouldShowAgentThreads: Schema.Boolean,
@@ -142,6 +144,8 @@ export type MissionPrompt = typeof MissionPrompt.Type;
 export const MissionSummary = Schema.Struct({
   /** The mission's budget and its spending over the mission's life. */
   budget: BudgetUse,
+  /** What the mission's turns used, with the estimated cost (budget-control, Estimated cost). */
+  consumption: Consumption,
   /** The top thread's harness and model, for the card. */
   harness: HarnessName,
   id: MissionId,
@@ -406,6 +410,8 @@ export const ThreadPanel = Schema.Struct({
   backups: Schema.Array(BackupCompanion).check(Schema.isMaxLength(5)),
   /** The mission's budget and its spending, as the quest panel shows them. */
   budget: BudgetUse,
+  /** What this thread's own turns used, with the estimated cost. */
+  consumption: Consumption,
   /** Null until a turn reported usage: shown as "Not measured yet", never guessed. */
   context: Schema.NullOr(ContextGauge),
   /** What this thread alone spent. */

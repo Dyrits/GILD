@@ -1,3 +1,4 @@
+import type { BillingKind, TokenUsage } from "@gild/contracts";
 import { Deferred, type Duration, Effect, Layer } from "effect";
 import { fieldOf, Harness, HarnessFailure, type ImageAttachment, type TurnRequest } from "../core/index.ts";
 
@@ -22,7 +23,8 @@ export const callThreadTool = (mcpUrl: string, name: string, args: unknown) =>
 // The fake's script: a line `ask <json>` calls request_approval, `prompt <tool> <json input>` asks the
 // owner about a harness action, and `call <tool> <json>` calls any thread tool, each answered before
 // the echo; `wait <millis>` keeps the turn running; `fail <harness> <reason>` fails the turn on that harness; `cwd`, `context`, and `runner` report the working folder, the
-// starting context, and the harness, model, effort, and session; `spend <tokens> [cost]` reports spending at the turn's end.
+// starting context, and the harness, model, effort, and session; `spend <tokens> [cost]` reports spending at the turn's end,
+// `usage <input> <output> <cacheRead> <cacheWrite>` reports tokens by kind, and `billing <Subscription|ApiKey|Unknown>` names how the turn was billed (a turn that reports a cost and names none is API-key, as before).
 const scriptedCall = (request: TurnRequest, line: string, turn: FakeTurn) => {
   const access = request.access;
   const spend = /^spend (\d+)(?: (\d+(?:\.\d+)?))?$/.exec(line);
@@ -32,6 +34,26 @@ const scriptedCall = (request: TurnRequest, line: string, turn: FakeTurn) => {
       if (spend[2] !== undefined) turn.spent.cost = (turn.spent.cost ?? 0) + Number(spend[2]);
       turn.spent.isReported = true;
       return `spent ${spend[1]}`;
+    });
+  }
+  const kinds = /^usage (\d+) (\d+) (\d+) (\d+)$/.exec(line);
+  if (kinds !== null) {
+    return Effect.sync(() => {
+      turn.spent.kinds = {
+        cacheCreation: Number(kinds[4]),
+        cacheRead: Number(kinds[3]),
+        input: Number(kinds[1]),
+        output: Number(kinds[2]),
+      };
+      turn.spent.isReported = true;
+      return "used tokens";
+    });
+  }
+  const billing = /^billing (Subscription|ApiKey|Unknown)$/.exec(line);
+  if (billing !== null) {
+    return Effect.sync(() => {
+      turn.spent.billing = billing[1] as BillingKind;
+      return `billed ${billing[1]}`;
     });
   }
   // `fail <harness> <reason>` ends the turn as a failure when it runs on that harness, as one that cannot run does.
@@ -69,7 +91,13 @@ interface FakeTurn {
   readonly interrupted: Deferred.Deferred<void>;
   readonly onEvent: TurnRequest["onEvent"];
   /** What the turn's `spend` lines reported. */
-  readonly spent: { tokens: number; cost: number | null; isReported: boolean };
+  readonly spent: {
+    tokens: number;
+    cost: number | null;
+    isReported: boolean;
+    billing: BillingKind | null;
+    kinds: TokenUsage | null;
+  };
   readonly steered: Array<string>;
 }
 
@@ -112,7 +140,7 @@ export const fakeHarnessLayer = (replyDelay: Duration.Input) =>
           const turn: FakeTurn = {
             interrupted: yield* Deferred.make<void>(),
             onEvent: request.onEvent,
-            spent: { cost: null, isReported: false, tokens: 0 },
+            spent: { billing: null, cost: null, isReported: false, kinds: null, tokens: 0 },
             steered: [],
           };
           running.set(request.threadId, turn);
@@ -120,14 +148,19 @@ export const fakeHarnessLayer = (replyDelay: Duration.Input) =>
             script(request, turn),
             Deferred.await(turn.interrupted).pipe(Effect.as(true)),
           ).pipe(Effect.ensuring(Effect.sync(() => running.delete(request.threadId))));
-          const { cost, isReported, tokens } = turn.spent;
+          const { billing, cost, isReported, kinds, tokens } = turn.spent;
           return {
+            billing: billing ?? (cost === null ? "Subscription" : "ApiKey"),
             // The fake's context is what it was told to spend: its latest call's whole prompt.
-            context: isReported ? tokens : null,
+            context: isReported
+              ? kinds === null
+                ? tokens
+                : kinds.input + kinds.cacheRead + kinds.cacheCreation + kinds.output
+              : null,
             cost: isReported ? cost : null,
             isInterrupted,
             sessionId: request.sessionId ?? `fake-${request.threadId}`,
-            usage: isReported ? { cacheCreation: 0, cacheRead: 0, input: tokens, output: 0 } : null,
+            usage: isReported ? (kinds ?? { cacheCreation: 0, cacheRead: 0, input: tokens, output: 0 }) : null,
           };
         }),
       steer: (threadId, message) =>

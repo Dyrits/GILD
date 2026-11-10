@@ -1799,6 +1799,20 @@ References: documentation/architecture-audit/architecture-audit-2026-11-10-2119.
 Validation: `bun run typecheck` and `bun run check` pass; `bun run test --maxWorkers=4` passes (647 passed, 10 skipped live); `expo export --platform web` and the desktop `bun build` of the service and main process bundle.
 Evidence: the default `bun run test` times out on 5 service tests under full parallel load, identically on the unmoved commit d421b47; no behavior changed besides the added `unaskedTools` field.
 
+## CHG-0126 · 2026-11-10 · Consumption, estimated cost, account budgets, and plan limits
+
+Type: Documentation
+Event: Agreement
+Scope: Budget control
+
+Summary: The owner agreed, in an interview on using vendor SDKs and tracking consumption and cost for all providers, to specify: a **billing kind** on each turn (Subscription, API key, Unknown) that chooses which unit of a budget the turn counts toward, so token budgets see Claude Code subscription turns again; an **estimated cost** (`≈ $1.20`) for every turn whose model has a price, stamped when the turn ends and never counting toward a limit, except for an API-key turn the harness reported no cost for; a **price table** read from models.dev at startup and daily, kept on the computer with a shipped snapshot as fallback and a Charter switch to turn the fetch off; estimates on the quest card, each quest's and side-quest's information, the dashboard, the rail, the budget window, and under each agent reply where the harness reports per call; **account budgets and credits** that stop the threads on an account at their limit; and **plan limits** shown for subscriptions where the harness reports them, without ever reading a CLI's token.
+The harness command-line tools stay (decision record 0008): the Claude Agent SDK is not open source, forbids claude.ai login in products built on it, and drives the same binary; the Codex SDK wraps `codex exec` with less than the app-server adapter; OpenCode's HTTP server is a probe in the backlog.
+Reason: the owner wants one comparable view of use and cost across subscriptions and API keys, and each subscription's limits, without Gild holding provider credentials.
+References: [budget-control](capabilities/budget-control/specifications.md), [mission-tracking](capabilities/mission-tracking/specifications.md#spending), [thread-panel](capabilities/thread-panel/specifications.md), [provider-accounts](capabilities/provider-accounts/specifications.md), [requirements](requirements.md) (Price table read carries no owner data), [glossary](glossary.md) (Account budget, Billing kind, Estimated cost, Plan limit), [backlog](backlog.md).
+Validation: none yet; the specification lists the automated checks, the opt-in live probes, and the human acceptance.
+Evidence: the owner answered the interview's rounds by number. Q1 (billing kind and the API-key case) was answered "I guess" and is recorded as provisional. Q3 added the per-quest, per-side-quest, and per-answer displays; Q6 added account limits and credits; Q8 and Q11 settled plan limits (Codex's report, paced as OpenBot does; no token reads); Q9 chose that an account budget stops work; Q10 chose the build order (estimates and billing kind, then account budgets, then per-answer lines and plan limits after their probes).
+Not authorized: the Claude Agent SDK, the Codex SDK, an OpenCode HTTP adapter, and any change to decision record 0008; the open question of subscription use through the `claude` tool is in the backlog.
+
 ## CHG-0127 · 2026-11-10 · Desktop packaging workflow
 
 Type: Configuration
@@ -1810,6 +1824,8 @@ The existing packaging command now forwards architecture options, invokes Bun di
 References: [.github/workflows/package.yml](../.github/workflows/package.yml), [packaging instructions](../README.md#desktop-installers), [verification](verification/2026-11-10-desktop-packaging.md).
 Validation: Lint, workspace typecheck, actionlint, the macOS arm64 DMG build, the bundle signature, and the image checksum pass.
 Evidence: This delivers locally checked configuration; publication, all four native GitHub runner builds, artifact downloads, and target-system smoke tests remain pending in work in progress.
+Amended the same day, in the interview on the blueprint: the estimated cost is priced from the table first, with the harness's own figure only for a model the table lacks (the owner chose "Table first, harness fallback"). The API-key rule for a turn with no reported cost ("I guess") and the requirement "Price table read carries no owner data" were not answered again and stay provisional.
+Design choices the owner made in the same interview for the [blueprint](capabilities/budget-control/blueprint.md): one budget-scope module (mission, global, account) instead of another branch on the null convention, and plan limits of Codex read through a short paced `codex app-server` in the account's folder. The blueprint and decision record 0014 (the price read, proposed) await the owner's review; no production code was written.
 
 ## CHG-0128 · 2026-11-10 · Version tags publish direct installers
 

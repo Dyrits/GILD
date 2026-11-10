@@ -18,7 +18,7 @@ SQLite is the production persistence adapter; temporary SQLite is the test adapt
 | Top result asks Mark as done without ending | Messaging `reportResult`, then Missions `read`; included. |
 | Inactivity prompt, agent activity, dismissal interval | Missions query with fake clock; staged with mission ending. |
 | Confirmation names running threads before Done/archive and stops them | Proposed Missions ending command through Threads; staged with journal integration. |
-| Spending totals by provider unit; no subscription token price | Missions `read` after fake usage reports; included. Unknown usage remains unknown. |
+| Spending totals by provider unit by billing kind; an estimated cost beside them that never counts toward a limit (budget-control blueprint, Consumption) | Missions `read` after fake usage reports; included. Unknown usage remains unknown. |
 | Auto-archive default and configured delay | Missions lifecycle scheduling with fake clock; staged. |
 | Writing in Done/Archived reopens | Messaging `send` plus Missions lifecycle; staged until those lifecycle actions exist. |
 | Reopen Archived view | Proposed Missions reopen command and list query; staged. |

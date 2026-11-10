@@ -10,6 +10,10 @@ import {
   endpointsLayer,
   type Harness,
   invalid,
+  noPriceSourceLayer,
+  type PriceSource,
+  PriceTable,
+  priceTableLayer,
   readSettings,
   readStartChoices,
   ServiceFailure,
@@ -65,6 +69,7 @@ import { toolServerLayer } from "./work/mcp.ts";
 import { insertUserMessage } from "./work/messaging.ts";
 import { readMission } from "./work/missionDetail.ts";
 import { insertMission } from "./work/missions.ts";
+import { priceRefreshLayer } from "./work/priceRefresh.ts";
 import {
   createRitual,
   deleteRitual,
@@ -124,6 +129,7 @@ const make = Effect.gen(function* () {
   const suggestions = yield* Suggestions;
   const problem = yield* sandboxProblem;
   const harnessTools = yield* HarnessTools;
+  const prices = yield* PriceTable;
   const accountsRoot = yield* AccountsRoot;
   const attachmentsRoot = yield* AttachmentsRoot;
   /** Runs a step that stores or reads attached files. */
@@ -345,10 +351,17 @@ const make = Effect.gen(function* () {
               sandboxProblem: problem,
             };
           }),
+        ReadPriceStatus: () => prices.status,
         ReadRitual: (read) => readRitual(read.missionId),
         ReadSettings: () => readSettings,
         ReadStartChoices: () => readStartChoices,
         ReadThreadPanel: (read) => readThreadPanel(read.threadId).pipe(Effect.provideService(ScratchRoot, scratchRoot)),
+        RefreshPrices: () =>
+          prices.refresh.pipe(
+            Effect.catchTag("PriceReadFailed", (failure) =>
+              Effect.fail(new ServiceFailure({ kind: "ExecutionFailure", message: failure.reason })),
+            ),
+          ),
         RemoveAccount: (remove) => thenListHarnesses(removeAccount(remove.accountId)),
         RemovePermission: (remove) => change(removePermission(remove.permissionId)),
         RenameAccount: (rename) => thenListHarnesses(renameAccount(rename.accountId, rename.label)),
@@ -497,6 +510,8 @@ export interface ServiceOptions {
   readonly harnessTools?: Layer.Layer<HarnessTools>;
   /** The owner's home folder, the first browsable root (workspace-attachment). */
   readonly homeFolder: string;
+  /** Where the model price table is read from; none, so the snapshot alone, when left out (decision record 0014). */
+  readonly priceSource?: Layer.Layer<PriceSource>;
   /** The folder holding each mission's scratch folder. */
   readonly scratchRoot: string;
 }
@@ -520,6 +535,7 @@ export const serviceLayer = (options: ServiceOptions) => {
     Layer.provideMerge(Layer.effectDiscard(seedBrowsableRoots(options.homeFolder))),
     // The root is handed in here: layers stacked beneath the one that provides it never see it.
     Layer.provideMerge(Layer.effectDiscard(Effect.provideService(sweepDrafts, AttachmentsRoot, attachmentsRoot))),
+    Layer.provideMerge(priceTableLayer.pipe(Layer.provide(options.priceSource ?? noPriceSourceLayer))),
     Layer.provideMerge(storeLayer(options.filename)),
   );
   const running = threadsLayer.pipe(
@@ -528,7 +544,14 @@ export const serviceLayer = (options: ServiceOptions) => {
   );
   return Layer.effect(Service, make).pipe(
     Layer.provideMerge(
-      Layer.mergeAll(autoArchiveLayer, budgetPeriodsLayer, guildmasterReportsLayer, ritualsLayer, toolServerLayer),
+      Layer.mergeAll(
+        autoArchiveLayer,
+        budgetPeriodsLayer,
+        guildmasterReportsLayer,
+        priceRefreshLayer,
+        ritualsLayer,
+        toolServerLayer,
+      ),
     ),
     Layer.provideMerge(commandsLayer),
     Layer.provideMerge(running),

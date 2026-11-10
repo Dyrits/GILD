@@ -5,7 +5,7 @@ import { CrestBadge } from "../crest/crest";
 import { ReserveRows } from "../editors/budgets";
 import type { ServiceClient } from "../foundation/client";
 import { Emblem, type EmblemName } from "../foundation/emblems";
-import { tokenCountOf } from "../foundation/labels";
+import { usedTextOf } from "../foundation/labels";
 import { allMissions } from "../foundation/queries";
 import { colors, cut, fontSizes, fonts, ink, lift, radii } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
@@ -531,14 +531,7 @@ function Spending({ client }: { client: ServiceClient }) {
   return (
     <View style={local.spending}>
       <Section emblem="gem" label="Reserves" />
-      {hasLimits ? (
-        <ReserveRows use={global} />
-      ) : (
-        <Text style={local.empty}>
-          {tokenCountOf(global.spent.tokens)} tokens
-          {global.spent.cost > 0 ? ` · $${global.spent.cost.toFixed(2)}` : ""}
-        </Text>
-      )}
+      {hasLimits ? <ReserveRows use={global} /> : <Text style={local.empty}>{usedTextOf(global.consumption)}</Text>}
     </View>
   );
 }

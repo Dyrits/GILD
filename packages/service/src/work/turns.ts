@@ -1,7 +1,7 @@
-import type { EffortChoice, HarnessName, ModelChoice } from "@gild/contracts";
+import type { BillingKind, EffortChoice, HarnessName, ModelChoice, TokenUsage } from "@gild/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
-import { Changes, type TurnOutcome, touchMission } from "../core/index.ts";
+import { Changes, PriceTable, type TurnOutcome, touchMission } from "../core/index.ts";
 import type { StoredAttachment } from "./attachments.ts";
 import { enforceBudgets, holdIfReached } from "./budgets.ts";
 import { endTurn, failTurn, holdThread, startRunning } from "./lifecycle.ts";
@@ -134,6 +134,39 @@ export const saveTurnReply = (threadId: string, turn: Admitted, text: string, mo
   );
 
 /**
+ * The model a turn ran on, as its estimate is priced: the model the thread chose, or for the harness's own default
+ * the model that wrote the thread's latest reply; null when neither is known.
+ */
+const modelOfTurn = (threadId: string, turn: Admitted) =>
+  Effect.gen(function* () {
+    if (turn.model !== "default") return turn.model;
+    const sql = yield* SqlClient.SqlClient;
+    const [reply] = yield* sql<{ model: string }>`
+      SELECT model FROM messages WHERE thread_id = ${threadId} AND sender_kind = 'agent' AND model IS NOT NULL
+      ORDER BY sequence DESC LIMIT 1`;
+    return reply?.model ?? null;
+  });
+
+/**
+ * A turn's estimated cost, stamped with where it came from: the price table, or the harness's own figure for a
+ * model the table lacks (budget-control, Estimated cost). Null leaves the turn unpriced.
+ */
+const estimateOf = (
+  prices: PriceTable["Service"],
+  model: string | null,
+  usage: TokenUsage,
+  billing: BillingKind,
+  cost: number | null,
+  at: number,
+) =>
+  Effect.gen(function* () {
+    const fromTable = model === null ? null : yield* prices.estimate(model, usage);
+    if (fromTable !== null) return { amount: fromTable.amount, pricedAt: fromTable.pricedAt, source: "Table" } as const;
+    if (billing !== "ApiKey" && cost !== null) return { amount: cost, pricedAt: at, source: "Harness" } as const;
+    return null;
+  });
+
+/**
  * Ends a turn that completed or was interrupted; an interrupted one ends the same way (CHG-0039). Answers the
  * threads a budget reached by its spending stopped.
  */
@@ -141,16 +174,21 @@ export const completeTurn = (threadId: string, turn: Admitted, outcome: TurnOutc
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const changes = yield* Changes;
+    const prices = yield* PriceTable;
     return yield* sql.withTransaction(
       Effect.gen(function* () {
         if (!(yield* isCurrentTurn(turn.turnId))) return [];
-        const { context, cost, isInterrupted, sessionId, usage } = outcome;
+        const { billing, context, cost, isInterrupted, sessionId, usage } = outcome;
         const now = yield* Clock.currentTimeMillis;
         if (usage !== null) {
           const endedAt = yield* Clock.currentTimeMillis;
-          yield* sql`INSERT INTO usage (turn_id, mission_id, thread_id, ended_at, input, output, cache_read, cache_creation, cost, context)
+          const model = yield* modelOfTurn(threadId, turn);
+          const estimate = yield* estimateOf(prices, model, usage, billing, cost, endedAt);
+          yield* sql`INSERT INTO usage (turn_id, mission_id, thread_id, ended_at, input, output, cache_read, cache_creation, cost, context, billing,
+              harness, model, account_id, estimate, estimate_source, priced_at)
             VALUES (${turn.turnId}, ${turn.missionId}, ${threadId}, ${endedAt}, ${usage.input}, ${usage.output},
-              ${usage.cacheRead}, ${usage.cacheCreation}, ${cost}, ${context ?? null})`;
+              ${usage.cacheRead}, ${usage.cacheCreation}, ${cost}, ${context ?? null}, ${billing},
+              ${turn.harness}, ${model}, ${turn.accountId}, ${estimate?.amount ?? null}, ${estimate?.source ?? null}, ${estimate?.pricedAt ?? null})`;
         }
         const status = isInterrupted ? "interrupted" : "completed";
         yield* sql`UPDATE turns SET status = ${status}, ended_at = ${now} WHERE id = ${turn.turnId}`;

@@ -9,6 +9,10 @@ Verification: actionlint and seven offline shell scenarios pass; see [tagged rel
 Next: inspect the first check-only run after publication, then push a version tag when the owner chooses to release and verify the direct release downloads.
 Trusted signing, notarization, auto-updates, and runtime portability fixes remain outside this batch.
 
+## Consumption and cost · 2026-11-10 · specified, not built
+
+Agreed in CHG-0126: billing kind per turn, estimated cost (`≈`), a models.dev price table with a snapshot and a Charter switch, account budgets and credits, per-answer lines, and plan limits ([budget-control](capabilities/budget-control/specifications.md)). Blueprint written ([blueprint](capabilities/budget-control/blueprint.md), awaiting review) with decision record 0014 (proposed). Next: the owner's review, then the build in the order of the [backlog entry](backlog.md). Open: the live probes (usage per model call, Claude Code's `rate_limit_event`, billing kind per harness, Claude's `total_cost_usd` as a running total), the OpenCode HTTP probe, and the subscription-through-CLI terms question.
+
 ## Compact left navigation specification · 2026-11-10
 
 The owner accepted the smaller main left menu in CHG-0123; see [mission tracking](capabilities/mission-tracking/specifications.md#compact-left-navigation).

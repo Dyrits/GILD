@@ -6,6 +6,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "prices:snapshot": "bun scripts/pricesSnapshot.ts",
     "typecheck": "tsc -p ."
   },
   "dependencies": {

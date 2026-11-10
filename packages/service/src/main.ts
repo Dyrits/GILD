@@ -2,7 +2,7 @@ import { homedir } from "node:os";
 // Entry point when Electron starts the service as a utilityProcess.
 import { join } from "node:path";
 import { Cause, Config, Effect, Exit, Layer } from "effect";
-import { Harness, sandboxProblem } from "./core/index.ts";
+import { Harness, modelsDevSourceLayer, noPriceSourceLayer, sandboxProblem } from "./core/index.ts";
 import { fakeHarnessLayer, fakeHarnessToolsLayer, liveHarnessToolsLayer, makeHarnessRouter } from "./harness/index.ts";
 import { serveLoopback } from "./server.ts";
 import { serviceLayer } from "./service.ts";
@@ -38,6 +38,7 @@ const liveLayer = Layer.unwrap(
         harness,
         harnessTools: harnessName === "fake" ? fakeHarnessToolsLayer() : liveHarnessToolsLayer(commands),
         homeFolder: homedir(),
+        priceSource: harnessName === "fake" ? noPriceSourceLayer : modelsDevSourceLayer(),
         scratchRoot: join(dataDirectory, "missions"),
       }),
     );

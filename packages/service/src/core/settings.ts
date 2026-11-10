@@ -26,6 +26,7 @@ export const defaultSettings: Settings = {
   intelHalfLives: { decision: 45, fact: 45, preference: 90, temporary: 3 },
   intelWarningPercent: 10,
   shouldAutoArchive: false,
+  shouldFetchPrices: true,
   shouldOpenOffTopicMissions: false,
   shouldShowAgentThreads: true,
   shouldShowFinishedQuests: false,

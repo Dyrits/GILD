@@ -12,7 +12,7 @@ import {
   trimmedColumns,
 } from "../foundation/boardColumns";
 import type { ServiceClient } from "../foundation/client";
-import { tokenCountOf } from "../foundation/labels";
+import { costTextOf, tokenCountOf, totalTokensOf } from "../foundation/labels";
 import { colors, cut, fonts, ink, lift, stateLabels } from "../foundation/theme";
 import { Banner } from "../ui/banner";
 import { StateBadge } from "../ui/controls";
@@ -48,9 +48,8 @@ export function MissionCard({
   const isCircled = mission.state === "Attention";
   // A card under the pointer straightens and rises a little, so the board answers the hand.
   const [isHovered, setIsHovered] = useState(false);
-  const cost = mission.budget.spent.cost;
-  const { usage } = mission;
-  const tokens = usage.input + usage.cacheRead + usage.cacheCreation + usage.output;
+  const cost = costTextOf(mission.consumption);
+  const tokens = totalTokensOf(mission.consumption);
   return (
     <View
       onPointerEnter={() => setIsHovered(true)}
@@ -94,11 +93,11 @@ export function MissionCard({
           </Text>
         </View>
         <View
-          accessibilityLabel={`${cost > 0 ? `API cost $${cost.toFixed(2)}, ` : ""}${tokens} tokens`}
+          accessibilityLabel={`${cost === null ? "" : `${cost.startsWith("≈") ? "Estimated cost" : "API cost"} ${cost.replace("≈ ", "")}, `}${tokens} tokens`}
           style={local.costRow}
         >
           <View style={local.coin} />
-          {cost > 0 && <Text style={local.cost}>${cost.toFixed(2)}</Text>}
+          {cost !== null && <Text style={local.cost}>{cost}</Text>}
           <Text style={local.tokens}>{tokenCountOf(tokens)} tokens</Text>
         </View>
       </Pressable>

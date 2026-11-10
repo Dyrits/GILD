@@ -2,9 +2,11 @@ import { describe, expect, it } from "vitest";
 import {
   briefingSizeOf,
   budgetUseTextOf,
+  consumptionDetailsOf,
   contextLevelOf,
   contextPartLabels,
   contextUseTextOf,
+  costTextOf,
   countedOf,
   deletionQuestionOf,
   foldedLabelOf,
@@ -16,6 +18,7 @@ import {
   loreOriginLabelOf,
   loreProposalLineOf,
   meterLevelOf,
+  priceStatusTextOf,
   promptQuestionOf,
   raisedLimitsOf,
   reserveOf,
@@ -24,6 +27,7 @@ import {
   suggestionLabels,
   threadCountOf,
   threadSpendingTextOf,
+  usedTextOf,
 } from "../../src/foundation/labels";
 
 describe("counted nouns", () => {
@@ -286,11 +290,72 @@ describe("thread panel labels", () => {
     expect(contextPartLabels.ToolsAndResults).toBe("Tools and results");
   });
 
-  it("says what a thread spent in the units it used, leaving out an unused one", () => {
-    expect(threadSpendingTextOf({ spending: { cost: 1.5, tokens: 0 }, turnCount: 1 })).toBe("1 turn · $1.50");
-    expect(threadSpendingTextOf({ spending: { cost: 0, tokens: 12_000 }, turnCount: 3 })).toBe(
-      "3 turns · 12,000 tokens",
+  it("says what a thread used with its cost marked as reported or estimated, leaving out an unused part", () => {
+    const tokens = { cacheCreation: 0, cacheRead: 0, input: 12_000, output: 0 };
+    const none = { earlierTurns: 0, estimated: 0, reported: 0, unpricedTurns: 0 };
+    expect(threadSpendingTextOf({ consumption: { ...none, reported: 1.5, tokens, turns: 1 } })).toBe(
+      "1 turn · $1.50 · 12,000 tokens",
     );
-    expect(threadSpendingTextOf({ spending: { cost: 0, tokens: 0 }, turnCount: 0 })).toBe("0 turns");
+    expect(threadSpendingTextOf({ consumption: { ...none, estimated: 0.8, tokens, turns: 3 } })).toBe(
+      "3 turns · ≈ $0.80 · 12,000 tokens",
+    );
+    expect(threadSpendingTextOf({ consumption: { ...none, tokens: { ...tokens, input: 0 }, turns: 0 } })).toBe(
+      "0 turns",
+    );
+  });
+});
+
+describe("a cost marked as reported or estimated", () => {
+  it("shows a cost the harness reported as it is", () => {
+    expect(costTextOf({ estimated: 0, reported: 1.2 })).toBe("$1.20");
+  });
+
+  it("marks an estimate, and a total that holds any estimate, with ≈", () => {
+    expect(costTextOf({ estimated: 1.2, reported: 0 })).toBe("≈ $1.20");
+    expect(costTextOf({ estimated: 0.8, reported: 2 })).toBe("≈ $2.80");
+  });
+
+  it("shows no cost when nothing is priced", () => {
+    expect(costTextOf({ estimated: 0, reported: 0 })).toBeNull();
+  });
+
+  it("says in the details how much was reported and how much estimated, and what is not priced", () => {
+    const tokens = { cacheCreation: 0, cacheRead: 0, input: 0, output: 0 };
+    expect(
+      consumptionDetailsOf({ earlierTurns: 5, estimated: 0.8, reported: 2, tokens, turns: 9, unpricedTurns: 2 }),
+    ).toBe("$2.00 reported · ≈ $0.80 estimated · 2 turns without a price · 5 earlier turns not priced");
+    expect(
+      consumptionDetailsOf({ earlierTurns: 0, estimated: 0, reported: 0, tokens, turns: 1, unpricedTurns: 0 }),
+    ).toBe("");
+  });
+});
+
+describe("what a set of turns used in one line", () => {
+  const tokens = { cacheCreation: 0, cacheRead: 0, input: 12_000, output: 0 };
+  const none = { earlierTurns: 0, estimated: 0, reported: 0, turns: 1, unpricedTurns: 0 };
+
+  it("says the tokens first and the marked cost after", () => {
+    expect(usedTextOf({ ...none, estimated: 1.2, tokens })).toBe("12,000 tokens · ≈ $1.20");
+    expect(usedTextOf({ ...none, reported: 1.2, tokens })).toBe("12,000 tokens · $1.20");
+  });
+
+  it("says only the tokens when no turn is priced", () => {
+    expect(usedTextOf({ ...none, tokens })).toBe("12,000 tokens");
+  });
+});
+
+describe("the line saying where the model prices come from", () => {
+  const at = new Date(2026, 10, 10, 14, 2).getTime();
+
+  it("names the public table and when it was read", () => {
+    expect(priceStatusTextOf({ at, isFetching: true, models: 300, source: "Fetched" })).toBe(
+      "Prices from models.dev · fetched 10 Nov",
+    );
+  });
+
+  it("names the snapshot shipped with Gild and when it was made", () => {
+    expect(priceStatusTextOf({ at, isFetching: false, models: 300, source: "Snapshot" })).toBe(
+      "Prices from the snapshot of 10 Nov",
+    );
   });
 });

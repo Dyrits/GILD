@@ -2,6 +2,7 @@ import { readFile } from "node:fs/promises";
 import type {
   ApprovalLevel,
   AttachmentMediaType,
+  BillingKind,
   EffortChoice,
   HarnessName,
   ModelChoice,
@@ -97,6 +98,8 @@ export interface TurnRequest {
 
 /** How a turn ended, with what it cost. */
 export interface TurnOutcome {
+  /** How the turn was billed; `Unknown` when the harness cannot tell (budget-control, Billing kind). */
+  readonly billing: BillingKind;
   /**
    * What the thread's context held after the turn's latest model call (input, cached input, and output
    * tokens), for the context gauge (thread-panel); absent or null when the harness did not report it.
@@ -119,6 +122,7 @@ export const interruptGraceMillis = 10_000;
 
 /** The outcome of an interrupted turn: its usage when the harness reported any, and never a cost. */
 export const interruptedOutcomeOf = (sessionId: string, usage: TokenUsage | null = null): TurnOutcome => ({
+  billing: "Unknown",
   cost: null,
   isInterrupted: true,
   sessionId,

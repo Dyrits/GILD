@@ -99,7 +99,7 @@ describe("interrupting and steering a pooled turn", () => {
       yield* Deferred.await(running);
       expect(yield* pool.interrupt("thread-1")).toBe(true);
       const outcome = yield* Fiber.join(turn);
-      expect(outcome).toEqual({ cost: null, isInterrupted: true, sessionId: "session-1", usage });
+      expect(outcome).toEqual({ billing: "Unknown", cost: null, isInterrupted: true, sessionId: "session-1", usage });
       expect(connections[0]?.isClosed).toBe(true);
       expect(yield* pool.interrupt("thread-1")).toBe(false);
     }).pipe(Effect.scoped),
