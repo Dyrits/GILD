@@ -2,13 +2,14 @@ import type { ModelChoice, ThreadId, ThreadSummary, ThreadView } from "@gild/con
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { newRequestId, type ServiceClient } from "./client";
-import { Composer, StateBadge } from "./controls";
+import { Composer } from "./controls";
 import { foldThreads } from "./folding";
 import { modelLabelOf } from "./formatting";
 import { foldedLabelOf, startingContextPartsOf, startingContextWarningOf } from "./labels";
 import { LoreScreen } from "./lore";
 import { type Runner, RunnerPickers, useHarnesses } from "./runners";
 import { styles } from "./styles";
+import { stateLabels, stateTones } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
 import { useSkills } from "./useSkills";
 
@@ -30,7 +31,7 @@ export function ThreadTree({
       {foldThreads(threads, shouldShowAgentThreads, unfolded).map(({ thread, depth, foldedCount }, index) => (
         <View key={thread.id}>
           {index === 0 && <Text style={styles.treeSection}>Quest</Text>}
-          {index === 1 && <Text style={styles.treeSection}>Side-quests</Text>}
+          {index === 1 && <Text style={[styles.treeSection, styles.treeSectionLater]}>Side-quests</Text>}
           <Pressable
             onPress={() => {
               if (foldedCount > 0) setUnfolded((current) => new Set([...current, thread.id]));
@@ -43,11 +44,12 @@ export function ThreadTree({
               thread.id === selectedId && styles.treeRowSelected,
             ]}
           >
+            {depth >= 2 && <View style={[styles.treeBranch, { left: 8 + (depth - 2) * 16 + 4 }]} />}
             <View style={styles.treeTitleRow}>
-              <Text numberOfLines={1} style={[styles.treeTitle, thread.id === selectedId && styles.treeTitleSelected]}>
+              <Text numberOfLines={1} style={[styles.treeTitle, depth === 0 && styles.treeTitleQuest]}>
                 {thread.title}
               </Text>
-              <StateBadge state={thread.state} />
+              <TreeState state={thread.state} />
             </View>
             {thread.isAside && <Text style={styles.treeNote}>Aside</Text>}
             {foldedCount > 0 && <Text style={styles.treeNote}>{foldedLabelOf(foldedCount)}</Text>}
@@ -60,6 +62,17 @@ export function ThreadTree({
         </View>
       ))}
     </ScrollView>
+  );
+}
+
+/** A thread's state at the end of its row: a diamond of the state's ink, then its name in italics. */
+function TreeState({ state }: { state: ThreadSummary["state"] }) {
+  const { color, soft } = stateTones[state];
+  return (
+    <View style={[styles.treeState, state === "Attention" && { backgroundColor: soft }]}>
+      <Text style={[styles.treeStateMark, { color }]}>{state === "Done" ? "✓" : state === "Failed" ? "✕" : "◆"}</Text>
+      <Text style={[styles.treeStateText, { color }]}>{stateLabels[state]}</Text>
+    </View>
   );
 }
 

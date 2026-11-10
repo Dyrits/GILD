@@ -639,3 +639,5 @@ Started at HEAD `26bbb1d`, with the empty tree as the fixed point. Ran Standards
 - Import cycles between `commands.ts`, `threads.ts`, and the modules that compose operations: they are safe, since each side is used only inside functions, and the bundled service starts.
 - `JSON.parse … as` casts: decoding instead would change how malformed input is handled.
 - Multi-behavior test titles, the `server.test.ts` frame casts, and the app client's pending-codec cast.
+
+Quest tree batch (CHG-0095): the Quest and Side-quests menu restyled after the owner's mockup; typecheck, lint, and 458 tests pass; the look awaits the owner ([proof](verification/2026-11-10-quest-tree-menu.md)).

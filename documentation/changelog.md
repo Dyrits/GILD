@@ -1434,3 +1434,14 @@ Summary: The owner asked for every finding of the review of `42a60db` and `2221c
 References: apps/app/src/{dashboard,questPanel,paths,workspaces,crestStudio,sidebar,formatting,lore,notifications}.tsx, packages/service/src/{turns,claude,loreViews,loreHistoryViews,ending}.ts.
 Validation: format, typecheck, and tests pass (458 passed, 10 skipped); five mutations each fail a test ([proof](verification/2026-11-10-review-fixes-and-lore-rename.md)).
 Evidence: Baseline `2221cbe`; not proven: the screen behaviors, which await the owner.
+
+## CHG-0095 · 2026-11-10 · Quest and Side-quests menu restyled
+
+Type: Code
+Event: Delivery
+Scope: Guild interface
+
+Summary: The owner asked for the Quest and Side-quests menu to look better, using an illustrated mockup as inspiration. Section headings are bold Cinzel with a gold rule; titles are bold; each row ends with a diamond and the state's name in italics (Done keeps a tick, Failed a cross); side-quests of level 2 and deeper have L connectors; the selected row has a gold fill and border. The mockup's fold caret was not added.
+References: apps/app/src/{threadTree.tsx,styles.ts}.
+Validation: format, typecheck, and tests pass (458 passed, 10 skipped) ([proof](verification/2026-11-10-quest-tree-menu.md)).
+Evidence: Baseline `10bf154`; not proven: the look, which awaits the owner.
