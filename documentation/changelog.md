@@ -1696,3 +1696,15 @@ Summary: At the owner's request, the dedicated information card has no left icon
 Obsolete large-button styles are removed.
 References: apps/app/src/conversationEntries.tsx, apps/app/src/styles.ts, .agents/handoffs/2026-11-10-1425-quest-navigation.md.
 Validation: lint, typecheck, and all 118 app tests pass; appearance and navigation in the running app await the owner.
+
+## CHG-0118 · 2026-11-10 · Messages remain outside steps
+
+Type: Code
+Event: Delivery
+Scope: Thread messaging, conversation
+
+Summary: The owner clarified that messages, including intermediate agent replies, should keep their normal chat cards during work and after completion; only recorded settled actions belong in the collapsible steps group.
+This supersedes the reply folding in CHG-0113 and CHG-0116 and applies to both quest and Guildmaster conversations.
+References: apps/app/src/entries.ts, apps/app/src/conversationEntries.tsx, apps/app/test/entries.test.ts.
+Validation: the 13 entries tests pass, including visibility during and after work and replies mixed with actions; workspace typecheck, targeted Biome, and diff whitespace checks pass.
+Repository-wide lint has unrelated failures in other sessions' files; the running appearance remains unverified.

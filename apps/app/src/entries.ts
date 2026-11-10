@@ -17,7 +17,7 @@ export type QuestLink = { key: string; label: string; missionId: MissionId; sent
 /** One entry of a thread's conversation, with the key the list keeps it by. */
 export type Entry = { key: string; at: number } & (
   | { _tag: "Message"; message: Message; fromQuest: MissionId | null }
-  /** The intermediate replies of one turn gathered as its steps, which the conversation folds under one line. */
+  /** The settled actions of one turn gathered under one collapsible line. */
   | { _tag: "Steps"; isCurrent: boolean; seconds: number; steps: ReadonlyArray<Step> }
   | { _tag: "Question"; question: Question }
   | { _tag: "Suggestion"; suggestion: Suggestion }
@@ -39,36 +39,24 @@ const settledLabelOf = (suggestion: Suggestion) =>
       ? "Opened quest"
       : suggestionLabels[suggestion.outcome ?? "Continued"];
 
-/** One step of a turn: a reply written on the way, or an action the thread ran or was allowed to run. */
-export type Step =
-  | { _tag: "Reply"; at: number; id: string; text: string }
-  | { _tag: "Action"; at: number; id: string; question: Question };
+/** One action the thread ran or was allowed to run, separate from its chat messages. */
+export type Step = { _tag: "Action"; at: number; id: string; question: Question };
 
 /** The outcomes that settle an action with no word from the owner worth a line of its own. */
 const isFoldedAction = (question: Question) =>
   question.outcome !== null && !["Denied", "Discarded", "Withdrawn"].includes(question.outcome);
 
-/**
- * What a turn did on the way, gathered: the agent replies that are not its answer (within each run of agent replies,
- * all but the last, and all of the trailing run while the thread works, since its answer is not written yet) and the
- * actions it ran, which fall into the run they happened in. Each group carries the seconds from what began the run to
- * its last step, and whether it is the turn still working.
- */
+/** Settled actions grouped between incoming messages, with elapsed time from the message that began the turn. */
 const stepGroupsOf = (messages: ReadonlyArray<Message>, questions: ReadonlyArray<Question>, isWorking: boolean) => {
   const groups: Array<{ isCurrent: boolean; seconds: number; steps: Array<Step> }> = [];
   const actions = questions
     .filter(isFoldedAction)
     .map((question): Step => ({ _tag: "Action", at: question.askedAt, id: question.id, question }))
     .sort((a, b) => a.at - b.at);
-  let run: Array<Message> = [];
   let before: Message | undefined;
   const close = (isTrailing: boolean, until: number) => {
-    const replies = run.slice(0, isWorking && isTrailing ? run.length : -1);
     const from = before?.sentAt ?? Number.NEGATIVE_INFINITY;
-    const steps: Array<Step> = [
-      ...replies.map((reply): Step => ({ _tag: "Reply", at: reply.sentAt, id: reply.id, text: reply.text })),
-      ...actions.filter((action) => action.at >= from && action.at < until),
-    ].sort((a, b) => a.at - b.at);
+    const steps = actions.filter((action) => action.at >= from && action.at < until);
     const first = steps[0];
     const last = steps.at(-1);
     if (first !== undefined && last !== undefined)
@@ -77,11 +65,9 @@ const stepGroupsOf = (messages: ReadonlyArray<Message>, questions: ReadonlyArray
         seconds: Math.max(0, Math.round((last.at - (before?.sentAt ?? first.at)) / 1000)),
         steps,
       });
-    run = [];
   };
   for (const message of [...messages].sort((a, b) => a.sequence - b.sequence)) {
-    if (message.sender === "agent") run.push(message);
-    else {
+    if (message.sender !== "agent") {
       close(false, message.sentAt);
       before = message;
     }
@@ -95,7 +81,7 @@ export const workingLabelOf = (entries: ReadonlyArray<Entry>) => {
   const current = entries.findLast((entry) => entry._tag === "Steps" && entry.isCurrent);
   const latest = current?._tag === "Steps" ? current.steps.at(-1) : undefined;
   if (latest === undefined) return "Working…";
-  const text = latest._tag === "Reply" ? latest.text : latest.question.summary;
+  const text = latest.question.summary;
   return text.trim().split("\n")[0]?.replace(/\.$/, "") ?? "Working…";
 };
 
@@ -142,18 +128,16 @@ export const entriesOf = (detail: MissionDetail, isWorking = false): Array<Entry
     ...detail.threads
       .filter((thread) => thread.parentId === detail.thread.id && !thread.isAside)
       .map((thread): Entry => ({ _tag: "ThreadOpened", at: thread.openedAt, key: `opened:${thread.id}`, thread })),
-    ...detail.messages
-      .filter((message) => !stepIds.has(message.id))
-      .map(
-        (message): Entry => ({
-          _tag: "Message",
-          at: message.sentAt,
-          fromQuest:
-            message.sender === "thread" && message.fromMissionId !== detail.mission.id ? message.fromMissionId : null,
-          key: message.id,
-          message,
-        }),
-      ),
+    ...detail.messages.map(
+      (message): Entry => ({
+        _tag: "Message",
+        at: message.sentAt,
+        fromQuest:
+          message.sender === "thread" && message.fromMissionId !== detail.mission.id ? message.fromMissionId : null,
+        key: message.id,
+        message,
+      }),
+    ),
     ...questLinks,
     ...detail.questions
       .filter((question) => !stepIds.has(question.id))

@@ -142,7 +142,7 @@ describe("links from the Guildmaster's conversation, beside its replies", () => 
   });
 });
 
-describe("a turn's intermediate replies, folded as steps", () => {
+describe("a turn's actions, folded as steps while messages stay visible", () => {
   const turn = (messages: ReadonlyArray<object>) =>
     ({
       budgetEvents: [],
@@ -157,26 +157,26 @@ describe("a turn's intermediate replies, folded as steps", () => {
   const owner = (sentAt: number) => ({ id: `owner-${sentAt}`, sender: "user", sentAt, text: "Go" });
   const agent = (sentAt: number) => ({ id: `agent-${sentAt}`, sender: "agent", sentAt, text: "Step" });
 
-  it("folds all but the last reply of a finished turn and keeps the last as the answer", () => {
+  it("keeps every reply of a finished turn as a normal message", () => {
     const entries = entriesOf(turn([owner(0), agent(4000), agent(16000), agent(20000)]));
-    expect(entries.map((entry) => entry.key)).toEqual(["owner-0", "steps:agent-4000", "agent-20000"]);
-    expect(entries[1]).toMatchObject({ _tag: "Steps", seconds: 16 });
+    expect(entries.map((entry) => entry.key)).toEqual(["owner-0", "agent-4000", "agent-16000", "agent-20000"]);
+    expect(entries.every((entry) => entry._tag === "Message")).toBe(true);
   });
 
-  it("folds every reply while the thread still works, since no answer is written yet", () => {
+  it("keeps every reply visible while the thread still works", () => {
     const entries = entriesOf(turn([owner(0), agent(4000), agent(9000)]), true);
-    expect(entries.map((entry) => entry._tag)).toEqual(["Message", "Steps"]);
+    expect(entries.map((entry) => entry._tag)).toEqual(["Message", "Message", "Message"]);
   });
 
   it("folds the actions a turn ran into its steps, keeping a denial visible", () => {
     const question = (id: string, askedAt: number, outcome: string) => ({ askedAt, id, outcome, summary: `Ran ${id}` });
-    const detail = turn([owner(0), agent(20000)]);
+    const detail = turn([owner(0), agent(1000), agent(20000)]);
     const entries = entriesOf({
       ...detail,
       questions: [question("a", 2000, "AllowedAutomatically"), question("b", 3000, "Denied")],
     } as unknown as MissionDetail);
-    expect(entries.map((entry) => entry.key)).toEqual(["owner-0", "steps:a", "b", "agent-20000"]);
-    expect(entries[1]).toMatchObject({ _tag: "Steps", seconds: 2 });
+    expect(entries.map((entry) => entry.key)).toEqual(["owner-0", "agent-1000", "steps:a", "b", "agent-20000"]);
+    expect(entries[2]).toMatchObject({ _tag: "Steps", seconds: 2, steps: [{ _tag: "Action", id: "a" }] });
   });
 
   it("leaves a lone reply of a finished turn as it is", () => {

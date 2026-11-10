@@ -87,7 +87,7 @@ export function WorkingIndicator({ harness, label }: { harness: HarnessName; lab
   );
 }
 
-/** A turn's intermediate replies, folded under "2 steps · 16s" and listed when opened. */
+/** A turn's settled actions, folded under "2 steps · 16s" and listed when opened. */
 function StepsGroup({ seconds, steps }: { seconds: number; steps: ReadonlyArray<Step> }) {
   const [isOpen, setIsOpen] = useState(false);
   return (
@@ -105,15 +105,9 @@ function StepsGroup({ seconds, steps }: { seconds: number; steps: ReadonlyArray<
       </Pressable>
       {isOpen && (
         <View style={styles.stepsList}>
-          {steps.map((step) =>
-            step._tag === "Reply" ? (
-              <Text key={step.id} style={styles.stepText}>
-                {step.text.trim()}
-              </Text>
-            ) : (
-              <QuestionLine key={step.id} question={step.question} />
-            ),
-          )}
+          {steps.map((step) => (
+            <QuestionLine key={step.id} question={step.question} />
+          ))}
         </View>
       )}
     </View>

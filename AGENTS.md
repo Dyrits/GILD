@@ -29,7 +29,7 @@
 
 To resume the small quest navigation button (existing sword at the top right, no left icon; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1425-quest-navigation.md). Handoffs are shared and committed.
 
-To resume steps instead of update lines (CHG-0113 and CHG-0116; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1410-steps-main.md). Handoffs are shared and committed.
+To resume messages outside steps (CHG-0118; the live appearance awaits review), read the [current handoff](.agents/handoffs/2026-11-10-1458-messages-outside-steps.md). Handoffs are shared and committed.
 To resume the harness update in the Charter (CHG-0110, pushed to `main`; a real update and the owner's look remain), read the [current handoff](.agents/handoffs/2026-11-10-1330-harness-update.md). Handoffs are shared and committed.
 To resume the one side panel (grouped as Companions, Knows, and Does; backup companions chosen in the panel, with a default list in the Charter; CHG-0115 committed on branch `one-side-panel`; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1400-backups-in-panel.md). Handoffs are shared and committed.
 To resume deleting a Ritual from its card (CHG-0108, committed on branch `ritual-delete`; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1152-ritual-delete.md). Handoffs are shared and committed.
