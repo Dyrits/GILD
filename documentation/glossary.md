@@ -142,7 +142,7 @@ _Avoid_: Total budget, monthly cap
 ## Automation
 
 **Routine**:
-A trigger paired with a skill or instruction, running in its own thread or opening new threads on each run.
+A trigger paired with a skill or instruction, running in its own thread or opening new threads on each run. The interface calls it a Ritual: one quest per Ritual, each run a turn in its main thread, with fallback Companions ([rituals](capabilities/rituals/specifications.md)).
 _Avoid_: Job, cron, scheduled task
 
 **Trigger**:
