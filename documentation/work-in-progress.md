@@ -676,3 +676,7 @@ The same serialized output travels through the existing SendMessage and harness 
 The progress-display side-quest fix is included: completed approvals no longer masquerade as current work.
 Proof and current validation: [terminal verification](verification/2026-11-10-bang-terminal.md).
 The owner requested integration onto local main, without pushing to the remote.
+
+Terminal follow-up: the owner confirmed successful live use and requested a handoff and publication.
+CHG-0120 keeps the soft blue throughout the live and saved terminal; the latest appearance awaits an explicit look.
+The shared handoff is `.agents/handoffs/2026-11-10-1538-conversation-terminal.md`.

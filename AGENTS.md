@@ -27,6 +27,8 @@
 
 ## Handoffs
 
+To resume the conversation terminal and its blue message bubble, read the [current handoff](.agents/handoffs/2026-11-10-1538-conversation-terminal.md). Handoffs are shared and committed.
+
 To resume the small quest navigation button (existing sword at the top right, no left icon; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1425-quest-navigation.md). Handoffs are shared and committed.
 
 To resume messages outside steps (CHG-0118; the live appearance awaits review), read the [current handoff](.agents/handoffs/2026-11-10-1458-messages-outside-steps.md). Handoffs are shared and committed.
