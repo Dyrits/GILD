@@ -1545,3 +1545,17 @@ References: documentation/capabilities/message-attachments/specifications.md, do
 Validation: Typecheck, Biome, and 545 tests pass; the window was driven on a throwaway data folder with the fake harness.
 Evidence: [message-attachments proof](verification/2026-11-10-message-attachments.md).
 Open: the look awaits the owner; undo does not take back a large paste in one step; OpenCode was not run live.
+
+## CHG-0104 · 2026-11-10 · Agent replies drawn as Markdown
+
+Type: Feature
+Event: Delivery
+Scope: Conversation
+
+Summary: A reply from the Companion, and a message from another thread, showed its Markdown as typed (`**bold**`, `` `code` ``, `-` lists). They now draw as paragraphs, nested lists, bold, italic, struck text, inline and fenced code, headings, quotes, tables, and links, in the guild's type.
+A link opens only for `http:`, `https:`, and `mailto:`; a reply is untrusted text, so any other scheme shows as plain text.
+Dependency: `marked` (pure JavaScript, no native code) lexes the text; neither the platform nor the Effect ecosystem parses Markdown, and a hand-written parser would miss the edge cases of nested lists and emphasis. The drawing is our own, in `apps/app/src/markdown.tsx`, so it stays portable to native.
+References: apps/app/src/{markdown.tsx,markdownRules.ts,conversationEntries.tsx}, apps/app/test/markdownRules.test.ts.
+Validation: Typecheck and Biome pass; the new tests (link schemes, list markers) pass with the app's others.
+Evidence: The text of the owner's screenshot, with extra headings, quote, code, table, and links, was rendered once in a browser through `react-native-web` and read by eye; not driven in the running window, and not checked on native.
+Open: the look awaits the owner; the owner's own messages stay plain text with chips.

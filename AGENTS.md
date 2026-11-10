@@ -27,6 +27,7 @@
 
 ## Handoffs
 
+To resume agent replies drawn as Markdown (committed on branch `markdown-replies`; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1043-markdown-replies.md). Handoffs are shared and committed.
 To resume message attachments, the large-paste freeze, and the startup failure (images on the owner's messages built and checked; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1034-message-attachments.md). Handoffs are shared and committed.
 To resume the Workshop (Settings) redone from the owner's mockup with provider logos (CHG-0101; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-0950-workshop-settings.md). Handoffs are shared and committed.
 To resume Rituals as a place apart from the quests (CHG-0100, pushed to `main`; the look and a Ritual firing on a live harness await the owner), read the [current handoff](.agents/handoffs/2026-11-10-0914-rituals-place.md). Handoffs are shared and committed.

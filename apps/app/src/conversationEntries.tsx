@@ -6,6 +6,7 @@ import type { ServiceClient } from "./client";
 import type { Entry } from "./entries";
 import { clockOf, replyWriterOf } from "./formatting";
 import { LoreChangeCard, LoreChangeLine } from "./lore";
+import { Markdown } from "./markdown";
 import { ProviderMark } from "./providerMarks";
 import { QuestionCard, QuestionLine } from "./questions";
 import { styles } from "./styles";
@@ -47,7 +48,7 @@ export function AgentReply({
           <Text style={styles.senderName}>{label}</Text>
           {time !== null && <Text style={styles.senderTime}>{time}</Text>}
         </View>
-        <Text style={styles.body}>{text}</Text>
+        <Markdown text={text} />
       </View>
     </View>
   );
@@ -92,7 +93,7 @@ function MessageBubble({
             <ChipText client={client} skills={skills} text={message.text} workspacePath={workspacePath} />
           )
         ) : (
-          <Text style={styles.body}>{message.text}</Text>
+          <Markdown text={message.text} />
         )}
         <MessageImages cards={message.attachments} client={client} />
       </View>
