@@ -1559,3 +1559,17 @@ References: apps/app/src/{markdown.tsx,markdownRules.ts,conversationEntries.tsx}
 Validation: Typecheck and Biome pass; the new tests (link schemes, list markers) pass with the app's others.
 Evidence: The text of the owner's screenshot, with extra headings, quote, code, table, and links, was rendered once in a browser through `react-native-web` and read by eye; not driven in the running window, and not checked on native.
 Open: the look awaits the owner; the owner's own messages stay plain text with chips.
+
+## CHG-0105 · 2026-11-10 · Settings renamed Charter, with a gear in the rail
+
+Type: Documentation
+Event: Agreement
+Scope: Settings, vocabulary
+
+Summary: The owner agreed that Workshop is the wrong name for Settings, because Crafts, connectors, MCP servers, and skills are things made and so belong there later. Settings is now the Charter, the guild's standing rules (accounts, budgets, folders, defaults), and its rail entry wears a gear instead of the key.
+Workshop stays free for the future place of Crafts, Rituals, connectors, and MCP.
+The code names (`Settings` place, `settings.tsx`, `iconPaths`) keep their names; the earlier records and handoffs keep the word Workshop as they were written.
+References: documentation/glossary.md, apps/app/src/{sidebar.tsx,settingsParts.tsx,emblems.tsx,settingsIcons.tsx}, CHG-0101.
+Validation: The owner's choice of 2026-11-10; typecheck, Biome, and the full tests pass (552 passed, 10 skipped).
+Evidence: Not driven in the running window; the gear is now also one of the line drawings a realm's crest can pick.
+Open: the look awaits the owner.

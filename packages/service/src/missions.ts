@@ -72,7 +72,7 @@ export const insertQuest = (
     const global = yield* readGlobalBudget;
     // A reached global budget refuses new missions (budget-control, Reaching a limit).
     if (isReached(global.limits, global.spent))
-      return yield* invalid("The global budget is reached. Raise it in the Workshop to start a mission.");
+      return yield* invalid("The global budget is reached. Raise it in the Charter to start a mission.");
     const settings = yield* readSettings;
     const runner = yield* checkAccount(
       runnerOf(

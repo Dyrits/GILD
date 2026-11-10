@@ -552,11 +552,11 @@ function Sidebar({
           </>
         )}
         <Category
-          emblem="key"
+          emblem="gear"
           hasRule={false}
           isCollapsed={isCollapsed}
           isSelected={isHere("Settings")}
-          label="Workshop"
+          label="Charter"
           onPress={() => onPlace("Settings")}
         />
       </ScrollView>
@@ -810,7 +810,7 @@ const crumbsOf = ({
   if (place === "Lore") return [to("The Keep", "Keep"), here("Lore")];
   if (place === "Archived") return [to("The Keep", "Keep"), here("Archives", "▤")];
   if (place === "Keep") return [here("The Keep")];
-  if (place === "Settings") return [here("Workshop")];
+  if (place === "Settings") return [here("Charter")];
   if (place === "Realms") return [here("Realms")];
   if (place === "Rituals") return [here("Rituals")];
   if (place === "Quests" && realm !== null) return [to("Realms", "Realms"), here(realm.name)];

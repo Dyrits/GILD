@@ -54,7 +54,7 @@ export function PermissionsScreen({ client, onBack }: { client: ServiceClient; o
     <ScrollView contentContainerStyle={styles.screen}>
       <View style={styles.header}>
         <Pressable onPress={onBack}>
-          <Text style={styles.link}>← Workshop</Text>
+          <Text style={styles.link}>← Charter</Text>
         </Pressable>
         <Text style={styles.heading}>Permissions</Text>
       </View>

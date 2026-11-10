@@ -3,7 +3,7 @@ import { activeSectionOf } from "../src/settingsSections";
 
 const tops = { accounts: 700, defaults: 120, harnesses: 400, limits: 1400, messaging: 1000, permissions: 0 };
 
-describe("marking the Workshop section in view", () => {
+describe("marking the Charter section in view", () => {
   it("marks the first section at the top of the page", () => {
     expect(activeSectionOf({ isAtEnd: false, scrollTop: 0, tops })).toBe("permissions");
   });

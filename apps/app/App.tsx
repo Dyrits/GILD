@@ -73,8 +73,8 @@ export default function App() {
   };
   // The quest board always has its panel open, with the overview when no quest is chosen.
   const isBoard = openMission === null && place === "Quests";
-  // The Workshop's guide is pinned open like the board's panel; the Permissions screen it leads to has none.
-  const isWorkshop = openMission === null && place === "Settings" && !isPermissionsOpen;
+  // The Charter's guide is pinned open like the board's panel; the Permissions screen it leads to has none.
+  const isCharter = openMission === null && place === "Settings" && !isPermissionsOpen;
   const content =
     openMission !== null ? (
       <Conversation
@@ -122,7 +122,7 @@ export default function App() {
     <Shell
       client={client}
       details={
-        isBoard || isWorkshop
+        isBoard || isCharter
           ? { isOpen: true, isPinned: true, onToggle: () => {} }
           : openMission === null && selectedMission === null
             ? null

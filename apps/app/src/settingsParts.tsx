@@ -6,7 +6,7 @@ import { type SettingsSectionId, settingsSections } from "./settingsSections";
 import { colors, cut, fontSizes, fonts, ink, lift } from "./theme";
 
 /**
- * One parchment card of the Workshop: a red chip with the section's icon, the title in capitals, an optional
+ * One parchment card of the Charter: a red chip with the section's icon, the title in capitals, an optional
  * summary or control beside it, and below them what the card holds. With `onPress` the whole card is a link.
  */
 export function SettingsCard({
@@ -57,7 +57,7 @@ export function SettingsCard({
 export const SettingsRule = () => <View style={local.rule} />;
 
 /**
- * The menu beside the Workshop's page: one entry per section, the one in view marked. On a window with room it is a
+ * The menu beside the Charter's page: one entry per section, the one in view marked. On a window with room it is a
  * column on a parchment card; on a narrow one, a row to scroll sideways.
  */
 export function SettingsMenu({
@@ -108,7 +108,7 @@ const notes = [
   "Limits keep briefings and lore within the model's context.",
 ] as const;
 
-/** The side panel of the Workshop: what its sections do, in a few words each. */
+/** The side panel of the Charter: what its sections do, in a few words each. */
 export function SettingsGuide() {
   return (
     <View style={local.guide}>
@@ -141,9 +141,9 @@ export function SettingsHeading() {
       </View>
       <View style={local.headingText}>
         <Text accessibilityRole="header" style={local.headingTitle}>
-          Workshop
+          Charter
         </Text>
-        <Text style={local.headingLine}>Configure your guild's questing tools, accounts, and word limits.</Text>
+        <Text style={local.headingLine}>Configure your guild's accounts, budgets, and word limits.</Text>
       </View>
     </View>
   );

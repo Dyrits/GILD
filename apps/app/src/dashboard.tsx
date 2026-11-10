@@ -284,7 +284,7 @@ export function Dashboard({
           )}
           {!hasSidebar && (
             <Pressable onPress={onSettings}>
-              <Text style={[styles.link, { color: colors.goldHi }]}>Workshop</Text>
+              <Text style={[styles.link, { color: colors.goldHi }]}>Charter</Text>
             </Pressable>
           )}
         </View>

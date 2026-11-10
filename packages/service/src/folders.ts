@@ -69,7 +69,7 @@ const requireBrowsable = (path: string) =>
     if (real === null) return yield* invalid(`No folder at ${path}.`);
     const roots = yield* listBrowsableRoots;
     const root = roots.find((candidate) => isWithin(candidate, real));
-    if (root === undefined) return yield* invalid(`${path} is outside the browsable roots in the Workshop.`);
+    if (root === undefined) return yield* invalid(`${path} is outside the browsable roots in the Charter.`);
     return { path: real, root };
   });
 

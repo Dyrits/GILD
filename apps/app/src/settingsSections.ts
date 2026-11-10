@@ -1,4 +1,4 @@
-/** The Workshop's sections, in the order the menu lists them and the page shows them. */
+/** The Charter's sections, in the order the menu lists them and the page shows them. */
 export const settingsSections = [
   { icon: "shield", id: "permissions", label: "Permissions" },
   { icon: "sliders", id: "defaults", label: "Defaults" },

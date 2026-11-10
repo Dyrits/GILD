@@ -120,7 +120,7 @@ function Section({
   );
 }
 
-/** The Workshop (Settings), where the owner chooses how Gild runs their threads. */
+/** The Charter (Settings), where the owner chooses how Gild runs their threads. */
 export function SettingsScreen({
   client,
   onBack,
