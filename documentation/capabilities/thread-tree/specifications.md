@@ -14,6 +14,17 @@ Work with AI agents spreads across disconnected chats, and subagents run out of 
 - The user can open a thread beneath any thread, or a new mission. A thread can open threads only beneath itself.
 - Each thread shows its harness, agent (when one is chosen), model, effort, workspace (or none), state, and spending.
 
+### Quest tree visibility
+
+- The quest tree stays on the left of the selected conversation when the quest contains any side-quest, including nested, folded, or finished side-quests.
+- A quest with no side-quests has no tree column or space reserved for it; the conversation uses the available width.
+- The tree appears when the first side-quest is created and disappears when the last side-quest is deleted.
+- The main quest remains accessible from the tree when viewing a side-quest.
+- On narrow screens without the main left menu, the Back to quests link remains available even when there is no tree.
+- The right details panel keeps its existing behavior without new tabs.
+- Agent validation covers quests with no children, creating and deleting children, folded and finished children, selecting a child and returning to its quest, and the narrow-screen back link.
+- Human acceptance checks the appearance and conversation space in the running app.
+
 ### Opening a thread
 
 - A new thread copies its opener's harness, agent, model, effort, and workspace, unless the opener chooses otherwise, including no workspace.

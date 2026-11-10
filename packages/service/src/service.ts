@@ -2,46 +2,69 @@ import { dirname, join } from "node:path";
 import type { Request } from "@gild/contracts";
 import { Context, Effect, Layer, Match, Semaphore } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
-import { addAccount, listHarnesses, removeAccount, renameAccount, signInAccount, updateHarness } from "./accounts.ts";
-import { Approvals, approvalsLayer } from "./approvals.ts";
-import { AttachmentsRoot, addAttachment, discardAttachment, readAttachment, sweepDrafts } from "./attachments.ts";
-import { setThreadBackups } from "./backups.ts";
-import { budgetPeriodsLayer } from "./budgetPeriods.ts";
-import { applyGlobalBudget, setMissionBudget, stopAtBudget } from "./budgets.ts";
-import { readBudgetWindow } from "./budgetViews.ts";
-import { changesLayer } from "./changes.ts";
-import { resolveChatter } from "./chatter.ts";
-import { Commands, changed, commandsLayer, type FollowUps, noFollowUps, type WithFollowUps } from "./commands.ts";
-import { listMissions } from "./dashboard.ts";
-import { deleteThread, previewDeletion } from "./deleting.ts";
-import { autoArchiveLayer, dismissPrompt, endMission, previewEnding, reopenMission } from "./ending.ts";
-import { endpointsLayer } from "./endpoints.ts";
-import { invalid, ServiceFailure } from "./errors.ts";
-import type { Harness } from "./execution.ts";
-import { addBrowsableRoot, browseFolders, createFolder, seedBrowsableRoots } from "./folders.ts";
-import { readGuildmaster } from "./guildmaster.ts";
-import { guildmasterReportsLayer } from "./guildmasterReports.ts";
-import { changeThreadRunner } from "./handover.ts";
-import { fakeHarnessToolsLayer, HarnessTools } from "./harnessTools.ts";
-import { type JournalOutcome, readJournalView, updateJournal } from "./journal.ts";
-import { markThreadDone } from "./lifecycle.ts";
+import {
+  addBrowsableRoot,
+  browseFolders,
+  changesLayer,
+  createFolder,
+  endpointsLayer,
+  type Harness,
+  invalid,
+  readSettings,
+  readStartChoices,
+  ServiceFailure,
+  sandboxProblem,
+  seedBrowsableRoots,
+  storeLayer,
+  writeSettings,
+} from "./core/index.ts";
+import { fakeHarnessToolsLayer, HarnessTools, runnerOf } from "./harness/index.ts";
 import {
   deleteLoreEntryByOwner,
   editLoreEntryByOwner,
   pinLoreEntryByOwner,
+  readLoreHistory,
+  readLoreView,
   resolveLoreChange,
+  resolveLoreProposal,
   restoreLoreEntryByOwner,
-} from "./loreDecisions.ts";
-import { readLoreHistory } from "./loreHistoryViews.ts";
-import { resolveLoreProposal } from "./loreProposals.ts";
-import { undoLoreChange } from "./loreUndo.ts";
-import { readLoreView } from "./loreViews.ts";
-import { toolServerLayer } from "./mcp.ts";
-import { insertUserMessage } from "./messaging.ts";
-import { readMission } from "./missionDetail.ts";
-import { insertMission } from "./missions.ts";
-import { listPermissions, removePermission, widenPermission } from "./permissions.ts";
-import { listOpenQuestions, listQuestionHistory } from "./questions.ts";
+  undoLoreChange,
+} from "./lore/index.ts";
+import {
+  listOpenQuestions,
+  listPermissions,
+  listQuestionHistory,
+  removePermission,
+  widenPermission,
+} from "./policy/index.ts";
+import {
+  addAccount,
+  listHarnesses,
+  removeAccount,
+  renameAccount,
+  signInAccount,
+  updateHarness,
+} from "./work/accounts.ts";
+import { Approvals, approvalsLayer } from "./work/approvals.ts";
+import { AttachmentsRoot, addAttachment, discardAttachment, readAttachment, sweepDrafts } from "./work/attachments.ts";
+import { setThreadBackups } from "./work/backups.ts";
+import { budgetPeriodsLayer } from "./work/budgetPeriods.ts";
+import { applyGlobalBudget, setMissionBudget, stopAtBudget } from "./work/budgets.ts";
+import { readBudgetWindow } from "./work/budgetViews.ts";
+import { resolveChatter } from "./work/chatter.ts";
+import { Commands, changed, commandsLayer, type FollowUps, noFollowUps, type WithFollowUps } from "./work/commands.ts";
+import { listMissions } from "./work/dashboard.ts";
+import { deleteThread, previewDeletion } from "./work/deleting.ts";
+import { autoArchiveLayer, dismissPrompt, endMission, previewEnding, reopenMission } from "./work/ending.ts";
+import { readGuildmaster } from "./work/guildmaster.ts";
+import { guildmasterReportsLayer } from "./work/guildmasterReports.ts";
+import { changeThreadRunner } from "./work/handover.ts";
+import { type JournalOutcome, readJournalView, updateJournal } from "./work/journal.ts";
+import { markThreadDone } from "./work/lifecycle.ts";
+import { toolServerLayer } from "./work/mcp.ts";
+import { insertUserMessage } from "./work/messaging.ts";
+import { readMission } from "./work/missionDetail.ts";
+import { insertMission } from "./work/missions.ts";
 import {
   createRitual,
   deleteRitual,
@@ -50,21 +73,17 @@ import {
   ritualsLayer,
   runRitual,
   updateRitual,
-} from "./rituals.ts";
-import { runnerOf } from "./runners.ts";
-import { sandboxProblem } from "./sandbox.ts";
-import { readSettings, readStartChoices, writeSettings } from "./settings.ts";
-import { listSkills } from "./skills.ts";
-import { readStartingContext } from "./startingContext.ts";
-import { storeLayer } from "./store.ts";
-import { Suggestions, suggestionsLayer } from "./suggestions.ts";
-import { readThreadPanel } from "./threadPanel.ts";
-import { AccountsRoot, Threads, threadsLayer } from "./threads.ts";
-import { renameMission } from "./titles.ts";
-import { openThreadByOwner } from "./tree.ts";
-import { imageRefusalOf, readThreadRunner } from "./vision.ts";
-import { listWorkspaceEntries } from "./workspaceEntries.ts";
-import { createRealm, renameRealm, ScratchRoot, setRealmCrest } from "./workspaces.ts";
+} from "./work/rituals.ts";
+import { listSkills } from "./work/skills.ts";
+import { readStartingContext } from "./work/startingContext.ts";
+import { Suggestions, suggestionsLayer } from "./work/suggestions.ts";
+import { readThreadPanel } from "./work/threadPanel.ts";
+import { AccountsRoot, Threads, threadsLayer } from "./work/threads.ts";
+import { renameMission } from "./work/titles.ts";
+import { openThreadByOwner } from "./work/tree.ts";
+import { imageRefusalOf, readThreadRunner } from "./work/vision.ts";
+import { listWorkspaceEntries } from "./work/workspaceEntries.ts";
+import { createRealm, renameRealm, ScratchRoot, setRealmCrest } from "./work/workspaces.ts";
 
 // Stored and wire names keep `intel` so existing data and agents still work: request tags (`"ListIntel"`, ...).
 

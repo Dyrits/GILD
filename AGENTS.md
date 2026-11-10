@@ -27,6 +27,8 @@
 
 ## Handoffs
 
+To resume the source files grouped into folders (CHG-0125; committed and pushed to `main`; the running app's look after the move is unchecked), read the [current handoff](.agents/handoffs/2026-11-10-2144-source-folders.md). Handoffs are shared and committed.
+
 To resume the installed app (.dmg) and the full-project review fixes, read the [current handoff](.agents/handoffs/2026-11-10-2116-installed-app-and-review-fixes.md). Handoffs are shared and committed.
 
 To resume left-aligned conversation actions and check their appearance, read the [current handoff](.agents/handoffs/2026-11-10-1551-left-aligned-actions.md). Handoffs are shared and committed.

@@ -1,5 +1,16 @@
 # Work in progress
 
+## Compact left navigation specification · 2026-11-10
+
+The owner accepted the smaller main left menu in CHG-0123; see [mission tracking](capabilities/mission-tracking/specifications.md#compact-left-navigation).
+The owner accepted hiding the tree only when no side-quests exist and retaining its location on the left (CHG-0124).
+Implementation starts at `d421b47aaca8c0a8bfef78eb8d9a7fdda33ce554`, alongside an unrelated staged file reorganization that must be preserved.
+Built: a 220px default main left menu with 15px labels, smaller crests and icons, tighter rows, and a 60px collapsed width; existing saved widths remain respected and resizing now allows 200px.
+The quest tree renders only while any side-quest exists, including folded and finished children; the narrow-screen back link remains available without the tree.
+Checks: lint, workspace typecheck, and Expo web export pass; all 132 existing app tests pass; the sandbox blocks localhost fixtures in the full suite (216 passed, 431 failed, 10 skipped).
+Evidence and remaining acceptance: [compact navigation verification](verification/2026-11-10-compact-navigation.md).
+Next: await permission for a rerun with local networking and the browser check; the owner must review the final proportions in the running app.
+
 ## Guildmaster batch · 2026-11-10 · increments A, B, and C implemented and checked, owner review pending
 
 Agreed in CHG-0106 and CHG-0107: the Guildmaster is the one place quests start and the control panel over them, built from the full [quest coordination](capabilities/mission-coordination/specifications.md). Starting revision: `b913921`.
@@ -8,7 +19,7 @@ Checks: 29 fake-harness tests in `guildmaster.test.ts`; typecheck and Biome pass
 Awaiting the owner: the look; a live Claude Code, Codex, or OpenCode run of the Guildmaster's prompt (does it search first, pick Rituals for repeating work, never open a quest that fits, and act only when asked?).
 Not built: messages between quests by `@` reference and their event lines; the 20-message window with summarized older messages; Guildmaster's spending on the quests' dashboard.
 
-Sidebar follow-up (2026-11-10): the rail no longer lists finished (Done) quests by default; a Charter toggle ("Show finished quests in the sidebar", `shouldShowFinishedQuests`) brings them back, and a finished quest stays listed while it is open. The board and the realm counts are unchanged. Checked by `apps/app/test/railQuests.test.ts`, typecheck, lint, and the full suite (590 passed); not driven in the window; the look awaits the owner.
+Sidebar follow-up (2026-11-10): the rail no longer lists finished (Done) quests by default; a Charter toggle ("Show finished quests in the sidebar", `shouldShowFinishedQuests`) brings them back, and a finished quest stays listed while it is open. The board and the realm counts are unchanged. Checked by `apps/app/test/shell/railQuests.test.ts`, typecheck, lint, and the full suite (590 passed); not driven in the window; the look awaits the owner.
 
 ## Guild-board batch · 2026-11-09 · implemented and checked, owner review pending
 

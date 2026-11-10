@@ -28,5 +28,5 @@ Multiple terminal blocks, background-terminal selection, and Delta's shell-code 
 ## Verification
 
 `apps/desktop/test/terminals.test.ts` checks real shells in home and realm folders, session isolation, continued shell state, exit output, and explicit restart.
-`apps/app/test/terminalSnapshot.test.ts` checks context serialization, safe Markdown fences, wrapped lines, limits, and the sent block's display data.
+`apps/app/test/terminal/terminalSnapshot.test.ts` checks context serialization, safe Markdown fences, wrapped lines, limits, and the sent block's display data.
 The isolated Electron drive in `documentation/verification/2026-11-10-bang-terminal/drive.py` checks the owner interaction through the desktop preload and a fake harness.

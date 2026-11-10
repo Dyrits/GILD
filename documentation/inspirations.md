@@ -114,7 +114,7 @@ Review this list when starting a capability, and every few weeks: read each prod
   - every part of the crest has its own color, named by what it paints;
   - emblems from heraldic artwork, emoji, monograms, or a searchable symbol picker;
   - an Appearance page with presets, live preview, and per-setting reset.
-- **Taken** (2026-11-09): the crest system for realms and Crest Studio: a plate cut to a shape, a field with a second color, a band, an edge, a trim, and an emblem, drawn on a 100 by 100 grid ([`crestShapes.ts`](../apps/app/src/crestShapes.ts)); the heraldic emblems, which reach Gild through Crest Studio and are credited in [`crest-credits.md`](../apps/app/src/crest-credits.md) (game-icons.net, CC BY 3.0). The idea of giving each context a visible identity matches Gild's realms.
+- **Taken** (2026-11-09): the crest system for realms and Crest Studio: a plate cut to a shape, a field with a second color, a band, an edge, a trim, and an emblem, drawn on a 100 by 100 grid ([`crestShapes.ts`](../apps/app/src/crest/crestShapes.ts)); the heraldic emblems, which reach Gild through Crest Studio and are credited in [`crest-credits.md`](../apps/app/src/crest-credits.md) (game-icons.net, CC BY 3.0). The idea of giving each context a visible identity matches Gild's realms.
 - **License**: MPL-2.0. Ideas are written independently; the crest figures carry their own CC BY 3.0 credits. Check the license's file-level terms before copying any of its files.
 - **Check on**: its [releases](https://github.com/pauljoda/Crest/releases) and [guides](https://crestbrowser.com/guides/), especially new Crest Studio steps or emblem sources, and whether Sub-Spaces (shared sign-ins across a group) suggest grouping realms.
 

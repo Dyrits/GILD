@@ -1,11 +1,19 @@
-export { Changes } from "./changes.ts";
-export { type ClaudeOptions, claudeHarnessLayer, makeClaudeHarness } from "./claude.ts";
-export { type CodexOptions, makeCodexHarness } from "./codex.ts";
-export { ServiceFailure } from "./errors.ts";
-export { Harness, type HarnessAdapter, routeHarnesses } from "./execution.ts";
-export { fakeHarnessLayer } from "./fakeHarness.ts";
-export { harnesses, makeHarnessRouter } from "./harnesses.ts";
-export { type FakeUpdates, fakeHarnessToolsLayer, HarnessTools, liveHarnessToolsLayer } from "./harnessTools.ts";
-export { makeOpenCodeHarness, type OpenCodeOptions } from "./opencode.ts";
+export { Changes, Harness, type HarnessAdapter, routeHarnesses, ServiceFailure } from "./core/index.ts";
+export {
+  type ClaudeOptions,
+  type CodexOptions,
+  claudeHarnessLayer,
+  type FakeUpdates,
+  fakeHarnessLayer,
+  fakeHarnessToolsLayer,
+  HarnessTools,
+  harnesses,
+  liveHarnessToolsLayer,
+  makeClaudeHarness,
+  makeCodexHarness,
+  makeHarnessRouter,
+  makeOpenCodeHarness,
+  type OpenCodeOptions,
+} from "./harness/index.ts";
 export { serveLoopback } from "./server.ts";
 export { Service, type ServiceOptions, serviceLayer } from "./service.ts";

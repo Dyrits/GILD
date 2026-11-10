@@ -3,7 +3,7 @@ import type { MissionEnding, MissionId, MissionList, Settings } from "@gild/cont
 import { Effect, PubSub } from "effect";
 import { TestClock } from "effect/testing";
 import { afterEach } from "vitest";
-import { Changes } from "../src/changes.ts";
+import { Changes } from "../src/core/index.ts";
 import { call, fixture, open, read, send, start } from "./fixtures/service.ts";
 
 const fixtures: ReturnType<typeof fixture>[] = [];

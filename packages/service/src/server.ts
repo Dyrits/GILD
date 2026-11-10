@@ -10,7 +10,7 @@ import {
 } from "@gild/contracts";
 import { Effect, Exit, PubSub, Schema } from "effect";
 import { WebSocket, WebSocketServer } from "ws";
-import { Changes } from "./changes.ts";
+import { Changes } from "./core/index.ts";
 import { Service } from "./service.ts";
 
 const decodeClientFrame = Schema.decodeUnknownExit(ClientFrameJson);

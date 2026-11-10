@@ -15,6 +15,13 @@ How code is written in this project. Project-agnostic: every rule could be trans
 
 - **A block is extracted once it can carry its own name**, and a file is split by responsibility past about 250 lines: named steps read as an outline of the work, and a small file keeps a review on one responsibility.
 
+## Layout
+
+- **A folder holds modules that depend only on folders before it**, so folder imports run one way and never in a ring: a ring of folders only looks separate, and a change still crosses all of them. Check it from the import graph before cutting a folder.
+- **A folder's `index.ts` exports only what other folders import**: the file is the folder's interface, and a name nobody outside uses stays internal. Outside code imports the folder through it; inside the folder, files import each other directly, so loading never loops through the index.
+- **A split file stays in its folder**, and the part another folder needs is moved down to the shared folder that folder already depends on, not imported back up.
+- **Tests mirror the folders** (`test/<folder>/<module>.test.ts`) and import through the folder's `index.ts` where it exports what they use; a test that needs an internal name imports the file, which shows where the interface is too narrow. Shared fixtures stay in `test/fixtures/`.
+
 ## Types and absence
 
 - **Own values are never set to `undefined`; deliberate absence is `null`**: `undefined` only arrives from outside, from a side effect or an API (a missing row or array element, `Map.get`, an omitted optional field), so it never means "decided to be empty". Where an API requires `undefined`, write `void 0`.

@@ -1,0 +1,415 @@
+import type { AttachmentId, BudgetScope, MessageDelivery, MissionDetail, MissionId, ThreadId } from "@gild/contracts";
+import { useEffect, useRef, useState } from "react";
+import {
+  FlatList,
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  Pressable,
+  Text,
+  useWindowDimensions,
+  View,
+} from "react-native";
+import { imageRefusalOf } from "../attachments/attachmentRules";
+import { BudgetScreen, BudgetStopCard } from "../editors/budgets";
+import { RunnerPickers, useHarnesses } from "../editors/runners";
+import { messageOf, newRequestId, type ServiceClient } from "../foundation/client";
+import { companionLabelOf, effortLabel, harnessLabels, modelLabelOf } from "../foundation/formatting";
+import { countedOf } from "../foundation/labels";
+import { useHasSidebar, useHasTopBar, useQuestPanel } from "../foundation/shellContext";
+import { styles } from "../foundation/styles";
+import { useServiceQuery } from "../foundation/useServiceQuery";
+import { useSkills } from "../foundation/useSkills";
+import { JournalScreen } from "../lore/journal";
+import { LoreIcon, LoreScreen } from "../lore/lore";
+import { MissingFolderNotice } from "../realms/workspaces";
+import { useTerminal } from "../terminal/useTerminal";
+import { Composer, StateBadge } from "../ui/controls";
+import { AgentReply, EntryView, WorkingIndicator } from "./conversationEntries";
+import { type Entry, entriesOf, workingLabelOf } from "./entries";
+import { ChatterNotices, DeleteThreadAction } from "./threadActions";
+import { ThreadPanel } from "./threadPanel";
+import { OpenThreadForm, ThreadTree } from "./threadTree";
+
+/** The reply a thread is writing, while the service streams it. */
+export function useDraft(client: ServiceClient, threadId: string | null) {
+  const [draft, setDraft] = useState("");
+  useEffect(() => {
+    setDraft("");
+    const unsubscribe = client.subscribeDrafts((id, text) => {
+      if (id === threadId) setDraft(text);
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [client, threadId]);
+  return draft;
+}
+
+/**
+ * Keeps the newest entry in view, so a reply or a question is seen as it arrives,
+ * unless the owner has scrolled up to read earlier entries. Sending follows again.
+ */
+export function useFollowNewest() {
+  const list = useRef<FlatList<Entry>>(null);
+  const isAtEnd = useRef(true);
+  return {
+    follow: () => {
+      isAtEnd.current = true;
+    },
+    listProps: {
+      onContentSizeChange: (_width: number, height: number) => {
+        // scrollToEnd relies on item measurements the list may not have yet; the content height is known here.
+        if (isAtEnd.current) list.current?.scrollToOffset({ animated: false, offset: height });
+      },
+      onScroll: ({ nativeEvent }: NativeSyntheticEvent<NativeScrollEvent>) => {
+        const { contentOffset, contentSize, layoutMeasurement } = nativeEvent;
+        isAtEnd.current = contentOffset.y + layoutMeasurement.height >= contentSize.height - 48;
+      },
+      ref: list,
+      scrollEventThrottle: 100,
+    },
+  };
+}
+
+/** A thread title cut for a one-line label. */
+/** The selected thread: its settings, notices, conversation, and composer. */
+function ThreadPane({
+  canOpenDetails,
+  client,
+  detail,
+  onSelect,
+  onDeleted,
+  onOpenMission,
+  onOpenBudget,
+  onOpenDetails,
+  onOpenLore,
+}: {
+  /** Whether this thread's header offers the link to the quest's side panel, where no top bar has the icon. */
+  canOpenDetails: boolean;
+  client: ServiceClient;
+  onOpenDetails: () => void;
+  onDeleted: () => void;
+  onOpenBudget: () => void;
+  onOpenLore: () => void;
+  onOpenMission: (missionId: MissionId) => void;
+  detail: MissionDetail;
+  onSelect: (threadId: ThreadId) => void;
+}) {
+  const { thread } = detail;
+  const work = thread.parentId === null ? "quest" : "side-quest";
+  const draft = useDraft(client, thread.id);
+  const skills = useSkills(client, thread.workspace?.path ?? null);
+  const [actionError, setActionError] = useState<string | null>(null);
+  const [isOpening, setIsOpening] = useState(false);
+  const terminal = useTerminal(thread.id, thread.workspace?.path ?? null);
+  const followNewest = useFollowNewest();
+  const { data: harnesses } = useHarnesses(client);
+  const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
+  const { canOpenBeneath, canResume, canStop, isInTurn } = thread.actions;
+  const parent = detail.threads.find((candidate) => candidate.id === thread.parentId);
+  const defaultDelivery = settings?.defaultDelivery ?? "Steer";
+  const other = ({ Queue: "Steer", Steer: "Queue" } as const satisfies Record<MessageDelivery, MessageDelivery>)[
+    defaultDelivery
+  ];
+  const sendAs =
+    (delivery: MessageDelivery | null) => async (text: string, attachmentIds: ReadonlyArray<AttachmentId>) => {
+      const prepared = await terminal.prepare(text);
+      followNewest.follow();
+      await client.request({
+        _tag: "SendMessage",
+        attachmentIds,
+        delivery,
+        requestId: newRequestId(),
+        text: prepared,
+        threadId: thread.id,
+      });
+      terminal.sent();
+    };
+  const entries = entriesOf(detail, isInTurn);
+  const act = (request: Promise<unknown>) =>
+    request.then(
+      () => setActionError(null),
+      (reason) => setActionError(messageOf(reason)),
+    );
+  return (
+    <View style={[styles.flex, styles.pane]}>
+      <View style={styles.header}>
+        <Text numberOfLines={1} style={[styles.paneTitle, styles.flex]}>
+          {thread.title}
+        </Text>
+        <LoreIcon gauge={detail.loreGauge} onPress={onOpenLore} />
+        <StateBadge state={thread.state} />
+        {canStop && (
+          <Pressable onPress={() => act(client.request({ _tag: "StopThread", threadId: thread.id }))}>
+            <Text style={styles.link}>Stop</Text>
+          </Pressable>
+        )}
+        {canResume && (
+          <Pressable onPress={() => act(client.request({ _tag: "ResumeThread", threadId: thread.id }))}>
+            <Text style={styles.link}>Resume</Text>
+          </Pressable>
+        )}
+        {canOpenDetails && (
+          <Pressable onPress={onOpenDetails}>
+            <Text style={styles.link}>Quest panel</Text>
+          </Pressable>
+        )}
+        {canOpenBeneath && !isOpening && (
+          <Pressable onPress={() => setIsOpening(true)}>
+            <Text style={styles.link}>Open side-quest</Text>
+          </Pressable>
+        )}
+      </View>
+      {parent !== undefined && (
+        <Pressable onPress={() => onSelect(parent.id)}>
+          <Text numberOfLines={1} style={styles.link}>
+            Opened from: {parent.title}
+          </Text>
+        </Pressable>
+      )}
+      <DeleteThreadAction client={client} onDeleted={onDeleted} threadId={thread.id} />
+      <ChatterNotices client={client} notices={detail.chatter} />
+      {detail.budgetStop !== null && <BudgetStopCard client={client} onRaise={onOpenBudget} stop={detail.budgetStop} />}
+      {actionError !== null && <Text style={styles.error}>{actionError}</Text>}
+      <Text numberOfLines={1} style={styles.muted}>
+        {harnessLabels[thread.harness]}
+        {thread.accountId === null ? "" : ` (${thread.accountLabel})`} · {modelLabelOf(thread.model)} ·{" "}
+        {effortLabel(thread.effort)} ·{" "}
+        {thread.workspace === null
+          ? "No realm: the quest's scratch folder"
+          : `Realm ${thread.workspace.name} · ${thread.workspace.path}`}
+        {thread.workspace?.isMissing === true && " · folder missing"}
+      </Text>
+      {thread.state === "Stopped" && thread.waitingCount > 0 && (
+        <Text style={styles.muted}>
+          {countedOf(thread.waitingCount, "message")} {thread.waitingCount === 1 ? "waits" : "wait"} until you resume
+          this
+          {work}.
+        </Text>
+      )}
+      {thread.blocker === "MissingWorkspace" && thread.workspace !== null && (
+        <MissingFolderNotice client={client} path={thread.workspace.path} threadId={thread.id} />
+      )}
+      {thread.failure != null && (
+        <View style={styles.failure}>
+          <Text style={styles.error}>The last turn failed: {thread.failure}</Text>
+          <Text style={styles.muted}>Your next message retries it.</Text>
+        </View>
+      )}
+      <FlatList<Entry>
+        {...followNewest.listProps}
+        contentContainerStyle={styles.feed}
+        data={entries}
+        keyExtractor={(entry) => entry.key}
+        ListFooterComponent={
+          <View>
+            {draft === "" ? (
+              thread.actions.isInTurn ? (
+                <WorkingIndicator harness={thread.harness} label={workingLabelOf(entries)} />
+              ) : (
+                void 0
+              )
+            ) : (
+              <AgentReply
+                harness={thread.harness}
+                isDraft
+                label={`${companionLabelOf(thread.harness, null, thread.model)} · writing…`}
+                text={draft}
+                time={null}
+              />
+            )}
+            {terminal.panel}
+          </View>
+        }
+        renderItem={({ item }) => (
+          <EntryView
+            client={client}
+            entry={item}
+            harness={thread.harness}
+            onOpenMission={onOpenMission}
+            onSelectThread={onSelect}
+            skills={skills}
+            workspacePath={thread.workspace?.path ?? null}
+          />
+        )}
+        style={styles.flex}
+      />
+      {isOpening ? (
+        <OpenThreadForm
+          client={client}
+          onCancel={() => setIsOpening(false)}
+          onOpened={(threadId) => {
+            setIsOpening(false);
+            onSelect(threadId);
+          }}
+          parent={thread}
+        />
+      ) : (
+        <Composer
+          hasContent={terminal.hasContent}
+          {...(terminal.onBang === null ? {} : { onBang: terminal.onBang })}
+          attachments={{ client, refusal: imageRefusalOf(harnesses, thread.harness, thread.model) }}
+          mentions={{ client, workspacePath: thread.workspace?.path ?? null }}
+          skills={skills}
+          // The harness, account, Companion, and effort can change between turns: a handover (thread-handover).
+          {...(isInTurn
+            ? {}
+            : {
+                accessory: (
+                  <RunnerPickers
+                    harnesses={harnesses}
+                    isCompact={true}
+                    onChange={(next) =>
+                      act(client.request({ _tag: "ChangeThreadRunner", ...next, threadId: thread.id }))
+                    }
+                    value={{
+                      accountId: thread.accountId,
+                      effort: thread.effort,
+                      harness: thread.harness,
+                      model: thread.model,
+                    }}
+                  />
+                ),
+              })}
+          {...(isInTurn
+            ? {
+                alternative: { label: other, onSend: sendAs(other) },
+                onInterrupt: () => client.request({ _tag: "InterruptThread", threadId: thread.id }),
+              }
+            : {})}
+          onSend={sendAs(isInTurn ? defaultDelivery : null)}
+          placeholder={
+            thread.state === "Stopped"
+              ? `Write to this ${work}; it waits until you resume it…`
+              : isInTurn
+                ? `Write to this ${work}; Send ${defaultDelivery === "Steer" ? "joins its current turn" : "waits for its next turn"}…`
+                : `Write to this ${work}…`
+          }
+        />
+      )}
+    </View>
+  );
+}
+
+/** A mission: its thread tree on the side, the selected thread's conversation beside it. */
+export function Conversation({
+  client,
+  missionId,
+  onBack,
+  onOpenMission,
+  onSetDetails,
+}: {
+  client: ServiceClient;
+  missionId: MissionId;
+  /** Opens or closes the quest's side panel. */
+  onSetDetails: (isOpen: boolean) => void;
+  onBack: () => void;
+  /** Opens another mission, such as where an off-topic request went. */
+  onOpenMission: (missionId: MissionId) => void;
+}) {
+  const { width } = useWindowDimensions();
+  const isCompact = width < 820;
+  const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
+  const [selectedId, setSelectedId] = useState<ThreadId | null>(null);
+  const [isJournalOpen, setIsJournalOpen] = useState(false);
+  const hasTopBar = useHasTopBar();
+  const hasSidebar = useHasSidebar();
+  const [loreThread, setLoreThread] = useState<{ id: ThreadId; title: string } | null>(null);
+  const [budgetScope, setBudgetScope] = useState<BudgetScope | null>(null);
+  const { data, error } = useServiceQuery(
+    client,
+    { _tag: "ReadMission", missionId, threadId: selectedId },
+    `${missionId}:${selectedId ?? "top"}`,
+  );
+  // A query for a newly selected thread answers after the previous one; keep showing what matches.
+  const detail = data !== null && (selectedId === null || data.thread.id === selectedId) ? data : null;
+  // The quest's side panel is shown by the window's frame, beside the top bar's icon, not by this screen. It holds
+  // the open thread's groups too: while another thread loads, the one before stays.
+  const shown = detail ?? data;
+  const hasSideQuests = data?.threads.some((thread) => thread.parentId !== null) ?? false;
+  useQuestPanel(
+    shown && (
+      <ThreadPanel
+        client={client}
+        detail={shown}
+        onOpenBudget={() => setBudgetScope("Mission")}
+        onOpenJournal={() => setIsJournalOpen(true)}
+        onOpenLore={() => setLoreThread({ id: shown.thread.id, title: shown.thread.title })}
+        onOpenQuest={() => setSelectedId(shown.mission.topThreadId)}
+      />
+    ),
+  );
+  if (budgetScope !== null) {
+    return (
+      <BudgetScreen
+        client={client}
+        missionId={budgetScope === "Mission" ? missionId : null}
+        onBack={() => setBudgetScope(null)}
+        title={budgetScope === "Mission" ? `Budget · ${data?.mission.title ?? ""}` : "Global budget"}
+      />
+    );
+  }
+  if (loreThread !== null) {
+    return (
+      <LoreScreen
+        client={client}
+        onBack={() => setLoreThread(null)}
+        threadId={loreThread.id}
+        title={`Lore · ${loreThread.title}`}
+      />
+    );
+  }
+  if (isJournalOpen) {
+    return (
+      <JournalScreen
+        client={client}
+        missionId={missionId}
+        onBack={() => setIsJournalOpen(false)}
+        title={data?.mission.title ?? ""}
+      />
+    );
+  }
+  return (
+    <View style={[styles.questLayout, isCompact && styles.questLayoutCompact]}>
+      {hasSideQuests && (
+        <View style={[styles.questSide, isCompact && styles.questSideCompact]}>
+          {!hasSidebar && (
+            <Pressable onPress={onBack}>
+              <Text style={styles.link}>← Quests</Text>
+            </Pressable>
+          )}
+          {data && (
+            <ThreadTree
+              onSelect={setSelectedId}
+              selectedId={data.thread.id}
+              shouldShowAgentThreads={settings?.shouldShowAgentThreads ?? true}
+              threads={data.threads}
+            />
+          )}
+        </View>
+      )}
+      <View style={styles.questMain}>
+        {!hasSidebar && !hasSideQuests && (
+          <Pressable onPress={onBack}>
+            <Text style={styles.link}>← Quests</Text>
+          </Pressable>
+        )}
+        {error !== null && <Text style={styles.error}>{error}</Text>}
+        {detail && (
+          <ThreadPane
+            canOpenDetails={!hasTopBar}
+            client={client}
+            detail={detail}
+            key={detail.thread.id}
+            onDeleted={() => (detail.thread.parentId === null ? onBack() : setSelectedId(detail.thread.parentId))}
+            onOpenBudget={() => setBudgetScope(detail.budgetStop?.scope ?? "Mission")}
+            onOpenDetails={() => onSetDetails(true)}
+            onOpenLore={() => setLoreThread({ id: detail.thread.id, title: detail.thread.title })}
+            onOpenMission={onOpenMission}
+            onSelect={setSelectedId}
+          />
+        )}
+      </View>
+    </View>
+  );
+}

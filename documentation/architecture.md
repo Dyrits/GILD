@@ -56,6 +56,13 @@ Mission-state ownership is settled provisionally. Execution, guest discussion be
 
 ### Inside the local service (as built)
 
+Source layout (`packages/service/src`, CHG-0125): a folder holds modules that depend only on folders before it, and each folder's `index.ts` is its interface, exporting only what other folders use.
+`core/` is the shared base (errors, changes, settings, store, spending, execution types, tokens, words), `harness/` the adapters and the tools that ask them (everything under "Harnesses and accounts" except `accounts.ts`), `lore/` the lore store and its policy (`loreTools.ts` sits in `work/`, beside the other thread-tool bindings), and `policy/` the permission patterns, quotes, and questions.
+`work/` holds the modules that call one another in a ring (threads, tree, lifecycle, missions, the Guildmaster, rituals, budgets, the tool server) and stays one folder until its own seams are settled; `service.ts`, `server.ts`, `main.ts`, and `index.ts` stay in `src/` as the entry points.
+The files named below keep their names; find one by name under its folder.
+The app (`apps/app/src`) groups by part, and its folders form one downward chain without cycles: `foundation`, `attachments`, `terminal`, `ui`, `editors`, `crest`, `realms`, `rituals`, `quests`, `lore`, `conversation`, `settings`, `shell`.
+Tests mirror the folders under `test/`; shared fixtures stay in `test/fixtures/`.
+
 - **Thread lifecycle** (`lifecycle.ts`): the only writer of a thread's state and blocker. Callers name a transition (start or end a turn, fail, hold in a turn or for a reason, release, stop, resume, recover at startup); each keeps the tree's rules, such as a parent left Waiting with nothing at work beneath it becoming Idle. It also works out the actions the owner can take on a thread.
 - **Waiting on the owner** (`attention.ts`): one way for approval questions and off-topic suggestions to ask inside a turn, wait without a time limit, and be answered or withdrawn.
 - **Thread inbox** (`messaging.ts`): a thread's message history, its order, and what waits to be delivered; `activity.ts` records a mission's latest activity.

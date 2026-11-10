@@ -2,11 +2,8 @@ import { homedir } from "node:os";
 // Entry point when Electron starts the service as a utilityProcess.
 import { join } from "node:path";
 import { Cause, Config, Effect, Exit, Layer } from "effect";
-import { Harness } from "./execution.ts";
-import { fakeHarnessLayer } from "./fakeHarness.ts";
-import { makeHarnessRouter } from "./harnesses.ts";
-import { fakeHarnessToolsLayer, liveHarnessToolsLayer } from "./harnessTools.ts";
-import { sandboxProblem } from "./sandbox.ts";
+import { Harness, sandboxProblem } from "./core/index.ts";
+import { fakeHarnessLayer, fakeHarnessToolsLayer, liveHarnessToolsLayer, makeHarnessRouter } from "./harness/index.ts";
 import { serveLoopback } from "./server.ts";
 import { serviceLayer } from "./service.ts";
 

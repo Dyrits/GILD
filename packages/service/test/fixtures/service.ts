@@ -11,8 +11,8 @@ import type {
   ThreadId,
 } from "@gild/contracts";
 import { Effect, type Layer } from "effect";
-import { Endpoints } from "../../src/endpoints.ts";
-import { callThreadTool } from "../../src/fakeHarness.ts";
+import { Endpoints } from "../../src/core/index.ts";
+import { callThreadTool } from "../../src/harness/fakeHarness.ts";
 import { fakeHarnessLayer, type HarnessTools, Service, serviceLayer } from "../../src/index.ts";
 
 /** An isolated service with the scripted fake harness and real temporary SQLite. */

@@ -54,6 +54,14 @@ When work runs in many threads across harnesses, the user loses track of which m
 
 - A mission's spending is the total of its threads' spending, in each provider's own unit: a cost for API-key providers, tokens for subscriptions, which report no price. Tokens are never converted into a price.
 
+### Compact left navigation
+
+- The owner agreed on 2026-11-10 to a narrower main left menu with smaller icons, tighter rows, readable labels, and the existing collapse and resize controls.
+- The starting proportions are about 220px wide and 15px labels instead of 17px, with less space around crests and the Guild styling retained.
+- The owner judges the final proportions in the running app.
+- The quest tree's separate column follows [quest tree visibility](../thread-tree/specifications.md#quest-tree-visibility).
+- Agent validation checks navigation, collapse, resizing, and readable access to long labels at the reduced width; human acceptance checks the proportions in the running app.
+
 ## External contract
 
 Threads use this thread tool (see [0005](../../architecture-decision-record/0005-thread-tools-over-mcp.md)):

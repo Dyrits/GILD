@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { DesktopBridge, TerminalSession } from "../../app/src/desktopBridge.ts";
+import type { DesktopBridge, TerminalSession } from "../../app/src/foundation/desktopBridge.ts";
 
 // The endpoint carries the per-launch owner token for the local service.
 contextBridge.exposeInMainWorld("gild", {

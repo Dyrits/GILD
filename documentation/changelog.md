@@ -1758,3 +1758,43 @@ Validation: desktop typecheck, Biome, and the instance, app-file, shell-path, an
 Found and fixed while verifying: the bundle's seal was broken until the build signed it ad hoc with the hardened runtime off; the service found none of `claude`, `codex`, or `opencode` on a Finder launch's path, so the installed app now reads the login shell's path (`shellPath.ts`); and terminals failed inside the archive because node-pty's helper was repaired at its `app.asar` path instead of `app.asar.unpacked`.
 Not done: opening the image on the owner's own `Gild` data (the owner quits any running old instance first), signing and notarizing for other computers, and a live harness run from the installed app.
 `bun run dev` now starts on an empty "Gild Dev" folder; the owner's existing data stays in `Gild`, for the installed app.
+
+## CHG-0123 · 2026-11-10 · Compact left navigation
+
+Type: Documentation
+Event: Agreement
+Scope: Mission tracking
+
+Summary: The owner accepted a narrower main left menu, smaller icons, tighter rows, readable labels, and the existing collapse and resize controls, starting around 220px wide with 15px labels and less space around crests.
+Reason: The current menu takes too much space beside the conversation.
+References: [Mission tracking](capabilities/mission-tracking/specifications.md#compact-left-navigation).
+Validation: The owner answered "1/ Okay" to the smaller-menu proposal; final proportions require review in the running app.
+Evidence: The owner's reply leaves the quest tree's location unresolved ("2/ Not sure about that"); right-panel tabs and conditional tree visibility are not authorized.
+
+## CHG-0124 · 2026-11-10 · Hide the tree for quests without side-quests
+
+Type: Documentation
+Event: Agreement
+Scope: Thread tree
+
+Summary: The quest tree stays on the left and its entire column disappears when the quest has no side-quests; the right details panel keeps its existing behavior.
+Reason: A quest with a single conversation does not need a separate navigation column.
+References: [Thread tree](capabilities/thread-tree/specifications.md#quest-tree-visibility), [compact left navigation](capabilities/mission-tracking/specifications.md#compact-left-navigation).
+Validation: The owner accepted the proposal with "Let's do that to start with".
+Evidence: This settles the tree's visibility and location left open in CHG-0123; the owner has not accepted right-panel tabs.
+
+## CHG-0125 · 2026-11-10 · Source files grouped into folders
+
+Type: Code and documentation
+Event: Delivery
+Scope: Code layout of `packages/service` and `apps/app`
+
+Summary: At the owner's request ("Apply all the recommendations" of the architecture audit of 2026-11-10 21:19, which asked for a better file structure than every file in `src`), the service's 86 files moved into `core/`, `harness/`, `lore/`, `policy/`, and `work/`, and the app's 88 files into 13 folders; tests mirror the folders.
+Each service folder other than `work/` has an `index.ts` exporting what other folders import; the app has none.
+The audit's candidate 2, splitting `work/` by seam, was not applied: its report advised against it until `work/` is deepened.
+Back-edges removed to make the folders one-way: `tokens.ts`, `words.ts`, `toolAnswer.ts` moved down to `core/`, `toolNames.ts` to `harness/`, `loreTools.ts` and the budget modules to `work/`, and `ThreadAccess` gained `unaskedTools`, so Claude Code's arguments no longer import the tool server.
+In the app, the shell's context hooks moved to `foundation/shellContext.tsx`, `boardColumns` to `foundation/`, and `questions` to `ui/`.
+Reason: Eighty-odd files in one directory hid which modules belong together; the folders follow the import graph.
+References: documentation/architecture-audit/architecture-audit-2026-11-10-2119.html, documentation/conventions.md (Layout), documentation/architecture.md (Source layout).
+Validation: `bun run typecheck` and `bun run check` pass; `bun run test --maxWorkers=4` passes (647 passed, 10 skipped live); `expo export --platform web` and the desktop `bun build` of the service and main process bundle.
+Evidence: the default `bun run test` times out on 5 service tests under full parallel load, identically on the unmoved commit d421b47; no behavior changed besides the added `unaskedTools` field.

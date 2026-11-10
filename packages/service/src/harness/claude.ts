@@ -1,0 +1,217 @@
+import type { TokenUsage } from "@gild/contracts";
+import { type Duration, Effect, Layer, Queue } from "effect";
+import {
+  fieldOf,
+  Harness,
+  HarnessFailure,
+  type ImageAttachment,
+  numberFieldOf,
+  readImages,
+  textFieldOf,
+  turnMessageOf,
+} from "../core/index.ts";
+import { type AccessOptions, accessArgsOf, baseArgsOf, noTimeLimit } from "./claudeArgs.ts";
+import { accountEnvironmentOf } from "./harnessCatalog.ts";
+import { type HarnessConnection, type HarnessProtocol, makeHarnessProcesses } from "./harnessProcesses.ts";
+import { harnessEnvironmentOf, type StreamJsonProcess, startStreamJsonProcess } from "./lineProcess.ts";
+
+// Claude Code through `claude -p` in stream-json mode (ADR 0008; CHG-0027): one process per thread.
+
+/** How the Claude Code adapter starts its harness. */
+export interface ClaudeOptions extends AccessOptions {
+  /** The executable; `claude` on the PATH by default. */
+  readonly command: string;
+  /** How long an idle thread keeps its process. */
+  readonly idleTimeout: Duration.Input;
+  /** Arguments placed before Claude Code's own, used to run a stand-in script in checks. */
+  readonly prefixArgs?: ReadonlyArray<string>;
+}
+
+interface ClaudeConnection extends HarnessConnection {
+  /** The cost Claude Code last reported for this process, which it adds up across turns (provisional, unprobed). */
+  lastTotalCost: number;
+  readonly process: StreamJsonProcess;
+}
+
+/** The model that wrote a message, or null when none is named; Claude Code's own placeholder `<synthetic>` names none. */
+const reportedModelOf = (message: unknown): string | null => {
+  const model = textFieldOf(message, "model");
+  return model === null || model.startsWith("<") ? null : model;
+};
+
+/** The turn's own cost from the result's running total; a total that fell means a fresh count. */
+const turnCostOf = (connection: ClaudeConnection, total: unknown): number | null => {
+  if (typeof total !== "number" || !Number.isFinite(total)) return null;
+  const cost = total >= connection.lastTotalCost ? total - connection.lastTotalCost : total;
+  connection.lastTotalCost = total;
+  return Math.round(cost * 1e6) / 1e6;
+};
+
+/** The child's environment, signed in with the turn's account (provider-accounts). */
+const childEnvironment = (configDirectory: string | null) =>
+  harnessEnvironmentOf({ ...accountEnvironmentOf("claude", configDirectory), MCP_TOOL_TIMEOUT: String(noTimeLimit) });
+
+const usageOf = (usage: unknown): TokenUsage | null =>
+  usage === undefined || usage === null
+    ? null
+    : {
+        cacheCreation: numberFieldOf(usage, "cache_creation_input_tokens"),
+        cacheRead: numberFieldOf(usage, "cache_read_input_tokens"),
+        input: numberFieldOf(usage, "input_tokens"),
+        output: numberFieldOf(usage, "output_tokens"),
+      };
+
+/** What a model call's prompt and reply held, or null when the call reported no usage. */
+const contextOf = (usage: TokenUsage | null) =>
+  usage === null ? null : usage.input + usage.cacheRead + usage.cacheCreation + usage.output;
+
+/** A user message's content: the text alone, or the text then one base64 image block per image (message-attachments). */
+const contentOf = (text: string, images: ReadonlyArray<ImageAttachment>) =>
+  Effect.gen(function* () {
+    if (images.length === 0) return text;
+    const read = yield* readImages(images);
+    return [
+      { text, type: "text" },
+      ...read.map((image) => ({
+        source: { data: image.data, media_type: image.mediaType, type: "base64" },
+        type: "image",
+      })),
+    ];
+  });
+
+const textOf = (content: unknown) =>
+  Array.isArray(content)
+    ? content
+        .filter((block) => textFieldOf(block, "type") === "text")
+        .map((block) => textFieldOf(block, "text") ?? "")
+        .join("")
+    : "";
+
+/** Why a turn's error result failed it, from the fields Claude Code reports. */
+const failureReasonOf = (event: unknown, reportedError: string | null) => {
+  const result = textFieldOf(event, "result");
+  const errors = fieldOf(event, "errors");
+  return (
+    reportedError ??
+    (result !== null && result !== "" ? result : null) ??
+    (Array.isArray(errors) ? errors.join("; ") : null) ??
+    `Claude Code reported ${textFieldOf(event, "subtype") ?? "an error"}.`
+  );
+};
+
+/** Claude Code's protocol: a user message per turn, read until its result. */
+const claudeProtocolOf = (options: ClaudeOptions): HarnessProtocol<ClaudeConnection> => ({
+  interrupt: (connection) =>
+    Effect.sync(() => {
+      connection.process.write({
+        request: { subtype: "interrupt" },
+        request_id: crypto.randomUUID(),
+        type: "control_request",
+      });
+      return true;
+    }),
+
+  // A changed level, set of permissions, set of workspace instructions, model, effort, folder, or account
+  // restarts the process, resuming its conversation; the journal and lore ride on the turn's message instead.
+  restartKeyOf: (request) =>
+    JSON.stringify([
+      accessArgsOf(request.access, request.context, options),
+      request.configDirectory,
+      request.cwd,
+      request.effort,
+      request.model,
+    ]),
+
+  runTurn: (connection, request, turn) =>
+    Effect.gen(function* () {
+      const content = yield* contentOf(turnMessageOf(request), request.images);
+      connection.process.write({ message: { content, role: "user" }, type: "user" });
+      let draft = "";
+      let reportedError: string | null = null;
+      // The latest call's own usage is the context then; the result's usage sums every call of the turn.
+      let context: number | null = null;
+      for (;;) {
+        const item = yield* Queue.take(connection.process.incoming);
+        if (item._tag === "Exit") return yield* new HarnessFailure({ reason: item.reason });
+        const event = item.message;
+        const type = textFieldOf(event, "type");
+        if (type === "user") {
+          // Only steered messages are tracked; the turn's own message and tool results are not.
+          const uuid = textFieldOf(event, "uuid");
+          if (uuid !== null) yield* turn.deliver(uuid);
+        } else if (type === "stream_event") {
+          const inner = fieldOf(event, "event");
+          const innerType = textFieldOf(inner, "type");
+          const delta = fieldOf(inner, "delta");
+          if (innerType === "message_start") draft = "";
+          if (innerType === "content_block_delta" && textFieldOf(delta, "type") === "text_delta") {
+            draft += textFieldOf(delta, "text") ?? "";
+            yield* request.onEvent({ _tag: "Draft", text: draft });
+          }
+        } else if (type === "assistant") {
+          const text = textOf(fieldOf(fieldOf(event, "message"), "content"));
+          const error = fieldOf(event, "error");
+          const call = contextOf(usageOf(fieldOf(fieldOf(event, "message"), "usage")));
+          // A synthetic message reports zeros, which are no measure.
+          if (call !== null && call > 0) context = call;
+          draft = "";
+          // A synthetic assistant message carrying `error` reports a failure, not a reply.
+          if (error !== undefined && error !== null) reportedError = text || String(error);
+          else if (text.trim() !== "")
+            yield* request.onEvent({ _tag: "Reply", model: reportedModelOf(fieldOf(event, "message")), text });
+        } else if (type === "result") {
+          // An interrupted turn ends with an error result, which is no failure (probe of 2026-11-06).
+          const usage = usageOf(fieldOf(event, "usage"));
+          const cost = turnCostOf(connection, fieldOf(event, "total_cost_usd"));
+          if (turn.isInterrupting()) return { context, cost, isInterrupted: true, usage };
+          if (fieldOf(event, "is_error") === true || reportedError !== null)
+            return yield* new HarnessFailure({ reason: failureReasonOf(event, reportedError) });
+          return { context, cost, isInterrupted: false, usage };
+        }
+      }
+    }),
+
+  start: (request) =>
+    Effect.gen(function* () {
+      const isResuming = request.sessionId !== null;
+      const sessionId = request.sessionId ?? crypto.randomUUID();
+      const process = yield* startStreamJsonProcess({
+        args: [
+          ...(options.prefixArgs ?? []),
+          ...baseArgsOf(request.access.unaskedTools),
+          ...accessArgsOf(request.access, request.context, options),
+          ...(isResuming ? ["--resume", sessionId] : ["--session-id", sessionId]),
+          ...(request.model === "default" ? [] : ["--model", request.model]),
+          ...(request.effort === "default" ? [] : ["--effort", request.effort]),
+        ],
+        command: options.command,
+        cwd: request.cwd,
+        env: childEnvironment(request.configDirectory),
+        label: "Claude Code",
+      });
+      return {
+        close: process.close,
+        hasExited: process.hasExited,
+        lastTotalCost: 0,
+        process,
+        sessionId,
+      } satisfies ClaudeConnection;
+    }),
+
+  // A user message written mid-turn joins it after the current tool call; its uuid comes back in the echo
+  // once taken in (probe of 2026-11-06, Claude Code 2.1.302).
+  steer: (connection, message) =>
+    contentOf(message.text, message.images).pipe(
+      Effect.map((content) => {
+        connection.process.write({ message: { content, role: "user" }, type: "user", uuid: message.id });
+        return true;
+      }),
+      Effect.catch(() => Effect.succeed(false)),
+    ),
+});
+
+/** The Claude Code adapter, whose processes close with the scope that made it. */
+export const makeClaudeHarness = (options: ClaudeOptions) => makeHarnessProcesses(claudeProtocolOf(options), options);
+
+/** Runs each thread in one long-lived `claude -p` stream-json process (CHG-0027). */
+export const claudeHarnessLayer = (options: ClaudeOptions) => Layer.effect(Harness, makeClaudeHarness(options));
