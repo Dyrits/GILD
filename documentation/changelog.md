@@ -1625,3 +1625,13 @@ Scope: Provider accounts, Charter
 Summary: The Charter's Harnesses card shows "Ready · <version> is available" and an Update button beside a harness with a newer release. The service reads each harness's newest version from the npm registry (cached 30 minutes; unreadable reads as no update) and `UpdateHarness` runs the harness's own update command (`claude update`, `codex update`, `opencode upgrade`), outside the command queue, then lists the harnesses again.
 References: documentation/capabilities/provider-accounts/specifications.md (Harnesses).
 Validation: typecheck and Biome pass; new tests for version reading and for the offer and the update (fake tools); no live update was run, so the three update commands and the registry read are unchecked end to end. One failure remains in `harnesses.test.ts` (an added Codex account's environment), already noted in CHG-0109. The owner's look is pending.
+
+## CHG-0111 · 2026-11-10 · The side panel grouped as Companions, Knows, and Does; backup companions; a side-quest's own panel
+
+Type: Code
+Event: Delivery
+Scope: Thread panel, thread tree
+
+Summary: At the owner's request the side panel follows OpenBot's grouping: Companions (harness, model and effort, Backup companions, the context gauge), Knows (journal, realm, lore, skills as one row), and Does (spending, the quest's budget and usage, how it ends), each a labelled card of icon rows. Every thread has an ordered list of up to five backup Companions (harness, account, model, effort), edited in a menu of its own opened from the panel; a failed turn hands the thread over to the next one that differs from its own (migration `0031_thread_backups`; `SetThreadBackups`; `ReadThreadPanel` carries them). A side-quest's panel is headed by its own title, names its quest with a row that opens it, and has its own Mark as done (`MarkThreadDone`), which stops its turn and leaves its quest as it is.
+References: documentation/capabilities/thread-panel/specifications.md (The panel, Backup companions), documentation/capabilities/thread-tree/specifications.md (Thread states), documentation/verification/2026-11-10-one-side-panel.md.
+Validation: `packages/service/test/backups.test.ts` (4) pass; typecheck, Biome, and the full suite (599) pass; driven in a browser on the fake harness. The look, a live fall back, and the order controls are unchecked; the owner's look is pending.

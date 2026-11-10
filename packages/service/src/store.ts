@@ -475,6 +475,12 @@ const migrations = {
     // The tier the Guildmaster chose for the quest a suggestion may open (quest coordination, Opening a quest).
     yield* sql`ALTER TABLE suggestions ADD COLUMN tier TEXT`;
   }),
+  // The Companions a thread falls back to after a failed turn, and how many the current failure chain has used (thread-panel).
+  "0031_thread_backups": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE threads ADD COLUMN backups TEXT NOT NULL DEFAULT '[]'`;
+    yield* sql`ALTER TABLE threads ADD COLUMN backup_step INTEGER NOT NULL DEFAULT 0`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

@@ -47,7 +47,7 @@ Work with AI agents spreads across disconnected chats, and subagents run out of 
 | Waiting | It waits for a reply or for a thread beneath it. |
 | Attention | It waits for an approval, an answer, a raised budget, a missing workspace folder, or a tool or skill loading problem that prevents a turn. Shown prominently and sent as a phone notification. |
 | Idle | No turn in progress and nothing awaited. |
-| Done | It reported its result. |
+| Done | It reported its result, or the owner marked the side-quest done from its panel (it stops its turn; the quest carries on). |
 | Failed | Its harness failed; the user can hand it over to another. |
 | Stopped | The user stopped it; it stays stopped until the user resumes it. |
 

@@ -5,6 +5,7 @@ import { SqlClient, type SqlError } from "effect/sql";
 import { addAccount, listHarnesses, removeAccount, renameAccount, signInAccount, updateHarness } from "./accounts.ts";
 import { Approvals, approvalsLayer } from "./approvals.ts";
 import { AttachmentsRoot, addAttachment, discardAttachment, readAttachment, sweepDrafts } from "./attachments.ts";
+import { setThreadBackups } from "./backups.ts";
 import { budgetPeriodsLayer } from "./budgetPeriods.ts";
 import { applyGlobalBudget, setMissionBudget, stopAtBudget } from "./budgets.ts";
 import { readBudgetWindow } from "./budgetViews.ts";
@@ -23,6 +24,7 @@ import { guildmasterReportsLayer } from "./guildmasterReports.ts";
 import { changeThreadRunner } from "./handover.ts";
 import { fakeHarnessToolsLayer, HarnessTools } from "./harnessTools.ts";
 import { type JournalOutcome, readJournalView, updateJournal } from "./journal.ts";
+import { markThreadDone } from "./lifecycle.ts";
 import {
   deleteLoreEntryByOwner,
   editLoreEntryByOwner,
@@ -266,6 +268,7 @@ const make = Effect.gen(function* () {
         ListRituals: () => listRituals,
         ListSkills: (given) => listSkills(given.workspacePath),
         ListWorkspaceEntries: (given) => listWorkspaceEntries(given.workspacePath, given.query),
+        MarkThreadDone: (given) => commands.run(markThreadDone(given.threadId)),
         OpenThread: (open) =>
           Effect.gen(function* () {
             const attachmentIds = open.attachmentIds ?? [];
@@ -383,6 +386,7 @@ const make = Effect.gen(function* () {
           }),
         SetMissionBudget: (given) => commands.run(setMissionBudget(given.missionId, given.limits)),
         SetRealmCrest: (set) => change(setRealmCrest(set.workspaceId, set.crest)),
+        SetThreadBackups: (given) => commands.run(setThreadBackups(given.threadId, given.backups)),
         SignInAccount: (given) =>
           signInAccount(given.harness, given.accountId).pipe(
             Effect.provideService(HarnessTools, harnessTools),

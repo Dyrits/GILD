@@ -10,16 +10,20 @@ Status: agreed by the owner's instruction to build the backlog entry "Thread pan
 
 ### The panel
 
-- The thread's groups live in the quest panel, the window's one side panel, at any width (the owner asked for one side panel instead of two, 2026-11-10, CHG-0109). Under the quest's heading come Companion, Realm, State, and Context; then Knows (the quest's journal, the thread's lore and skills), Spends (this thread, the quest's budget and usage), and Does (how the quest ends). The panel has no tabs, and no link in the thread's header. It shows, for the selected thread:
-  - **Companion**: the harness (with the account when it is not this computer's), the model, and the effort.
-  - **Realm**: the workspace name and folder, or the quest's scratch folder.
-  - **State**: the thread's state.
-  - **Context**: the context gauge (below).
-  - **Lore**: how many intels are in scope and the share of the context window they take, with a link that opens the lore panel.
-  - **Skills**: the skills the owner can name in a message in this thread's folder, by name.
-  - **Budget**: the quest's budget limits and what the quest spent, as the quest panel shows them.
-  - **Spending**: what this thread alone spent: turns, API cost, and tokens counted as subscription use.
-- The panel changes with the selected thread and with the thread's work; it is read-only. Changing a model, effort, or budget stays where it is today.
+- The thread's groups live in the quest panel, the window's one side panel, at any width (the owner asked for one side panel instead of two, 2026-11-10, CHG-0109). The panel has no tabs and no link in the thread's header. Each group is a small label above a card of rows; a row has an icon, a name, a short value, and a chevron when pressing it opens something. Under the quest's heading come **Companions**, **Knows**, and **Does** (the grouping follows OpenBot's agent panel, at the owner's request, CHG-0111). It shows, for the selected thread:
+  - **Companions**: the harness (with the account when it is not this computer's); the model and the effort; **Backup companions**, with how many there are, which opens their menu (below); and the context gauge (below).
+  - **Knows**: the quest's journal; the realm (workspace name and folder, or the quest's scratch folder); **Lore** (how many intels are in scope and the share of the context window they take, which opens the lore panel); and **Skills**, one row with how many the owner can name in a message in this thread's folder, which shows their names in a block when pressed.
+  - **Does**: what this thread alone spent (turns, API cost, and tokens counted as subscription use), the quest's budget and usage, as the quest panel shows them, and how the quest ends (Mark as done, Archive; none on a Ritual).
+- **A side-quest's panel** is headed with the side-quest's own title, and a **Quest** row that names its quest and opens it. Its Does has the side-quest's own **Mark as done**, which stops its turn and makes it Done without ending the quest or touching the threads around it; the quest's Mark as done and Archive are in the quest's own panel. A quest's own thread is not a side-quest, and cannot be marked done on its own.
+
+### Backup companions
+
+- A thread has an ordered list of backup Companions, at most five, each a harness, an account, a model, and an effort, as a Ritual's fallbacks have (rituals). It is empty at first.
+- The **Backup companions** row opens a menu of its own: what the list does, the order with each entry's harness, model, and effort pickers, a move up and a move down, Remove, and **+ Add a backup Companion**. Every change is saved at once.
+- When a turn of the thread fails, the thread is handed over to the next backup that differs from its current Companion, the conversation so far carried over and the line saying why (thread-handover, ADR 0006: "Fell back to Codex · gpt-6.1-sol · default effort · Usage limit reached"), and the turn runs again. A backup that cannot be taken, such as one on a removed account, is passed over. When the list is used up the thread stays Failed. The count starts over when a turn completes, when the owner changes the Companion or the list.
+- A Ritual's thread falls back through the Ritual's own list first (rituals); this list is empty there.
+
+- The panel changes with the selected thread and with the thread's work; it is read-only apart from the backups and a side-quest's Mark as done. Changing a model, effort, or budget stays where it is today.
 - The panel is shown or hidden with the quest panel's icon in the top bar.
 
 ### The context gauge

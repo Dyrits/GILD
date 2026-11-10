@@ -10,6 +10,7 @@ import {
   View,
 } from "react-native";
 import { imageRefusalOf } from "./attachmentRules";
+import { BackupsScreen } from "./backups";
 import { BudgetScreen, BudgetStopCard } from "./budgets";
 import { newRequestId, type ServiceClient } from "./client";
 import { Composer, StateBadge } from "./controls";
@@ -298,6 +299,7 @@ export function Conversation({
   const hasTopBar = useHasTopBar();
   const hasSidebar = useHasSidebar();
   const [loreThread, setLoreThread] = useState<{ id: ThreadId; title: string } | null>(null);
+  const [backupsThread, setBackupsThread] = useState<{ id: ThreadId; title: string } | null>(null);
   const [budgetScope, setBudgetScope] = useState<BudgetScope | null>(null);
   const { data, error } = useServiceQuery(
     client,
@@ -314,9 +316,11 @@ export function Conversation({
       <ThreadPanel
         client={client}
         detail={shown}
+        onOpenBackups={() => setBackupsThread({ id: shown.thread.id, title: shown.thread.title })}
         onOpenBudget={() => setBudgetScope("Mission")}
         onOpenJournal={() => setIsJournalOpen(true)}
         onOpenLore={() => setLoreThread({ id: shown.thread.id, title: shown.thread.title })}
+        onOpenQuest={() => setSelectedId(shown.mission.topThreadId)}
       />
     ),
   );
@@ -327,6 +331,16 @@ export function Conversation({
         missionId={budgetScope === "Mission" ? missionId : null}
         onBack={() => setBudgetScope(null)}
         title={budgetScope === "Mission" ? `Budget · ${data?.mission.title ?? ""}` : "Global budget"}
+      />
+    );
+  }
+  if (backupsThread !== null) {
+    return (
+      <BackupsScreen
+        client={client}
+        onBack={() => setBackupsThread(null)}
+        threadId={backupsThread.id}
+        title={`Backup companions · ${backupsThread.title}`}
       />
     );
   }

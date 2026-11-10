@@ -3,6 +3,7 @@ import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { touchMission } from "./activity.ts";
 import { changed, unchanged } from "./commands.ts";
+import { invalid, notFound } from "./errors.ts";
 
 // The thread lifecycle: the one module that writes a thread's state and blocker (thread-tree, Thread
 // states). Callers decide which threads and which transition; each transition keeps the tree's rules,
@@ -193,6 +194,27 @@ export const stopThread = Effect.fn("stopThread")(function* (threadId: string) {
   if (thread === undefined) return unchanged(null);
   yield* haltThreads([threadId], "Stopped");
   yield* touchMission(thread.missionId, yield* Clock.currentTimeMillis);
+  return changed(null, { missionsToWake: [thread.missionId], turnsToCancel: [threadId] });
+});
+
+/**
+ * The owner marks a side-quest done without ending its quest: its turn is stopped and invalidated, the thread becomes
+ * Done, and each parent left Waiting with nothing at work beneath it returns to Idle. The quest's top thread is not
+ * a side-quest: it ends with its quest.
+ */
+export const markThreadDone = Effect.fn("markThreadDone")(function* (threadId: string) {
+  const sql = yield* SqlClient.SqlClient;
+  const [thread] = yield* sql<{ missionId: string; parentId: string | null }>`
+    SELECT mission_id AS missionId, parent_id AS parentId FROM threads WHERE id = ${threadId} AND is_deleting = 0`;
+  if (thread === undefined) return yield* notFound("No such thread.");
+  if (thread.parentId === null)
+    return yield* invalid("The quest's own thread ends with the quest: mark the quest done.");
+  const now = yield* Clock.currentTimeMillis;
+  yield* sql`UPDATE turns SET status = 'stopped', ended_at = ${now} WHERE thread_id = ${threadId} AND status = 'running'`;
+  yield* sql`UPDATE threads SET state = 'Done', generation = generation + 1, blocker = NULL, failure = NULL
+    WHERE id = ${threadId}`;
+  yield* relaxAncestors(threadId);
+  yield* touchMission(thread.missionId, now);
   return changed(null, { missionsToWake: [thread.missionId], turnsToCancel: [threadId] });
 });
 

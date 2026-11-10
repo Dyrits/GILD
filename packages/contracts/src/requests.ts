@@ -23,6 +23,7 @@ import { JournalView } from "./journal.ts";
 import { LoreHistory, LoreScope, LoreStateFilter, LoreView } from "./lore.ts";
 import { PermissionsView, Question } from "./questions.ts";
 import {
+  BackupCompanion,
   EffortChoice,
   EndingPreview,
   GuildmasterPlace,
@@ -314,6 +315,13 @@ export const ChangeThreadRunner = Schema.TaggedStruct("ChangeThreadRunner", {
   model: ModelChoice,
   threadId: ThreadId,
 });
+/** Marks a side-quest done on the owner's word, without ending its quest; its turn stops (thread-tree, Done). */
+export const MarkThreadDone = Schema.TaggedStruct("MarkThreadDone", { threadId: ThreadId });
+/** Saves the thread's backup Companions, in the order a failed turn falls back through them (thread-panel, Backups). */
+export const SetThreadBackups = Schema.TaggedStruct("SetThreadBackups", {
+  backups: Schema.Array(BackupCompanion).check(Schema.isMaxLength(5)),
+  threadId: ThreadId,
+});
 /** Tries again a thread waiting in Attention on its missing workspace folder (Retry). */
 export const RetryThread = Schema.TaggedStruct("RetryThread", { threadId: ThreadId });
 /** Reads the standing permissions, for one mission or all. */
@@ -419,6 +427,8 @@ export const Request = Schema.Union([
   CreateRitual,
   UpdateRitual,
   RunRitual,
+  SetThreadBackups,
+  MarkThreadDone,
   DeleteRitual,
   ListRituals,
   ReadRitual,
@@ -483,6 +493,7 @@ export const Results = {
   ListRituals: Schema.Array(Ritual),
   ListSkills: Schema.Array(Skill),
   ListWorkspaceEntries: Schema.Array(WorkspaceEntry),
+  MarkThreadDone: Schema.Null,
   OpenThread: OpenThreadResult,
   PinIntel: Schema.Null,
   PreviewDeletion: DeletionPreview,
@@ -516,6 +527,7 @@ export const Results = {
   SendMessage: SendMessageResult,
   SetMissionBudget: Schema.Null,
   SetRealmCrest: Schema.Null,
+  SetThreadBackups: Schema.Null,
   SignInAccount: Schema.Null,
   StartMission: StartMissionResult,
   StopAtBudget: Schema.Null,

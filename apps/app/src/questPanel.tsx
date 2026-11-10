@@ -10,6 +10,7 @@ import { threadCountOf, tokenCountOf } from "./labels";
 import { MissionEndingActions, MissionTitle } from "./missionActions";
 import { ParchmentFrame } from "./parchment";
 import { RitualControls } from "./rituals";
+import { RowChevron, RowIcon, type RowIconName } from "./rowIcons";
 import { styles } from "./styles";
 import { colors, fontSizes, fonts, ink, radii, stateLabels, stateTones } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
@@ -19,27 +20,42 @@ const bookmarkByColumn = { Attention: "red", Done: "green", Idle: "violet", Runn
 /** The bookmark cloth of a state: the color of its column's banner. */
 const bookmarkOf = (state: MissionDetail["mission"]["state"]) => bookmarkByColumn[columnOf(state)];
 
-/** A labelled group of rows in the card, as in the quest's side panel. */
+/** A labelled group of rows in a rounded card, as in the quest's side panel; the rows are set apart by thin rules. */
 export function Group({ children, label }: { children: ReactNode; label: string }) {
   return (
     <View style={local.group}>
       <Text style={local.groupLabel}>{label}</Text>
-      <View style={local.card}>{children}</View>
+      <View style={local.card}>
+        <View style={local.cardRows}>{children}</View>
+      </View>
     </View>
   );
 }
 
-/** One row of a group: its name, a short value, and a chevron when pressing it opens something. */
-export function Row({ onPress, label, value }: { label: string; onPress?: () => void; value?: string }) {
+/** One row of a group: an icon, its name, a short value, and a chevron when pressing it opens something. */
+export function Row({
+  icon,
+  onPress,
+  label,
+  value,
+}: {
+  icon?: RowIconName;
+  label: string;
+  onPress?: () => void;
+  value?: string;
+}) {
   const content = (
     <>
-      <Text style={local.rowLabel}>{label}</Text>
+      {icon !== undefined && <RowIcon name={icon} tint={colors.textSecondary} />}
+      <Text numberOfLines={1} style={local.rowLabel}>
+        {label}
+      </Text>
       {value !== undefined && (
         <Text numberOfLines={1} style={local.rowValue}>
           {value}
         </Text>
       )}
-      {onPress !== undefined && <Text style={local.chevron}>›</Text>}
+      {onPress !== undefined && <RowChevron tint={colors.textMuted} />}
     </>
   );
   return onPress === undefined ? (
@@ -63,13 +79,20 @@ export const budgetValueOf = (budget: MissionDetail["mission"]["budget"]) => {
   return "No limit";
 };
 
-/** What the panel adds for the thread open in the conversation: its own groups and its rows in Knows and Spends. */
-export type ThreadSections = { knows: ReactNode; sections: ReactNode; spends: ReactNode };
+/** What the panel adds for the thread open in the conversation: its Companions group and its rows in Knows and Does. */
+export type ThreadSections = {
+  /** The thread's Companions group: what it runs on, its backups, and its context. */
+  companions: ReactNode;
+  knows: ReactNode;
+  /** Given for a side-quest: it names the quest it belongs to and ends on its own. */
+  sideQuest: { action: ReactNode; onOpenQuest: () => void; title: string } | null;
+  spends: ReactNode;
+};
 
 /**
  * The quest's side panel, the window's one side panel, under the header the window's frame gives it: a parchment in a
  * gilt frame with a bookmark, the quest's emblem and name (press to rename), how it stands, then the open thread's
- * groups when there is one, Knows (its journal), Spends (its budget and usage), and the framed question of how it ends.
+ * Companions when there is one, Knows (its journal, realm, lore, skills), and Does (what it spends and how it ends).
  * It leaves the thread's own conversation alone.
  */
 export function QuestSidebar({
@@ -100,7 +123,9 @@ export function QuestSidebar({
       <ScrollView contentContainerStyle={local.content} style={styles.flex}>
         <View style={local.hero}>
           {onBack === undefined ? (
-            <Text style={local.kicker}>{mission.ritual === null ? "Quest" : "Ritual"}</Text>
+            <Text style={local.kicker}>
+              {thread?.sideQuest != null ? "Side-quest" : mission.ritual === null ? "Quest" : "Ritual"}
+            </Text>
           ) : (
             <Pressable accessibilityRole="button" onPress={onBack}>
               <Text style={local.kicker}>‹ The council</Text>
@@ -113,7 +138,11 @@ export function QuestSidebar({
               isLoose={mission.workspaceId === null}
               size={56}
             />
-            <MissionTitle client={client} key={mission.title} mission={mission} textStyle={local.heroName} />
+            {thread?.sideQuest != null ? (
+              <Text style={[local.heroName, styles.flex]}>{thread.sideQuest.title}</Text>
+            ) : (
+              <MissionTitle client={client} key={mission.title} mission={mission} textStyle={local.heroName} />
+            )}
           </View>
           <Text numberOfLines={2} style={local.meta}>
             <Text style={[local.metaState, { color: tone.color }]}>{stateLabels[mission.state]}</Text>
@@ -133,31 +162,39 @@ export function QuestSidebar({
             <Text style={local.openText}>Open quest</Text>
           </Pressable>
         )}
-        {thread?.sections}
+        {thread?.sideQuest != null && (
+          <Group label="Quest">
+            <Row icon="state" label={mission.title} onPress={thread.sideQuest.onOpenQuest} />
+          </Group>
+        )}
+        {thread !== undefined && <Group label="Companions">{thread.companions}</Group>}
         <Group label="Knows">
-          <Row label="Journal" onPress={onOpenJournal} value="Where it stands" />
+          <Row icon="book" label="Journal" onPress={onOpenJournal} value="Where it stands" />
           {thread?.knows}
         </Group>
+        <Group label="Does">
+          {thread?.spends}
+          <Row icon="wallet" label="Quest budget" onPress={onOpenBudget} value={budgetValueOf(mission.budget)} />
+          <Row
+            icon="chart"
+            label="Quest usage"
+            value={`${tokenCountOf(usage.input + usage.cacheRead + usage.cacheCreation + usage.output)} tokens${cost > 0 ? ` · $${cost.toFixed(2)}` : ""}`}
+          />
+          {/* A Ritual is never marked done or archived: it is switched off or deleted from its controls above. */}
+          {thread?.sideQuest != null ? (
+            <View style={local.does}>{thread.sideQuest.action}</View>
+          ) : (
+            mission.ritual === null && (
+              <View style={local.does}>
+                <MissionEndingActions client={client} isButtons={true} mission={mission} />
+              </View>
+            )
+          )}
+        </Group>
         <View style={local.spends}>
-          <Group label="Spends">
-            {thread?.spends}
-            <Row label="Quest budget" onPress={onOpenBudget} value={budgetValueOf(mission.budget)} />
-            <Row
-              label="Quest usage"
-              value={`${tokenCountOf(usage.input + usage.cacheRead + usage.cacheCreation + usage.output)} tokens${cost > 0 ? ` · $${cost.toFixed(2)}` : ""}`}
-            />
-          </Group>
           <BudgetMeters onPress={onOpenBudget} use={mission.budget} />
           <Text style={styles.muted}>{usageDetail(usage)}</Text>
         </View>
-        {/* A Ritual is never marked done or archived: it is switched off or deleted from its controls above. */}
-        {mission.ritual === null && (
-          <Group label="Does">
-            <View style={local.does}>
-              <MissionEndingActions client={client} isButtons={true} mission={mission} />
-            </View>
-          </Group>
-        )}
       </ScrollView>
       <ParchmentFrame bookmark={bookmarkOf(mission.state)} />
     </View>
@@ -427,23 +464,19 @@ export function RealmPanel({
 
 const local = StyleSheet.create({
   card: {
-    ...ink,
-    backgroundColor: "rgba(255,248,229,0.6)",
+    backgroundColor: "rgba(255,250,236,0.85)",
+    borderColor: colors.border,
     borderRadius: radii.md,
+    borderWidth: 1,
     overflow: "hidden",
   },
-  chevron: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.lg },
+  // Each row draws a rule above it; the first row's is pushed out of the clipped card.
+  cardRows: { marginTop: -1 },
   compass: { height: 150, width: 150 },
   content: { gap: 18, paddingHorizontal: 28, paddingVertical: 26 },
-  does: { padding: 12 },
-  group: { gap: 4 },
-  groupLabel: {
-    color: colors.textMuted,
-    fontFamily: fonts.hand,
-    fontSize: 12,
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
-  },
+  does: { borderTopColor: colors.border, borderTopWidth: 1, padding: 12 },
+  group: { gap: 6 },
+  groupLabel: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.sm, fontWeight: "600" },
   hero: { gap: 10 },
   heroName: {
     color: colors.text,
@@ -537,8 +570,16 @@ const local = StyleSheet.create({
     paddingBottom: 6,
     textAlign: "center",
   },
-  row: { alignItems: "center", flexDirection: "row", gap: 8, minHeight: 40, paddingHorizontal: 12 },
-  rowLabel: { color: colors.text, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.md },
-  rowValue: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.sm },
+  row: {
+    alignItems: "center",
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    flexDirection: "row",
+    gap: 10,
+    minHeight: 42,
+    paddingHorizontal: 12,
+  },
+  rowLabel: { color: colors.text, flexGrow: 1, flexShrink: 1, fontFamily: fonts.sans, fontSize: fontSizes.md },
+  rowValue: { color: colors.textMuted, flexShrink: 3, fontFamily: fonts.sans, fontSize: fontSizes.sm },
   spends: { gap: 10 },
 });

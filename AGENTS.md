@@ -28,7 +28,7 @@
 ## Handoffs
 
 To resume the harness update in the Charter (CHG-0110, pushed to `main`; a real update and the owner's look remain), read the [current handoff](.agents/handoffs/2026-11-10-1330-harness-update.md). Handoffs are shared and committed.
-To resume the one side panel (thread panel merged into the quest panel, CHG-0109, on `main`; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1321-one-side-panel.md). Handoffs are shared and committed.
+To resume the one side panel (grouped as Companions, Knows, and Does; backup companions; a side-quest's own panel; CHG-0111, on `main`; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1345-companions-backups.md). Handoffs are shared and committed.
 To resume deleting a Ritual from its card (CHG-0108, committed on branch `ritual-delete`; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1152-ritual-delete.md). Handoffs are shared and committed.
 To resume the Guildmaster (increments A, B, and C, the link buttons beside its replies, and finished quests off the sidebar, all on `main`; a live-model check and the owner's look remain), read the [current handoff](.agents/handoffs/2026-11-10-1317-guildmaster-link-buttons-and-sidebar.md). Handoffs are shared and committed.
 To resume agent replies drawn as Markdown (committed on branch `markdown-replies`; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1043-markdown-replies.md). Handoffs are shared and committed.

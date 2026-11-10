@@ -1,5 +1,5 @@
-import type { ContextGauge, ContextPart, ThreadPanel } from "@gild/contracts";
-import { Effect } from "effect";
+import { BackupCompanion, type ContextGauge, type ContextPart, type ThreadPanel } from "@gild/contracts";
+import { Effect, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { notFound } from "./errors.ts";
 import { contextWindowOf } from "./lore.ts";
@@ -7,6 +7,8 @@ import { missionLimitsOf, missionSpendingOf, spendingColumns } from "./spending.
 import { readSentContextSize } from "./startingContext.ts";
 
 // What the thread panel shows beyond the thread itself (thread-panel).
+
+const decodeBackups = Schema.decodeUnknownSync(Schema.Array(BackupCompanion));
 
 /**
  * Splits a reported total over the counted parts. Counted parts are estimates: when they exceed the total
@@ -51,12 +53,13 @@ const readContextGauge = (threadId: string, model: string) =>
 export const readThreadPanel = (threadId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const [thread] = yield* sql<{ missionId: string; model: string }>`
-      SELECT mission_id AS missionId, model FROM threads WHERE id = ${threadId}`;
+    const [thread] = yield* sql<{ backups: string; missionId: string; model: string }>`
+      SELECT mission_id AS missionId, model, backups FROM threads WHERE id = ${threadId}`;
     if (thread === undefined) return yield* notFound("No such thread.");
     const [spent] = yield* sql<{ cost: number; tokens: number; turnCount: number }>`
       SELECT ${sql.literal(spendingColumns)}, COUNT(*) AS turnCount FROM usage u WHERE u.thread_id = ${threadId}`;
     return {
+      backups: decodeBackups(JSON.parse(thread.backups)),
       budget: { limits: yield* missionLimitsOf(thread.missionId), spent: yield* missionSpendingOf(thread.missionId) },
       context: yield* readContextGauge(threadId, thread.model),
       spending: { cost: spent?.cost ?? 0, tokens: spent?.tokens ?? 0 },

@@ -1,8 +1,7 @@
-import type { ContextGauge, ContextPartKind, MissionDetail } from "@gild/contracts";
+import type { ContextGauge, ContextPartKind, MissionDetail, ThreadId } from "@gild/contracts";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import type { ServiceClient } from "./client";
-import { StateBadge } from "./controls";
 import { effortLabel, harnessLabels, modelLabelOf } from "./formatting";
 import {
   contextLevelOf,
@@ -12,7 +11,8 @@ import {
   threadSpendingTextOf,
   tokenCountOf,
 } from "./labels";
-import { Group, QuestSidebar, Row } from "./questPanel";
+import { GoldButton } from "./parchment";
+import { QuestSidebar, Row } from "./questPanel";
 import { colors, fontSizes, fonts, radii } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
 import { useSkills } from "./useSkills";
@@ -54,83 +54,113 @@ function ContextMeter({ gauge }: { gauge: ContextGauge }) {
   );
 }
 
+/** The side-quest's own "Mark as done": it ends the side-quest and leaves its quest as it is. */
+function SideQuestDone({ client, state, threadId }: { client: ServiceClient; state: string; threadId: ThreadId }) {
+  const [error, setError] = useState<string | null>(null);
+  return (
+    <View style={local.done}>
+      <GoldButton
+        isDisabled={state === "Done"}
+        label={state === "Done" ? "Done" : "Mark as done"}
+        onPress={() =>
+          client.request({ _tag: "MarkThreadDone", threadId }).then(
+            () => setError(null),
+            (reason: Error) => setError(reason.message),
+          )
+        }
+      />
+      {error !== null && <Text style={local.error}>{error}</Text>}
+    </View>
+  );
+}
+
 /**
  * The quest's side panel as its conversation shows it (thread-panel): the quest, then what the selected thread runs
- * with, how full its context window is and what fills it, its lore, skills, and what it spent.
+ * with, how full its context window is and what fills it, its realm, lore, skills, and what it spent.
  */
 export function ThreadPanel({
   client,
   detail,
+  onOpenBackups,
   onOpenBudget,
   onOpenJournal,
   onOpenLore,
+  onOpenQuest,
 }: {
   client: ServiceClient;
   detail: MissionDetail;
+  onOpenBackups: () => void;
   onOpenBudget: () => void;
   onOpenJournal: () => void;
   onOpenLore: () => void;
+  /** Opens the quest's own thread, from a side-quest's panel. */
+  onOpenQuest: () => void;
 }) {
   const { thread } = detail;
   const { data: panel } = useServiceQuery(client, { _tag: "ReadThreadPanel", threadId: thread.id }, thread.id);
   const skills = useSkills(client, thread.workspace?.path ?? null);
-  const [isShowingAllSkills, setIsShowingAllSkills] = useState(false);
-  const shownSkills = isShowingAllSkills ? skills : skills.slice(0, 6);
-  const sections = (
+  const [isShowingSkills, setIsShowingSkills] = useState(false);
+  const modelValue = `${modelLabelOf(thread.model)} · ${effortLabel(thread.effort)}`;
+  const harnessValue =
+    thread.accountId === null
+      ? harnessLabels[thread.harness]
+      : `${harnessLabels[thread.harness]} · ${thread.accountLabel}`;
+  const companions = (
     <>
-      <Group label="Companion">
-        <Row label="Harness" value={harnessLabels[thread.harness]} />
-        {thread.accountId !== null && <Row label="Account" value={thread.accountLabel} />}
-        <Row label="Model" value={modelLabelOf(thread.model)} />
-        <Row label="Effort" value={effortLabel(thread.effort)} />
-      </Group>
-      <Group label="Realm">
-        <Row label={thread.workspace?.name ?? "Scratch folder"} value={thread.workspace?.path ?? "The quest's own"} />
-        {thread.workspace?.isMissing === true && <Row label="Folder missing" />}
-      </Group>
-      <Group label="State">
-        <View style={local.row}>
-          <Text numberOfLines={1} style={local.rowLabel}>
-            {thread.depth === 0 ? "Quest" : `Side-quest · ${thread.title}`}
-          </Text>
-          <StateBadge state={thread.state} />
-        </View>
-      </Group>
-      <Group label="Context">
+      <Row icon="chip" label="Harness" value={harnessValue} />
+      <Row icon="model" label="Model" value={modelValue} />
+      <Row
+        icon="shield"
+        label="Backup companions"
+        onPress={onOpenBackups}
+        value={panel === null || panel.backups.length === 0 ? "None" : `${panel.backups.length}`}
+      />
+      <View style={local.contextRow}>
         {panel === null || panel.context === null ? (
-          <Text style={local.empty}>Not measured yet</Text>
+          <Text style={local.empty}>Context not measured yet</Text>
         ) : (
           <ContextMeter gauge={panel.context} />
         )}
-      </Group>
+      </View>
     </>
   );
   const knows = (
     <>
-      <Row label="Lore" onPress={onOpenLore} value={loreGaugeValueOf(detail.loreGauge)} />
-      {skills.length === 0 ? (
-        <Row label="Skills" value="None found" />
-      ) : (
-        <>
-          <Row label="Skills" onPress={() => setIsShowingAllSkills(!isShowingAllSkills)} value={`${skills.length}`} />
-          {shownSkills.map((skill) => (
-            <Text key={skill.name} numberOfLines={1} style={local.skill}>
-              /{skill.name}
-            </Text>
-          ))}
-          <View style={local.skillsEnd} />
-        </>
-      )}
+      <Row
+        icon="folder"
+        label={thread.workspace?.name ?? "Scratch folder"}
+        value={thread.workspace?.isMissing === true ? "Folder missing" : (thread.workspace?.path ?? "The quest's own")}
+      />
+      <Row icon="library" label="Lore" onPress={onOpenLore} value={loreGaugeValueOf(detail.loreGauge)} />
+      <Row
+        icon="puzzle"
+        label="Skills"
+        onPress={skills.length === 0 ? undefined : () => setIsShowingSkills(!isShowingSkills)}
+        value={skills.length === 0 ? "None found" : `${skills.length} available`}
+      />
+      {isShowingSkills && <Text style={local.skills}>{skills.map((skill) => `/${skill.name}`).join("  ")}</Text>}
     </>
   );
-  const spends = panel !== null && <Row label="This thread" value={threadSpendingTextOf(panel)} />;
+  const spends = panel !== null && <Row icon="coins" label="This thread" value={threadSpendingTextOf(panel)} />;
   return (
     <QuestSidebar
       client={client}
       mission={detail.mission}
       onOpenBudget={onOpenBudget}
       onOpenJournal={onOpenJournal}
-      thread={{ knows, sections, spends }}
+      thread={{
+        companions,
+        knows,
+        sideQuest:
+          thread.depth === 0
+            ? null
+            : {
+                action: <SideQuestDone client={client} state={thread.state} threadId={thread.id} />,
+                onOpenQuest,
+                title: thread.title,
+              },
+        spends,
+      }}
     />
   );
 }
@@ -143,15 +173,25 @@ const local = StyleSheet.create({
     height: 8,
     overflow: "hidden",
   },
+  contextRow: { borderTopColor: colors.border, borderTopWidth: 1 },
+  done: { alignItems: "flex-start", gap: 6, padding: 12 },
   empty: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.md, padding: 12 },
+  error: { color: colors.dangerText, fontFamily: fonts.sans, fontSize: fontSizes.sm },
   legend: { alignItems: "center", flexDirection: "row", gap: 6 },
   legendLabel: { color: colors.text, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.sm },
   meter: { gap: 6, padding: 12 },
   meterText: { fontFamily: fonts.sans, fontSize: fontSizes.md },
-  row: { alignItems: "center", flexDirection: "row", gap: 8, minHeight: 40, paddingHorizontal: 12 },
+  row: { alignItems: "center", flexDirection: "row", gap: 10, minHeight: 42, paddingHorizontal: 12 },
   rowLabel: { color: colors.text, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.md },
   rowValue: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.sm },
-  skill: { color: colors.textSecondary, fontFamily: fonts.sans, fontSize: fontSizes.sm, paddingHorizontal: 24 },
-  skillsEnd: { height: 8 },
+  skills: {
+    borderTopColor: colors.border,
+    borderTopWidth: 1,
+    color: colors.textSecondary,
+    fontFamily: fonts.sans,
+    fontSize: fontSizes.sm,
+    lineHeight: 20,
+    padding: 12,
+  },
   swatch: { borderRadius: 2, height: 10, width: 10 },
 });

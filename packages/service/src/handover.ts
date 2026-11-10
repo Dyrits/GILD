@@ -48,6 +48,8 @@ export const changeThreadRunner = (threadId: string, runner: Runner, fellBackAft
     if (thread.state === "Running" || thread.state === "Attention")
       return yield* invalid("This thread is in a turn. Interrupt or stop it, then change its harness or model.");
     yield* checkAccount(runner);
+    // The owner's own choice of runner starts a thread's failure chain over (thread-panel, Backups).
+    if (fellBackAfter === null) yield* sql`UPDATE threads SET backup_step = 0 WHERE id = ${threadId}`;
     const isNewSession = runner.harness !== thread.harness || runner.accountId !== thread.accountId;
     if (!isNewSession && runner.model === thread.model && runner.effort === thread.effort) return unchanged(null);
     const now = yield* Clock.currentTimeMillis;

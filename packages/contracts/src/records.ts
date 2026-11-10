@@ -388,8 +388,20 @@ export const ContextGauge = Schema.Struct({
 });
 export type ContextGauge = typeof ContextGauge.Type;
 
+/** One backup Companion a thread falls back to: a harness, its account, a model, and an effort (thread-panel, Backups). */
+export const BackupCompanion = Schema.Struct({
+  /** The provider account, or null for the harness's own sign-in on this computer. */
+  accountId: Schema.NullOr(AccountId),
+  effort: EffortChoice,
+  harness: HarnessName,
+  model: ModelChoice,
+});
+export type BackupCompanion = typeof BackupCompanion.Type;
+
 /** What the thread panel shows beyond the thread itself (thread-panel, The panel). */
 export const ThreadPanel = Schema.Struct({
+  /** The Companions tried in order after a turn of this thread fails; at most five. */
+  backups: Schema.Array(BackupCompanion).check(Schema.isMaxLength(5)),
   /** The mission's budget and its spending, as the quest panel shows them. */
   budget: BudgetUse,
   /** Null until a turn reported usage: shown as "Not measured yet", never guessed. */

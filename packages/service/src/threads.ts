@@ -3,6 +3,7 @@ import { Clock, Context, Effect, FiberMap, FiberSet, Layer, Match, PubSub } from
 import { SqlClient } from "effect/sql";
 import { Approvals } from "./approvals.ts";
 import { AttachmentsRoot, type StoredAttachment } from "./attachments.ts";
+import { fallBackToBackup, resetBackupStep } from "./backups.ts";
 import { Changes } from "./changes.ts";
 import { requireChatterDecision } from "./chatter.ts";
 import { changed, makeCommands } from "./commands.ts";
@@ -204,9 +205,12 @@ export const threadsLayer = Layer.effect(
           yield* fail(threadId, turn, outcome.failure.reason);
           // A Ritual's run carries on with its next Companion, or fails once they are used up (rituals).
           yield* commands.run(fallBackAfterFailure(threadId, outcome.failure.reason)).pipe(Effect.orDie);
+          // Any thread carries on with its next backup Companion, if it has one (thread-panel, Backups).
+          yield* commands.run(fallBackToBackup(threadId, outcome.failure.reason)).pipe(Effect.orDie);
           return yield* wakeWaiting(turn.missionId, threadId);
         }
         const halted = yield* local(completeTurn(threadId, turn, outcome.success));
+        yield* local(resetBackupStep(threadId));
         yield* cancel(halted.filter((id) => id !== threadId));
         yield* wakeWaiting(turn.missionId, threadId);
         // Messages that arrived during the turn start the next one, in this same fiber,
