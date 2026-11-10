@@ -1675,3 +1675,13 @@ Scope: Thread panel
 Summary: At the owner's request the thread's backup Companions are edited in place in the side panel, under the Backup companions row, instead of in a full screen; the full screen (`BackupsScreen`) is removed. Each backup shows a header with its number, move up, move down, and Remove, with its pickers beneath.
 References: documentation/capabilities/thread-panel/specifications.md (Backup companions), documentation/verification/2026-11-10-one-side-panel.md.
 Validation: Biome passes and the app's 117 tests pass; driven in a browser on the fake harness (add, move, remove, reload). The typecheck has errors in `conversationEntries.tsx` and `entries.test.ts` that belong to another session's uncommitted work, not these files. The owner's look is pending.
+
+## CHG-0116 · 2026-11-10 · Actions a turn ran fold into its steps
+
+Type: Code
+Event: Delivery
+Scope: Thread messaging, conversation
+
+Summary: At the owner's request, the lines of actions a thread ran or was allowed to run ("Ran · …", "Always allowed · …", "Allowed by a standing permission · …") fold into the turn's "N steps" group beside its replies, in time order, and count in its total and duration; a Denied, Discarded, or Withdrawn action keeps its own line. While a thread works, the indicator shows its latest step, reply or action. This completes the tool-call steps CHG-0113 left out: the service already recorded them as settled questions.
+References: `apps/app/src/entries.ts` (`Step`, `stepGroupsOf`, `workingLabelOf`), `apps/app/src/conversationEntries.tsx` (`StepsGroup`).
+Validation: a new test in `apps/app/test/entries.test.ts`; typecheck, Biome, and the app tests (118) pass. Not driven in the window; the look is pending.

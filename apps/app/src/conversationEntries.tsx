@@ -4,7 +4,7 @@ import { Pressable, Text, View } from "react-native";
 import { MessageImages } from "./attachmentViews";
 import { ChipText } from "./chips";
 import type { ServiceClient } from "./client";
-import type { Entry, QuestLink } from "./entries";
+import type { Entry, QuestLink, Step } from "./entries";
 import { clockOf, replyWriterOf, spanOf } from "./formatting";
 import { LoreChangeCard, LoreChangeLine } from "./lore";
 import { Markdown } from "./markdown";
@@ -24,12 +24,12 @@ const cardStyles = {
   user: styles.messageCardUser,
 } satisfies Record<Message["sender"], unknown>;
 
-/** The button that opens the quest or Ritual a reply led to: what happened to it above its title. */
+/** The small button at a card's top right corner that opens the quest or Ritual the card speaks of. */
 function QuestButton({
   link,
   onOpenMission,
 }: {
-  link: Omit<QuestLink, "key">;
+  link: Pick<QuestLink, "label" | "missionId" | "title">;
   onOpenMission: (missionId: MissionId) => void;
 }) {
   return (
@@ -37,12 +37,9 @@ function QuestButton({
       accessibilityLabel={`${link.label}: ${link.title}`}
       accessibilityRole="button"
       onPress={() => onOpenMission(link.missionId)}
-      style={({ pressed }) => [styles.questButton, pressed && styles.questButtonPressed]}
+      style={({ pressed }) => [styles.cardCornerButton, pressed && styles.questButtonPressed]}
     >
-      <Text style={styles.questButtonLabel}>{link.label} →</Text>
-      <Text numberOfLines={2} style={styles.questButtonTitle}>
-        {link.title}
-      </Text>
+      <RowIcon name="external" tint={colors.text} />
     </Pressable>
   );
 }
@@ -50,28 +47,22 @@ function QuestButton({
 /**
  * A reply from the thread's agent: the provider's mark beside a parchment card that names the model and its time.
  * A draft has no time yet and is drawn faded.
- * The quests and Rituals the reply led to stand as buttons on its right, and beneath it where the window is too narrow.
  */
 export function AgentReply({
   harness,
   isDraft = false,
   label,
-  links = [],
-  onOpenMission,
   text,
   time,
 }: {
   harness: HarnessName;
   isDraft?: boolean;
   label: string;
-  links?: ReadonlyArray<QuestLink>;
-  onOpenMission?: (missionId: MissionId) => void;
   text: string;
   time: string | null;
 }) {
-  const hasLinks = links.length > 0 && onOpenMission !== undefined;
-  const reply = (
-    <View style={[styles.messageRow, isDraft && styles.draft, hasLinks && styles.messageRowLinked]}>
+  return (
+    <View style={[styles.messageRow, isDraft && styles.draft]}>
       <View style={styles.medallion}>
         <ProviderMark harness={harness} />
       </View>
@@ -84,21 +75,7 @@ export function AgentReply({
       </View>
     </View>
   );
-  if (!hasLinks) return reply;
-  return (
-    <View style={styles.replyWithLinks}>
-      {reply}
-      <View style={styles.replyLinks}>
-        {links.map((link) => (
-          <QuestButton key={link.key} link={link} onOpenMission={onOpenMission} />
-        ))}
-      </View>
-    </View>
-  );
 }
-
-/** The first line of a step, cut to one line of a label. */
-const stepLabelOf = (text: string) => shortened(text.trim().split("\n")[0] ?? "");
 
 /** While a thread works: its provider's mark and the step it is on, in place of lines of updates. */
 export function WorkingIndicator({ harness, label }: { harness: HarnessName; label: string }) {
@@ -111,7 +88,7 @@ export function WorkingIndicator({ harness, label }: { harness: HarnessName; lab
 }
 
 /** A turn's intermediate replies, folded under "2 steps · 16s" and listed when opened. */
-function StepsGroup({ seconds, steps }: { seconds: number; steps: ReadonlyArray<Message> }) {
+function StepsGroup({ seconds, steps }: { seconds: number; steps: ReadonlyArray<Step> }) {
   const [isOpen, setIsOpen] = useState(false);
   return (
     <View>
@@ -128,22 +105,20 @@ function StepsGroup({ seconds, steps }: { seconds: number; steps: ReadonlyArray<
       </Pressable>
       {isOpen && (
         <View style={styles.stepsList}>
-          {steps.map((step) => (
-            <Text key={step.id} style={styles.stepText}>
-              {step.text.trim()}
-            </Text>
-          ))}
+          {steps.map((step) =>
+            step._tag === "Reply" ? (
+              <Text key={step.id} style={styles.stepText}>
+                {step.text.trim()}
+              </Text>
+            ) : (
+              <QuestionLine key={step.id} question={step.question} />
+            ),
+          )}
         </View>
       )}
     </View>
   );
 }
-
-/** The label of what a working thread is on: its latest step, or a plain word before the first. */
-export const workingLabelOf = (steps: ReadonlyArray<Message>) => {
-  const latest = steps.at(-1);
-  return latest === undefined ? "Working…" : `${stepLabelOf(latest.text)}`;
-};
 
 /** The label above a message: none for the owner's own unless it waits for the next turn. */
 const senderLabelOf = (message: Message) => {
@@ -156,7 +131,6 @@ function MessageBubble({
   client,
   fromQuest,
   harness,
-  links,
   message,
   onOpenMission,
   skills,
@@ -166,7 +140,6 @@ function MessageBubble({
   /** The quest a report came from, which its card opens by a small button at its corner. */
   fromQuest: MissionId | null;
   harness: HarnessName;
-  links: ReadonlyArray<QuestLink>;
   message: Message;
   onOpenMission: (missionId: MissionId) => void;
   skills: ReadonlyArray<Skill>;
@@ -177,14 +150,7 @@ function MessageBubble({
   if (message.sender === "agent") {
     const writer = replyWriterOf(message, harness);
     return (
-      <AgentReply
-        harness={writer.harness}
-        label={writer.label}
-        links={links}
-        onOpenMission={onOpenMission}
-        text={message.text}
-        time={clockOf(message.sentAt)}
-      />
+      <AgentReply harness={writer.harness} label={writer.label} text={message.text} time={clockOf(message.sentAt)} />
     );
   }
   const sender = senderLabelOf(message);
@@ -202,14 +168,10 @@ function MessageBubble({
         )}
         <MessageImages cards={message.attachments} client={client} />
         {fromQuest !== null && (
-          <Pressable
-            accessibilityLabel={`Open quest: ${message.fromTitle ?? ""}`}
-            accessibilityRole="button"
-            onPress={() => onOpenMission(fromQuest)}
-            style={({ pressed }) => [styles.cardCornerButton, pressed && styles.questButtonPressed]}
-          >
-            <RowIcon name="external" tint={colors.text} />
-          </Pressable>
+          <QuestButton
+            link={{ label: "Open quest", missionId: fromQuest, title: message.fromTitle ?? "" }}
+            onOpenMission={onOpenMission}
+          />
         )}
       </View>
     </View>
@@ -252,8 +214,18 @@ export function EntryView({
   if (entry._tag === "Steps") return <StepsGroup seconds={entry.seconds} steps={entry.steps} />;
   if (entry._tag === "QuestLink")
     return (
-      <View style={styles.replyLinks}>
-        <QuestButton link={entry} onOpenMission={onOpenMission} />
+      <View style={styles.messageRow}>
+        <View style={styles.medallion}>
+          <RowIcon name="arrow" tint={colors.text} />
+        </View>
+        <View style={[styles.messageCard, styles.messageCardThread, styles.cardWithCorner]}>
+          <View style={styles.senderHeader}>
+            <Text style={styles.senderName}>{entry.label}</Text>
+            <Text style={styles.senderTime}>{clockOf(entry.sentAt)}</Text>
+          </View>
+          <Text style={styles.muted}>{shortened(entry.title)}</Text>
+          <QuestButton link={entry} onOpenMission={onOpenMission} />
+        </View>
       </View>
     );
   if (entry._tag === "BudgetEvent")
@@ -295,7 +267,6 @@ export function EntryView({
       client={client}
       fromQuest={entry.fromQuest}
       harness={harness}
-      links={entry.links}
       message={entry.message}
       onOpenMission={onOpenMission}
       skills={skills}

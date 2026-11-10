@@ -91,32 +91,29 @@ describe("links from the Guildmaster's conversation, beside its replies", () => 
     sentAt,
     text: "Quest failed",
   });
-  /** Each entry's key, with the keys of the links it carries. */
-  const shapeOf = (entries: ReturnType<typeof entriesOf>) =>
-    entries.map((entry) =>
-      entry._tag === "Message" && entry.links.length > 0
-        ? `${entry.key} [${entry.links.map((link) => link.key).join(", ")}]`
-        : entry.key,
-    );
+  const shapeOf = (entries: ReturnType<typeof entriesOf>) => entries.map((entry) => entry.key);
 
-  it("hangs what the Guildmaster opened on its confirmation, not before it", () => {
+  it("stands what the Guildmaster opened as a card just after its confirmation, not before it", () => {
     const entries = entriesOf(guildmasterDetail([owner(10), reply(30)], [opened()]));
-    expect(shapeOf(entries)).toEqual(["owner", "reply [opened]"]);
+    expect(shapeOf(entries)).toEqual(["owner", "reply", "opened"]);
     expect(entries.at(-1)).toMatchObject({
-      links: [{ label: "Opened quest", missionId: "quest-1", title: "Fix login" }],
+      _tag: "QuestLink",
+      label: "Opened quest",
+      missionId: "quest-1",
+      title: "Fix login",
     });
   });
 
   it("names a quest it continued and a Ritual it created as such", () => {
     const labelOf = (extra: object) => {
       const last = entriesOf(guildmasterDetail([owner(10), reply(30)], [opened(extra)])).at(-1);
-      return last?._tag === "Message" ? last.links.map((link) => link.label) : [];
+      return last?._tag === "QuestLink" ? last.label : null;
     };
-    expect(labelOf({ outcome: "Continued" })).toEqual(["Continued in quest"]);
-    expect(labelOf({ isRitual: true })).toEqual(["Created Ritual"]);
+    expect(labelOf({ outcome: "Continued" })).toBe("Continued in quest");
+    expect(labelOf({ isRitual: true })).toBe("Created Ritual");
   });
 
-  it("shows the link on its own, where it happened, until the confirmation is written", () => {
+  it("shows the card where it happened until the confirmation is written", () => {
     const entries = entriesOf(guildmasterDetail([owner(10)], [opened()]));
     expect(shapeOf(entries)).toEqual(["owner", "opened"]);
     expect(entries.at(-1)).toMatchObject({ _tag: "QuestLink", label: "Opened quest", missionId: "quest-1" });
@@ -133,7 +130,7 @@ describe("links from the Guildmaster's conversation, beside its replies", () => 
     ]);
   });
 
-  it("gives a report from a quest its own button, not a link on the reply", () => {
+  it("gives a report from a quest its own button", () => {
     const entries = entriesOf(guildmasterDetail([report(10), reply(30)]));
     expect(shapeOf(entries)).toEqual(["report-10", "reply"]);
     expect(entries[0]).toMatchObject({ fromQuest: "quest-1" });
@@ -169,6 +166,17 @@ describe("a turn's intermediate replies, folded as steps", () => {
   it("folds every reply while the thread still works, since no answer is written yet", () => {
     const entries = entriesOf(turn([owner(0), agent(4000), agent(9000)]), true);
     expect(entries.map((entry) => entry._tag)).toEqual(["Message", "Steps"]);
+  });
+
+  it("folds the actions a turn ran into its steps, keeping a denial visible", () => {
+    const question = (id: string, askedAt: number, outcome: string) => ({ askedAt, id, outcome, summary: `Ran ${id}` });
+    const detail = turn([owner(0), agent(20000)]);
+    const entries = entriesOf({
+      ...detail,
+      questions: [question("a", 2000, "AllowedAutomatically"), question("b", 3000, "Denied")],
+    } as unknown as MissionDetail);
+    expect(entries.map((entry) => entry.key)).toEqual(["owner-0", "steps:a", "b", "agent-20000"]);
+    expect(entries[1]).toMatchObject({ _tag: "Steps", seconds: 2 });
   });
 
   it("leaves a lone reply of a finished turn as it is", () => {

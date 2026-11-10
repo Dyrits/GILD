@@ -13,8 +13,8 @@ import { imageRefusalOf } from "./attachmentRules";
 import { BudgetScreen, BudgetStopCard } from "./budgets";
 import { newRequestId, type ServiceClient } from "./client";
 import { Composer, StateBadge } from "./controls";
-import { AgentReply, EntryView, WorkingIndicator, workingLabelOf } from "./conversationEntries";
-import { type Entry, entriesOf, trailingReplies } from "./entries";
+import { AgentReply, EntryView, WorkingIndicator } from "./conversationEntries";
+import { type Entry, entriesOf, workingLabelOf } from "./entries";
 import { companionLabelOf, effortLabel, harnessLabels, modelLabelOf } from "./formatting";
 import { JournalScreen } from "./journal";
 import { LoreIcon, LoreScreen } from "./lore";
@@ -119,6 +119,7 @@ function ThreadPane({
       threadId: thread.id,
     });
   };
+  const entries = entriesOf(detail, isInTurn);
   const act = (request: Promise<unknown>) =>
     request.then(
       () => setActionError(null),
@@ -191,12 +192,12 @@ function ThreadPane({
       <FlatList<Entry>
         {...followNewest.listProps}
         contentContainerStyle={styles.feed}
-        data={entriesOf(detail, thread.actions.isInTurn)}
+        data={entries}
         keyExtractor={(entry) => entry.key}
         ListFooterComponent={
           draft === "" ? (
             thread.actions.isInTurn ? (
-              <WorkingIndicator harness={thread.harness} label={workingLabelOf(trailingReplies(detail.messages))} />
+              <WorkingIndicator harness={thread.harness} label={workingLabelOf(entries)} />
             ) : (
               void 0
             )

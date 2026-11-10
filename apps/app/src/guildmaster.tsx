@@ -6,8 +6,8 @@ import { BudgetScreen, BudgetStopCard } from "./budgets";
 import { newRequestId, type ServiceClient } from "./client";
 import { Composer, StateBadge } from "./controls";
 import { useDraft, useFollowNewest } from "./conversation";
-import { AgentReply, EntryView, WorkingIndicator, workingLabelOf } from "./conversationEntries";
-import { type Entry, entriesOf, trailingReplies } from "./entries";
+import { AgentReply, EntryView, WorkingIndicator } from "./conversationEntries";
+import { type Entry, entriesOf, workingLabelOf } from "./entries";
 import { companionLabelOf, harnessLabels } from "./formatting";
 import { allMissions } from "./queries";
 import { budgetValueOf } from "./questPanel";
@@ -189,7 +189,7 @@ function GuildmasterChat({
           ListFooterComponent={
             draft === "" ? (
               thread.actions.isInTurn ? (
-                <WorkingIndicator harness={thread.harness} label={workingLabelOf(trailingReplies(detail.messages))} />
+                <WorkingIndicator harness={thread.harness} label={workingLabelOf(entries)} />
               ) : (
                 void 0
               )
