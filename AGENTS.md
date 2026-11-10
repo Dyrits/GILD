@@ -27,7 +27,7 @@
 
 ## Handoffs
 
-To resume desktop packaging on pushes to main (committed locally; approval to push and GitHub verification remain pending), read the [current handoff](.agents/handoffs/2026-11-10-2154-desktop-packaging.md). Handoffs are shared and committed.
+To resume tagged desktop releases (pushed to main; hosted checks and the first tagged release remain unverified), read the [current handoff](.agents/handoffs/2026-11-10-2209-tagged-releases.md). Handoffs are shared and committed.
 
 To resume the compact left menu and conditional quest tree (committed and pushed; the running appearance awaits review), read the [current handoff](.agents/handoffs/2026-11-10-2148-compact-navigation.md). Handoffs are shared and committed.
 
