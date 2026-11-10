@@ -1595,3 +1595,13 @@ Scope: Quest coordination, Rituals
 Summary: After a live run in which "Say hello to me every hour" became a plain quest, the owner asked that the Guildmaster also create Rituals. Agreed, with the rest of increments B and C of CHG-0106: `create_ritual` (Guildmaster only, on a preset schedule, a card in its conversation); quests it opened tell it when they report, need the owner, or fail; `act_on_mission` (stop, Done, archive, rename) only on the owner's own words in their latest message, with the dashboard's question and snapshot before ending a quest with threads at work; `read_journal` of another quest and `read_control_history`; any thread may message the Guildmaster, which may message any quest's top thread; optional Light, Balanced, and Heavy tiers in the Charter, named when it opens a quest; its own Companion on the cheapest known model; its own budget; and a setting that hides it. The Rituals specification's "not built: a Ritual created by a thread tool" now excepts the Guildmaster.
 References: documentation/capabilities/mission-coordination/specifications.md (Provisional choices to review), documentation/capabilities/rituals/specifications.md, CHG-0106.
 Validation: The owner's request of 2026-11-10 ("It should be able to create Rituals as well") and their earlier choice to build the full specification.
+
+## CHG-0108 · 2026-11-10 · Delete a Ritual from its card
+
+Type: Code
+Event: Delivery
+Scope: Rituals
+
+Summary: A Ritual's card in the Rituals place now has Delete, with one confirmation and Cancel, shared with the quest panel's Delete (`DeleteRitualButton`). The Ritual goes and its quest stays as an ordinary quest, as already agreed; the service needed no change.
+References: documentation/capabilities/rituals/specifications.md (Edit and delete), documentation/verification/2026-11-10-ritual-delete.md.
+Validation: Rituals tests (11) pass with the deletion test extended to the lists; typecheck and Biome pass; the card driven in a browser on the fake harness. The owner's look is pending.

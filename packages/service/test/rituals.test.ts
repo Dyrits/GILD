@@ -276,6 +276,16 @@ describe("editing and deleting a Ritual", () => {
         yield* call({ _tag: "DeleteRitual", ritualId: created.ritualId });
         expect(yield* readRitual(created.missionId)).toBeNull();
         expect((yield* read(created.missionId)).thread.title).toBe("Morning digest");
+        // It leaves the Rituals and its quest joins the quests.
+        expect(yield* call({ _tag: "ListRituals" })).toEqual([]);
+        const { missions } = yield* call({
+          _tag: "ListMissions",
+          isArchived: false,
+          search: null,
+          state: null,
+          workspaceId: null,
+        });
+        expect(missions.map((mission) => mission.id)).toContain(created.missionId);
       }),
     ),
   );

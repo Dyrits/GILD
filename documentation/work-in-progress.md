@@ -660,3 +660,7 @@ Rituals place (CHG-0100): Rituals leave the quest board for a place of their own
 Workshop batch (CHG-0101): the settings page as the owner's mockup, with provider logos and a pinned Settings guide; format, typecheck, lint, and 505 tests pass; driven in the web export on the fake harness; the look awaits the owner ([proof](verification/2026-11-10-workshop.md)).
 
 Message attachments batch (CHG-0102): images attached to the owner's messages by paste, drop, or file button, uploaded first and referenced by the message, handed to Claude Code, Codex, and OpenCode in their own forms, refused when the harness cannot read them. Starting revision `77d925b`, with the uncommitted Workshop work (CHG-0101) in the tree and not mine. Specification: [message-attachments](capabilities/message-attachments/specifications.md). Provisional: a Companion whose vision support is unknown (every OpenCode model) is allowed; drafts older than a restart are erased; the thumbnail has no larger view. Status: built and checked (CHG-0103; [proof](verification/2026-11-10-message-attachments.md)); the look awaits the owner. Pasting very large text no longer freezes the box, and the service starts again.
+
+## Delete a Ritual · 2026-11-10 · built and checked, owner look pending
+
+Starting commit `ca173da`; branch `ritual-delete`. Delete added to the Ritual card (CHG-0108). Not decided by the owner: whether deleting should offer to delete the quest too (kept as agreed: the quest stays). Full suite not run.

@@ -356,6 +356,48 @@ function RunNowButton({
   );
 }
 
+/** Deletes the Ritual after one confirmation; its quest stays, as an ordinary quest (rituals). */
+function DeleteRitualButton({
+  client,
+  onError,
+  ritualId,
+}: {
+  client: ServiceClient;
+  onError: (message: string | null) => void;
+  ritualId: RitualId;
+}) {
+  const [isConfirming, setIsConfirming] = useState(false);
+  if (!isConfirming) {
+    return (
+      <Pressable accessibilityRole="button" onPress={() => setIsConfirming(true)}>
+        <Text style={local.remove}>Delete</Text>
+      </Pressable>
+    );
+  }
+  return (
+    <View style={local.switch}>
+      <Pressable
+        accessibilityLabel="Confirm: delete the Ritual, keep its quest"
+        accessibilityRole="button"
+        onPress={() =>
+          client.request({ _tag: "DeleteRitual", ritualId }).then(
+            () => onError(null),
+            (reason) => {
+              setIsConfirming(false);
+              onError(messageOf(reason));
+            },
+          )
+        }
+      >
+        <Text style={local.remove}>Confirm: delete the Ritual, keep its quest</Text>
+      </Pressable>
+      <Pressable accessibilityRole="button" onPress={() => setIsConfirming(false)}>
+        <Text style={styles.link}>Cancel</Text>
+      </Pressable>
+    </View>
+  );
+}
+
 /** A Ritual's Companion and its fallbacks in a line, such as "Sonnet 5.5 · Claude Code · 1 fallback". */
 const companionLineOf = (ritual: Ritual) =>
   [
@@ -422,6 +464,7 @@ function RitualCard({
         <Pressable accessibilityRole="button" onPress={onEdit}>
           <Text style={styles.link}>Edit</Text>
         </Pressable>
+        <DeleteRitualButton client={client} onError={setError} ritualId={ritual.id} />
       </View>
       {error !== null && <Text style={styles.error}>{error}</Text>}
     </View>
@@ -494,7 +537,6 @@ export function RitualsScreen({
 export function RitualControls({ client, missionId }: { client: ServiceClient; missionId: MissionId }) {
   const { data: ritual } = useServiceQuery(client, { _tag: "ReadRitual", missionId }, `ritual:${missionId}`);
   const [isEditing, setIsEditing] = useState(false);
-  const [isConfirming, setIsConfirming] = useState(false);
   const [error, setError] = useState<string | null>(null);
   if (ritual === null) return null;
   if (isEditing) {
@@ -529,18 +571,7 @@ export function RitualControls({ client, missionId }: { client: ServiceClient; m
         <Pressable accessibilityRole="button" onPress={() => setIsEditing(true)}>
           <Text style={styles.link}>Edit</Text>
         </Pressable>
-        {isConfirming ? (
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => guard(client.request({ _tag: "DeleteRitual", ritualId: ritual.id }))}
-          >
-            <Text style={local.remove}>Confirm: delete the Ritual, keep the quest</Text>
-          </Pressable>
-        ) : (
-          <Pressable accessibilityRole="button" onPress={() => setIsConfirming(true)}>
-            <Text style={local.remove}>Delete Ritual</Text>
-          </Pressable>
-        )}
+        <DeleteRitualButton client={client} onError={setError} ritualId={ritual.id} />
       </View>
       {error !== null && <Text style={styles.error}>{error}</Text>}
     </View>
