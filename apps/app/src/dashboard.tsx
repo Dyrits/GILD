@@ -12,7 +12,6 @@ import { MissionPromptCard } from "./missionActions";
 import { allMissions } from "./queries";
 import { QuestionCard } from "./questions";
 import { QuestOverview, QuestPreview, RealmPanel } from "./questPanel";
-import { RitualForm } from "./rituals";
 import { type Runner, RunnerPickers, useHarnesses } from "./runners";
 import { useHasSidebar, useQuestPanel } from "./sidebar";
 import { styles } from "./styles";
@@ -147,8 +146,6 @@ export function Dashboard({
   // The Archived view keeps every workspace; the board shows the one chosen in the sidebar or the breadcrumb.
   const workspaceId = isArchived ? null : chosenWorkspaceId;
   const [isGlobalBudgetOpen, setIsGlobalBudgetOpen] = useState(false);
-  // Whether the form that makes a Ritual is open above the board.
-  const [isRitualOpen, setIsRitualOpen] = useState(false);
   // What a quest's panel opened in this screen's place: its budget or its journal. It belongs to that quest, so
   // choosing another quest closes it.
   const [preview, setPreview] = useState<{ missionId: MissionId; screen: "Budget" | "Journal" } | null>(null);
@@ -271,11 +268,6 @@ export function Dashboard({
           )}
           {/* The title is in the top bar and the panel, so the header only holds what sits at its right. */}
           <View style={styles.flex} />
-          {!isArchived && (
-            <Pressable accessibilityRole="button" onPress={() => setIsRitualOpen(true)}>
-              <Text style={[styles.link, { color: colors.goldHi }]}>+ Ritual</Text>
-            </Pressable>
-          )}
           {global !== null && <BudgetMeters onPress={() => setIsGlobalBudgetOpen(true)} use={global} />}
           {!isArchived && !hasSidebar && (
             <Pressable onPress={onArchived}>
@@ -293,17 +285,6 @@ export function Dashboard({
             </Pressable>
           )}
         </View>
-        {!isArchived && isRitualOpen && (
-          <RitualForm
-            client={client}
-            onCancel={() => setIsRitualOpen(false)}
-            onDone={(missionId) => {
-              setIsRitualOpen(false);
-              press(missionId);
-            }}
-            ritual={null}
-          />
-        )}
         {!isArchived && global?.stop != null && (
           <BudgetStopCard client={client} onRaise={() => setIsGlobalBudgetOpen(true)} stop={global.stop} />
         )}

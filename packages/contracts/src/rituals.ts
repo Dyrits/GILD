@@ -72,6 +72,8 @@ export const UpdateRitual = Schema.TaggedStruct("UpdateRitual", {
 export const RunRitual = Schema.TaggedStruct("RunRitual", { ritualId: RitualId });
 /** Deletes a Ritual; its quest stays, as an ordinary quest. */
 export const DeleteRitual = Schema.TaggedStruct("DeleteRitual", { ritualId: RitualId });
+/** Lists every Ritual, the latest first; they are not among the quests. */
+export const ListRituals = Schema.TaggedStruct("ListRituals", {});
 /** Reads the Ritual of a quest, or null when it is not a Ritual's. */
 export const ReadRitual = Schema.TaggedStruct("ReadRitual", { missionId: MissionId });
 

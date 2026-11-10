@@ -1,15 +1,17 @@
 import {
   type MissionId,
   type Ritual,
-  type RitualCard,
   type RitualId,
+  type RitualRunState,
   type RitualSchedule,
   startingModel,
 } from "@gild/contracts";
-import { useState } from "react";
-import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { type ReactNode, useState } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { newRequestId, type ServiceClient } from "./client";
 import { Toggle } from "./controls";
+import { Emblem } from "./emblems";
+import { harnessLabels, modelLabelOf } from "./formatting";
 import { Menu } from "./pickers";
 import { allMissions } from "./queries";
 import {
@@ -23,87 +25,118 @@ import {
   weekdayLabelOf,
 } from "./ritualLabels";
 import { type Runner, RunnerPickers, useHarnesses } from "./runners";
+import { EmptyBoard } from "./sketches";
 import { styles } from "./styles";
-import { colors, fonts } from "./theme";
+import { colors, cut, fontSizes, fonts, ink, lift } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
 import { RealmChooser } from "./workspaces";
 
-// Rituals in the interface: the form that makes or edits one, its mark on a board card, and its controls in the quest's panel.
+// Rituals in the interface: their own place, apart from the quests: a screen of cards, the form that makes or edits one,
+// and its controls in the panel of its quest (rituals).
 
 const messageOf = (reason: unknown) => (reason instanceof Error ? reason.message : String(reason));
+
+/** The Rituals, the latest first; they refetch when anything changes. */
+export const useRituals = (client: ServiceClient) => useServiceQuery(client, { _tag: "ListRituals" }, "rituals").data;
 
 const weekdays = ["0", "1", "2", "3", "4", "5", "6"] as const;
 const monthDays = Array.from({ length: 28 }, (_, index) => String(index + 1));
 
-/** One row of a form: a name over its field. */
-function Field({ children, name }: { children: React.ReactNode; name: string }) {
+const runStateColors = {
+  Done: colors.successText,
+  Failed: colors.dangerText,
+  Interrupted: colors.textMuted,
+  Underway: colors.accentText,
+} as const satisfies Record<RitualRunState, string>;
+
+/** Switches a Ritual on or off, keeping everything else as it is. */
+const setRitualOn = (client: ServiceClient, ritual: Ritual, isOn: boolean) =>
+  client.request({
+    _tag: "UpdateRitual",
+    fallbacks: ritual.fallbacks,
+    instruction: ritual.instruction,
+    isOn,
+    primary: ritual.primary,
+    ritualId: ritual.id,
+    schedule: ritual.schedule,
+    title: ritual.title,
+  });
+
+/** A word in a row of fields, such as the "at" between a day and a time. */
+function Word({ text }: { text: string }) {
+  return <Text style={local.word}>{text}</Text>;
+}
+
+/** One labelled part of the form, under a small gilt rule. */
+function Part({ children, name }: { children: ReactNode; name: string }) {
   return (
-    <View style={styles.field}>
-      <Text style={styles.fieldName}>{name}</Text>
+    <View style={local.part}>
+      <Text style={local.partName}>{name}</Text>
       {children}
     </View>
   );
 }
 
-/** When the Ritual runs: a preset, then the time, day, or hours it needs. */
-function ScheduleFields({ onChange, value }: { onChange: (schedule: RitualSchedule) => void; value: RitualSchedule }) {
+/** When the Ritual runs, as a sentence of pickers: "Every week on Monday at 07:00". */
+function ScheduleRow({ onChange, value }: { onChange: (schedule: RitualSchedule) => void; value: RitualSchedule }) {
   return (
-    <View style={styles.fields}>
-      <Field name="Schedule">
-        <Menu
-          accessibilityLabel="Schedule"
-          isField
-          label={(kind) => scheduleKindLabels[kind]}
-          onChange={(kind) => onChange(scheduleOfKind(kind, value))}
-          options={scheduleKinds}
-          value={value._tag}
-        />
-      </Field>
+    <View style={local.sentence}>
+      <Menu
+        accessibilityLabel="Schedule"
+        label={(kind) => scheduleKindLabels[kind]}
+        onChange={(kind) => onChange(scheduleOfKind(kind, value))}
+        options={scheduleKinds}
+        value={value._tag}
+      />
       {value._tag === "Weekly" && (
-        <Field name="Day">
+        <>
+          <Word text="on" />
           <Menu
             accessibilityLabel="Day of the week"
-            isField
             label={(day) => weekdayLabelOf(Number(day))}
             onChange={(day) => onChange({ ...value, day: Number(day) })}
             options={weekdays}
             value={String(value.day) as (typeof weekdays)[number]}
           />
-        </Field>
+        </>
       )}
       {value._tag === "Monthly" && (
-        <Field name="Day of the month">
+        <>
+          <Word text="on day" />
           <Menu
             accessibilityLabel="Day of the month"
-            isField
             label={(day) => day}
             onChange={(day) => onChange({ ...value, day: Number(day) })}
             options={monthDays}
             value={String(value.day)}
           />
-        </Field>
+        </>
       )}
       {value._tag === "Hourly" ? (
-        <Field name="Every how many hours (1 to 168)">
+        <>
+          <Word text="every" />
           <TextInput
             accessibilityLabel="Hours between runs"
             keyboardType="numeric"
             onChangeText={(text) => onChange({ ...value, hours: Number.parseInt(text, 10) || 0 })}
-            style={styles.input}
+            style={[styles.input, local.small, (value.hours < 1 || value.hours > 168) && local.invalid]}
             value={value.hours === 0 ? "" : String(value.hours)}
           />
-        </Field>
+          <Word text="hours (1 to 168)" />
+        </>
       ) : (
-        <Field name="At (24-hour time, such as 07:00)">
+        <>
+          <Word text="at" />
           <TextInput
             accessibilityLabel="Time of day"
             onChangeText={(time) => onChange({ ...value, time })}
             placeholder="07:00"
             placeholderTextColor={colors.placeholder}
-            style={[styles.input, !isTimeValid(value.time) && local.invalid]}
+            style={[styles.input, local.small, !isTimeValid(value.time) && local.invalid]}
             value={value.time}
           />
-        </Field>
+          <Word text="(24-hour)" />
+        </>
       )}
     </View>
   );
@@ -190,63 +223,70 @@ export function RitualForm({
   };
   return (
     <View style={local.form}>
-      <Text style={styles.heading}>{ritual === null ? "New Ritual" : "Edit Ritual"}</Text>
-      <View style={styles.fields}>
-        <Field name="Title">
-          <TextInput
-            accessibilityLabel="Ritual title"
-            maxLength={80}
-            onChangeText={setTitle}
-            placeholder="Morning digest"
-            placeholderTextColor={colors.placeholder}
-            style={styles.input}
-            value={title}
-          />
-        </Field>
-        <Field name="Instruction, sent to the quest at each run">
-          <TextInput
-            accessibilityLabel="Ritual instruction"
-            multiline
-            numberOfLines={4}
-            onChangeText={setInstruction}
-            placeholder="Summarise what changed in the repository since yesterday."
-            placeholderTextColor={colors.placeholder}
-            style={[styles.input, local.instruction]}
-            value={instruction}
-          />
-        </Field>
-        <ScheduleFields onChange={setSchedule} value={schedule} />
-        <Text style={styles.label}>Companion</Text>
-        <RunnerPickers harnesses={harnesses} isCompact={false} onChange={setPrimary} value={primary} />
-        <Text style={styles.label}>Fallback Companions, tried in order when a run fails</Text>
+      <View style={local.formHeading}>
+        <Emblem name="moon" size={26} tint={colors.violet} />
+        <Text style={local.formTitle}>{ritual === null ? "New Ritual" : "Edit Ritual"}</Text>
+      </View>
+      <Part name="Name">
+        <TextInput
+          accessibilityLabel="Ritual title"
+          maxLength={80}
+          onChangeText={setTitle}
+          placeholder="Morning digest"
+          placeholderTextColor={colors.placeholder}
+          style={styles.input}
+          value={title}
+        />
+      </Part>
+      <Part name="Instruction, sent to its quest at each run">
+        <TextInput
+          accessibilityLabel="Ritual instruction"
+          multiline
+          numberOfLines={4}
+          onChangeText={setInstruction}
+          placeholder="Summarise what changed in the repository since yesterday."
+          placeholderTextColor={colors.placeholder}
+          style={[styles.input, local.instruction]}
+          value={instruction}
+        />
+      </Part>
+      <Part name="Runs">
+        <ScheduleRow onChange={setSchedule} value={schedule} />
+      </Part>
+      <Part name="Companion">
+        <View style={local.sentence}>
+          <RunnerPickers harnesses={harnesses} isCompact={true} onChange={setPrimary} value={primary} />
+        </View>
+      </Part>
+      <Part name="If a run fails, fall back to">
         {fallbacks.map((fallback, index) => (
           // A fallback has no identity but its place in the list.
           // biome-ignore lint/suspicious/noArrayIndexKey: see above
-          <View key={index} style={local.fallback}>
-            <View style={styles.inlineRow}>
-              <Text style={styles.fieldName}>Fallback {index + 1}</Text>
-              <Pressable
-                accessibilityLabel={`Remove fallback ${index + 1}`}
-                accessibilityRole="button"
-                onPress={() => setFallbacks(fallbacks.filter((_, other) => other !== index))}
-              >
-                <Text style={styles.link}>Remove</Text>
-              </Pressable>
-            </View>
+          <View key={index} style={local.sentence}>
+            <Word text={index === 0 ? "first" : "then"} />
             <RunnerPickers
               harnesses={harnesses}
-              isCompact={false}
+              isCompact={true}
               onChange={(next) => setFallbacks(fallbacks.map((current, other) => (other === index ? next : current)))}
               value={fallback}
             />
+            <Pressable
+              accessibilityLabel={`Remove fallback ${index + 1}`}
+              accessibilityRole="button"
+              onPress={() => setFallbacks(fallbacks.filter((_, other) => other !== index))}
+            >
+              <Text style={local.remove}>Remove</Text>
+            </Pressable>
           </View>
         ))}
         {fallbacks.length < 5 && (
-          <Pressable accessibilityRole="button" onPress={addFallback} style={styles.buttonSecondary}>
-            <Text style={styles.buttonSecondaryText}>Add a fallback Companion</Text>
+          <Pressable accessibilityRole="button" onPress={addFallback}>
+            <Text style={styles.link}>+ Add a fallback Companion</Text>
           </Pressable>
         )}
-        {ritual === null ? (
+      </Part>
+      {ritual === null ? (
+        <Part name="Realm">
           <RealmChooser
             missions={known?.missions ?? []}
             onChange={setWorkspacePath}
@@ -258,15 +298,15 @@ export function RitualForm({
             realms={known?.workspaces ?? []}
             value={workspacePath}
           />
-        ) : (
-          <View style={styles.inlineRow}>
-            <Toggle onValueChange={setIsOn} value={isOn} />
-            <Text style={styles.body}>{isOn ? "On: runs on its schedule" : "Off: runs only when you run it"}</Text>
-          </View>
-        )}
-      </View>
+        </Part>
+      ) : (
+        <View style={local.sentence}>
+          <Toggle onValueChange={setIsOn} value={isOn} />
+          <Text style={styles.body}>{isOn ? "On: runs on its schedule" : "Off: runs only when you run it"}</Text>
+        </View>
+      )}
       {error !== null && <Text style={styles.error}>{error}</Text>}
-      <View style={styles.inlineRow}>
+      <View style={local.sentence}>
         <Pressable
           accessibilityLabel={ritual === null ? "Create Ritual" : "Save Ritual"}
           accessibilityRole="button"
@@ -307,25 +347,145 @@ function RunNowButton({
           setError(null);
           client.request({ _tag: "RunRitual", ritualId }).catch((reason) => setError(messageOf(reason)));
         }}
-        style={[styles.buttonSecondary, isUnderway && styles.buttonDisabled]}
+        style={[local.runButton, isUnderway && styles.buttonDisabled]}
       >
-        <Text style={styles.buttonSecondaryText}>Run now</Text>
+        <Text style={local.runButtonText}>Run now</Text>
       </Pressable>
       {error !== null && <Text style={styles.error}>{error}</Text>}
     </View>
   );
 }
 
-/** What a Ritual's card on the board shows beyond a quest's: its schedule, next run, last run, and Run now. */
-export function RitualMark({ client, ritual }: { client: ServiceClient; ritual: RitualCard }) {
+/** A Ritual's Companion and its fallbacks in a line, such as "Sonnet 5.5 · Claude Code · 1 fallback". */
+const companionLineOf = (ritual: Ritual) =>
+  [
+    modelLabelOf(ritual.primary.model),
+    harnessLabels[ritual.primary.harness],
+    ...(ritual.fallbacks.length === 0
+      ? []
+      : [`${ritual.fallbacks.length} fallback${ritual.fallbacks.length === 1 ? "" : "s"}`]),
+  ].join(" · ");
+
+/** A Ritual as a card: its name, schedule, next and last run, Companion, and what can be done with it. */
+function RitualCard({
+  client,
+  onEdit,
+  onOpen,
+  ritual,
+}: {
+  client: ServiceClient;
+  onEdit: () => void;
+  onOpen: () => void;
+  ritual: Ritual;
+}) {
+  const [error, setError] = useState<string | null>(null);
   return (
-    <View style={local.mark}>
-      <Text style={local.markSchedule}>{scheduleLabelOf(ritual.schedule)}</Text>
-      <Text style={local.markLine}>
-        {nextRunLabelOf(ritual.isOn ? ritual.nextRunAt : null, Date.now())}
-        {ritual.lastRunState === null ? "" : ` · Last run: ${runStateLabels[ritual.lastRunState]}`}
-      </Text>
-      <RunNowButton client={client} isUnderway={ritual.lastRunState === "Underway"} ritualId={ritual.id} />
+    <View style={[local.card, !ritual.isOn && local.cardOff]}>
+      <Pressable accessibilityRole="button" onPress={onOpen} style={local.cardTop}>
+        <View style={local.seal}>
+          <Emblem name="moon" size={26} tint={colors.goldHi} />
+        </View>
+        <View style={local.cardText}>
+          <Text numberOfLines={2} style={local.cardTitle}>
+            {ritual.title}
+          </Text>
+          <Text style={local.cardSchedule}>{scheduleLabelOf(ritual.schedule)}</Text>
+        </View>
+      </Pressable>
+      <View style={local.facts}>
+        <Text style={local.fact}>{nextRunLabelOf(ritual.isOn ? ritual.nextRunAt : null, Date.now())}</Text>
+        {ritual.lastRunState !== null && (
+          <Text style={local.fact}>
+            Last run:{" "}
+            <Text style={{ color: runStateColors[ritual.lastRunState] }}>{runStateLabels[ritual.lastRunState]}</Text>
+          </Text>
+        )}
+        <Text style={local.fact}>{companionLineOf(ritual)}</Text>
+      </View>
+      <View style={local.actions}>
+        <RunNowButton client={client} isUnderway={ritual.lastRunState === "Underway"} ritualId={ritual.id} />
+        <View style={local.switch}>
+          <Toggle
+            onValueChange={(isOn) =>
+              setRitualOn(client, ritual, isOn).then(
+                () => setError(null),
+                (reason) => setError(messageOf(reason)),
+              )
+            }
+            value={ritual.isOn}
+          />
+          <Text style={local.fact}>{ritual.isOn ? "On" : "Off"}</Text>
+        </View>
+        <Pressable accessibilityRole="button" onPress={onOpen}>
+          <Text style={styles.link}>Open</Text>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={onEdit}>
+          <Text style={styles.link}>Edit</Text>
+        </Pressable>
+      </View>
+      {error !== null && <Text style={styles.error}>{error}</Text>}
+    </View>
+  );
+}
+
+/** The Rituals place: a button to make one, its form when open, and a card for each Ritual. */
+export function RitualsScreen({
+  client,
+  onOpen,
+}: {
+  client: ServiceClient;
+  /** Opens a Ritual's quest, where its runs happen. */
+  onOpen: (missionId: MissionId) => void;
+}) {
+  const rituals = useRituals(client);
+  // A Ritual being edited, a new one being made, or none.
+  const [editing, setEditing] = useState<Ritual | "new" | null>(null);
+  return (
+    <View style={local.page}>
+      <ScrollView contentContainerStyle={local.content}>
+        <View style={local.header}>
+          <View style={local.headerText}>
+            <Text style={local.heading}>Rituals</Text>
+            <Text style={local.subheading}>Standing orders that run by themselves, each in a quest of its own.</Text>
+          </View>
+          {editing === null && (
+            <Pressable
+              accessibilityLabel="New Ritual"
+              accessibilityRole="button"
+              onPress={() => setEditing("new")}
+              style={styles.button}
+            >
+              <Text style={styles.buttonText}>+ New Ritual</Text>
+            </Pressable>
+          )}
+        </View>
+        {editing !== null && (
+          <RitualForm
+            client={client}
+            key={editing === "new" ? "new" : editing.id}
+            onCancel={() => setEditing(null)}
+            onDone={(missionId) => {
+              setEditing(null);
+              if (editing === "new") onOpen(missionId);
+            }}
+            ritual={editing === "new" ? null : editing}
+          />
+        )}
+        {rituals !== null && rituals.length === 0 && editing === null && (
+          <EmptyBoard line="No Ritual yet. A Ritual sends an instruction to its own quest on a schedule." />
+        )}
+        <View style={local.grid}>
+          {(rituals ?? []).map((ritual) => (
+            <RitualCard
+              client={client}
+              key={ritual.id}
+              onEdit={() => setEditing(ritual)}
+              onOpen={() => onOpen(ritual.missionId)}
+              ritual={ritual}
+            />
+          ))}
+        </View>
+      </ScrollView>
     </View>
   );
 }
@@ -354,38 +514,18 @@ export function RitualControls({ client, missionId }: { client: ServiceClient; m
     );
   return (
     <View style={local.controls}>
-      <Text style={local.markSchedule}>Ritual · {scheduleLabelOf(ritual.schedule)}</Text>
-      <Text style={local.markLine}>
+      <Text style={local.cardSchedule}>Ritual · {scheduleLabelOf(ritual.schedule)}</Text>
+      <Text style={local.fact}>
         {nextRunLabelOf(ritual.isOn ? ritual.nextRunAt : null, Date.now())}
         {ritual.lastRunState === null ? "" : ` · Last run: ${runStateLabels[ritual.lastRunState]}`}
       </Text>
-      <Text style={local.markLine}>
-        {ritual.fallbacks.length === 0
-          ? "No fallback Companion"
-          : `Falls back to ${ritual.fallbacks.length} other Companion${ritual.fallbacks.length === 1 ? "" : "s"}`}
-      </Text>
-      <View style={styles.inlineRow}>
-        <Toggle
-          onValueChange={(isOn) =>
-            guard(
-              client.request({
-                _tag: "UpdateRitual",
-                fallbacks: ritual.fallbacks,
-                instruction: ritual.instruction,
-                isOn,
-                primary: ritual.primary,
-                ritualId: ritual.id,
-                schedule: ritual.schedule,
-                title: ritual.title,
-              }),
-            )
-          }
-          value={ritual.isOn}
-        />
+      <Text style={local.fact}>{companionLineOf(ritual)}</Text>
+      <View style={local.switch}>
+        <Toggle onValueChange={(isOn) => guard(setRitualOn(client, ritual, isOn))} value={ritual.isOn} />
         <Text style={styles.body}>{ritual.isOn ? "On" : "Off"}</Text>
       </View>
       <RunNowButton client={client} isUnderway={ritual.lastRunState === "Underway"} ritualId={ritual.id} />
-      <View style={styles.inlineRow}>
+      <View style={local.switch}>
         <Pressable accessibilityRole="button" onPress={() => setIsEditing(true)}>
           <Text style={styles.link}>Edit</Text>
         </Pressable>
@@ -394,11 +534,11 @@ export function RitualControls({ client, missionId }: { client: ServiceClient; m
             accessibilityRole="button"
             onPress={() => guard(client.request({ _tag: "DeleteRitual", ritualId: ritual.id }))}
           >
-            <Text style={[styles.link, { color: colors.dangerText }]}>Confirm: delete the Ritual, keep the quest</Text>
+            <Text style={local.remove}>Confirm: delete the Ritual, keep the quest</Text>
           </Pressable>
         ) : (
           <Pressable accessibilityRole="button" onPress={() => setIsConfirming(true)}>
-            <Text style={[styles.link, { color: colors.dangerText }]}>Delete Ritual</Text>
+            <Text style={local.remove}>Delete Ritual</Text>
           </Pressable>
         )}
       </View>
@@ -408,13 +548,97 @@ export function RitualControls({ client, missionId }: { client: ServiceClient; m
 }
 
 const local = StyleSheet.create({
+  actions: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  card: {
+    ...ink,
+    ...cut,
+    ...lift,
+    backgroundColor: colors.canvas,
+    borderColor: colors.violet,
+    borderStyle: "dashed",
+    borderTopColor: colors.violet,
+    borderTopWidth: 5,
+    borderWidth: 1.5,
+    gap: 12,
+    maxWidth: "100%",
+    padding: 16,
+    width: 380,
+  },
+  cardOff: { opacity: 0.6 },
+  cardSchedule: { color: colors.violet, fontFamily: fonts.hand, fontSize: 14, fontWeight: "700", letterSpacing: 0.6 },
+  cardText: { flex: 1, gap: 2 },
+  cardTitle: {
+    color: colors.text,
+    fontFamily: fonts.hand,
+    fontSize: 19,
+    fontWeight: "700",
+    letterSpacing: 0.3,
+    textTransform: "uppercase",
+  },
+  cardTop: { alignItems: "center", flexDirection: "row", gap: 12 },
+  content: { gap: 18, paddingHorizontal: 28, paddingVertical: 20 },
   controls: { gap: 8, marginVertical: 10 },
-  fallback: { borderColor: colors.border, borderLeftWidth: 3, gap: 8, paddingLeft: 10 },
-  form: { backgroundColor: colors.canvas, borderColor: colors.gold, borderWidth: 1.5, gap: 14, padding: 16 },
+  fact: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.lg },
+  facts: { gap: 2 },
+  form: {
+    ...ink,
+    ...cut,
+    ...lift,
+    alignSelf: "stretch",
+    backgroundColor: colors.canvas,
+    gap: 16,
+    maxWidth: 760,
+    padding: 22,
+  },
+  formHeading: { alignItems: "center", flexDirection: "row", gap: 10 },
+  formTitle: { color: colors.text, fontFamily: fonts.hand, fontSize: 24, fontWeight: "700", letterSpacing: 0.5 },
+  grid: { alignItems: "flex-start", flexDirection: "row", flexWrap: "wrap", gap: 18 },
+  header: {
+    alignItems: "flex-start",
+    flexDirection: "row",
+    flexWrap: "wrap",
+    gap: 16,
+    justifyContent: "space-between",
+  },
+  headerText: { flexShrink: 1, gap: 4 },
+  heading: {
+    color: colors.onWood,
+    fontFamily: fonts.hand,
+    fontSize: 40,
+    fontWeight: "700",
+    letterSpacing: 2,
+    lineHeight: 48,
+    textShadowColor: "#000",
+    textShadowOffset: { height: 2, width: 0 },
+    textShadowRadius: 6,
+    textTransform: "uppercase",
+  },
   instruction: { minHeight: 90, textAlignVertical: "top" },
   invalid: { borderColor: colors.danger },
-  mark: { gap: 4, marginTop: 4 },
-  markLine: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: 14 },
-  markSchedule: { color: colors.violet, fontFamily: fonts.hand, fontSize: 14, fontWeight: "700", letterSpacing: 0.6 },
+  page: { backgroundColor: colors.wood, flex: 1 },
+  part: { borderTopColor: colors.border, borderTopWidth: 1, gap: 8, paddingTop: 10 },
+  partName: { color: colors.textSecondary, fontFamily: fonts.hand, fontSize: 14, letterSpacing: 0.6 },
+  remove: { color: colors.dangerText, fontFamily: fonts.sans, fontSize: fontSizes.md, fontWeight: "500" },
+  runButton: { ...ink, ...cut, backgroundColor: colors.gold, paddingHorizontal: 14, paddingVertical: 6 },
+  runButtonText: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.md, fontWeight: "700" },
   runNow: { alignItems: "flex-start", gap: 4 },
+  seal: {
+    alignItems: "center",
+    backgroundColor: colors.leather,
+    borderRadius: 999,
+    height: 48,
+    justifyContent: "center",
+    width: 48,
+  },
+  sentence: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  small: { textAlign: "center", width: 76 },
+  subheading: {
+    color: colors.onWood,
+    fontFamily: fonts.sans,
+    fontSize: fontSizes.lg,
+    fontStyle: "italic",
+    opacity: 0.8,
+  },
+  switch: { alignItems: "center", flexDirection: "row", gap: 8 },
+  word: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.base },
 });

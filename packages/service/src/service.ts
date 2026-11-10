@@ -37,7 +37,15 @@ import { readMission } from "./missionDetail.ts";
 import { insertMission } from "./missions.ts";
 import { listPermissions, removePermission, widenPermission } from "./permissions.ts";
 import { listOpenQuestions, listQuestionHistory } from "./questions.ts";
-import { createRitual, deleteRitual, readRitual, ritualsLayer, runRitual, updateRitual } from "./rituals.ts";
+import {
+  createRitual,
+  deleteRitual,
+  listRituals,
+  readRitual,
+  ritualsLayer,
+  runRitual,
+  updateRitual,
+} from "./rituals.ts";
 import { sandboxProblem } from "./sandbox.ts";
 import { readSettings, readStartChoices, writeSettings } from "./settings.ts";
 import { listSkills } from "./skills.ts";
@@ -211,6 +219,7 @@ const make = Effect.gen(function* () {
         ListIntel: (list) => readLoreView(list.scope, list.state, list.threadId, list.workspaceId ?? null),
         ListMissions: (filters) => listMissions(filters),
         ListOpenQuestions: () => listOpenQuestions,
+        ListRituals: () => listRituals,
         ListSkills: (given) => listSkills(given.workspacePath),
         ListWorkspaceEntries: (given) => listWorkspaceEntries(given.workspacePath, given.query),
         OpenThread: (open) =>

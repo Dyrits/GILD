@@ -1,4 +1,4 @@
-import type { MissionId, MissionSummary, Crest as RealmCrest, WorkspaceId } from "@gild/contracts";
+import type { MissionId, MissionSummary, Crest as RealmCrest, Ritual, WorkspaceId } from "@gild/contracts";
 import { type ComponentRef, createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
 import {
   PanResponder,
@@ -16,11 +16,12 @@ import { CrestBadge } from "./crest";
 import { Emblem, type EmblemName } from "./emblems";
 import { tokenCountOf } from "./labels";
 import { allMissions } from "./queries";
+import { useRituals } from "./rituals";
 import { colors, cut, fontSizes, fonts, ink, lift, radii } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
 
 /** The places the sidebar leads to; a mission is opened from its list instead, a realm's quests from its own list. */
-export type Place = "Guildmaster" | "Realms" | "Quests" | "Keep" | "Lore" | "Archived" | "Settings";
+export type Place = "Guildmaster" | "Realms" | "Quests" | "Rituals" | "Keep" | "Lore" | "Archived" | "Settings";
 
 const SidebarShown = createContext(false);
 
@@ -195,6 +196,44 @@ function MissionItem({
   );
 }
 
+/** A Ritual's row in the rail: its moon, its name, and a dot while a run is underway; dimmed while it is off. */
+function RitualItem({
+  isCollapsed,
+  isSelected,
+  onPress,
+  ritual,
+}: {
+  isCollapsed: boolean;
+  isSelected: boolean;
+  onPress: () => void;
+  ritual: Ritual;
+}) {
+  return (
+    <Pressable
+      accessibilityLabel={ritual.title}
+      accessibilityRole="button"
+      onPress={onPress}
+      style={(state) => [
+        local.item,
+        isCollapsed && local.itemCollapsed,
+        (state.pressed || (state as { hovered?: boolean }).hovered === true) && local.itemHovered,
+        isSelected && local.itemSelected,
+        isSelected && isCollapsed && local.itemSelectedCollapsed,
+        !ritual.isOn && local.ritualOff,
+      ]}
+    >
+      {isSelected && !isCollapsed && <Text style={local.pointer}>◆</Text>}
+      <Emblem name="moon" size={isCollapsed ? 28 : 20} tint={railTintOf(isSelected, isCollapsed)} />
+      {!isCollapsed && (
+        <Text numberOfLines={1} style={[local.itemText, local.missionText, isSelected && local.textSelected]}>
+          {ritual.title}
+        </Text>
+      )}
+      {ritual.lastRunState === "Underway" && !isCollapsed && <View style={local.attention} />}
+    </Pressable>
+  );
+}
+
 /**
  * The last row of the Missions list: the archived missions, as a quieter row of the same list, with a box glyph
  * where a mission has its state dot and their count at the end.
@@ -354,6 +393,7 @@ function Sidebar({
 }) {
   const { data } = useServiceQuery(client, allMissions.request, allMissions.key);
   const missions = [...(data?.missions ?? [])].sort((a, b) => b.lastActivityAt - a.lastActivityAt);
+  const rituals = useRituals(client) ?? [];
   // The rail lists the latest quests of every realm; "+ N more" unfolds the rest.
   const [areAllQuestsShown, setAreAllQuestsShown] = useState(false);
   const railQuests = areAllQuestsShown ? missions : missions.slice(0, railQuestLimit);
@@ -454,6 +494,28 @@ function Sidebar({
             </Text>
           </Pressable>
         )}
+        <Category
+          emblem="moon"
+          isCollapsed={isCollapsed}
+          isSelected={isHere("Rituals")}
+          label="Rituals"
+          onPress={() => onPlace("Rituals")}
+          {...props("Rituals")}
+        />
+        {!isCollapsed && !folded.has("Rituals") && rituals.length === 0 && (
+          <Text style={local.empty}>No Rituals yet.</Text>
+        )}
+        {!isCollapsed &&
+          !folded.has("Rituals") &&
+          rituals.map((ritual) => (
+            <RitualItem
+              isCollapsed={false}
+              isSelected={ritual.missionId === openMission}
+              key={ritual.id}
+              onPress={() => onOpenMission(ritual.missionId)}
+              ritual={ritual}
+            />
+          ))}
         <Category
           emblem="castle"
           isCollapsed={isCollapsed}
@@ -606,7 +668,7 @@ const rememberCollapsed = (isCollapsed: boolean) => {
 const foldedKey = "gild:sidebar-folded";
 
 /** The rail's categories that can fold their rows away. */
-type Foldable = "Realms" | "Quests" | "Keep";
+type Foldable = "Realms" | "Quests" | "Rituals" | "Keep";
 
 /** Reads the remembered folded categories; a platform without browser storage starts with all unfolded. */
 const readFolded = (): ReadonlySet<Foldable> => {
@@ -707,6 +769,7 @@ const crumbsOf = ({
   openMission,
   place,
   realm,
+  rituals,
   workspaces,
 }: {
   /** Whether the quests have been read, so a quest missing from them is known to be archived. */
@@ -718,12 +781,16 @@ const crumbsOf = ({
   openMission: MissionId | null;
   place: Place | null;
   realm: { id: WorkspaceId; name: string } | null;
+  /** The Rituals, whose quests are not among `missions`. */
+  rituals: readonly Ritual[];
   workspaces: readonly { id: WorkspaceId; name: string }[];
 }): Crumb[] => {
   const to = (label: string, target: Place): Crumb => ({ label, onPress: () => onPlace(target) });
   const here = (label: string, glyph?: string): Crumb =>
     glyph === undefined ? { label, onPress: null } : { glyph, label, onPress: null };
   if (openMission !== null) {
+    const ritual = rituals.find((each) => each.missionId === openMission);
+    if (ritual !== undefined) return [to("Rituals", "Rituals"), here(ritual.title)];
     const mission = missions.find((each) => each.id === openMission);
     if (mission === undefined && isLoaded) return [to("The Keep", "Keep"), to("Archives", "Archived"), here("Quest")];
     const own = workspaces.find((each) => each.id === mission?.workspaceId);
@@ -736,6 +803,7 @@ const crumbsOf = ({
   if (place === "Keep") return [here("The Keep")];
   if (place === "Settings") return [here("Workshop")];
   if (place === "Realms") return [here("Realms")];
+  if (place === "Rituals") return [here("Rituals")];
   if (place === "Quests" && realm !== null) return [to("Realms", "Realms"), here(realm.name)];
   if (place === "Quests") return [here("Quests")];
   return [here("Guildmaster")];
@@ -824,14 +892,16 @@ export function Shell(
     return () => document.removeEventListener("keydown", onKey);
   }, [hasRail]);
   const workspaces = data?.workspaces ?? [];
+  const rituals = useRituals(props.client);
   const crumbs = crumbsOf({
-    isLoaded: data !== null,
+    isLoaded: data !== null && rituals !== null,
     missions: data?.missions ?? [],
     onPlace: props.onPlace,
     onWorkspace: props.onWorkspace,
     openMission: props.openMission,
     place: props.place,
     realm: workspaces.find((workspace) => workspace.id === props.workspaceId) ?? null,
+    rituals: rituals ?? [],
     workspaces,
   });
   const { details } = props;
@@ -1045,6 +1115,7 @@ const local = StyleSheet.create({
   questColumn: { borderColor: colors.gold, borderLeftWidth: 1, width: 360 },
   questColumnNarrow: { flex: 1 },
   resizer: { bottom: 0, position: "absolute", top: 0, width: 8, zIndex: 3 },
+  ritualOff: { opacity: 0.55 },
   sectionHeading: {
     alignItems: "center",
     borderBottomColor: colors.gold,

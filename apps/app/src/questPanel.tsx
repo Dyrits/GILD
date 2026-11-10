@@ -128,7 +128,7 @@ export function QuestSidebar({
       <ScrollView contentContainerStyle={local.content} style={styles.flex}>
         <View style={local.hero}>
           {onBack === undefined ? (
-            <Text style={local.kicker}>Quest</Text>
+            <Text style={local.kicker}>{mission.ritual === null ? "Quest" : "Ritual"}</Text>
           ) : (
             <Pressable accessibilityRole="button" onPress={onBack}>
               <Text style={local.kicker}>‹ The council</Text>
@@ -181,10 +181,13 @@ export function QuestSidebar({
             <Text style={local.openText}>Open quest</Text>
           </Pressable>
         )}
-        <View style={local.does}>
-          <Text style={local.doesHeading}>Does</Text>
-          <MissionEndingActions client={client} isButtons={true} mission={mission} />
-        </View>
+        {/* A Ritual is never marked done or archived: it is switched off or deleted from its controls above. */}
+        {mission.ritual === null && (
+          <View style={local.does}>
+            <Text style={local.doesHeading}>Does</Text>
+            <MissionEndingActions client={client} isButtons={true} mission={mission} />
+          </View>
+        )}
       </ScrollView>
       <ParchmentFrame bookmark={bookmarkOf(mission.state)} />
     </View>

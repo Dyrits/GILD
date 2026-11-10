@@ -9,7 +9,6 @@ import { StateBadge } from "./controls";
 import { CrestBadge } from "./crest";
 import { tokenCountOf } from "./labels";
 import { MissionEndingActions } from "./missionActions";
-import { RitualMark } from "./rituals";
 import { colors, cut, fonts, ink, lift, stateLabels } from "./theme";
 
 /** A card's slight, steady tilt (between -1.8 and 1.8 degrees), taken from its id so it does not change between renders. */
@@ -52,9 +51,6 @@ export function MissionCard({
       style={[
         local.card,
         mission.state === "Done" && local.cardDone,
-        // A Ritual's card is cut from violet, dashed, so it reads as a standing order and not as a quest.
-        mission.ritual !== null && local.cardRitual,
-        mission.ritual !== null && !mission.ritual.isOn && local.cardOff,
         isCircled && local.cardAttention,
         isHovered && local.cardHovered,
         isSelected && local.cardSelected,
@@ -70,11 +66,6 @@ export function MissionCard({
       {mission.state === "Done" && column === null && (
         <View pointerEvents="none" style={local.ribbon}>
           <Text style={local.ribbonText}>{stateLabels.Done}</Text>
-        </View>
-      )}
-      {mission.ritual !== null && (
-        <View pointerEvents="none" style={local.ritualRibbon}>
-          <Text style={local.ribbonText}>{mission.ritual.isOn ? "Ritual" : "Ritual · off"}</Text>
         </View>
       )}
       {isCircled && (
@@ -104,7 +95,6 @@ export function MissionCard({
           <Text style={local.tokens}>{tokenCountOf(tokens)} tokens</Text>
         </View>
       </Pressable>
-      {mission.ritual !== null && <RitualMark client={client} ritual={mission.ritual} />}
       {mission.state !== "Done" && (column === null || isStateShownOn(column, mission.state)) && (
         <StateBadge state={mission.state} />
       )}
@@ -227,8 +217,6 @@ const local = StyleSheet.create({
   cardDone: { opacity: 0.8 },
   cardHovered: { borderColor: colors.goldHi, opacity: 1 },
   cardMain: { gap: 4 },
-  cardOff: { opacity: 0.6 },
-  cardRitual: { backgroundColor: colors.violetSoft, borderColor: colors.violet, borderStyle: "dashed", borderWidth: 2 },
   cardSelected: { borderColor: colors.goldHi, borderWidth: 3 },
   cardTitle: {
     color: colors.text,
@@ -306,16 +294,6 @@ const local = StyleSheet.create({
     fontWeight: "700",
     letterSpacing: 1.2,
     textTransform: "uppercase",
-  },
-  ritualRibbon: {
-    backgroundColor: colors.violet,
-    borderBottomRightRadius: 4,
-    left: 0,
-    paddingHorizontal: 9,
-    paddingVertical: 2,
-    position: "absolute",
-    top: -7,
-    zIndex: 1,
   },
   seal: { color: colors.canvas, fontFamily: fonts.hand, fontSize: 18 },
   stacked: { gap: 8 },

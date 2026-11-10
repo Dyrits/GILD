@@ -27,6 +27,7 @@ const decodeCompanion = Schema.decodeUnknownSync(RitualCompanionSchema);
 const decodeFallbacks = Schema.decodeUnknownSync(Schema.Array(RitualCompanionSchema));
 
 interface RitualRow {
+  readonly createdAt: number;
   readonly fallbackStep: number;
   readonly fallbacks: string;
   readonly id: string;
@@ -61,7 +62,7 @@ const readRows = (
       SELECT r.id, r.mission_id AS missionId, m.top_thread_id AS threadId, t.state AS threadState, m.title,
         r.instruction, r.schedule, r.primary_companion AS primaryCompanion, r.fallbacks, r.is_on AS isOn,
         r.next_run_at AS nextRunAt, r.last_run_at AS lastRunAt, r.last_run_state AS lastRunState,
-        r.fallback_step AS fallbackStep
+        r.fallback_step AS fallbackStep, r.created_at AS createdAt
       FROM rituals r JOIN missions m ON m.id = r.mission_id JOIN threads t ON t.id = m.top_thread_id
       WHERE ${where}`;
   });
@@ -88,6 +89,12 @@ export const readRitual = (missionId: string) =>
     const [row] = yield* readRows({ missionId });
     return row === undefined ? null : ritualOf(row);
   });
+
+/** Every Ritual, the latest first. */
+export const listRituals = Effect.gen(function* () {
+  const rows = yield* readRows("all");
+  return rows.toSorted((a, b) => b.createdAt - a.createdAt).map(ritualOf);
+});
 
 /** What a Ritual's quest and thread are named. */
 const renameQuest = (missionId: string, threadId: string, title: string) =>

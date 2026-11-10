@@ -646,3 +646,5 @@ Thread handover batch (CHG-0096): the owner changes a quest's harness, account, 
 
 Rituals batch (CHG-0098): scheduled runs in a quest of their own, with an ordered list of fallback Companions, a card of its own on the board, Run now, and an edit panel; typecheck, lint, and 496 tests pass; driven in the web export on the fake harness; the look and a Ritual firing on a live harness await the owner ([proof](verification/2026-11-10-rituals.md), [specification](capabilities/rituals/specifications.md)).
 
+Rituals place (CHG-0100): Rituals leave the quest board for a place of their own, with a rail category, a screen of cards, and a compact form; typecheck, lint, and 500 tests pass; driven in the web export on the fake harness; the look awaits the owner ([proof](verification/2026-11-10-rituals.md)).
+

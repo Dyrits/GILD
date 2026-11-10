@@ -225,9 +225,12 @@ export const listViewSummaries = (isArchived: boolean) =>
     const sql = yield* SqlClient.SqlClient;
     const now = yield* Clock.currentTimeMillis;
     const settings = yield* readSettings;
+    // A Ritual's quest is listed with the Rituals, not with the quests (rituals).
     const rows = yield* missionRows(
       sql,
-      isArchived ? sql`m.ending = 'Archived'` : sql`(m.ending IS NULL OR m.ending = 'Done')`,
+      isArchived
+        ? sql`m.ending = 'Archived' AND r.id IS NULL`
+        : sql`(m.ending IS NULL OR m.ending = 'Done') AND r.id IS NULL`,
     );
     return rows.map((row) => summaryOf(row, now, settings));
   });

@@ -9,6 +9,7 @@ import { LoreScreen } from "./src/lore";
 import { useAttentionNotice } from "./src/notifications";
 import { PermissionsScreen } from "./src/permissions";
 import { GuildmasterScreen, KeepScreen, RealmsScreen } from "./src/places";
+import { RitualsScreen } from "./src/rituals";
 import { SettingsScreen } from "./src/settings";
 import { type Place, Shell } from "./src/sidebar";
 import { colors, fontSizes, fonts } from "./src/theme";
@@ -96,6 +97,8 @@ export default function App() {
       <GuildmasterScreen client={client} onOpen={openMissionFromAnywhere} />
     ) : place === "Realms" ? (
       <RealmsScreen client={client} onWorkspace={openWorkspace} />
+    ) : place === "Rituals" ? (
+      <RitualsScreen client={client} onOpen={openMissionFromAnywhere} />
     ) : place === "Keep" ? (
       <KeepScreen client={client} onPlace={goTo} />
     ) : (

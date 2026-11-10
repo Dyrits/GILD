@@ -48,7 +48,7 @@ const advance = (millis: number) =>
   });
 
 describe("creating a Ritual", () => {
-  it.live("makes a quest of its own that waits for a run, and shows the Ritual on the board", () =>
+  it.live("makes a quest of its own that waits for a run, listed with the Rituals and not with the quests", () =>
     withService(
       Effect.gen(function* () {
         const created = yield* create("runner");
@@ -64,6 +64,7 @@ describe("creating a Ritual", () => {
           schedule: daily,
         });
         expect(ritual?.nextRunAt).toBeGreaterThan(Date.now());
+        // A Ritual is not a quest: it is listed with the Rituals, and its quest stays off the quest lists.
         const { missions } = yield* call({
           _tag: "ListMissions",
           isArchived: false,
@@ -71,11 +72,10 @@ describe("creating a Ritual", () => {
           state: null,
           workspaceId: null,
         });
-        expect(missions.find((mission) => mission.id === created.missionId)?.ritual).toMatchObject({
-          isOn: true,
-          lastRunState: null,
-          schedule: daily,
-        });
+        expect(missions.map((mission) => mission.id)).not.toContain(created.missionId);
+        const rituals = yield* call({ _tag: "ListRituals" });
+        expect(rituals.map((listed) => listed.id)).toEqual([created.ritualId]);
+        expect(rituals[0]).toMatchObject({ isOn: true, lastRunState: null, schedule: daily, title: "Morning digest" });
       }),
     ),
   );

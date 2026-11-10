@@ -1495,3 +1495,15 @@ The web message box is now an editable element (`chipEditor.web.tsx`) rather tha
 References: documentation/capabilities/workspace-attachment/specifications.md, packages/service/src/workspaceEntries.ts, apps/app/src/controls.tsx, apps/app/src/useWorkspaceEntries.ts.
 Validation: The owner's request; three service tests (matching, `.gitignore`, refusal), typecheck, lint, and 378 service tests pass.
 Evidence: Baseline `6d7804d`; not seen in the running window (the chips and icons were added at the owner's second request after the first look). The listing accepts any existing folder, since a folder chosen for a first quest is not a workspace until that quest starts.
+
+## CHG-0100 · 2026-11-10 · Rituals as a place of their own, apart from the quests
+
+Type: Code
+Event: Delivery
+Scope: Rituals
+
+Summary: The owner did not like how Rituals looked, found no menu for them, and asked for a menu of their own like the Quests one, with Rituals separate from quests. The rail gains a **Rituals** category (a moon) after Quests, with a row per Ritual; it leads to a Rituals place of cards with a **+ New Ritual** button. A Ritual's quest no longer appears on the Quests board, in the realms, the Archives, or the dashboard prompts (`ListMissions` leaves it out; the new `ListRituals` lists the Rituals). Its conversation opens from the card or the rail row under "Rituals › name", and its panel shows the Ritual's controls without Mark as done and Archive. The "+ Ritual" link and the card style on the quest board are gone. The form is compact: the schedule reads as a sentence of pickers ("Every week on Monday at 07:00"), and the Companion and each fallback are one row of the composer's underlined pickers.
+References: documentation/capabilities/rituals/specifications.md, packages/contracts/src/{rituals,requests}.ts, packages/service/src/{rituals,missions,service}.ts, apps/app/{App.tsx,src/rituals.tsx,src/sidebar.tsx,src/board.tsx,src/dashboard.tsx,src/questPanel.tsx}.
+Validation: format, typecheck, lint, and tests pass (500 passed, 10 skipped); the listing test fails without the quest-list exclusion; driven in the web export on the fake harness ([proof](verification/2026-11-10-rituals.md)).
+Evidence: Baseline `9e6e2e3`; not proven: the look, which awaits the owner, the rail with many Rituals, and the narrow window (no rail).
+
