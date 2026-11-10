@@ -3,7 +3,7 @@ import { Pressable, Text, View } from "react-native";
 import { MessageImages } from "./attachmentViews";
 import { ChipText } from "./chips";
 import type { ServiceClient } from "./client";
-import type { Entry } from "./entries";
+import type { Entry, QuestLink } from "./entries";
 import { clockOf, replyWriterOf } from "./formatting";
 import { LoreChangeCard, LoreChangeLine } from "./lore";
 import { Markdown } from "./markdown";
@@ -21,25 +21,54 @@ const cardStyles = {
   user: styles.messageCardUser,
 } satisfies Record<Message["sender"], unknown>;
 
+/** The button that opens the quest or Ritual a reply led to: what happened to it above its title. */
+function QuestButton({
+  link,
+  onOpenMission,
+}: {
+  link: Omit<QuestLink, "key">;
+  onOpenMission: (missionId: MissionId) => void;
+}) {
+  return (
+    <Pressable
+      accessibilityLabel={`${link.label}: ${link.title}`}
+      accessibilityRole="button"
+      onPress={() => onOpenMission(link.missionId)}
+      style={({ pressed }) => [styles.questButton, pressed && styles.questButtonPressed]}
+    >
+      <Text style={styles.questButtonLabel}>{link.label} →</Text>
+      <Text numberOfLines={2} style={styles.questButtonTitle}>
+        {link.title}
+      </Text>
+    </Pressable>
+  );
+}
+
 /**
  * A reply from the thread's agent: the provider's mark beside a parchment card that names the model and its time.
  * A draft has no time yet and is drawn faded.
+ * The quests and Rituals the reply led to stand as buttons on its right, and beneath it where the window is too narrow.
  */
 export function AgentReply({
   harness,
   isDraft = false,
   label,
+  links = [],
+  onOpenMission,
   text,
   time,
 }: {
   harness: HarnessName;
   isDraft?: boolean;
   label: string;
+  links?: ReadonlyArray<QuestLink>;
+  onOpenMission?: (missionId: MissionId) => void;
   text: string;
   time: string | null;
 }) {
-  return (
-    <View style={[styles.messageRow, isDraft && styles.draft]}>
+  const hasLinks = links.length > 0 && onOpenMission !== undefined;
+  const reply = (
+    <View style={[styles.messageRow, isDraft && styles.draft, hasLinks && styles.messageRowLinked]}>
       <View style={styles.medallion}>
         <ProviderMark harness={harness} />
       </View>
@@ -49,6 +78,17 @@ export function AgentReply({
           {time !== null && <Text style={styles.senderTime}>{time}</Text>}
         </View>
         <Markdown text={text} />
+      </View>
+    </View>
+  );
+  if (!hasLinks) return reply;
+  return (
+    <View style={styles.replyWithLinks}>
+      {reply}
+      <View style={styles.replyLinks}>
+        {links.map((link) => (
+          <QuestButton key={link.key} link={link} onOpenMission={onOpenMission} />
+        ))}
       </View>
     </View>
   );
@@ -64,13 +104,17 @@ const senderLabelOf = (message: Message) => {
 function MessageBubble({
   client,
   harness,
+  links,
   message,
+  onOpenMission,
   skills,
   workspacePath,
 }: {
   client: ServiceClient;
   harness: HarnessName;
+  links: ReadonlyArray<QuestLink>;
   message: Message;
+  onOpenMission: (missionId: MissionId) => void;
   skills: ReadonlyArray<Skill>;
   workspacePath: string | null;
 }) {
@@ -79,7 +123,14 @@ function MessageBubble({
   if (message.sender === "agent") {
     const writer = replyWriterOf(message, harness);
     return (
-      <AgentReply harness={writer.harness} label={writer.label} text={message.text} time={clockOf(message.sentAt)} />
+      <AgentReply
+        harness={writer.harness}
+        label={writer.label}
+        links={links}
+        onOpenMission={onOpenMission}
+        text={message.text}
+        time={clockOf(message.sentAt)}
+      />
     );
   }
   const sender = senderLabelOf(message);
@@ -134,16 +185,12 @@ export function EntryView({
       </View>
     );
   }
-  if (entry._tag === "QuestLink") {
-    const { missionId, title } = entry;
+  if (entry._tag === "QuestLink")
     return (
-      <View style={styles.questionLine}>
-        <Pressable onPress={() => onOpenMission(missionId)}>
-          <Text style={styles.link}>Open quest: {shortened(title)}</Text>
-        </Pressable>
+      <View style={styles.replyLinks}>
+        <QuestButton link={entry} onOpenMission={onOpenMission} />
       </View>
     );
-  }
   if (entry._tag === "BudgetEvent")
     return (
       <View style={styles.questionLine}>
@@ -182,7 +229,9 @@ export function EntryView({
     <MessageBubble
       client={client}
       harness={harness}
+      links={entry.links}
       message={entry.message}
+      onOpenMission={onOpenMission}
       skills={skills}
       workspacePath={workspacePath}
     />

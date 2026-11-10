@@ -57,7 +57,7 @@ describe("handovers, in the conversation they changed", () => {
   });
 });
 
-describe("links from the Guildmaster's conversation, after its replies", () => {
+describe("links from the Guildmaster's conversation, beside its replies", () => {
   const guildmasterDetail = (messages: ReadonlyArray<object>, suggestions: ReadonlyArray<object> = []) =>
     ({
       budgetEvents: [],
@@ -76,8 +76,11 @@ describe("links from the Guildmaster's conversation, after its replies", () => {
     askedAt: 15,
     id: "opened",
     isFromGuildmaster: true,
+    isRitual: false,
     outcome: "MovedToMission",
     resolvedAt: 16,
+    targetMissionId: "quest-1",
+    targetTitle: "Fix login",
     ...extra,
   });
   const report = (sentAt: number, fromMissionId: string | null = "quest-1") => ({
@@ -88,39 +91,57 @@ describe("links from the Guildmaster's conversation, after its replies", () => {
     sentAt,
     text: "Quest failed",
   });
+  /** Each entry's key, with the keys of the links it carries. */
+  const shapeOf = (entries: ReturnType<typeof entriesOf>) =>
+    entries.map((entry) =>
+      entry._tag === "Message" && entry.links.length > 0
+        ? `${entry.key} [${entry.links.map((link) => link.key).join(", ")}]`
+        : entry.key,
+    );
 
-  it("puts what the Guildmaster opened after its confirmation, not before", () => {
+  it("hangs what the Guildmaster opened on its confirmation, not before it", () => {
     const entries = entriesOf(guildmasterDetail([owner(10), reply(30)], [opened()]));
-    expect(entries.map((entry) => entry.key)).toEqual(["owner", "reply", "opened"]);
+    expect(shapeOf(entries)).toEqual(["owner", "reply [opened]"]);
+    expect(entries.at(-1)).toMatchObject({
+      links: [{ label: "Opened quest", missionId: "quest-1", title: "Fix login" }],
+    });
   });
 
-  it("keeps it where it happened until the confirmation is written", () => {
+  it("names a quest it continued and a Ritual it created as such", () => {
+    const labelOf = (extra: object) => {
+      const last = entriesOf(guildmasterDetail([owner(10), reply(30)], [opened(extra)])).at(-1);
+      return last?._tag === "Message" ? last.links.map((link) => link.label) : [];
+    };
+    expect(labelOf({ outcome: "Continued" })).toEqual(["Continued in quest"]);
+    expect(labelOf({ isRitual: true })).toEqual(["Created Ritual"]);
+  });
+
+  it("shows the link on its own, where it happened, until the confirmation is written", () => {
     const entries = entriesOf(guildmasterDetail([owner(10)], [opened()]));
-    expect(entries.map((entry) => entry.key)).toEqual(["owner", "opened"]);
+    expect(shapeOf(entries)).toEqual(["owner", "opened"]);
+    expect(entries.at(-1)).toMatchObject({ _tag: "QuestLink", label: "Opened quest", missionId: "quest-1" });
   });
 
   it("leaves an open question where it was asked, and another thread's suggestions where they were made", () => {
     const open = opened({ outcome: null, resolvedAt: null });
-    expect(entriesOf(guildmasterDetail([owner(10), reply(30)], [open])).map((entry) => entry.key)).toEqual([
-      "owner",
-      "opened",
-      "reply",
-    ]);
+    expect(shapeOf(entriesOf(guildmasterDetail([owner(10), reply(30)], [open])))).toEqual(["owner", "opened", "reply"]);
     const ordinary = opened({ isFromGuildmaster: false });
-    expect(entriesOf(guildmasterDetail([owner(10), reply(30)], [ordinary])).map((entry) => entry.key)).toEqual([
+    expect(shapeOf(entriesOf(guildmasterDetail([owner(10), reply(30)], [ordinary])))).toEqual([
       "owner",
       "opened",
       "reply",
     ]);
   });
 
-  it("follows each report from a quest with a link to that quest, after the Guildmaster's reply to it", () => {
+  it("hangs a link to the quest a report came from on the Guildmaster's reply to it", () => {
     const entries = entriesOf(guildmasterDetail([report(10), reply(30)]));
-    expect(entries.map((entry) => entry.key)).toEqual(["report-10", "reply", "link:report-10"]);
-    expect(entries.at(-1)).toMatchObject({ _tag: "QuestLink", missionId: "quest-1", title: "Delete a ritual" });
+    expect(shapeOf(entries)).toEqual(["report-10", "reply [link:report-10]"]);
+    expect(entries.at(-1)).toMatchObject({
+      links: [{ label: "Open quest", missionId: "quest-1", title: "Delete a ritual" }],
+    });
   });
 
-  it("links a later report after the reply to that one, and none for a message with no quest of its own", () => {
+  it("links a later report on the reply to that one, and none for a message with no quest of its own", () => {
     const entries = entriesOf(
       guildmasterDetail([
         report(10),
@@ -130,13 +151,11 @@ describe("links from the Guildmaster's conversation, after its replies", () => {
         report(70, null),
       ]),
     );
-    expect(entries.map((entry) => entry.key)).toEqual([
+    expect(shapeOf(entries)).toEqual([
       "report-10",
-      "reply-1",
-      "link:report-10",
+      "reply-1 [link:report-10]",
       "report-40",
-      "reply-2",
-      "link:report-40",
+      "reply-2 [link:report-40]",
       "report-70",
     ]);
   });
