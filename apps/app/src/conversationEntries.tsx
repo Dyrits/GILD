@@ -1,5 +1,6 @@
-import type { HarnessName, Message, MissionId, ThreadId } from "@gild/contracts";
+import type { HarnessName, Message, MissionId, Skill, ThreadId } from "@gild/contracts";
 import { Pressable, Text, View } from "react-native";
+import { ChipText } from "./chips";
 import type { ServiceClient } from "./client";
 import type { Entry } from "./entries";
 import { clockOf, replyWriterOf } from "./formatting";
@@ -58,7 +59,19 @@ const senderLabelOf = (message: Message) => {
 };
 
 /** One message: the agent's reply with its provider's mark, or the owner's and another thread's as a card. */
-function MessageBubble({ harness, message }: { harness: HarnessName; message: Message }) {
+function MessageBubble({
+  client,
+  harness,
+  message,
+  skills,
+  workspacePath,
+}: {
+  client: ServiceClient;
+  harness: HarnessName;
+  message: Message;
+  skills: ReadonlyArray<Skill>;
+  workspacePath: string | null;
+}) {
   // A reply keeps the provider and model that wrote it, whatever the thread runs on now (thread-handover); a
   // reply from before the harness was recorded is the thread's own.
   if (message.sender === "agent") {
@@ -73,7 +86,11 @@ function MessageBubble({ harness, message }: { harness: HarnessName; message: Me
       <View style={[styles.messageCard, cardStyles[message.sender]]}>
         {/* The owner's own messages need no label, as in a chat; a queued one says it waits. */}
         {sender !== null && <Text style={styles.senderName}>{sender}</Text>}
-        <Text style={styles.body}>{message.text}</Text>
+        {message.sender === "user" ? (
+          <ChipText client={client} skills={skills} text={message.text} workspacePath={workspacePath} />
+        ) : (
+          <Text style={styles.body}>{message.text}</Text>
+        )}
       </View>
     </View>
   );
@@ -86,11 +103,16 @@ export function EntryView({
   harness,
   onOpenMission,
   onSelectThread,
+  skills,
+  workspacePath,
 }: {
   client: ServiceClient;
   entry: Entry;
   /** The harness the thread runs on now: the mark of a reply that records none. */
   harness: HarnessName;
+  /** The skills and workspace the owner's messages are read against, to draw what they named as chips. */
+  skills: ReadonlyArray<Skill>;
+  workspacePath: string | null;
   onOpenMission: (missionId: MissionId) => void;
   onSelectThread: (threadId: ThreadId) => void;
 }) {
@@ -141,5 +163,13 @@ export function EntryView({
     ) : (
       <QuestionLine question={entry.question} />
     );
-  return <MessageBubble harness={harness} message={entry.message} />;
+  return (
+    <MessageBubble
+      client={client}
+      harness={harness}
+      message={entry.message}
+      skills={skills}
+      workspacePath={workspacePath}
+    />
+  );
 }

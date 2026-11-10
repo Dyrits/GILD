@@ -173,6 +173,7 @@ export function OpenThreadForm({
         </View>
       )}
       <Composer
+        mentions={{ client, workspacePath: parent.workspace?.path ?? null }}
         skills={skills}
         {...(isOverWarning ? { alternative: { label: "Start anyway", onSend: openWith(true) } } : {})}
         onChangeText={request.change}

@@ -235,6 +235,8 @@ function ThreadPane({
             harness={thread.harness}
             onOpenMission={onOpenMission}
             onSelectThread={onSelect}
+            skills={skills}
+            workspacePath={thread.workspace?.path ?? null}
           />
         )}
         style={styles.flex}
@@ -251,6 +253,7 @@ function ThreadPane({
         />
       ) : (
         <Composer
+          mentions={{ client, workspacePath: thread.workspace?.path ?? null }}
           skills={skills}
           // The harness, account, Companion, and effort can change between turns: a handover (thread-handover).
           {...(isInTurn

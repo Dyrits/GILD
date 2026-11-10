@@ -48,6 +48,7 @@ import { readThreadPanel } from "./threadPanel.ts";
 import { AccountsRoot, Threads, threadsLayer } from "./threads.ts";
 import { renameMission } from "./titles.ts";
 import { openThreadByOwner } from "./tree.ts";
+import { listWorkspaceEntries } from "./workspaceEntries.ts";
 import { createRealm, renameRealm, ScratchRoot, setRealmCrest } from "./workspaces.ts";
 
 // Stored and wire names keep `intel` so existing data and agents still work: request tags (`"ListIntel"`, ...).
@@ -211,6 +212,7 @@ const make = Effect.gen(function* () {
         ListMissions: (filters) => listMissions(filters),
         ListOpenQuestions: () => listOpenQuestions,
         ListSkills: (given) => listSkills(given.workspacePath),
+        ListWorkspaceEntries: (given) => listWorkspaceEntries(given.workspacePath, given.query),
         OpenThread: (open) =>
           nonBlank(open.text).pipe(
             Effect.andThen((text) =>

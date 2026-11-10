@@ -1479,3 +1479,19 @@ References: documentation/capabilities/rituals/specifications.md, packages/contr
 Validation: format, typecheck, lint, and tests pass (496 passed, 10 skipped); the service checks fail under mutation; driven in the web export on the fake harness ([proof](verification/2026-11-10-rituals.md)).
 Evidence: Baseline `9ae8b19`; not proven: the look, which awaits the owner, a scheduled run firing on a live harness, and the fallback on real usage-limit failures.
 
+
+## CHG-0099 · 2026-11-09 · @ names files and folders of the realm
+
+Type: Code
+Event: Delivery
+Scope: Message box, workspace attachment
+
+Summary: The owner asked that "@" reference folders and files of the current realm (workspace), and not work outside a realm.
+Typing `@` at the start of a word lists up to 8 matching files and folders of the message's workspace; Tab, Enter, or a click completes the relative path (a folder's ends with a slash).
+The list follows `.gitignore` in a git workspace and skips `.git` and `node_modules` otherwise; with no workspace nothing is offered.
+The text reaches the thread as typed: no pointer is added.
+A chosen path and a chosen skill show as a chip with a small icon (file, folder, puzzle piece) in the owner's messages of the conversation, and in the suggestion list; in the message box a chosen skill or path leaves the text and becomes a chip with its icon (and a × to remove it, or Backspace on an empty text) inside the text where it was chosen, as in OpenBot; a chip is removed like a character (Backspace), and the message goes out as plain text with `/skill` and `@path` in its place.
+The web message box is now an editable element (`chipEditor.web.tsx`) rather than a text input; other platforms keep a text input that writes the token in.
+References: documentation/capabilities/workspace-attachment/specifications.md, packages/service/src/workspaceEntries.ts, apps/app/src/controls.tsx, apps/app/src/useWorkspaceEntries.ts.
+Validation: The owner's request; three service tests (matching, `.gitignore`, refusal), typecheck, lint, and 378 service tests pass.
+Evidence: Baseline `6d7804d`; not seen in the running window (the chips and icons were added at the owner's second request after the first look). The listing accepts any existing folder, since a folder chosen for a first quest is not a workspace until that quest starts.

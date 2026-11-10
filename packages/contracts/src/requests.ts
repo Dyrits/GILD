@@ -47,6 +47,7 @@ import {
   UpdateRitual,
 } from "./rituals.ts";
 import { Skill } from "./skills.ts";
+import { WorkspaceEntry } from "./workspaceEntries.ts";
 import { Folder, FolderListing } from "./workspaces.ts";
 
 // Requests
@@ -304,6 +305,12 @@ export const BrowseFolders = Schema.TaggedStruct("BrowseFolders", {
 });
 /** The skills a message in a workspace (or none) can name with a slash; the workspace's win over global ones. */
 export const ListSkills = Schema.TaggedStruct("ListSkills", { workspacePath: Schema.NullOr(Schema.String) });
+/** The files and folders of a workspace that a typed `@` can name, best matches first; refused for a folder that is not a workspace. */
+export const ListWorkspaceEntries = Schema.TaggedStruct("ListWorkspaceEntries", {
+  /** What follows the `@`: part of a name or of a path inside the workspace; empty lists the top level. */
+  query: Schema.String,
+  workspacePath: Schema.String,
+});
 /** Makes a folder inside a browsable folder (New folder). */
 export const CreateFolder = Schema.TaggedStruct("CreateFolder", { name: Schema.String, parent: Schema.String });
 /** Adds an existing folder to the browsable roots (Add root). */
@@ -388,6 +395,7 @@ export const Request = Schema.Union([
   RemovePermission,
   BrowseFolders,
   ListSkills,
+  ListWorkspaceEntries,
   CreateFolder,
   AddBrowsableRoot,
   ListHarnesses,
@@ -434,6 +442,7 @@ export const Results = {
   ListMissions: MissionList,
   ListOpenQuestions: Schema.Array(Question),
   ListSkills: Schema.Array(Skill),
+  ListWorkspaceEntries: Schema.Array(WorkspaceEntry),
   OpenThread: OpenThreadResult,
   PinIntel: Schema.Null,
   PreviewDeletion: DeletionPreview,

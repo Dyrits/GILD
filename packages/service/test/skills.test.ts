@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
-import { skillTokensOf } from "@gild/contracts";
+import { mentionTokensOf, skillTokensOf } from "@gild/contracts";
 import { Effect } from "effect";
 import { afterEach } from "vitest";
 import { listSkills, withSkillInstructions } from "../src/skills.ts";
@@ -50,5 +50,15 @@ describe("slash-names in messages", () => {
     const skills = [{ description: "", name: "challenge", path: "/s/challenge/SKILL.md" }];
     expect(withSkillInstructions("Run /challenge now", skills)).toContain("read /s/challenge/SKILL.md");
     expect(withSkillInstructions("Run /unknown now", skills)).toBe("Run /unknown now");
+  });
+});
+
+describe("@-paths in messages", () => {
+  it("finds a path that starts a word, without closing punctuation, and ignores addresses", () => {
+    expect(
+      mentionTokensOf("Read @src/index.ts, then @docs/ and mail me@example.com or @README.md.").map(
+        (token) => token.path,
+      ),
+    ).toEqual(["src/index.ts", "docs/", "README.md"]);
   });
 });

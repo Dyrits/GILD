@@ -85,6 +85,7 @@ export function MissionStarter({
       {stage && <View style={local.stageCenter}>{chooser}</View>}
       <Composer
         accessory={<RunnerPickers harnesses={harnesses} isCompact={true} onChange={setRunner} value={chosen} />}
+        mentions={{ client, workspacePath: chosenWorkspace }}
         onSend={async (text) =>
           onOpen(
             (

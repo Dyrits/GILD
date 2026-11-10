@@ -31,6 +31,12 @@ Agents work on files: a repository to fix, a folder of documents to sort. Each t
 - Archiving the mission keeps its scratch folder; deleting the mission deletes it.
 - Standing permissions for a thread with no workspace apply to its mission (see [action-approval](../action-approval/specifications.md#standing-permissions)).
 
+### Naming files and folders with @
+
+- Typing `@` at the start of a word in a message box lists up to 8 files and folders of the workspace the message is written in, matched on their name or path; Tab, Enter, or a click completes the path, relative to the workspace, a folder's ending with a slash so the list goes on inside it. The text stays as typed and reaches the thread unchanged. Once chosen, a path shows as a chip with a file or folder icon in the owner's messages (a skill likewise with a puzzle piece), and, in the message box, as a chip inside the text where it was chosen, removed like a character, and sent as plain text.
+- In a git workspace the list leaves out what `.gitignore` ignores; otherwise it skips `.git` and `node_modules`.
+- With no workspace (a quest in its scratch folder) an `@` offers nothing.
+
 ### What a workspace gives its threads
 
 - Its instructions, from the folder's own `AGENTS.md` and `CLAUDE.md`, and its skills from `.agents`, `.claude`, and equivalent supported harness folders. Workspace MCP servers are configured in Gild. A harness that does not read the selected instructions itself gets them in its starting context. See [tool-and-skill-loading](../tool-and-skill-loading/specifications.md).

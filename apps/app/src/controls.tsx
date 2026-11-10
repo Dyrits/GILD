@@ -1,9 +1,14 @@
-import { type MissionState, type Skill, skillTokensOf, type ThreadState } from "@gild/contracts";
-import { type ReactNode, useState } from "react";
-import { Pressable, Switch, Text, TextInput, View } from "react-native";
+import type { MissionState, Skill, ThreadState } from "@gild/contracts";
+import { type ReactNode, useRef, useState } from "react";
+import { Pressable, Switch, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
+import { ChipEditor } from "./chipEditor";
+import type { Chip, ChipEditorHandle, Trigger } from "./chipEditorTypes";
+import { ChipIcon } from "./chips";
+import type { ServiceClient } from "./client";
 import { styles } from "./styles";
 import { colors, stateLabels, stateTones } from "./theme";
+import { useWorkspaceEntries } from "./useWorkspaceEntries";
 
 // The web's switch takes the thumb's color when on from a prop the native types do not declare.
 const webSwitchColors = { activeThumbColor: colors.canvas };
@@ -62,32 +67,11 @@ function SendArrow() {
   );
 }
 
-/** The message's text drawn under the transparent input, with each slash-name of a known skill on a tinted background. */
-function SkillHighlights({ skills, text }: { skills: ReadonlyArray<Skill>; text: string }) {
-  const tokens = skillTokensOf(text).filter((token) => skills.some((skill) => skill.name === token.name));
-  if (tokens.length === 0) return null;
-  const parts: ReactNode[] = [];
-  let at = 0;
-  for (const token of tokens) {
-    parts.push(text.slice(at, token.start));
-    parts.push(
-      <Text key={token.start} style={styles.skillChip}>
-        {text.slice(token.start, token.end)}
-      </Text>,
-    );
-    at = token.end;
-  }
-  parts.push(text.slice(at));
-  return (
-    <Text pointerEvents="none" style={styles.skillOverlay}>
-      {parts}
-    </Text>
-  );
+/** One way to complete what is typed after a `/` or `@`: the chip it becomes and what the list shows. */
+interface Completion extends Chip {
+  readonly description: string;
+  readonly key: string;
 }
-
-/** The input's line height, and the height at which it stops growing and scrolls. */
-const composerLineHeight = 20;
-const composerMaxHeight = 200;
 
 /**
  * A message box that keeps the text until the service accepts it, sent with Enter or the arrow button. While a thread runs, a smaller second
@@ -101,6 +85,7 @@ export function Composer({
   onChangeText,
   accessory,
   skills = [],
+  mentions,
 }: {
   placeholder: string;
   onSend: (text: string) => Promise<unknown>;
@@ -112,32 +97,51 @@ export function Composer({
   accessory?: ReactNode;
   /** The skills a slash offers; a slash-name matching one is highlighted. */
   skills?: ReadonlyArray<Skill>;
+  /** The workspace an `@` names files and folders of; with no path (a quest outside a realm) an `@` offers nothing. */
+  mentions?: { readonly client: ServiceClient; readonly workspacePath: string | null };
 }) {
-  const [text, setTextState] = useState("");
-  const setText = (value: string) => {
-    setTextState(value);
-    setChosen(0);
-    onChangeText?.(value);
-  };
+  const [text, setText] = useState("");
+  const [trigger, setTrigger] = useState<Trigger | null>(null);
+  const editor = useRef<ChipEditorHandle>(null);
   const [isSending, setIsSending] = useState(false);
-  // The input is one line high and grows with the lines it holds, up to a ceiling where it scrolls.
-  const [inputHeight, setInputHeight] = useState(composerLineHeight);
   const isEmpty = text.trim() === "";
   const [error, setError] = useState<string | null>(null);
-  const partial = /(^|\s)\/([\w:.-]*)$/.exec(text)?.[2] ?? null;
-  const suggestions =
-    partial === null || skills.some((skill) => skill.name === partial)
-      ? []
-      : skills.filter((skill) => skill.name.toLowerCase().startsWith(partial.toLowerCase())).slice(0, 6);
+  const partial = trigger?.character === "/" ? trigger.query : null;
+  const mentioned = trigger?.character === "@" ? trigger.query : null;
+  const entries = useWorkspaceEntries(mentions?.client, mentions?.workspacePath ?? null, mentioned);
+  // What the typed word can be completed to; a name already complete offers nothing more.
+  const options: ReadonlyArray<Completion> =
+    partial !== null
+      ? skills
+          .filter((skill) => skill.name !== partial && skill.name.toLowerCase().startsWith(partial.toLowerCase()))
+          .slice(0, 6)
+          .map((skill) => ({
+            description: skill.description,
+            key: skill.name,
+            kind: "skill" as const,
+            label: skill.name,
+            token: `/${skill.name}`,
+          }))
+      : mentioned === null
+        ? []
+        : entries
+            .filter((entry) => entry.path !== mentioned)
+            .map((entry) => ({
+              description: "",
+              key: entry.path,
+              kind: entry.kind,
+              label: entry.path,
+              token: `@${entry.path}`,
+            }));
   const [chosen, setChosen] = useState(0);
-  const highlighted = suggestions[Math.min(chosen, suggestions.length - 1)];
-  const pick = (skill: Skill) => setText(`${text.slice(0, text.length - (partial?.length ?? 0))}${skill.name} `);
+  const highlighted = options[Math.min(chosen, options.length - 1)];
+  const pick = (option: Completion) => editor.current?.insertChip(option);
   const send = async (handler: (text: string) => Promise<unknown>) => {
-    if (text.trim() === "" || isSending) return;
+    if (isEmpty || isSending) return;
     setIsSending(true);
     try {
-      await handler(text);
-      setText("");
+      await handler(text.trim());
+      editor.current?.clear();
       setError(null);
     } catch (reason) {
       setError((reason as Error).message);
@@ -152,17 +156,18 @@ export function Composer({
     );
   return (
     <View style={styles.composer}>
-      {suggestions.length > 0 && (
+      {options.length > 0 && (
         <View style={styles.skillList}>
-          {suggestions.map((skill) => (
+          {options.map((option) => (
             <Pressable
-              key={skill.name}
-              onPress={() => pick(skill)}
-              style={[styles.skillOption, skill === highlighted && styles.skillOptionChosen]}
+              key={option.key}
+              onPress={() => pick(option)}
+              style={[styles.skillOption, option === highlighted && styles.skillOptionChosen]}
             >
-              <Text style={styles.skillName}>/{skill.name}</Text>
+              <ChipIcon kind={option.kind} />
+              <Text style={styles.skillName}>{option.label}</Text>
               <Text numberOfLines={1} style={styles.skillDescription}>
-                {skill.description}
+                {option.description}
               </Text>
             </Pressable>
           ))}
@@ -170,51 +175,34 @@ export function Composer({
       )}
       <View style={styles.composerPill}>
         <View style={styles.composerField}>
-          <SkillHighlights skills={skills} text={text} />
-          <TextInput
-            multiline
-            onChangeText={setText}
-            onContentSizeChange={(event) =>
-              setInputHeight(
-                Math.min(
-                  composerMaxHeight,
-                  Math.max(composerLineHeight, Math.ceil(event.nativeEvent.contentSize.height)),
-                ),
-              )
-            }
-            onKeyPress={(event) => {
-              const native = event.nativeEvent as { key: string; shiftKey?: boolean };
+          <ChipEditor
+            onChange={(value, typed) => {
+              setText(value);
+              setTrigger(typed);
+              setChosen(0);
+              onChangeText?.(value);
+            }}
+            onKeyDown={({ key, shiftKey }) => {
               if (highlighted !== undefined) {
                 const moves: Record<string, number> = { ArrowDown: 1, ArrowUp: -1 };
-                const move = moves[native.key];
+                const move = moves[key];
                 if (move !== undefined) {
-                  event.preventDefault();
-                  setChosen(
-                    (Math.min(chosen, suggestions.length - 1) + move + suggestions.length) % suggestions.length,
-                  );
-                  return;
+                  setChosen((Math.min(chosen, options.length - 1) + move + options.length) % options.length);
+                  return true;
                 }
-                if (native.key === "Tab" || (native.key === "Enter" && !native.shiftKey)) {
-                  event.preventDefault();
+                if (key === "Tab" || (key === "Enter" && !shiftKey)) {
                   pick(highlighted);
-                  return;
+                  return true;
                 }
               }
-              if (native.key === "Enter" && !native.shiftKey) {
-                event.preventDefault();
+              if (key === "Enter" && !shiftKey) {
                 void send(onSend);
+                return true;
               }
+              return false;
             }}
             placeholder={placeholder}
-            placeholderTextColor={colors.placeholder}
-            rows={1}
-            style={[
-              styles.composerInput,
-              { height: inputHeight },
-              skillTokensOf(text).some((token) => skills.some((skill) => skill.name === token.name)) &&
-                styles.composerInputOverlaid,
-            ]}
-            value={text}
+            ref={editor}
           />
         </View>
         {accessory !== undefined && <View style={styles.composerAccessory}>{accessory}</View>}
