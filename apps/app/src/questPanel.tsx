@@ -5,7 +5,6 @@ import { boardOf, columnOf } from "./boardColumns";
 import { BudgetMeters } from "./budgets";
 import type { ServiceClient } from "./client";
 import { CrestBadge } from "./crest";
-import { Emblem } from "./emblems";
 import { timeOf, usageDetail } from "./formatting";
 import { threadCountOf, tokenCountOf } from "./labels";
 import { MissionEndingActions, MissionTitle } from "./missionActions";
@@ -64,42 +63,13 @@ export const budgetValueOf = (budget: MissionDetail["mission"]["budget"]) => {
   return "No limit";
 };
 
-type PanelTab = "Knows" | "Spends";
-
-/** The panel's tabs: the name in small capitals, the open one underlined in red; a tab may carry a figure in green. */
-function Tabs({
-  figures,
-  onChange,
-  value,
-}: {
-  figures: Partial<Record<PanelTab, string>>;
-  onChange: (tab: PanelTab) => void;
-  value: PanelTab;
-}) {
-  return (
-    <View accessibilityRole="tablist" style={local.tabs}>
-      {(["Knows", "Spends"] as const).map((tab) => (
-        <Pressable
-          accessibilityRole="tab"
-          accessibilityState={{ selected: tab === value }}
-          key={tab}
-          onPress={() => onChange(tab)}
-          style={[local.tab, tab === value && local.tabActive]}
-        >
-          <Text style={[local.tabText, tab === value && local.tabTextActive]}>
-            {tab}
-            {figures[tab] !== undefined && <Text style={local.tabFigure}> {figures[tab]}</Text>}
-          </Text>
-        </Pressable>
-      ))}
-    </View>
-  );
-}
+/** What the panel adds for the thread open in the conversation: its own groups and its rows in Knows and Spends. */
+export type ThreadSections = { knows: ReactNode; sections: ReactNode; spends: ReactNode };
 
 /**
- * The quest's right side panel, under the header the window's frame gives it: a parchment in a gilt frame with a red
- * bookmark, the quest's emblem and name (press to rename), how it stands, then Knows (its journal), Spends (its
- * budget and usage), and the framed question of how it ends.
+ * The quest's side panel, the window's one side panel, under the header the window's frame gives it: a parchment in a
+ * gilt frame with a bookmark, the quest's emblem and name (press to rename), how it stands, then the open thread's
+ * groups when there is one, Knows (its journal), Spends (its budget and usage), and the framed question of how it ends.
  * It leaves the thread's own conversation alone.
  */
 export function QuestSidebar({
@@ -109,6 +79,7 @@ export function QuestSidebar({
   onOpenJournal,
   onBack,
   onOpenQuest,
+  thread,
 }: {
   client: ServiceClient;
   mission: MissionDetail["mission"];
@@ -118,9 +89,10 @@ export function QuestSidebar({
   onOpenJournal: () => void;
   /** Given where the panel previews a quest from the board: opens the quest's conversation, under the brief. */
   onOpenQuest?: () => void;
+  /** Given in the quest's conversation: what the open thread adds. */
+  thread?: ThreadSections;
 }) {
   const { usage } = mission;
-  const [tab, setTab] = useState<PanelTab>("Knows");
   const tone = stateTones[mission.state];
   const cost = mission.budget.spent.cost;
   return (
@@ -152,26 +124,6 @@ export function QuestSidebar({
           </Text>
         </View>
         {mission.ritual !== null && <RitualControls client={client} missionId={mission.id} />}
-        <Tabs figures={cost > 0 ? { Spends: `$${cost.toFixed(2)}` } : {}} onChange={setTab} value={tab} />
-        {tab === "Knows" ? (
-          <Pressable accessibilityRole="button" onPress={onOpenJournal} style={local.note}>
-            <Emblem name="quill" size={30} tint={colors.accentText} />
-            <Text style={local.noteText}>Open the journal: where this quest stands and what it has learned.</Text>
-            <Text style={local.chevron}>›</Text>
-          </Pressable>
-        ) : (
-          <View style={local.spends}>
-            <Group label="So far">
-              <Row label="Budget" onPress={onOpenBudget} value={budgetValueOf(mission.budget)} />
-              <Row
-                label="Usage"
-                value={`${tokenCountOf(usage.input + usage.cacheRead + usage.cacheCreation + usage.output)} tokens`}
-              />
-            </Group>
-            <BudgetMeters onPress={onOpenBudget} use={mission.budget} />
-            <Text style={styles.muted}>{usageDetail(usage)}</Text>
-          </View>
-        )}
         {onOpenQuest !== undefined && (
           <Pressable
             accessibilityRole="button"
@@ -181,12 +133,30 @@ export function QuestSidebar({
             <Text style={local.openText}>Open quest</Text>
           </Pressable>
         )}
+        {thread?.sections}
+        <Group label="Knows">
+          <Row label="Journal" onPress={onOpenJournal} value="Where it stands" />
+          {thread?.knows}
+        </Group>
+        <View style={local.spends}>
+          <Group label="Spends">
+            {thread?.spends}
+            <Row label="Quest budget" onPress={onOpenBudget} value={budgetValueOf(mission.budget)} />
+            <Row
+              label="Quest usage"
+              value={`${tokenCountOf(usage.input + usage.cacheRead + usage.cacheCreation + usage.output)} tokens${cost > 0 ? ` · $${cost.toFixed(2)}` : ""}`}
+            />
+          </Group>
+          <BudgetMeters onPress={onOpenBudget} use={mission.budget} />
+          <Text style={styles.muted}>{usageDetail(usage)}</Text>
+        </View>
         {/* A Ritual is never marked done or archived: it is switched off or deleted from its controls above. */}
         {mission.ritual === null && (
-          <View style={local.does}>
-            <Text style={local.doesHeading}>Does</Text>
-            <MissionEndingActions client={client} isButtons={true} mission={mission} />
-          </View>
+          <Group label="Does">
+            <View style={local.does}>
+              <MissionEndingActions client={client} isButtons={true} mission={mission} />
+            </View>
+          </Group>
         )}
       </ScrollView>
       <ParchmentFrame bookmark={bookmarkOf(mission.state)} />
@@ -465,22 +435,7 @@ const local = StyleSheet.create({
   chevron: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.lg },
   compass: { height: 150, width: 150 },
   content: { gap: 18, paddingHorizontal: 28, paddingVertical: 26 },
-  does: {
-    backgroundColor: "rgba(249,236,209,0.55)",
-    borderColor: "#ae4735",
-    borderRadius: 5,
-    borderWidth: 1.5,
-    gap: 12,
-    padding: 16,
-  },
-  doesHeading: {
-    color: colors.text,
-    fontFamily: fonts.hand,
-    fontSize: fontSizes.lg,
-    fontWeight: "700",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
-  },
+  does: { padding: 12 },
   group: { gap: 4 },
   groupLabel: {
     color: colors.textMuted,
@@ -550,18 +505,6 @@ const local = StyleSheet.create({
     padding: 6,
     width: "100%",
   },
-  note: {
-    alignItems: "center",
-    backgroundColor: "#d9e6f6",
-    borderColor: "#a6c4ee",
-    borderRadius: 10,
-    borderWidth: 1,
-    flexDirection: "row",
-    gap: 12,
-    paddingHorizontal: 14,
-    paddingVertical: 14,
-  },
-  noteText: { color: colors.text, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.base, fontStyle: "italic" },
   open: {
     ...ink,
     alignItems: "center",
@@ -598,17 +541,4 @@ const local = StyleSheet.create({
   rowLabel: { color: colors.text, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.md },
   rowValue: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.sm },
   spends: { gap: 10 },
-  tab: { borderBottomColor: "transparent", borderBottomWidth: 3, marginBottom: -1, paddingBottom: 8, paddingTop: 4 },
-  tabActive: { borderBottomColor: colors.danger },
-  tabFigure: { color: colors.success },
-  tabs: { borderBottomColor: colors.border, borderBottomWidth: 1, flexDirection: "row", gap: 22 },
-  tabText: {
-    color: colors.textMuted,
-    fontFamily: fonts.hand,
-    fontSize: fontSizes.sm,
-    fontWeight: "700",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-  },
-  tabTextActive: { color: colors.text },
 });

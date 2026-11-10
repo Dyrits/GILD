@@ -1,7 +1,6 @@
 import type { ContextGauge, ContextPartKind, MissionDetail } from "@gild/contracts";
 import { useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
-import { BudgetMeters } from "./budgets";
+import { StyleSheet, Text, View } from "react-native";
 import type { ServiceClient } from "./client";
 import { StateBadge } from "./controls";
 import { effortLabel, harnessLabels, modelLabelOf } from "./formatting";
@@ -13,7 +12,7 @@ import {
   threadSpendingTextOf,
   tokenCountOf,
 } from "./labels";
-import { budgetValueOf, Group, Row } from "./questPanel";
+import { Group, QuestSidebar, Row } from "./questPanel";
 import { colors, fontSizes, fonts, radii } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
 import { useSkills } from "./useSkills";
@@ -56,16 +55,20 @@ function ContextMeter({ gauge }: { gauge: ContextGauge }) {
 }
 
 /**
- * The selected thread's panel (thread-panel): what it runs with, how full its context window is and what fills
- * it, its lore, skills, budget, and what it spent. Read-only.
+ * The quest's side panel as its conversation shows it (thread-panel): the quest, then what the selected thread runs
+ * with, how full its context window is and what fills it, its lore, skills, and what it spent.
  */
 export function ThreadPanel({
   client,
   detail,
+  onOpenBudget,
+  onOpenJournal,
   onOpenLore,
 }: {
   client: ServiceClient;
   detail: MissionDetail;
+  onOpenBudget: () => void;
+  onOpenJournal: () => void;
   onOpenLore: () => void;
 }) {
   const { thread } = detail;
@@ -73,8 +76,8 @@ export function ThreadPanel({
   const skills = useSkills(client, thread.workspace?.path ?? null);
   const [isShowingAllSkills, setIsShowingAllSkills] = useState(false);
   const shownSkills = isShowingAllSkills ? skills : skills.slice(0, 6);
-  return (
-    <ScrollView contentContainerStyle={local.content} style={local.panel}>
+  const sections = (
+    <>
       <Group label="Companion">
         <Row label="Harness" value={harnessLabels[thread.harness]} />
         {thread.accountId !== null && <Row label="Account" value={thread.accountLabel} />}
@@ -87,45 +90,48 @@ export function ThreadPanel({
       </Group>
       <Group label="State">
         <View style={local.row}>
-          <Text style={local.rowLabel}>{thread.depth === 0 ? "Quest" : "Side-quest"}</Text>
+          <Text numberOfLines={1} style={local.rowLabel}>
+            {thread.depth === 0 ? "Quest" : `Side-quest · ${thread.title}`}
+          </Text>
           <StateBadge state={thread.state} />
         </View>
       </Group>
-      <View style={local.section}>
-        <Text style={local.groupLabel}>Context</Text>
-        <View style={local.card}>
-          {panel === null || panel.context === null ? (
-            <Text style={local.empty}>Not measured yet</Text>
-          ) : (
-            <ContextMeter gauge={panel.context} />
-          )}
-        </View>
-      </View>
-      <Group label="Knows">
-        <Row label="Lore" onPress={onOpenLore} value={loreGaugeValueOf(detail.loreGauge)} />
-        {skills.length === 0 ? (
-          <Row label="Skills" value="None found" />
+      <Group label="Context">
+        {panel === null || panel.context === null ? (
+          <Text style={local.empty}>Not measured yet</Text>
         ) : (
-          <>
-            <Row label="Skills" onPress={() => setIsShowingAllSkills(!isShowingAllSkills)} value={`${skills.length}`} />
-            {shownSkills.map((skill) => (
-              <Text key={skill.name} numberOfLines={1} style={local.skill}>
-                /{skill.name}
-              </Text>
-            ))}
-          </>
+          <ContextMeter gauge={panel.context} />
         )}
       </Group>
-      {panel !== null && (
+    </>
+  );
+  const knows = (
+    <>
+      <Row label="Lore" onPress={onOpenLore} value={loreGaugeValueOf(detail.loreGauge)} />
+      {skills.length === 0 ? (
+        <Row label="Skills" value="None found" />
+      ) : (
         <>
-          <Group label="Spends">
-            <Row label="This thread" value={threadSpendingTextOf(panel)} />
-            <Row label="Quest budget" value={budgetValueOf(panel.budget)} />
-          </Group>
-          <BudgetMeters use={panel.budget} />
+          <Row label="Skills" onPress={() => setIsShowingAllSkills(!isShowingAllSkills)} value={`${skills.length}`} />
+          {shownSkills.map((skill) => (
+            <Text key={skill.name} numberOfLines={1} style={local.skill}>
+              /{skill.name}
+            </Text>
+          ))}
+          <View style={local.skillsEnd} />
         </>
       )}
-    </ScrollView>
+    </>
+  );
+  const spends = panel !== null && <Row label="This thread" value={threadSpendingTextOf(panel)} />;
+  return (
+    <QuestSidebar
+      client={client}
+      mission={detail.mission}
+      onOpenBudget={onOpenBudget}
+      onOpenJournal={onOpenJournal}
+      thread={{ knows, sections, spends }}
+    />
   );
 }
 
@@ -137,31 +143,15 @@ const local = StyleSheet.create({
     height: 8,
     overflow: "hidden",
   },
-  card: {
-    backgroundColor: colors.control,
-    borderColor: colors.gold,
-    borderRadius: radii.md,
-    borderWidth: 1.5,
-    overflow: "hidden",
-  },
-  content: { gap: 14, padding: 16 },
   empty: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.md, padding: 12 },
-  groupLabel: {
-    color: colors.textMuted,
-    fontFamily: fonts.hand,
-    fontSize: 12,
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
-  },
   legend: { alignItems: "center", flexDirection: "row", gap: 6 },
   legendLabel: { color: colors.text, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.sm },
   meter: { gap: 6, padding: 12 },
   meterText: { fontFamily: fonts.sans, fontSize: fontSizes.md },
-  panel: { flex: 1 },
   row: { alignItems: "center", flexDirection: "row", gap: 8, minHeight: 40, paddingHorizontal: 12 },
   rowLabel: { color: colors.text, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.md },
   rowValue: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.sm },
-  section: { gap: 4 },
   skill: { color: colors.textSecondary, fontFamily: fonts.sans, fontSize: fontSizes.sm, paddingHorizontal: 24 },
+  skillsEnd: { height: 8 },
   swatch: { borderRadius: 2, height: 10, width: 10 },
 });

@@ -10,7 +10,7 @@ Status: agreed by the owner's instruction to build the backlog entry "Thread pan
 
 ### The panel
 
-- Every thread has a panel, a 300px column beside its conversation, shown or hidden by a "Thread panel" link in the thread's header; it is hidden at first, and below 820px wide there is no panel. It shows, for the selected thread:
+- The thread's groups live in the quest panel, the window's one side panel, at any width (the owner asked for one side panel instead of two, 2026-11-10, CHG-0109). Under the quest's heading come Companion, Realm, State, and Context; then Knows (the quest's journal, the thread's lore and skills), Spends (this thread, the quest's budget and usage), and Does (how the quest ends). The panel has no tabs, and no link in the thread's header. It shows, for the selected thread:
   - **Companion**: the harness (with the account when it is not this computer's), the model, and the effort.
   - **Realm**: the workspace name and folder, or the quest's scratch folder.
   - **State**: the thread's state.
@@ -20,7 +20,7 @@ Status: agreed by the owner's instruction to build the backlog entry "Thread pan
   - **Budget**: the quest's budget limits and what the quest spent, as the quest panel shows them.
   - **Spending**: what this thread alone spent: turns, API cost, and tokens counted as subscription use.
 - The panel changes with the selected thread and with the thread's work; it is read-only. Changing a model, effort, or budget stays where it is today.
-- The owner's choice to show or hide the panel is remembered in the browser storage, as the rail's is; there is no terminal.
+- The panel is shown or hidden with the quest panel's icon in the top bar.
 
 ### The context gauge
 

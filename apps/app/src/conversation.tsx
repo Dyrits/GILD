@@ -18,7 +18,6 @@ import { type Entry, entriesOf } from "./entries";
 import { companionLabelOf, effortLabel, harnessLabels, modelLabelOf } from "./formatting";
 import { JournalScreen } from "./journal";
 import { LoreIcon, LoreScreen } from "./lore";
-import { QuestSidebar } from "./questPanel";
 import { RunnerPickers, useHarnesses } from "./runners";
 import { useHasSidebar, useHasTopBar, useQuestPanel } from "./sidebar";
 import { styles } from "./styles";
@@ -28,25 +27,6 @@ import { OpenThreadForm, ThreadTree } from "./threadTree";
 import { useServiceQuery } from "./useServiceQuery";
 import { useSkills } from "./useSkills";
 import { MissingFolderNotice } from "./workspaces";
-
-/** The key under which the browser remembers whether the thread panel shows. */
-const threadPanelKey = "gild:thread-panel-open";
-
-/** Reads whether the thread panel was left open; a platform without browser storage starts closed. */
-const readThreadPanelOpen = (): boolean => {
-  try {
-    return globalThis.localStorage?.getItem(threadPanelKey) === "1";
-  } catch {
-    return false;
-  }
-};
-
-/** Remembers whether the thread panel shows where the platform allows; a refusal only loses the memory. */
-const rememberThreadPanelOpen = (isOpen: boolean) => {
-  try {
-    globalThis.localStorage?.setItem(threadPanelKey, isOpen ? "1" : "0");
-  } catch {}
-};
 
 /** The reply a thread is writing, while the service streams it. */
 export function useDraft(client: ServiceClient, threadId: string | null) {
@@ -95,9 +75,7 @@ function ThreadPane({
   canOpenDetails,
   client,
   detail,
-  isThreadPanelOpen,
   onSelect,
-  onToggleThreadPanel,
   onDeleted,
   onOpenMission,
   onOpenBudget,
@@ -107,9 +85,6 @@ function ThreadPane({
   /** Whether this thread's header offers the link to the quest's side panel, where no top bar has the icon. */
   canOpenDetails: boolean;
   client: ServiceClient;
-  /** Whether the thread panel shows beside the conversation; null where the window is too narrow for it. */
-  isThreadPanelOpen: boolean | null;
-  onToggleThreadPanel: () => void;
   onOpenDetails: () => void;
   onDeleted: () => void;
   onOpenBudget: () => void;
@@ -165,11 +140,6 @@ function ThreadPane({
         {canResume && (
           <Pressable onPress={() => act(client.request({ _tag: "ResumeThread", threadId: thread.id }))}>
             <Text style={styles.link}>Resume</Text>
-          </Pressable>
-        )}
-        {isThreadPanelOpen !== null && (
-          <Pressable onPress={onToggleThreadPanel}>
-            <Text style={styles.link}>{isThreadPanelOpen ? "Hide thread panel" : "Thread panel"}</Text>
           </Pressable>
         )}
         {canOpenDetails && (
@@ -325,7 +295,6 @@ export function Conversation({
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
   const [selectedId, setSelectedId] = useState<ThreadId | null>(null);
   const [isJournalOpen, setIsJournalOpen] = useState(false);
-  const [isThreadPanelOpen, setIsThreadPanelOpen] = useState(readThreadPanelOpen);
   const hasTopBar = useHasTopBar();
   const hasSidebar = useHasSidebar();
   const [loreThread, setLoreThread] = useState<{ id: ThreadId; title: string } | null>(null);
@@ -337,14 +306,17 @@ export function Conversation({
   );
   // A query for a newly selected thread answers after the previous one; keep showing what matches.
   const detail = data !== null && (selectedId === null || data.thread.id === selectedId) ? data : null;
-  // The quest's side panel is shown by the window's frame, beside the top bar's icon, not by this screen.
+  // The quest's side panel is shown by the window's frame, beside the top bar's icon, not by this screen. It holds
+  // the open thread's groups too: while another thread loads, the one before stays.
+  const shown = detail ?? data;
   useQuestPanel(
-    data && (
-      <QuestSidebar
+    shown && (
+      <ThreadPanel
         client={client}
-        mission={data.mission}
+        detail={shown}
         onOpenBudget={() => setBudgetScope("Mission")}
         onOpenJournal={() => setIsJournalOpen(true)}
+        onOpenLore={() => setLoreThread({ id: shown.thread.id, title: shown.thread.title })}
       />
     ),
   );
@@ -402,7 +374,6 @@ export function Conversation({
             canOpenDetails={!hasTopBar}
             client={client}
             detail={detail}
-            isThreadPanelOpen={isCompact ? null : isThreadPanelOpen}
             key={detail.thread.id}
             onDeleted={() => (detail.thread.parentId === null ? onBack() : setSelectedId(detail.thread.parentId))}
             onOpenBudget={() => setBudgetScope(detail.budgetStop?.scope ?? "Mission")}
@@ -410,22 +381,9 @@ export function Conversation({
             onOpenLore={() => setLoreThread({ id: detail.thread.id, title: detail.thread.title })}
             onOpenMission={onOpenMission}
             onSelect={setSelectedId}
-            onToggleThreadPanel={() => {
-              rememberThreadPanelOpen(!isThreadPanelOpen);
-              setIsThreadPanelOpen(!isThreadPanelOpen);
-            }}
           />
         )}
       </View>
-      {!isCompact && isThreadPanelOpen && detail && (
-        <View style={styles.threadPanel}>
-          <ThreadPanel
-            client={client}
-            detail={detail}
-            onOpenLore={() => setLoreThread({ id: detail.thread.id, title: detail.thread.title })}
-          />
-        </View>
-      )}
     </View>
   );
 }

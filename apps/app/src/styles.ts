@@ -274,7 +274,6 @@ export const styles = StyleSheet.create({
   skillOption: { alignItems: "center", flexDirection: "row", gap: 8, paddingHorizontal: 8, paddingVertical: 4 },
   skillOptionChosen: { backgroundColor: colors.accentSoft, borderRadius: radii.sm },
   split: { flexDirection: "row", gap: 20 },
-  threadPanel: { borderColor: colors.border, borderLeftWidth: 1, width: 300 },
   title: { color: colors.text, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.base, fontWeight: "500" },
   toggle: { alignItems: "center", flexDirection: "row", gap: 10, marginTop: 8 },
   tree: { flexGrow: 0 },

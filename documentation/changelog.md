@@ -1605,3 +1605,13 @@ Scope: Rituals
 Summary: A Ritual's card in the Rituals place now has Delete, with one confirmation and Cancel, shared with the quest panel's Delete (`DeleteRitualButton`). The Ritual goes and its quest stays as an ordinary quest, as already agreed; the service needed no change.
 References: documentation/capabilities/rituals/specifications.md (Edit and delete), documentation/verification/2026-11-10-ritual-delete.md.
 Validation: Rituals tests (11) pass with the deletion test extended to the lists; typecheck and Biome pass; the card driven in a browser on the fake harness. The owner's look is pending.
+
+## CHG-0109 · 2026-11-10 · One side panel for the quest and its thread
+
+Type: Code
+Event: Delivery
+Scope: Thread panel, quest panel
+
+Summary: The thread panel's column beside the conversation is merged into the quest panel, the window's one side panel, at the owner's request. Under the quest's heading come Companion, Realm, State, and Context, then Knows (Journal, Lore, Skills), Spends (this thread, quest budget, quest usage), and Does, all drawn as the same labelled groups. The Knows / Spends tabs, the blue journal note, the red Does box, and the "Thread panel" link are gone; the thread's groups now also show in narrow windows.
+References: documentation/capabilities/thread-panel/specifications.md (The panel).
+Validation: typecheck, Biome, and the app's 114 tests pass; the full suite has one failure outside this change (`packages/service/test/harnesses.test.ts`, an added Codex account's environment). Driven wide and narrow in a browser on the fake harness. The owner's look is pending; the bookmark covers the end of the top rows when the panel scrolls.
