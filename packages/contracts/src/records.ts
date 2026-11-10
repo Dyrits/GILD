@@ -162,6 +162,8 @@ export const Message = Schema.Struct({
   fromThreadId: Schema.NullOr(ThreadId),
   /** The sending thread's title, for a thread message; null otherwise. */
   fromTitle: Schema.NullOr(Schema.String),
+  /** The harness that wrote an agent reply, which a handover leaves behind; null for other messages. */
+  harness: Schema.NullOr(HarnessName),
   id: MessageId,
   /** Whether it is an owner message sent as Queue that still waits for the thread's next turn. */
   isQueued: Schema.Boolean,
@@ -357,6 +359,10 @@ export const ThreadPanel = Schema.Struct({
 });
 export type ThreadPanel = typeof ThreadPanel.Type;
 
+/** A line in a thread's conversation recording a handover: its harness, account, model, or effort changed. */
+export const Handover = Schema.Struct({ at: Schema.Number, id: Schema.String, text: Schema.String });
+export type Handover = typeof Handover.Type;
+
 /** A mission with its thread tree and one selected thread's conversation. */
 export const MissionDetail = Schema.Struct({
   /** Budget lines, shown in the top thread only. */
@@ -364,6 +370,8 @@ export const MissionDetail = Schema.Struct({
   /** The mission's open budget stop when the selected thread holds its question. */
   budgetStop: Schema.NullOr(BudgetStop),
   chatter: Schema.Array(ChatterNotice),
+  /** The selected thread's handovers, oldest first. */
+  handovers: Schema.Array(Handover),
   /** The selected thread's changes to lore, done and awaiting approval, in the order made. */
   loreChanges: Schema.Array(LoreChange),
   /** How much of its model's context window the lore in the selected thread's scope takes. */

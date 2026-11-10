@@ -18,6 +18,7 @@ import { companionLabelOf, effortLabel, harnessLabels, modelLabelOf } from "./fo
 import { JournalScreen } from "./journal";
 import { LoreIcon, LoreScreen } from "./lore";
 import { QuestSidebar } from "./questPanel";
+import { RunnerPickers, useHarnesses } from "./runners";
 import { useHasSidebar, useHasTopBar, useQuestPanel } from "./sidebar";
 import { styles } from "./styles";
 import { ChatterNotices, DeleteThreadAction } from "./threadActions";
@@ -118,12 +119,12 @@ function ThreadPane({
 }) {
   const { thread } = detail;
   const work = thread.parentId === null ? "quest" : "side-quest";
-  const companionOf = (reported: string | null) => companionLabelOf(thread.harness, reported, thread.model);
   const draft = useDraft(client, thread.id);
   const skills = useSkills(client, thread.workspace?.path ?? null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isOpening, setIsOpening] = useState(false);
   const followNewest = useFollowNewest();
+  const { data: harnesses } = useHarnesses(client);
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
   const { canOpenBeneath, canResume, canStop, isInTurn } = thread.actions;
   const parent = detail.threads.find((candidate) => candidate.id === thread.parentId);
@@ -221,7 +222,7 @@ function ThreadPane({
             <AgentReply
               harness={thread.harness}
               isDraft
-              label={`${companionOf(null)} · writing…`}
+              label={`${companionLabelOf(thread.harness, null, thread.model)} · writing…`}
               text={draft}
               time={null}
             />
@@ -230,7 +231,6 @@ function ThreadPane({
         renderItem={({ item }) => (
           <EntryView
             client={client}
-            companionOf={companionOf}
             entry={item}
             harness={thread.harness}
             onOpenMission={onOpenMission}
@@ -252,6 +252,26 @@ function ThreadPane({
       ) : (
         <Composer
           skills={skills}
+          // The harness, account, Companion, and effort can change between turns: a handover (thread-handover).
+          {...(isInTurn
+            ? {}
+            : {
+                accessory: (
+                  <RunnerPickers
+                    harnesses={harnesses}
+                    isCompact={true}
+                    onChange={(next) =>
+                      act(client.request({ _tag: "ChangeThreadRunner", ...next, threadId: thread.id }))
+                    }
+                    value={{
+                      accountId: thread.accountId,
+                      effort: thread.effort,
+                      harness: thread.harness,
+                      model: thread.model,
+                    }}
+                  />
+                ),
+              })}
           {...(isInTurn
             ? {
                 alternative: { label: other, onSend: sendAs(other) },

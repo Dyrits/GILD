@@ -1,5 +1,5 @@
 import { Deferred, type Duration, Effect, Layer } from "effect";
-import { Harness, type TurnRequest } from "./execution.ts";
+import { Harness, HarnessFailure, type TurnRequest } from "./execution.ts";
 import { fieldOf } from "./lineProcess.ts";
 
 /** Calls one tool on a thread's MCP endpoint and returns its text, as a harness would; for the fake and checks. */
@@ -22,8 +22,8 @@ export const callThreadTool = (mcpUrl: string, name: string, args: unknown) =>
 
 // The fake's script: a line `ask <json>` calls request_approval, `prompt <tool> <json input>` asks the
 // owner about a harness action, and `call <tool> <json>` calls any thread tool, each answered before
-// the echo; `wait <millis>` keeps the turn running; `cwd` and `context` report the working folder and
-// the starting context; `spend <tokens> [cost]` reports spending at the turn's end.
+// the echo; `wait <millis>` keeps the turn running; `fail <harness> <reason>` fails the turn on that harness; `cwd`, `context`, and `runner` report the working folder, the
+// starting context, and the harness, model, effort, and session; `spend <tokens> [cost]` reports spending at the turn's end.
 const scriptedCall = (request: TurnRequest, line: string, turn: FakeTurn) => {
   const access = request.access;
   const spend = /^spend (\d+)(?: (\d+(?:\.\d+)?))?$/.exec(line);
@@ -35,7 +35,16 @@ const scriptedCall = (request: TurnRequest, line: string, turn: FakeTurn) => {
       return `spent ${spend[1]}`;
     });
   }
+  // `fail <harness> <reason>` ends the turn as a failure when it runs on that harness, as one that cannot run does.
+  const failure = /^fail (\S+) (.*)$/.exec(line);
+  if (failure !== null && failure[1] === request.harness)
+    return Effect.fail(new HarnessFailure({ reason: failure[2] ?? "" }));
   if (line === "cwd") return Effect.succeed(request.cwd);
+  // What the turn runs on, and whether it continues a harness session or starts one.
+  if (line === "runner")
+    return Effect.succeed(
+      `${request.harness}/${request.model}/${request.effort}/${request.sessionId === null ? "session none" : `session ${request.sessionId}`}`,
+    );
   if (line === "context")
     return Effect.succeed([request.context, request.note].filter((part) => part !== null).join("\n\n"));
   const wait = /^wait (\d+)$/.exec(line);

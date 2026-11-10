@@ -27,6 +27,7 @@
 
 ## Handoffs
 
+To resume thread handover (changing harness, account, and model in the middle of a quest; pushed to `main`; the look and a live handover await the owner), read the [current handoff](.agents/handoffs/2026-11-10-0800-thread-handover.md). Handoffs are shared and committed.
 To resume the Quest tree menu restyle and the conversation cards (committed and pushed to `main`; the look of both awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-0736-quest-tree-menu.md). Handoffs are shared and committed.
 To resume the review fixes, the lore rename, and the architecture audit (committed and pushed to `main`; the owner picks a candidate and looks at the screens), read the [current handoff](.agents/handoffs/2026-11-10-0015-review-fixes-and-lore.md). Handoffs are shared and committed.
 To resume the Companion model label and the `ask_question` specification for Summons (CHG not yet written; the label is committed and pushed, the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-09-2332-companion-label.md). Handoffs are shared and committed.

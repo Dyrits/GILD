@@ -122,7 +122,10 @@ export const saveTurnReply = (threadId: string, turn: Admitted, text: string, mo
   transacting(
     Effect.gen(function* () {
       if (!(yield* isCurrentTurn(turn.turnId))) return;
-      yield* insertReply(turn.missionId, threadId, text, model ?? (turn.model === "default" ? null : turn.model));
+      yield* insertReply(turn.missionId, threadId, text, {
+        harness: turn.harness,
+        model: model ?? (turn.model === "default" ? null : turn.model),
+      });
       yield* publishOnCommit;
     }),
   );

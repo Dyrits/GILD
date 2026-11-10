@@ -578,7 +578,7 @@ Harnesses and provider accounts ([provider-accounts](capabilities/provider-accou
 
 ### Staged
 
-- Thread-handover: changing a thread's harness, account, or model mid-thread.
+- Thread-handover: changing a thread's harness, account, or model mid-thread (built in CHG-0096).
 - Accounts for Control, routines, and workflows.
 - Harness installs and updates offered from the app (architecture, Integrations).
 
@@ -641,3 +641,5 @@ Started at HEAD `26bbb1d`, with the empty tree as the fixed point. Ran Standards
 - Multi-behavior test titles, the `server.test.ts` frame casts, and the app client's pending-codec cast.
 
 Quest tree batch (CHG-0095): the Quest and Side-quests menu restyled after the owner's mockup; typecheck, lint, and 458 tests pass; the look awaits the owner ([proof](verification/2026-11-10-quest-tree-menu.md)).
+
+Thread handover batch (CHG-0096): the owner changes a quest's harness, account, Companion, and effort between turns from the message box; a harness or account change gives the new session the whole conversation, and earlier replies keep their provider's mark and name; typecheck, lint, and 473 tests pass; driven in the web export on the fake harness; the look and a live handover await the owner ([proof](verification/2026-11-10-thread-handover.md), [specification](capabilities/thread-handover/specifications.md)).

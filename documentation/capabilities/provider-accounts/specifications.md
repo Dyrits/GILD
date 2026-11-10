@@ -11,7 +11,7 @@ The owner works with several harnesses and, for some, several subscriptions: two
 ### Harnesses
 
 - A thread runs on one harness: **Claude Code**, **Codex**, or **OpenCode**. A mission's top thread takes the harness chosen at mission start; a thread opened beneath another takes its opener's unless the opener chooses another. A thread can open a thread on another harness through `open_thread`'s `harness`.
-- A thread keeps its harness for its whole life; changing it mid-thread is thread-handover, not built.
+- A thread keeps its harness until the owner hands it over to another between turns ([thread-handover](../thread-handover/specifications.md)).
 - Each harness offers its own models: Claude Code its aliases (Fable, Opus, Sonnet, Haiku), Codex the models its app server lists for the signed-in account, OpenCode the models `opencode models` lists. **Default model** is the harness's own default. On another harness than its opener's, a thread takes that harness's default model unless one is chosen.
 - Effort applies to Claude Code and Codex. OpenCode takes no effort.
 - A harness that is not installed shows as "(not installed)" in the pickers and says why in Settings.

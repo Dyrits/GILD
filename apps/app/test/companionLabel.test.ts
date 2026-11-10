@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { companionLabelOf } from "../src/formatting";
+import { companionLabelOf, replyWriterOf } from "../src/formatting";
 
 describe("companionLabelOf", () => {
   it("names the company, then the model's name and version, from the reported model", () => {
@@ -20,5 +20,25 @@ describe("companionLabelOf", () => {
 
   it("keeps an unrecognised reported model as it is", () => {
     expect(companionLabelOf("opencode", "qwen3-coder", "default")).toBe("OpenCode - qwen3-coder");
+  });
+});
+
+describe("replyWriterOf", () => {
+  it("keeps a reply under the harness and model that wrote it, whatever the thread runs on now", () => {
+    expect(replyWriterOf({ harness: "claude", model: "claude-sonnet-5-5" }, "codex")).toEqual({
+      harness: "claude",
+      label: "Anthropic - Sonnet 5.5",
+    });
+    expect(replyWriterOf({ harness: "claude", model: null }, "codex")).toEqual({
+      harness: "claude",
+      label: "Anthropic - Default model",
+    });
+  });
+
+  it("takes the thread's harness for a reply that recorded none", () => {
+    expect(replyWriterOf({ harness: null, model: null }, "codex")).toEqual({
+      harness: "codex",
+      label: "OpenAI - Default model",
+    });
   });
 });

@@ -397,6 +397,28 @@ const migrations = {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`ALTER TABLE messages ADD COLUMN model TEXT`;
   }),
+  // The lines recording a thread's handovers (thread-handover): a change of its harness, account, model, or effort.
+  "0025_handovers": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE handovers (
+      id TEXT PRIMARY KEY,
+      thread_id TEXT NOT NULL REFERENCES threads(id),
+      text TEXT NOT NULL,
+      at INTEGER NOT NULL
+    )`;
+  }),
+  // The harness that wrote each agent reply, so a handover leaves earlier replies under their own provider. A thread
+  // could not change harness or model before, so each earlier reply is the thread's own; a reply that named no model
+  // (before 0024, or a harness that names none) takes the model the thread chose.
+  "0026_message_harness": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE messages ADD COLUMN harness TEXT`;
+    yield* sql`UPDATE messages SET harness = (SELECT harness FROM threads WHERE threads.id = messages.thread_id)
+      WHERE sender_kind = 'agent'`;
+    yield* sql`UPDATE messages SET model = (SELECT model FROM threads WHERE threads.id = messages.thread_id)
+      WHERE sender_kind = 'agent' AND model IS NULL
+        AND (SELECT model FROM threads WHERE threads.id = messages.thread_id) != 'default'`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

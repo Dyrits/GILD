@@ -51,6 +51,19 @@ export const companionLabelOf = (harness: HarnessName, reported: string | null, 
   return `${harnessProviders[harness]} - ${name}`;
 };
 
+/**
+ * Who wrote an agent reply: the harness and model recorded with it, so a handover leaves earlier replies under their own
+ * provider and model (thread-handover). A reply that recorded no harness (from before handovers) is the thread's own;
+ * one that recorded no model was written by the harness's default.
+ */
+export const replyWriterOf = (
+  reply: { readonly harness: HarnessName | null; readonly model: string | null },
+  threadHarness: HarnessName,
+) => {
+  const harness = reply.harness ?? threadHarness;
+  return { harness, label: companionLabelOf(harness, reply.model, "default") };
+};
+
 /** An effort level as the owner reads it. */
 export const effortLabel = (effort: EffortChoice) => (effort === "default" ? "Default effort" : effort);
 

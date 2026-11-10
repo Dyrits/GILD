@@ -17,6 +17,7 @@ import { endpointsLayer } from "./endpoints.ts";
 import { invalid, ServiceFailure } from "./errors.ts";
 import type { Harness } from "./execution.ts";
 import { addBrowsableRoot, browseFolders, createFolder, seedBrowsableRoots } from "./folders.ts";
+import { changeThreadRunner } from "./handover.ts";
 import { fakeHarnessToolsLayer, HarnessTools } from "./harnessTools.ts";
 import { type JournalOutcome, readJournalView, updateJournal } from "./journal.ts";
 import {
@@ -155,6 +156,15 @@ const make = Effect.gen(function* () {
             Effect.map(({ value }) => value),
           ),
         BrowseFolders: (browse) => browseFolders(browse.path, browse.shouldIncludeHidden),
+        ChangeThreadRunner: (change) =>
+          commands.run(
+            changeThreadRunner(change.threadId, {
+              accountId: change.accountId,
+              effort: change.effort,
+              harness: change.harness,
+              model: change.model,
+            }),
+          ),
         CreateFolder: (create) => createFolder(create.parent, create.name),
         CreateRealm: (create) => change(createRealm(create.path, create.name, create.crest)),
         DeleteIntel: (given) => change(deleteLoreEntryByOwner(given.loreEntryId)),

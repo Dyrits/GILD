@@ -1445,3 +1445,15 @@ Summary: The owner asked for the Quest and Side-quests menu to look better, usin
 References: apps/app/src/{threadTree.tsx,styles.ts}.
 Validation: format, typecheck, and tests pass (458 passed, 10 skipped) ([proof](verification/2026-11-10-quest-tree-menu.md)).
 Evidence: Baseline `10bf154`; not proven: the look, which awaits the owner.
+
+## CHG-0096 · 2026-11-10 · Changing harness, account, model, and effort in the middle of a quest
+
+Type: Code
+Event: Delivery
+Scope: Thread handover
+
+Summary: The owner asked to be able to change provider and model in the middle of a quest. A quest's message box now carries the harness, account, Companion, and effort pickers; choosing another value is a handover (`ChangeThreadRunner`), refused while the thread is in a turn. A model or effort change keeps the harness session; a harness or account change forgets it, and the next turn's message carries the whole conversation so far (the oldest left out past half the context window). Each handover leaves a line in the conversation; a thread's waiting messages run on the new runner at once; each reply records the harness and model that wrote it (migration 0026 backfills earlier ones) so it keeps its provider's mark and name. Migration 0025 adds the handover lines.
+References: documentation/capabilities/thread-handover/specifications.md, packages/service/src/{handover,messaging,turns,threads,missionDetail,store,deleting,fakeHarness}.ts, packages/contracts/src/{requests,records}.ts, apps/app/src/{conversation,conversationEntries,entries,formatting}.ts(x).
+Validation: format, typecheck, and tests pass (473 passed, 10 skipped); each key check fails under a mutation ([proof](verification/2026-11-10-thread-handover.md)).
+Evidence: Baseline `b7a0f16`; not proven: the look, which awaits the owner, and a handover between live harnesses.
+

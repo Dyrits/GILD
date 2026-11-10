@@ -8,6 +8,7 @@ import { changed, makeCommands } from "./commands.ts";
 import { Endpoints } from "./endpoints.ts";
 import { invalid, type ServiceFailure } from "./errors.ts";
 import { Harness, type HarnessEvent } from "./execution.ts";
+import { readConversationSoFar } from "./handover.ts";
 import { makeLifecycle, recoverThreadStates, releaseThread, resumeStopped, stopThread } from "./lifecycle.ts";
 import { listPending, listThreadsWithPending } from "./messaging.ts";
 import { listThreadPermissions } from "./permissions.ts";
@@ -146,6 +147,9 @@ export const threadsLayer = Layer.effect(
         const { approvalLevel, shouldStreamReplies } = yield* local(readSettings);
         const permissions = yield* local(listThreadPermissions(threadId));
         const { context, cwd, isInWorkspace, note } = yield* local(prepareStartingContext(threadId));
+        // A session that starts with no memory of the thread, after a handover, is given its conversation.
+        const history =
+          turn.sessionId === null ? yield* local(readConversationSoFar(threadId, turn.turnId, turn.model)) : null;
         const mcpUrl = yield* endpoints.urlFor(threadId);
         const onEvent = (event: HarnessEvent) =>
           Match.valueTags(event, {
@@ -174,7 +178,7 @@ export const threadsLayer = Layer.effect(
             effort: turn.effort,
             harness: turn.harness,
             model: turn.model,
-            note,
+            note: history === null ? note : `${history}\n\n${note}`,
             onEvent,
             sessionId: turn.sessionId,
             text: turn.messages.join("\n\n"),

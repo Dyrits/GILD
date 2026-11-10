@@ -2,7 +2,7 @@ import type { HarnessName, Message, MissionId, ThreadId } from "@gild/contracts"
 import { Pressable, Text, View } from "react-native";
 import type { ServiceClient } from "./client";
 import type { Entry } from "./entries";
-import { clockOf } from "./formatting";
+import { clockOf, replyWriterOf } from "./formatting";
 import { LoreChangeCard, LoreChangeLine } from "./lore";
 import { ProviderMark } from "./providerMarks";
 import { QuestionCard, QuestionLine } from "./questions";
@@ -52,32 +52,22 @@ export function AgentReply({
 }
 
 /** The label above a message: none for the owner's own unless it waits for the next turn. */
-const senderLabelOf = (message: Message, companionOf: (reported: string | null) => string) => {
+const senderLabelOf = (message: Message) => {
   if (message.sender === "user") return message.isQueued ? "Queued for the next turn" : null;
-  if (message.sender === "agent") return companionOf(message.model);
   return `${message.isResult ? "Result from" : "From"} "${shortened(message.fromTitle ?? "a quest")}"`;
 };
 
 /** One message: the agent's reply with its provider's mark, or the owner's and another thread's as a card. */
-function MessageBubble({
-  companionOf,
-  harness,
-  message,
-}: {
-  companionOf: (reported: string | null) => string;
-  harness: HarnessName;
-  message: Message;
-}) {
-  if (message.sender === "agent")
+function MessageBubble({ harness, message }: { harness: HarnessName; message: Message }) {
+  // A reply keeps the provider and model that wrote it, whatever the thread runs on now (thread-handover); a
+  // reply from before the harness was recorded is the thread's own.
+  if (message.sender === "agent") {
+    const writer = replyWriterOf(message, harness);
     return (
-      <AgentReply
-        harness={harness}
-        label={companionOf(message.model)}
-        text={message.text}
-        time={clockOf(message.sentAt)}
-      />
+      <AgentReply harness={writer.harness} label={writer.label} text={message.text} time={clockOf(message.sentAt)} />
     );
-  const sender = senderLabelOf(message, companionOf);
+  }
+  const sender = senderLabelOf(message);
   return (
     <View style={[styles.messageRow, message.sender === "user" && styles.messageRowUser]}>
       <View style={[styles.messageCard, cardStyles[message.sender]]}>
@@ -92,17 +82,14 @@ function MessageBubble({
 /** One conversation entry: an open question or suggestion as a card, a settled one as a line. */
 export function EntryView({
   client,
-  companionOf,
   entry,
   harness,
   onOpenMission,
   onSelectThread,
 }: {
   client: ServiceClient;
-  /** The Companion label for a reply, given the model its harness reported for it (null when none did). */
-  companionOf: (reported: string | null) => string;
   entry: Entry;
-  /** The harness of the thread the entry belongs to; its provider's mark marks the agent's replies. */
+  /** The harness the thread runs on now: the mark of a reply that records none. */
   harness: HarnessName;
   onOpenMission: (missionId: MissionId) => void;
   onSelectThread: (threadId: ThreadId) => void;
@@ -128,6 +115,14 @@ export function EntryView({
         </Text>
       </View>
     );
+  if (entry._tag === "Handover")
+    return (
+      <View style={styles.questionLine}>
+        <Text style={styles.muted}>
+          {entry.handover.text} · {clockOf(entry.handover.at)}
+        </Text>
+      </View>
+    );
   if (entry._tag === "LoreChange")
     return entry.change.status === "Awaiting" ? (
       <LoreChangeCard change={entry.change} client={client} />
@@ -146,5 +141,5 @@ export function EntryView({
     ) : (
       <QuestionLine question={entry.question} />
     );
-  return <MessageBubble companionOf={companionOf} harness={harness} message={entry.message} />;
+  return <MessageBubble harness={harness} message={entry.message} />;
 }

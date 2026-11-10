@@ -1,0 +1,27 @@
+import { join } from "node:path";
+import { Effect } from "effect";
+import { fakeHarnessLayer, fakeHarnessToolsLayer, Service, serviceLayer } from "./src/index.ts";
+
+const dir = "/tmp/gild-migrate";
+const layer = serviceLayer({
+  accountsRoot: join(dir, "accounts"),
+  filename: join(dir, "gild.sqlite"),
+  harness: fakeHarnessLayer("10 millis"),
+  harnessTools: fakeHarnessToolsLayer(),
+  homeFolder: dir,
+  scratchRoot: join(dir, "missions"),
+});
+const phase = process.argv[2];
+const program = Effect.gen(function* () {
+  const service = yield* Service;
+  if (phase === "write") {
+    const started = (yield* service.handle({ _tag: "StartMission", effort: "default", model: "sonnet", requestId: "r", text: "Hi", workspacePath: null })) as { missionId: string };
+    yield* Effect.sleep("500 millis");
+    console.log("WROTE", started.missionId);
+  } else {
+    const list = (yield* service.handle({ _tag: "ListMissions", isArchived: false, search: null, state: null, workspaceId: null } as never)) as { missions: Array<{ id: string }> };
+    const detail = (yield* service.handle({ _tag: "ReadMission", missionId: list.missions[0]?.id, threadId: null } as never)) as { messages: Array<{ sender: string; harness: string | null; model: string | null }> };
+    console.log("REPLIES", JSON.stringify(detail.messages.filter((m) => m.sender === "agent").map((m) => [m.harness, m.model])));
+  }
+}).pipe(Effect.provide(layer));
+Effect.runPromise(program).then(() => process.exit(0), (e) => { console.error(e); process.exit(1); });

@@ -264,6 +264,18 @@ export const InterruptThread = Schema.TaggedStruct("InterruptThread", { threadId
 export const StopThread = Schema.TaggedStruct("StopThread", { threadId: ThreadId });
 /** Continues a Stopped thread with the messages kept for it (thread-tree, Stopping). */
 export const ResumeThread = Schema.TaggedStruct("ResumeThread", { threadId: ThreadId });
+/**
+ * Hands a thread over to another harness, account, model, or effort between turns (thread-handover). A change of
+ * harness or account starts a new session with the thread's whole conversation; the rest carries on.
+ */
+export const ChangeThreadRunner = Schema.TaggedStruct("ChangeThreadRunner", {
+  /** The provider account, or null for the harness's own sign-in on this computer. */
+  accountId: Schema.NullOr(AccountId),
+  effort: EffortChoice,
+  harness: HarnessName,
+  model: ModelChoice,
+  threadId: ThreadId,
+});
 /** Tries again a thread waiting in Attention on its missing workspace folder (Retry). */
 export const RetryThread = Schema.TaggedStruct("RetryThread", { threadId: ThreadId });
 /** Reads the standing permissions, for one mission or all. */
@@ -352,6 +364,7 @@ export const Request = Schema.Union([
   ListOpenQuestions,
   StopThread,
   RetryThread,
+  ChangeThreadRunner,
   InterruptThread,
   OpenThread,
   PreviewStartingContext,
@@ -391,6 +404,7 @@ export const Results = {
   AnswerQuestion: Question,
   AnswerSuggestion: Suggestion,
   BrowseFolders: FolderListing,
+  ChangeThreadRunner: Schema.Null,
   CreateFolder: Folder,
   CreateRealm: Schema.Null,
   DeleteIntel: Schema.Null,

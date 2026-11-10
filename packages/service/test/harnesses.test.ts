@@ -281,6 +281,40 @@ describe("running Codex threads", () => {
     }).pipe(Effect.provide(layer));
   });
 
+  it.live("hands a Claude Code thread over to Codex with its conversation, in a new Codex thread", () => {
+    const { layer, requests } = withHarnesses();
+    return Effect.gen(function* () {
+      const started = yield* start({ text: "Plan the work" });
+      yield* settle(started.missionId, idleWith(1));
+      yield* call({
+        _tag: "ChangeThreadRunner",
+        accountId: null,
+        effort: "high",
+        harness: "codex",
+        model: "gpt-x",
+        threadId: started.threadId,
+      });
+      yield* call({
+        _tag: "SendMessage",
+        delivery: null,
+        requestId: "r2",
+        text: "Carry on",
+        threadId: started.threadId,
+      });
+      const detail = yield* settle(started.missionId, idleWith(2));
+      expect(detail.thread).toMatchObject({ harness: "codex", model: "gpt-x" });
+      // A new Codex thread, not a resumed one, and the turn's input holds the earlier conversation.
+      expect(requests("thread/start")).toHaveLength(1);
+      expect(requests("thread/resume")).toHaveLength(0);
+      const input = JSON.stringify(requests("turn/start")[0]?.params?.input);
+      expect(input).toContain("Conversation so far");
+      expect(input).toContain("Plan the work");
+      // The first reply, as the JSON input escapes it.
+      expect(input).toContain(JSON.stringify(replies(detail)[0]).slice(1, -1));
+      expect(input).toContain("Carry on");
+    }).pipe(Effect.provide(layer));
+  });
+
   it.live("takes a steered message into the running turn", () => {
     const { layer, requests } = withHarnesses();
     return Effect.gen(function* () {

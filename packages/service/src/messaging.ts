@@ -1,4 +1,4 @@
-import { MessageId, type SendMessageResult } from "@gild/contracts";
+import { type HarnessName, MessageId, type SendMessageResult } from "@gild/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { touchMission } from "./activity.ts";
@@ -18,6 +18,8 @@ const appendMessage = (message: {
   readonly fromThreadId: string | null;
   readonly isResult: boolean;
   readonly isQueued: boolean;
+  /** The harness that wrote an agent reply; null otherwise. */
+  readonly harness?: HarnessName | null;
   /** The model that wrote an agent reply, as the harness named it; null otherwise. */
   readonly model?: string | null;
   readonly text: string;
@@ -29,24 +31,30 @@ const appendMessage = (message: {
     const [next] = yield* sql<{ sequence: number }>`
       SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM messages WHERE thread_id = ${message.threadId}`;
     yield* sql`INSERT INTO messages
-        (id, mission_id, thread_id, sender_kind, sender_thread_id, is_result, is_queued, text, sequence, sent_at, sender_title, model)
+        (id, mission_id, thread_id, sender_kind, sender_thread_id, is_result, is_queued, text, sequence, sent_at, sender_title, model, harness)
       VALUES (${messageId}, ${message.missionId}, ${message.threadId}, ${message.senderKind}, ${message.fromThreadId},
         ${message.isResult ? 1 : 0}, ${message.isQueued ? 1 : 0}, ${message.text}, ${next?.sequence ?? 1}, ${message.now},
-        (SELECT title FROM threads WHERE id = ${message.fromThreadId}), ${message.model ?? null})`;
+        (SELECT title FROM threads WHERE id = ${message.fromThreadId}), ${message.model ?? null}, ${message.harness ?? null})`;
     yield* touchMission(message.missionId, message.now);
     return messageId;
   });
 
 /** Records an agent's reply in its thread. Callers run it in a transaction. */
-export const insertReply = (missionId: string, threadId: string, text: string, model: string | null) =>
+export const insertReply = (
+  missionId: string,
+  threadId: string,
+  text: string,
+  written: { readonly harness: HarnessName; readonly model: string | null },
+) =>
   Effect.gen(function* () {
     const now = yield* Clock.currentTimeMillis;
     return yield* appendMessage({
       fromThreadId: null,
+      harness: written.harness,
       isQueued: false,
       isResult: false,
       missionId,
-      model,
+      model: written.model,
       now,
       senderKind: "agent",
       text,
