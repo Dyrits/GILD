@@ -11,15 +11,16 @@ import {
 } from "react-native";
 import { imageRefusalOf } from "./attachmentRules";
 import { BudgetScreen, BudgetStopCard } from "./budgets";
-import { newRequestId, type ServiceClient } from "./client";
+import { messageOf, newRequestId, type ServiceClient } from "./client";
 import { Composer, StateBadge } from "./controls";
 import { AgentReply, EntryView, WorkingIndicator } from "./conversationEntries";
 import { type Entry, entriesOf, workingLabelOf } from "./entries";
 import { companionLabelOf, effortLabel, harnessLabels, modelLabelOf } from "./formatting";
 import { JournalScreen } from "./journal";
+import { countedOf } from "./labels";
 import { LoreIcon, LoreScreen } from "./lore";
 import { RunnerPickers, useHarnesses } from "./runners";
-import { useHasSidebar, useHasTopBar, useQuestPanel } from "./sidebar";
+import { useHasSidebar, useHasTopBar, useQuestPanel } from "./shell";
 import { styles } from "./styles";
 import { ChatterNotices, DeleteThreadAction } from "./threadActions";
 import { ThreadPanel } from "./threadPanel";
@@ -128,7 +129,7 @@ function ThreadPane({
   const act = (request: Promise<unknown>) =>
     request.then(
       () => setActionError(null),
-      (reason: Error) => setActionError(reason.message),
+      (reason) => setActionError(messageOf(reason)),
     );
   return (
     <View style={[styles.flex, styles.pane]}>
@@ -181,7 +182,8 @@ function ThreadPane({
       </Text>
       {thread.state === "Stopped" && thread.waitingCount > 0 && (
         <Text style={styles.muted}>
-          {thread.waitingCount === 1 ? "1 message waits" : `${thread.waitingCount} messages wait`} until you resume this
+          {countedOf(thread.waitingCount, "message")} {thread.waitingCount === 1 ? "waits" : "wait"} until you resume
+          this
           {work}.
         </Text>
       )}

@@ -21,16 +21,9 @@ import {
   type PooledTurn,
 } from "./harnessProcesses.ts";
 import { approvalInstructionsOf } from "./instructions.ts";
-import {
-  countOf,
-  fieldOf,
-  harnessEnvironmentOf,
-  type Incoming,
-  type RpcProcess,
-  startRpcProcess,
-  textFieldOf,
-} from "./lineProcess.ts";
+import { harnessEnvironmentOf, type Incoming, type RpcProcess, startRpcProcess } from "./lineProcess.ts";
 import { toolServerName } from "./mcp.ts";
+import { fieldOf, numberFieldOf, textFieldOf } from "./records.ts";
 
 // OpenCode through the Agent Client Protocol (ADR 0008; `opencode acp` of OpenCode 2.2.0, probed 2026-11-07):
 // one process per thread, one ACP session per Gild thread.
@@ -86,10 +79,10 @@ const usageOf = (usage: unknown): TokenUsage | null =>
   usage === undefined || usage === null
     ? null
     : {
-        cacheCreation: countOf(usage, "cachedWriteTokens"),
-        cacheRead: countOf(usage, "cachedReadTokens"),
-        input: countOf(usage, "inputTokens"),
-        output: countOf(usage, "outputTokens") + countOf(usage, "thoughtTokens"),
+        cacheCreation: numberFieldOf(usage, "cachedWriteTokens"),
+        cacheRead: numberFieldOf(usage, "cachedReadTokens"),
+        input: numberFieldOf(usage, "inputTokens"),
+        output: numberFieldOf(usage, "outputTokens") + numberFieldOf(usage, "thoughtTokens"),
       };
 
 /** The harness tool and input the owner is asked about for one of OpenCode's permission requests. */

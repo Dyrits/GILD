@@ -4,14 +4,8 @@ import { type AccessOptions, accessArgsOf, baseArgs, noTimeLimit } from "./claud
 import { Harness, HarnessFailure, type ImageAttachment, readImages, turnMessageOf } from "./execution.ts";
 import { accountEnvironmentOf } from "./harnessCatalog.ts";
 import { type HarnessConnection, type HarnessProtocol, makeHarnessProcesses } from "./harnessProcesses.ts";
-import {
-  countOf,
-  fieldOf,
-  harnessEnvironmentOf,
-  type StreamJsonProcess,
-  startStreamJsonProcess,
-  textFieldOf,
-} from "./lineProcess.ts";
+import { harnessEnvironmentOf, type StreamJsonProcess, startStreamJsonProcess } from "./lineProcess.ts";
+import { fieldOf, numberFieldOf, textFieldOf } from "./records.ts";
 
 // Claude Code through `claude -p` in stream-json mode (ADR 0008; CHG-0027): one process per thread.
 
@@ -53,10 +47,10 @@ const usageOf = (usage: unknown): TokenUsage | null =>
   usage === undefined || usage === null
     ? null
     : {
-        cacheCreation: countOf(usage, "cache_creation_input_tokens"),
-        cacheRead: countOf(usage, "cache_read_input_tokens"),
-        input: countOf(usage, "input_tokens"),
-        output: countOf(usage, "output_tokens"),
+        cacheCreation: numberFieldOf(usage, "cache_creation_input_tokens"),
+        cacheRead: numberFieldOf(usage, "cache_read_input_tokens"),
+        input: numberFieldOf(usage, "input_tokens"),
+        output: numberFieldOf(usage, "output_tokens"),
       };
 
 /** What a model call's prompt and reply held, or null when the call reported no usage. */

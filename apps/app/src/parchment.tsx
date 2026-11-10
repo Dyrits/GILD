@@ -25,10 +25,12 @@ export const bookmarkCloths = {
 export function ParchmentFrame({
   bookmark = "red",
   hasBookmark = true,
+  hasFrame = true,
 }: {
   /** The bookmark's cloth, matching the banner of the quest's column. */
   bookmark?: keyof typeof bookmarkCloths;
   hasBookmark?: boolean;
+  hasFrame?: boolean;
 }) {
   const [size, setSize] = useState({ height: 0, width: 0 });
   const { height, width } = size;
@@ -49,41 +51,45 @@ export function ParchmentFrame({
             </LinearGradient>
           </Defs>
           <Rect fill="url(#paper-age)" height={height} width={width} />
-          <Rect
-            fill="none"
-            height={height - outer * 2}
-            rx={3}
-            stroke={colors.gold}
-            strokeWidth={2.2}
-            width={width - outer * 2}
-            x={outer}
-            y={outer}
-          />
-          <Rect
-            fill="none"
-            height={height - inner * 2}
-            rx={2}
-            stroke={colors.gold}
-            strokeOpacity={0.65}
-            strokeWidth={0.9}
-            width={width - inner * 2}
-            x={inner}
-            y={inner}
-          />
-          {[
-            [outer, outer],
-            [width - outer, outer],
-            [outer, height - outer],
-            [width - outer, height - outer],
-          ].map(([x, y]) => (
-            <Path
-              d={diamond(x ?? 0, y ?? 0, 6)}
-              fill={colors.goldHi}
-              key={`${x}:${y}`}
-              stroke={goldDark}
-              strokeWidth={1}
-            />
-          ))}
+          {hasFrame && (
+            <>
+              <Rect
+                fill="none"
+                height={height - outer * 2}
+                rx={3}
+                stroke={colors.gold}
+                strokeWidth={2.2}
+                width={width - outer * 2}
+                x={outer}
+                y={outer}
+              />
+              <Rect
+                fill="none"
+                height={height - inner * 2}
+                rx={2}
+                stroke={colors.gold}
+                strokeOpacity={0.65}
+                strokeWidth={0.9}
+                width={width - inner * 2}
+                x={inner}
+                y={inner}
+              />
+              {[
+                [outer, outer],
+                [width - outer, outer],
+                [outer, height - outer],
+                [width - outer, height - outer],
+              ].map(([x, y]) => (
+                <Path
+                  d={diamond(x ?? 0, y ?? 0, 6)}
+                  fill={colors.goldHi}
+                  key={`${x}:${y}`}
+                  stroke={goldDark}
+                  strokeWidth={1}
+                />
+              ))}
+            </>
+          )}
           {hasBookmark && (
             <>
               <Path

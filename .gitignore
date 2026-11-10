@@ -5,3 +5,4 @@ dist/
 .env*.local
 # Playwright CLI output (may contain credentials)
 .playwright-cli/
+release/

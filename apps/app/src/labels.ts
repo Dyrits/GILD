@@ -16,7 +16,10 @@ import type {
   ThreadPanel,
 } from "@gild/contracts";
 
-const sideQuestsOf = (count: number) => (count === 1 ? "1 side-quest" : `${count} side-quests`);
+/** A count with its noun, in the singular for one and the plural otherwise, for example "1 step" or "3 steps". */
+export const countedOf = (count: number, noun: string) => `${count} ${count === 1 ? noun : `${noun}s`}`;
+
+const sideQuestsOf = (count: number) => countedOf(count, "side-quest");
 
 /** The mark on a thread that folds agent-opened threads beneath it, for example "+3 side-quests". */
 export const foldedLabelOf = (count: number) => `+${sideQuestsOf(count)}`;
@@ -76,7 +79,7 @@ export const threadCountOf = (mission: { readonly runningCount: number; readonly
 export const promptQuestionOf = (prompt: "MarkDone" | "Inactive", inactivityDays: number) =>
   prompt === "MarkDone"
     ? "Mark as done?"
-    : `No activity for ${inactivityDays === 1 ? "1 day" : `${inactivityDays} days`}. Archive it or mark it as done?`;
+    : `No activity for ${countedOf(inactivityDays, "day")}. Archive it or mark it as done?`;
 
 /** What the line left behind says about where an off-topic request went (thread-tree, Off-topic requests). */
 export const suggestionLabels = {
@@ -110,7 +113,7 @@ export const contextUseTextOf = (gauge: Pick<ContextGauge, "tokens" | "windowTok
 /** What a thread alone spent, for example "3 turns · $1.50 · 12,000 tokens"; a unit with nothing is left out. */
 export const threadSpendingTextOf = (panel: Pick<ThreadPanel, "spending" | "turnCount">) => {
   const { cost, tokens } = panel.spending;
-  const turns = panel.turnCount === 1 ? "1 turn" : `${panel.turnCount} turns`;
+  const turns = countedOf(panel.turnCount, "turn");
   return [
     turns,
     ...(cost > 0 ? [`$${cost.toFixed(2)}`] : []),

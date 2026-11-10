@@ -7,6 +7,7 @@ import type { ServiceClient } from "./client";
 import { Emblem } from "./emblems";
 import type { Entry, QuestLink, Step } from "./entries";
 import { clockOf, replyWriterOf, spanOf } from "./formatting";
+import { countedOf } from "./labels";
 import { LoreChangeCard, LoreChangeLine } from "./lore";
 import { Markdown } from "./markdown";
 import { ProviderMark } from "./providerMarks";
@@ -95,13 +96,13 @@ function StepsGroup({ seconds, steps }: { seconds: number; steps: ReadonlyArray<
   return (
     <View>
       <Pressable
-        accessibilityLabel={`${steps.length === 1 ? "1 step" : `${steps.length} steps`}, ${spanOf(seconds)}`}
+        accessibilityLabel={`${countedOf(steps.length, "step")}, ${spanOf(seconds)}`}
         accessibilityRole="button"
         accessibilityState={{ expanded: isOpen }}
         onPress={() => setIsOpen(!isOpen)}
         style={styles.stepsHeader}
       >
-        <Text style={styles.stepsCount}>{steps.length === 1 ? "1 step" : `${steps.length} steps`}</Text>
+        <Text style={styles.stepsCount}>{countedOf(steps.length, "step")}</Text>
         <Text style={styles.muted}>{spanOf(seconds)}</Text>
         <Text style={styles.muted}>{isOpen ? "⌃" : "⌄"}</Text>
       </Pressable>

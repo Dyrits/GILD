@@ -1,7 +1,7 @@
 import type { Answer, Question, QuestionOutcome } from "@gild/contracts";
 import { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
-import type { ServiceClient } from "./client";
+import { messageOf, type ServiceClient } from "./client";
 import { clockOf } from "./formatting";
 import { styles } from "./styles";
 
@@ -73,7 +73,7 @@ export function QuestionCard({
   const send = (answer: Answer, message: string | null = null) =>
     client.request({ _tag: "AnswerQuestion", answer, message, questionId: question.id }).then(
       () => setError(null),
-      (reason: Error) => setError(reason.message),
+      (reason) => setError(messageOf(reason)),
     );
   return (
     <View style={styles.question}>

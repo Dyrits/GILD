@@ -1,5 +1,6 @@
 import { FitAddon } from "@xterm/addon-fit";
 import { Terminal } from "@xterm/xterm";
+import { messageOf } from "./client";
 import "@xterm/xterm/css/xterm.css";
 import { useEffect, useImperativeHandle, useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
@@ -143,7 +144,7 @@ export function TerminalPanel({ id, cwd, ref, onReady }: TerminalPanelProps) {
         setError(null);
         setGeneration((value) => value + 1);
       })
-      .catch((reason: Error) => setError(reason.message));
+      .catch((reason) => setError(messageOf(reason)));
   };
   return (
     <View style={{ backgroundColor: colors.accentSoft, borderRadius: 8, gap: 4, padding: 8 }}>

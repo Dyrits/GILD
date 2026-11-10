@@ -1745,3 +1745,16 @@ The shared questionLine style also left-aligns other conversation event lines us
 References: apps/app/src/styles.ts, commit 473b2e9.
 Validation: the implementing side-quest reports Biome, workspace typecheck, and diff whitespace checks passing; the parent confirmed the committed style and git history.
 Live appearance remains unverified.
+
+## CHG-0122 · 2026-11-10 · The installed app apart from development
+
+Type: Code
+Event: Delivery
+Scope: Desktop app
+
+Summary: At the owner's request ("create a real applicative to dissociate it from dev one"), only a packaged app is "Gild" on the default data folder; development and checks run as "Gild Dev" with their own profile, each profile holds a single-instance lock, and `bun run package` builds the `.app` and `.dmg` with electron-builder. The installed window loads its screens from a `gild-app` scheme.
+References: documentation/architecture-decision-record/0013-installed-app-apart-from-development.md, apps/desktop/src/instance.ts, apps/desktop/src/appFiles.ts, apps/desktop/src/main.ts, apps/desktop/electron-builder.yml, apps/desktop/scripts/package.ts.
+Validation: desktop typecheck, Biome, and the instance, app-file, shell-path, and terminal tests pass; `bun run package` builds `Gild-0.1.0-arm64.dmg` (128 MB), its checksum and ad hoc signature verify, and the app launched from the mounted image on a throwaway data folder with a Finder-like environment ([proof](verification/2026-11-10-installed-app.md)).
+Found and fixed while verifying: the bundle's seal was broken until the build signed it ad hoc with the hardened runtime off; the service found none of `claude`, `codex`, or `opencode` on a Finder launch's path, so the installed app now reads the login shell's path (`shellPath.ts`); and terminals failed inside the archive because node-pty's helper was repaired at its `app.asar` path instead of `app.asar.unpacked`.
+Not done: opening the image on the owner's own `Gild` data (the owner quits any running old instance first), signing and notarizing for other computers, and a live harness run from the installed app.
+`bun run dev` now starts on an empty "Gild Dev" folder; the owner's existing data stays in `Gild`, for the installed app.

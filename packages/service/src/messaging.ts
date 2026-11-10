@@ -135,6 +135,17 @@ export const deliverMessages = (messageIds: ReadonlyArray<string>, turnId: strin
       WHERE id IN ${sql.in(messageIds)} AND delivered_turn_id IS NULL`;
   });
 
+/** The texts of the owner's messages that started the thread's current turn, the latest one. */
+export const readOwnerTextsOfTurn = (threadId: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const messages = yield* sql<{ text: string }>`
+      SELECT m.text FROM messages m
+      WHERE m.thread_id = ${threadId} AND m.sender_kind = 'user' AND m.delivered_turn_id = (
+        SELECT t.id FROM turns t WHERE t.thread_id = ${threadId} ORDER BY t.started_at DESC, t.rowid DESC LIMIT 1)`;
+    return messages.map((message) => message.text);
+  });
+
 /** A message to record in a thread: from the owner, or from another thread of its mission. */
 interface NewMessage {
   /** The sending thread, for a thread message. */

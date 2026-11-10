@@ -5,7 +5,7 @@ import { makeOwnerWaits } from "./attention.ts";
 import { Changes } from "./changes.ts";
 import { changed, unchanged, type WithFollowUps } from "./commands.ts";
 import { invalid, notFound, type ServiceFailure } from "./errors.ts";
-import { findRealm, isGuildmasterThread } from "./guildmaster.ts";
+import { findRealm, isGuildmasterThread, recordResolvedCard } from "./guildmaster.ts";
 import { resumeInTurn } from "./lifecycle.ts";
 import { findMissions, findMissionsTextOf, maxMatches } from "./matching.ts";
 import { insertUserMessage } from "./messaging.ts";
@@ -212,7 +212,7 @@ export const suggestionsLayer = Layer.effect(
       });
 
     /** With the setting on and nothing matching, the new mission opens without asking. */
-    const openWithoutAsking = (threadId: string, missionId: string, text: string, title: string) =>
+    const openWithoutAsking = (threadId: string, text: string, title: string) =>
       Effect.gen(function* () {
         const resolution = yield* sql.withTransaction(
           Effect.gen(function* () {
@@ -224,11 +224,14 @@ export const suggestionsLayer = Layer.effect(
               harness: thread?.harness ?? null,
               model: thread?.model ?? "default",
             });
-            const now = yield* Clock.currentTimeMillis;
-            yield* sql`INSERT INTO suggestions (id, mission_id, thread_id, text, title, matches, asked_at, outcome,
-                is_automatic, target_mission_id, target_thread_id, target_title, resolved_at)
-              VALUES (${crypto.randomUUID()}, ${missionId}, ${threadId}, ${text}, ${title}, '[]', ${now}, ${opened.outcome},
-                1, ${opened.targetMissionId}, ${opened.targetThreadId}, ${opened.targetTitle}, ${now})`;
+            yield* recordResolvedCard({
+              callerId: threadId,
+              isRitual: false,
+              realmPath: null,
+              target: { missionId: opened.targetMissionId, threadId: opened.targetThreadId, title: opened.targetTitle },
+              text,
+              title,
+            });
             return opened;
           }),
         );
@@ -264,9 +267,7 @@ export const suggestionsLayer = Layer.effect(
         // A mission that cannot open, such as at a reached global budget, is left to the owner's choice.
         const opened =
           shouldOpenOffTopicMissions && matches.length === 0
-            ? yield* openWithoutAsking(threadId, caller.missionId, text, title).pipe(
-                Effect.catch(() => Effect.succeed(null)),
-              )
+            ? yield* openWithoutAsking(threadId, text, title).pipe(Effect.catch(() => Effect.succeed(null)))
             : null;
         if (opened !== null)
           return changed<Suggested>(

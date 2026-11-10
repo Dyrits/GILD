@@ -6,6 +6,7 @@ import { Changes } from "./changes.ts";
 import { invalid, notFound, type ServiceFailure } from "./errors.ts";
 import { isInsideFolder } from "./folders.ts";
 import { resumeInTurn } from "./lifecycle.ts";
+import { readOwnerTextsOfTurn } from "./messaging.ts";
 import {
   changedFilesOf,
   isFileChange,
@@ -189,11 +190,8 @@ export const approvalsLayer = Layer.effect(
     /** Whether the owner's messages that started the thread's current turn approve the command in the quoted words. */
     const isQuotedByOwner = (threadId: string, quote: string, command: string) =>
       Effect.gen(function* () {
-        const messages = yield* sql<{ text: string }>`
-          SELECT m.text FROM messages m
-          WHERE m.thread_id = ${threadId} AND m.sender_kind = 'user' AND m.delivered_turn_id = (
-            SELECT t.id FROM turns t WHERE t.thread_id = ${threadId} ORDER BY t.started_at DESC, t.rowid DESC LIMIT 1)`;
-        return messages.some((message) => isNamingQuote(message.text, quote, command));
+        const texts = yield* readOwnerTextsOfTurn(threadId);
+        return texts.some((text) => isNamingQuote(text, quote, command));
       });
 
     const requestApproval = (threadId: string, request: ApprovalRequest) =>

@@ -90,9 +90,7 @@ export type ThreadSections = {
 };
 
 /**
- * The quest's side panel, the window's one side panel, under the header the window's frame gives it: a parchment in a
- * gilt frame with a bookmark, the quest's emblem and name (press to rename), how it stands, then the open thread's
- * Companions when there is one, Knows (its journal, realm, lore, skills), and Does (what it spends and how it ends).
+ * The quest's side panel shows parchment with a bookmark, the quest's emblem and name (press to rename), how it stands, and the open thread's Companions, Knows, and Does groups.
  * It leaves the thread's own conversation alone.
  */
 export function QuestSidebar({
@@ -196,7 +194,7 @@ export function QuestSidebar({
           <Text style={styles.muted}>{usageDetail(usage)}</Text>
         </View>
       </ScrollView>
-      <ParchmentFrame bookmark={bookmarkOf(mission.state)} />
+      <ParchmentFrame bookmark={bookmarkOf(mission.state)} hasFrame={false} />
     </View>
   );
 }

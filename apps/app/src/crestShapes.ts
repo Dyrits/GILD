@@ -50,152 +50,176 @@ const scalloped = (box: Box, scallops: number) => {
   return `${d} Z`;
 };
 
+/** Where a point given as a share of the box lies on the grid. */
+const pointIn = (box: Box) => (px: number, py: number) => `${n(box.x + px * box.width)} ${n(box.y + py * box.height)}`;
+
+/** A closed rectangle from its corner and size. */
+const rect = (rx: number, ry: number, rw: number, rh: number) => `M${n(rx)} ${n(ry)} h${n(rw)} v${n(rh)} h${n(-rw)} Z`;
+
+/** Draws one plate within a box; `teeth` is the count of the scallops of a seal. */
+type PlateBuilder = (box: Box, teeth: number) => string;
+
+const plateBuilders = {
+  Badge: (box) => {
+    const { x, y, width: w, height: h } = box;
+    const r = w * 0.44;
+    const cx = x + w / 2;
+    const cy = y + h * 0.44;
+    const dx = r * Math.cos((20 * Math.PI) / 180);
+    const dy = r * Math.sin((20 * Math.PI) / 180);
+    return `M${n(cx - dx)} ${n(cy + dy)} A${n(r)} ${n(r)} 0 1 1 ${n(cx + dx)} ${n(cy + dy)} L${pointIn(box)(0.5, 0.98)} Z`;
+  },
+  Banner: (box) => {
+    const p = pointIn(box);
+    return `M${p(0.12, 0.04)} L${p(0.88, 0.04)} L${p(0.88, 0.76)} L${p(0.5, 0.97)} L${p(0.12, 0.76)} Z`;
+  },
+  FrenchShield: (box) => {
+    const p = pointIn(box);
+    return `M${p(0.08, 0.04)} L${p(0.92, 0.04)} L${p(0.92, 0.7)} Q${p(0.92, 0.97)} ${p(0.5, 0.97)} Q${p(0.08, 0.97)} ${p(0.08, 0.7)} Z`;
+  },
+  Hexagon: (box) => polygon(box, 6, -Math.PI / 2),
+  Lozenge: (box) => {
+    const p = pointIn(box);
+    return `M${p(0.5, 0.02)} L${p(0.96, 0.5)} L${p(0.5, 0.98)} L${p(0.04, 0.5)} Z`;
+  },
+  None: () => "",
+  Octagon: (box) => polygon(box, 8, Math.PI / 8),
+  Oval: ({ x, y, width: w, height: h }) => ellipse(x + w / 2, y + h / 2, w * 0.39, h / 2),
+  Round: ({ x, y, width: w, height: h }) => ellipse(x + w / 2, y + h / 2, w / 2, h / 2),
+  RoundedSquare: ({ x, y, width: w, height: h }) => {
+    const rx = w * 0.22;
+    const ry = h * 0.22;
+    const [x0, y0, x1, y1] = [x + w * 0.05, y + h * 0.05, x + w * 0.95, y + h * 0.95];
+    return `M${n(x0 + rx)} ${n(y0)} H${n(x1 - rx)} A${n(rx)} ${n(ry)} 0 0 1 ${n(x1)} ${n(y0 + ry)} V${n(y1 - ry)} A${n(rx)} ${n(ry)} 0 0 1 ${n(x1 - rx)} ${n(y1)} H${n(x0 + rx)} A${n(rx)} ${n(ry)} 0 0 1 ${n(x0)} ${n(y1 - ry)} V${n(y0 + ry)} A${n(rx)} ${n(ry)} 0 0 1 ${n(x0 + rx)} ${n(y0)} Z`;
+  },
+  Seal: (box, teeth) => scalloped(box, Math.max(6, teeth)),
+  Shield: (box) => {
+    const p = pointIn(box);
+    return `M${p(0.06, 0.08)} L${p(0.94, 0.08)} L${p(0.94, 0.46)} Q${p(0.94, 0.86)} ${p(0.5, 0.98)} Q${p(0.06, 0.86)} ${p(0.06, 0.46)} Z`;
+  },
+} satisfies Record<Crest["plate"], PlateBuilder>;
+
 /** The outline of a plate within a box. */
-export const platePath = (plate: Crest["plate"], box: Box, teeth = 14): string => {
-  const { x, y, width: w, height: h } = box;
-  const p = (px: number, py: number) => `${n(x + px * w)} ${n(y + py * h)}`;
-  switch (plate) {
-    case "None":
-      return "";
-    case "Round":
-      return ellipse(x + w / 2, y + h / 2, w / 2, h / 2);
-    case "Oval":
-      return ellipse(x + w / 2, y + h / 2, w * 0.39, h / 2);
-    case "Shield":
-      return `M${p(0.06, 0.08)} L${p(0.94, 0.08)} L${p(0.94, 0.46)} Q${p(0.94, 0.86)} ${p(0.5, 0.98)} Q${p(0.06, 0.86)} ${p(0.06, 0.46)} Z`;
-    case "FrenchShield":
-      return `M${p(0.08, 0.04)} L${p(0.92, 0.04)} L${p(0.92, 0.7)} Q${p(0.92, 0.97)} ${p(0.5, 0.97)} Q${p(0.08, 0.97)} ${p(0.08, 0.7)} Z`;
-    case "Lozenge":
-      return `M${p(0.5, 0.02)} L${p(0.96, 0.5)} L${p(0.5, 0.98)} L${p(0.04, 0.5)} Z`;
-    case "Hexagon":
-      return polygon(box, 6, -Math.PI / 2);
-    case "Octagon":
-      return polygon(box, 8, Math.PI / 8);
-    case "RoundedSquare": {
-      const rx = w * 0.22;
-      const ry = h * 0.22;
-      const [x0, y0, x1, y1] = [x + w * 0.05, y + h * 0.05, x + w * 0.95, y + h * 0.95];
-      return `M${n(x0 + rx)} ${n(y0)} H${n(x1 - rx)} A${n(rx)} ${n(ry)} 0 0 1 ${n(x1)} ${n(y0 + ry)} V${n(y1 - ry)} A${n(rx)} ${n(ry)} 0 0 1 ${n(x1 - rx)} ${n(y1)} H${n(x0 + rx)} A${n(rx)} ${n(ry)} 0 0 1 ${n(x0)} ${n(y1 - ry)} V${n(y0 + ry)} A${n(rx)} ${n(ry)} 0 0 1 ${n(x0 + rx)} ${n(y0)} Z`;
+export const platePath = (plate: Crest["plate"], box: Box, teeth = 14): string => plateBuilders[plate](box, teeth);
+
+/** Draws one division of the field within a box; `cells` is the count of the stripes or wedges of the repeating ones. */
+type DivisionBuilder = (box: Box, cells: number) => string;
+
+const divisionBuilders = {
+  Barry: ({ x, y, width: w, height: h }, cells) =>
+    Array.from({ length: Math.floor(cells / 2) }, (_, i) => rect(x, y + (2 * i + 1) * (h / cells), w, h / cells)).join(
+      " ",
+    ),
+  Checky: ({ x, y, width: w, height: h }, cells) => {
+    let d = "";
+    for (let row = 0; row < cells; row++)
+      for (let column = 0; column < cells; column++)
+        if ((row + column) % 2 === 1)
+          d += `${rect(x + column * (w / cells), y + row * (h / cells), w / cells, h / cells)} `;
+    return d.trim();
+  },
+  Gyronny: ({ x, y, width: w, height: h }, cells) => {
+    const wedges = cells * 2;
+    const cx = x + w / 2;
+    const cy = y + h / 2;
+    const radius = Math.max(w, h);
+    let d = "";
+    for (let index = 0; index < wedges; index += 2) {
+      const a = (index / wedges) * 2 * Math.PI - Math.PI / 2;
+      const b = ((index + 1) / wedges) * 2 * Math.PI - Math.PI / 2;
+      d += `M${n(cx)} ${n(cy)} L${n(cx + Math.cos(a) * radius)} ${n(cy + Math.sin(a) * radius)} L${n(cx + Math.cos(b) * radius)} ${n(cy + Math.sin(b) * radius)} Z `;
     }
-    case "Seal":
-      return scalloped(box, Math.max(6, teeth));
-    case "Banner":
-      return `M${p(0.12, 0.04)} L${p(0.88, 0.04)} L${p(0.88, 0.76)} L${p(0.5, 0.97)} L${p(0.12, 0.76)} Z`;
-    case "Badge": {
-      const r = w * 0.44;
-      const cx = x + w / 2;
-      const cy = y + h * 0.44;
-      const dx = r * Math.cos((20 * Math.PI) / 180);
-      const dy = r * Math.sin((20 * Math.PI) / 180);
-      return `M${n(cx - dx)} ${n(cy + dy)} A${n(r)} ${n(r)} 0 1 1 ${n(cx + dx)} ${n(cy + dy)} L${p(0.5, 0.98)} Z`;
-    }
-  }
-};
+    return d.trim();
+  },
+  Paly: ({ x, y, width: w, height: h }, cells) =>
+    Array.from({ length: Math.floor(cells / 2) }, (_, i) => rect(x + (2 * i + 1) * (w / cells), y, w / cells, h)).join(
+      " ",
+    ),
+  PerBend: (box) => {
+    const p = pointIn(box);
+    return `M${p(1, 0)} L${p(1, 1)} L${p(0, 1)} Z`;
+  },
+  PerChevron: (box) => {
+    const p = pointIn(box);
+    return `M${p(0, 0.48)} L${p(0.5, 0.68)} L${p(1, 0.48)} L${p(1, 1)} L${p(0, 1)} Z`;
+  },
+  PerFess: ({ x, y, width: w, height: h }) => rect(x, y + h / 2, w, h / 2),
+  PerPale: ({ x, y, width: w, height: h }) => rect(x + w / 2, y, w / 2, h),
+  PerSaltire: (box) => {
+    const p = pointIn(box);
+    return `M${p(0, 0)} L${p(1, 0)} L${p(0.5, 0.5)} Z M${p(0, 1)} L${p(1, 1)} L${p(0.5, 0.5)} Z`;
+  },
+  Plain: () => "",
+  Quarterly: ({ x, y, width: w, height: h }) =>
+    `${rect(x + w / 2, y, w / 2, h / 2)} ${rect(x, y + h / 2, w / 2, h / 2)}`,
+} satisfies Record<Crest["division"], DivisionBuilder>;
 
 /** The part of the field that takes the second color, as a path to fill; empty for a plain field. */
-export const divisionPath = (division: Crest["division"], box: Box, count = 4): string => {
-  const { x, y, width: w, height: h } = box;
-  const p = (px: number, py: number) => `${n(x + px * w)} ${n(y + py * h)}`;
-  const rect = (rx: number, ry: number, rw: number, rh: number) =>
-    `M${n(rx)} ${n(ry)} h${n(rw)} v${n(rh)} h${n(-rw)} Z`;
-  const cells = Math.max(2, count);
-  switch (division) {
-    case "Plain":
-      return "";
-    case "PerPale":
-      return rect(x + w / 2, y, w / 2, h);
-    case "PerFess":
-      return rect(x, y + h / 2, w, h / 2);
-    case "PerBend":
-      return `M${p(1, 0)} L${p(1, 1)} L${p(0, 1)} Z`;
-    case "PerChevron":
-      return `M${p(0, 0.48)} L${p(0.5, 0.68)} L${p(1, 0.48)} L${p(1, 1)} L${p(0, 1)} Z`;
-    case "Quarterly":
-      return `${rect(x + w / 2, y, w / 2, h / 2)} ${rect(x, y + h / 2, w / 2, h / 2)}`;
-    case "PerSaltire":
-      return `M${p(0, 0)} L${p(1, 0)} L${p(0.5, 0.5)} Z M${p(0, 1)} L${p(1, 1)} L${p(0.5, 0.5)} Z`;
-    case "Gyronny": {
-      const wedges = cells * 2;
-      const cx = x + w / 2;
-      const cy = y + h / 2;
-      const radius = Math.max(w, h);
-      let d = "";
-      for (let index = 0; index < wedges; index += 2) {
-        const a = (index / wedges) * 2 * Math.PI - Math.PI / 2;
-        const b = ((index + 1) / wedges) * 2 * Math.PI - Math.PI / 2;
-        d += `M${n(cx)} ${n(cy)} L${n(cx + Math.cos(a) * radius)} ${n(cy + Math.sin(a) * radius)} L${n(cx + Math.cos(b) * radius)} ${n(cy + Math.sin(b) * radius)} Z `;
-      }
-      return d.trim();
-    }
-    case "Barry":
-      return Array.from({ length: Math.floor(cells / 2) }, (_, i) =>
-        rect(x, y + (2 * i + 1) * (h / cells), w, h / cells),
-      ).join(" ");
-    case "Paly":
-      return Array.from({ length: Math.floor(cells / 2) }, (_, i) =>
-        rect(x + (2 * i + 1) * (w / cells), y, w / cells, h),
-      ).join(" ");
-    case "Checky": {
-      let d = "";
-      for (let row = 0; row < cells; row++)
-        for (let column = 0; column < cells; column++)
-          if ((row + column) % 2 === 1)
-            d += `${rect(x + column * (w / cells), y + row * (h / cells), w / cells, h / cells)} `;
-      return d.trim();
-    }
-  }
-};
+export const divisionPath = (division: Crest["division"], box: Box, count = 4): string =>
+  divisionBuilders[division](box, Math.max(2, count));
 
 /** A band, either a shape to fill or a line to stroke at a width; null for none. The bordure is drawn from the plate. */
 export type BandShape = { d: string; kind: "fill" } | { d: string; kind: "stroke"; width: number };
 
+/** Draws one band within a box: its thickness, from the box and the owner's width factor, and the factor itself. */
+type BandBuilder = (box: Box, thickness: number, widthFactor: number) => BandShape | null;
+
+/** A band drawn as a line to stroke. */
+const strokeOf = (d: string, thickness: number): BandShape => ({ d, kind: "stroke", width: n(thickness) });
+
+const bandBuilders = {
+  Bend: (box, thickness) => {
+    const p = pointIn(box);
+    return strokeOf(`M${p(-0.1, -0.1)} L${p(1.1, 1.1)}`, thickness);
+  },
+  Bordure: () => null,
+  Canton: ({ width: w, height: h, x, y }, _thickness, widthFactor) => {
+    const side = Math.min(w, h) * 0.36 * widthFactor;
+    return { d: rect(x, y, side, side), kind: "fill" };
+  },
+  Chevron: (box, thickness) => {
+    const p = pointIn(box);
+    return strokeOf(`M${p(0.04, 0.78)} L${p(0.5, 0.34)} L${p(0.96, 0.78)}`, thickness);
+  },
+  Chief: ({ width: w, x, y }, thickness) => ({ d: rect(x, y, w, thickness * 1.4), kind: "fill" }),
+  Cross: ({ width: w, height: h, x, y }, thickness) => ({
+    d: `${rect(x + w / 2 - thickness / 2, y, thickness, h)} ${rect(x, y + h / 2 - thickness / 2, w, thickness)}`,
+    kind: "fill",
+  }),
+  Fess: ({ width: w, height: h, x, y }, thickness) => ({
+    d: rect(x, y + h / 2 - thickness / 2, w, thickness),
+    kind: "fill",
+  }),
+  None: () => null,
+  Pale: ({ width: w, height: h, x, y }, thickness) => ({
+    d: rect(x + w / 2 - thickness / 2, y, thickness, h),
+    kind: "fill",
+  }),
+  Pall: (box, thickness) => {
+    const p = pointIn(box);
+    return strokeOf(
+      `M${p(0.02, 0.02)} L${p(0.5, 0.5)} M${p(0.98, 0.02)} L${p(0.5, 0.5)} M${p(0.5, 0.5)} L${p(0.5, 1.02)}`,
+      thickness,
+    );
+  },
+  Pile: (box, _thickness, widthFactor) => {
+    const p = pointIn(box);
+    const half = 0.28 * widthFactor;
+    return { d: `M${p(0.5 - half, -0.02)} L${p(0.5 + half, -0.02)} L${p(0.5, 0.8)} Z`, kind: "fill" };
+  },
+  Roundel: ({ width: w, height: h, x, y }, _thickness, widthFactor) => {
+    const r = (Math.min(w, h) * 0.34 * widthFactor) / 2;
+    return { d: ellipse(x + w / 2, y + h / 2, r, r), kind: "fill" };
+  },
+  Saltire: (box, thickness) => {
+    const p = pointIn(box);
+    return strokeOf(`M${p(-0.1, -0.1)} L${p(1.1, 1.1)} M${p(1.1, -0.1)} L${p(-0.1, 1.1)}`, thickness);
+  },
+} satisfies Record<Crest["band"], BandBuilder>;
+
 /** The band laid across the field, centered on the box. */
-export const bandShape = (band: Crest["band"], box: Box, widthFactor: number): BandShape | null => {
-  const { x, y, width: w, height: h } = box;
-  const p = (px: number, py: number) => `${n(x + px * w)} ${n(y + py * h)}`;
-  const thickness = Math.min(w, h) * 0.17 * widthFactor;
-  const line = (d: string): BandShape => ({ d, kind: "stroke", width: n(thickness) });
-  const rect = (rx: number, ry: number, rw: number, rh: number) =>
-    `M${n(rx)} ${n(ry)} h${n(rw)} v${n(rh)} h${n(-rw)} Z`;
-  switch (band) {
-    case "None":
-    case "Bordure":
-      return null;
-    case "Pale":
-      return { d: rect(x + w / 2 - thickness / 2, y, thickness, h), kind: "fill" };
-    case "Fess":
-      return { d: rect(x, y + h / 2 - thickness / 2, w, thickness), kind: "fill" };
-    case "Bend":
-      return line(`M${p(-0.1, -0.1)} L${p(1.1, 1.1)}`);
-    case "Chevron":
-      return line(`M${p(0.04, 0.78)} L${p(0.5, 0.34)} L${p(0.96, 0.78)}`);
-    case "Cross":
-      return {
-        d: `${rect(x + w / 2 - thickness / 2, y, thickness, h)} ${rect(x, y + h / 2 - thickness / 2, w, thickness)}`,
-        kind: "fill",
-      };
-    case "Saltire":
-      return line(`M${p(-0.1, -0.1)} L${p(1.1, 1.1)} M${p(1.1, -0.1)} L${p(-0.1, 1.1)}`);
-    case "Chief":
-      return { d: rect(x, y, w, thickness * 1.4), kind: "fill" };
-    case "Pall":
-      return line(
-        `M${p(0.02, 0.02)} L${p(0.5, 0.5)} M${p(0.98, 0.02)} L${p(0.5, 0.5)} M${p(0.5, 0.5)} L${p(0.5, 1.02)}`,
-      );
-    case "Pile": {
-      const half = 0.28 * widthFactor;
-      return { d: `M${p(0.5 - half, -0.02)} L${p(0.5 + half, -0.02)} L${p(0.5, 0.8)} Z`, kind: "fill" };
-    }
-    case "Canton": {
-      const side = Math.min(w, h) * 0.36 * widthFactor;
-      return { d: rect(x, y, side, side), kind: "fill" };
-    }
-    case "Roundel": {
-      const r = (Math.min(w, h) * 0.34 * widthFactor) / 2;
-      return { d: ellipse(x + w / 2, y + h / 2, r, r), kind: "fill" };
-    }
-  }
-};
+export const bandShape = (band: Crest["band"], box: Box, widthFactor: number): BandShape | null =>
+  bandBuilders[band](box, Math.min(box.width, box.height) * 0.17 * widthFactor, widthFactor);
 
 /** The plate's box scaled about its center, for the outlines of a trim. */
 export const scaledBox = (box: Box, scale: number): Box => ({
@@ -227,6 +251,9 @@ export const beadsPath = (beads: number, radius: number, beadRadius: number): st
   return d.trim();
 };
 
+/** A list known to hold at least one item, so a pick from it always finds one. */
+type NonEmptyList<T> = readonly [T, ...T[]];
+
 /** A set of layer colors with a name, from which a crest takes its look. */
 export type Palette = { colors: Crest["colors"]; name: string };
 
@@ -241,7 +268,7 @@ const palette = (
 ): Palette => ({ colors: { band, edge, emblem, field, secondField, trim }, name });
 
 /** The palettes a crest starts from, in the guild's dyes. */
-export const palettes: ReadonlyArray<Palette> = [
+export const palettes: NonEmptyList<Palette> = [
   palette("Lion", "#8b1e1a", "#5e1210", "#d9ad4f", "#d9ad4f", "#f2d98a", "#3b0f0c"),
   palette("Winter", "#dfe6ea", "#9eb3c0", "#52657a", "#52657a", "#33465a", "#52657a"),
   palette("Storm", "#1f2d4a", "#324a73", "#c9a24a", "#c9a24a", "#e9d9a8", "#101a2e"),
@@ -279,7 +306,7 @@ const startingTrims = ["None", "None", "Line", "DoubleLine", "Beaded"] as const;
 /** The crest a realm or a quest wears until its owner designs one: taken from its id, so it is always the same. */
 export const defaultCrestOf = (id: string): Crest => {
   const hash = hashOf(id);
-  const pick = <T>(list: ReadonlyArray<T>, salt: number) => list[Math.floor(hash / salt) % list.length] as T;
+  const pick = <T>(list: NonEmptyList<T>, salt: number): T => list[Math.floor(hash / salt) % list.length] ?? list[0];
   const colors = pick(palettes, 3).colors;
   return {
     band: pick(startingBands, 7),
@@ -303,7 +330,7 @@ export const withEmblem = (crest: Crest, emblem: CrestEmblem): Crest => ({ ...cr
 
 /** A random crest, for Shuffle: any plate, field, band, trim, finish, charge and palette, within reason. */
 export const shuffledCrest = (random: () => number = Math.random): Crest => {
-  const pick = <T>(list: ReadonlyArray<T>) => list[Math.floor(random() * list.length)] as T;
+  const pick = <T>(list: NonEmptyList<T>): T => list[Math.floor(random() * list.length)] ?? list[0];
   return {
     band: pick(["None", "Fess", "Pale", "Bend", "Chevron", "Cross", "Saltire", "Chief", "Pile"] as const),
     bandWidth: 1,

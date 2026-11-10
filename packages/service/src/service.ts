@@ -447,10 +447,13 @@ const make = Effect.gen(function* () {
             }),
           ),
         UpdateSettings: (update) =>
-          change(writeSettings(update.settings)).pipe(
-            // A changed global budget stops work at its limit or releases the threads it held.
-            Effect.tap(() => commands.run(applyGlobalBudget)),
-          ),
+          Effect.gen(function* () {
+            const before = (yield* readSettings).globalBudget;
+            return yield* change(writeSettings(update.settings)).pipe(
+              // A changed global budget stops work at its limit or releases the threads it held, and leaves its line in the Guildmaster.
+              Effect.tap(() => commands.run(applyGlobalBudget(before))),
+            );
+          }),
         WidenPermission: (widen) => change(widenPermission(widen.permissionId)),
       },
     );

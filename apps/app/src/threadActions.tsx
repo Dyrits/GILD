@@ -1,7 +1,7 @@
 import type { ChatterNotice, DeletionPreview, ThreadId } from "@gild/contracts";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import type { ServiceClient } from "./client";
+import { messageOf, type ServiceClient } from "./client";
 import { deletionQuestionOf } from "./labels";
 import { styles } from "./styles";
 
@@ -27,7 +27,7 @@ export function DeleteThreadAction({
           setPreview(value);
           setError(null);
         },
-        (reason: Error) => setError(reason.message),
+        (reason) => setError(messageOf(reason)),
       )
       .finally(() => setIsBusy(false));
   };
@@ -83,7 +83,7 @@ export function ChatterNotices({ client, notices }: { client: ServiceClient; not
       .request({ _tag: "ResolveChatter", choice, id })
       .then(
         () => setError(null),
-        (reason: Error) => setError(reason.message),
+        (reason) => setError(messageOf(reason)),
       )
       .finally(() => setPending(null));
   };

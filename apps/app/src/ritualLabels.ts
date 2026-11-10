@@ -6,6 +6,7 @@ const weekdayNames = ["Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "F
 
 /** The kinds of schedule a form offers, in the order it lists them. */
 export const scheduleKinds = ["Daily", "Weekdays", "Weekly", "Monthly", "Hourly"] as const;
+/** One kind of schedule a form offers. */
 export type ScheduleKind = (typeof scheduleKinds)[number];
 
 /** How each kind of schedule is named in the form's list. */
@@ -28,9 +29,11 @@ export const runStateLabels = {
   Underway: "Underway",
 } as const satisfies Record<RitualRunState, string>;
 
+/** The ending of an ordinal by its last digit; the others, and 11 to 13, take "th". */
+const ordinalSuffixes: Readonly<Record<number, string>> = { 1: "st", 2: "nd", 3: "rd" };
+
 const ordinalOf = (day: number) => {
-  const suffix =
-    day % 100 >= 11 && day % 100 <= 13 ? "th" : ({ 1: "st", 2: "nd", 3: "rd" } as Record<number, string>)[day % 10];
+  const suffix = day % 100 >= 11 && day % 100 <= 13 ? "th" : ordinalSuffixes[day % 10];
   return `${day}${suffix ?? "th"}`;
 };
 

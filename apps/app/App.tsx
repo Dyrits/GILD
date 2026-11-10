@@ -12,7 +12,8 @@ import { PermissionsScreen } from "./src/permissions";
 import { KeepScreen, RealmsScreen } from "./src/places";
 import { RitualsScreen } from "./src/rituals";
 import { SettingsScreen } from "./src/settings";
-import { type Place, Shell } from "./src/sidebar";
+import { Shell } from "./src/shell";
+import type { Place } from "./src/sidebar";
 import { colors, fontSizes, fonts } from "./src/theme";
 
 export default function App() {

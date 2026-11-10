@@ -1,6 +1,6 @@
 import { Deferred, type Duration, Effect, Layer } from "effect";
 import { Harness, HarnessFailure, type ImageAttachment, type TurnRequest } from "./execution.ts";
-import { fieldOf } from "./lineProcess.ts";
+import { fieldOf } from "./records.ts";
 
 /** Calls one tool on a thread's MCP endpoint and returns its text, as a harness would; for the fake and checks. */
 export const callThreadTool = (mcpUrl: string, name: string, args: unknown) =>

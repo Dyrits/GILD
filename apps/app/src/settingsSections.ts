@@ -8,6 +8,7 @@ export const settingsSections = [
   { icon: "layers", id: "limits", label: "Limits" },
 ] as const;
 
+/** The identifier of a section of the Charter. */
 export type SettingsSectionId = (typeof settingsSections)[number]["id"];
 
 /** How far below the top of the view a section counts as reached, so its heading is read before the menu moves on. */

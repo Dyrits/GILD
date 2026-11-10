@@ -1,7 +1,8 @@
 import { execFile, spawn } from "node:child_process";
 import { createInterface } from "node:readline";
-import { Deferred, Effect, Predicate, Queue } from "effect";
+import { Deferred, Effect, Queue } from "effect";
 import { HarnessFailure } from "./execution.ts";
+import { fieldOf, textFieldOf } from "./records.ts";
 
 // A harness process spoken to one JSON message per line on its standard streams (ADR 0008), in one of two
 // framings: Claude Code's stream-json, and JSON-RPC for Codex's app server and the Agent Client Protocol.
@@ -212,19 +213,3 @@ export const startRpcProcess = (options: RpcOptions) =>
       respondError: (id, message) => write({ error: { code: -32601, message }, id }),
     } satisfies RpcProcess;
   });
-
-/** A field of an unknown record, or undefined. */
-export const fieldOf = (value: unknown, key: string): unknown =>
-  Predicate.isObject(value) && Predicate.hasProperty(value, key) ? value[key] : void 0;
-
-/** A string field of an unknown record, or null. */
-export const textFieldOf = (value: unknown, key: string) => {
-  const field = fieldOf(value, key);
-  return typeof field === "string" ? field : null;
-};
-
-/** A number field of an unknown record, or 0. */
-export const countOf = (value: unknown, key: string) => {
-  const field = fieldOf(value, key);
-  return typeof field === "number" ? field : 0;
-};

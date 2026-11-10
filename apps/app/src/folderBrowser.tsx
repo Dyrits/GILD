@@ -1,8 +1,9 @@
 // Gild's own folder browser and the browsable roots, kept for phone browsing
 // (workspace-attachment). Not shown on the desktop, which uses the system's folder dialog (CHG-0035).
+
 import { useState } from "react";
 import { Pressable, Text, TextInput, View } from "react-native";
-import type { ServiceClient } from "./client";
+import { messageOf, type ServiceClient } from "./client";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
 
@@ -73,7 +74,7 @@ function NewFolder({
         setCreateError(null);
         onCreated(folder.path);
       },
-      (reason: Error) => setCreateError(reason.message),
+      (reason) => setCreateError(messageOf(reason)),
     );
   return (
     <>
@@ -103,7 +104,7 @@ export function BrowsableRoots({ client }: { client: ServiceClient }) {
         setPath("");
         setAddError(null);
       },
-      (reason: Error) => setAddError(reason.message),
+      (reason) => setAddError(messageOf(reason)),
     );
   return (
     <View style={styles.section}>

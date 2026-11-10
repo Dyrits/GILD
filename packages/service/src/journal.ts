@@ -144,7 +144,8 @@ export const readJournalView = (missionId: string) =>
     } satisfies JournalView;
   });
 
-const timeOf = (millis: number) => new Date(millis).toISOString().slice(0, 16).replace("T", " ");
+/** A moment as UTC date and minute, as the journal and the Guildmaster's context show it. */
+export const timeOf = (millis: number) => new Date(millis).toISOString().slice(0, 16).replace("T", " ");
 
 const entryLineOf = (entry: JournalEntry) =>
   `#${entry.number} · ${timeOf(entry.writtenAt)} UTC · ${entry.authorKind === "user" ? "the owner" : `thread "${entry.authorTitle ?? ""}"`}: ${entry.text}`;

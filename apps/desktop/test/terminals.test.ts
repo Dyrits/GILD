@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, describe, expect, it } from "vitest";
-import { Terminals } from "../src/terminals.ts";
+import { Terminals, unpackedPathOf } from "../src/terminals.ts";
 
 const folders: string[] = [];
 const managers: Terminals[] = [];
@@ -65,5 +65,17 @@ describe("using interactive terminals", () => {
     expect(() => terminals.open("quest", "/no-such-gild-terminal-folder")).toThrow();
     terminals.open("quest", null);
     expect(() => terminals.resize("quest", -1, 24)).toThrow();
+  });
+});
+
+describe("unpackedPathOf", () => {
+  it("points a path inside the packaged archive at its unpacked copy on disk", () => {
+    expect(unpackedPathOf("/Applications/Gild.app/Contents/Resources/app.asar/node_modules/node-pty")).toBe(
+      "/Applications/Gild.app/Contents/Resources/app.asar.unpacked/node_modules/node-pty",
+    );
+  });
+
+  it("leaves a path outside an archive alone", () => {
+    expect(unpackedPathOf("/repo/node_modules/node-pty")).toBe("/repo/node_modules/node-pty");
   });
 });

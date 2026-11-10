@@ -8,6 +8,7 @@ const cloths = {
   violet: require("../assets/banners/resting.png"),
 } as const;
 
+/** The names of the painted cloths a banner can hang from. */
 export type BannerCloth = keyof typeof cloths;
 
 /** The painted banners' shared size, so every kind scales to its column in the same proportion. */

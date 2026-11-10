@@ -27,6 +27,8 @@
 
 ## Handoffs
 
+To resume the installed app (.dmg) and the full-project review fixes, read the [current handoff](.agents/handoffs/2026-11-10-2116-installed-app-and-review-fixes.md). Handoffs are shared and committed.
+
 To resume left-aligned conversation actions and check their appearance, read the [current handoff](.agents/handoffs/2026-11-10-1551-left-aligned-actions.md). Handoffs are shared and committed.
 
 To resume the conversation terminal and its blue message bubble, read the [current handoff](.agents/handoffs/2026-11-10-1538-conversation-terminal.md). Handoffs are shared and committed.
@@ -35,7 +37,7 @@ To resume the small quest navigation button (existing sword at the top right, no
 
 To resume messages outside steps (CHG-0118; the live appearance awaits review), read the [current handoff](.agents/handoffs/2026-11-10-1458-messages-outside-steps.md). Handoffs are shared and committed.
 To resume the harness update in the Charter (CHG-0110, pushed to `main`; a real update and the owner's look remain), read the [current handoff](.agents/handoffs/2026-11-10-1330-harness-update.md). Handoffs are shared and committed.
-To resume the one side panel (grouped as Companions, Knows, and Does; backup companions chosen in the panel, with a default list in the Charter; CHG-0115 committed on branch `one-side-panel`; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1400-backups-in-panel.md). Handoffs are shared and committed.
+To resume the one side panel and its border removal, read the [current handoff](.agents/handoffs/2026-11-10-1444-right-sidebar.md). Handoffs are shared and committed.
 To resume deleting a Ritual from its card (CHG-0108, committed on branch `ritual-delete`; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1152-ritual-delete.md). Handoffs are shared and committed.
 To resume the Guildmaster (increments A, B, and C, the link buttons beside its replies, and finished quests off the sidebar, all on `main`; a live-model check and the owner's look remain), read the [current handoff](.agents/handoffs/2026-11-10-1317-guildmaster-link-buttons-and-sidebar.md). Handoffs are shared and committed.
 To resume agent replies drawn as Markdown (committed on branch `markdown-replies`; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1043-markdown-replies.md). Handoffs are shared and committed.

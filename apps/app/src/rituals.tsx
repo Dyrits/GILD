@@ -8,7 +8,7 @@ import {
 } from "@gild/contracts";
 import { type ReactNode, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { newRequestId, type ServiceClient } from "./client";
+import { messageOf, newRequestId, type ServiceClient } from "./client";
 import { Toggle } from "./controls";
 import { Emblem } from "./emblems";
 import { harnessLabels, modelLabelOf } from "./formatting";
@@ -33,8 +33,6 @@ import { RealmChooser } from "./workspaces";
 
 // Rituals in the interface: their own place, apart from the quests: a screen of cards, the form that makes or edits one,
 // and its controls in the panel of its quest (rituals).
-
-const messageOf = (reason: unknown) => (reason instanceof Error ? reason.message : String(reason));
 
 /** The Rituals, the latest first; they refetch when anything changes. */
 export const useRituals = (client: ServiceClient) => useServiceQuery(client, { _tag: "ListRituals" }, "rituals").data;

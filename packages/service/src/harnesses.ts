@@ -6,8 +6,9 @@ import { makeCodexHarness } from "./codex.ts";
 import { type HarnessAdapter, routeHarnesses } from "./execution.ts";
 import { accountEnvironmentOf, claudeModels, type HarnessFacts, harnessFacts } from "./harnessCatalog.ts";
 import type { SignInStatus } from "./harnessTools.ts";
-import { fieldOf, harnessEnvironmentOf, runHarnessCommand, startRpcProcess, textFieldOf } from "./lineProcess.ts";
+import { harnessEnvironmentOf, runHarnessCommand, startRpcProcess } from "./lineProcess.ts";
 import { makeOpenCodeHarness } from "./opencode.ts";
+import { fieldOf, textFieldOf } from "./records.ts";
 
 // The harness registry (provider-accounts): each harness defined once, by its facts, its turn adapter, and
 // what Gild asks its own tool about sign-in and models. Adding a harness adds one entry here.

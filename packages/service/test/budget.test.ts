@@ -181,6 +181,27 @@ describe("reaching a limit", () => {
     }).pipe(Effect.provide(setup().layer)),
   );
 
+  it.live("records each change of the global budget and each stop at it as a line in the Guildmaster", () =>
+    Effect.gen(function* () {
+      const guildmaster = yield* call({ _tag: "ReadGuildmaster" });
+      const lines = () => read(guildmaster.missionId).pipe(Effect.map((d) => d.budgetEvents.map((e) => e.text)));
+      yield* updateSettings({ globalBudget: { cost: null, tokens: 100 } });
+      expect(yield* lines()).toEqual(["Global budget set: 100 tokens"]);
+      const spender = yield* start("spend 100");
+      yield* settle(spender.missionId, isHeldByBudget);
+      expect(yield* lines()).toEqual([
+        "Global budget set: 100 tokens",
+        "Stopped at the global budget limit: 100 of 100 tokens",
+      ]);
+      yield* updateSettings({ globalBudget: { cost: null, tokens: 1000 } });
+      expect((yield* lines()).at(-1)).toBe("Global budget raised to 1,000 tokens");
+      yield* updateSettings({ globalBudget: none });
+      expect((yield* lines()).at(-1)).toBe("Global budget removed");
+      // The mission's own budget lines stay with the mission.
+      expect((yield* read(spender.missionId)).budgetEvents).toEqual([]);
+    }).pipe(Effect.provide(setup().layer)),
+  );
+
   it.live("refuses open_thread at a reached limit, with the reason", () =>
     Effect.gen(function* () {
       const started = yield* startWithBudget({ cost: null, tokens: 100 });

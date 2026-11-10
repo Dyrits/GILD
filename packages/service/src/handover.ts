@@ -1,6 +1,7 @@
 import type { HarnessName, ModelChoice } from "@gild/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
+import { readStoredAttachments } from "./attachments.ts";
 import { changed, unchanged } from "./commands.ts";
 import { invalid, notFound } from "./errors.ts";
 import { harnessLabels } from "./harnessCatalog.ts";
@@ -83,16 +84,19 @@ export const readConversationSoFar = (threadId: string, turnId: string, model: M
     const sql = yield* SqlClient.SqlClient;
     const rows = yield* sql<{
       fromTitle: string | null;
+      id: string;
       isResult: number;
       sender: "user" | "agent" | "thread";
       text: string;
     }>`
-      SELECT m.sender_kind AS sender, COALESCE(s.title, m.sender_title) AS fromTitle, m.is_result AS isResult, m.text
+      SELECT m.id, m.sender_kind AS sender, COALESCE(s.title, m.sender_title) AS fromTitle, m.is_result AS isResult, m.text
       FROM messages m LEFT JOIN threads s ON s.id = m.sender_thread_id
       WHERE m.thread_id = ${threadId}
         AND (m.sender_kind = 'agent' OR (m.delivered_turn_id IS NOT NULL AND m.delivered_turn_id != ${turnId}))
       ORDER BY m.sequence`;
     if (rows.length === 0) return null;
+    // An image is named, not resent: the replay is text.
+    const attachments = yield* readStoredAttachments(rows.map((row) => row.id));
     const lines = rows.map((row) => {
       const speaker =
         row.sender === "agent"
@@ -100,7 +104,8 @@ export const readConversationSoFar = (threadId: string, turnId: string, model: M
           : row.sender === "user"
             ? "The owner"
             : `${row.isResult ? "Result from thread" : "Thread"} "${row.fromTitle ?? "a thread"}"`;
-      return `${speaker}: ${row.text}`;
+      const images = (attachments.get(row.id) ?? []).map((file) => `image: ${file.name}`);
+      return [`${speaker}: ${row.text}`, ...images].join("\n");
     });
     const allowance = Math.floor((contextWindowOf(model) * historyWindowPercent) / 100);
     let used = 0;

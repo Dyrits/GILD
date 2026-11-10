@@ -12,11 +12,13 @@ export interface Chip {
 }
 
 /** A `/` or `@` that starts a word just before the caret, with what has been typed after it. */
+/** The `/` or `@` the owner typed, with the text after it, as the field reports it. */
 export interface Trigger {
   readonly character: "/" | "@";
   readonly query: string;
 }
 
+/** What the owner of the field can ask of it from outside: clear it, or put a chip in it. */
 export interface ChipEditorHandle {
   clear: () => void;
   /** Puts a chip where the trigger is, in place of it. */

@@ -110,3 +110,6 @@ export class ServiceClient {
 
 /** A fresh request identifier; repeating a command with it returns the original outcome. */
 export const newRequestId = () => crypto.randomUUID();
+
+/** The words to show for a failure caught from a request: an error's message, or whatever was thrown, as text. */
+export const messageOf = (reason: unknown) => (reason instanceof Error ? reason.message : String(reason));

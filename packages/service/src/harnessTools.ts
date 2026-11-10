@@ -7,7 +7,8 @@ import { invalid, type ServiceFailure } from "./errors.ts";
 import { accountEnvironmentOf, harnessFacts } from "./harnessCatalog.ts";
 import { harnesses } from "./harnesses.ts";
 import { updateOf } from "./harnessVersions.ts";
-import { runHarnessCommand, textFieldOf } from "./lineProcess.ts";
+import { runHarnessCommand } from "./lineProcess.ts";
+import { textFieldOf } from "./records.ts";
 
 // What Gild asks each harness's own command-line tool about itself: its version, who is signed in,
 // and its models; and how the owner signs in, always through the tool's own sign-in (requirements, Comply

@@ -92,6 +92,7 @@ const triggerBeforeCaret = (root: HTMLElement) => {
   return { end: selection.anchorOffset, node, start: before.length - query.length - 1, trigger };
 };
 
+/** The message field of the web app: text and chips in one editable line, reporting its trigger at the caret. */
 export function ChipEditor({ onChange, onFiles, onKeyDown, onBang, placeholder, ref }: ChipEditorProps) {
   const root = useRef<HTMLDivElement>(null);
   const [isEmpty, setIsEmpty] = useState(true);

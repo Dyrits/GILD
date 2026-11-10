@@ -10,6 +10,7 @@
     "check": "biome check .",
     "dev": "bun run --filter desktop dev",
     "format": "biome check --write .",
+    "package": "bun run --filter desktop package",
     "prepare": "git config core.hooksPath .githooks",
     "test": "ELECTRON_RUN_AS_NODE=1 electron node_modules/vitest/vitest.mjs run",
     "typecheck": "bun run --filter '*' typecheck"

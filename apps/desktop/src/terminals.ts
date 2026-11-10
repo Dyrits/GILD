@@ -1,16 +1,20 @@
 import { chmodSync, existsSync, statSync } from "node:fs";
 import { createRequire } from "node:module";
 import { homedir, userInfo } from "node:os";
-import { dirname, isAbsolute, join } from "node:path";
+import { dirname, isAbsolute, join, sep } from "node:path";
 import { type IPty, spawn } from "node-pty";
 
 const require = createRequire(import.meta.url);
 const outputLimit = 200000;
 
+/** The copy on disk of a path inside the packaged archive, where node-pty's native files are unpacked; other paths are unchanged. */
+export const unpackedPathOf = (path: string) => path.replace(`${sep}app.asar${sep}`, `${sep}app.asar.unpacked${sep}`);
+
 /** Repairs missing executable permissions on node-pty's bundled Unix helper. */
 export const prepareTerminalHelper = () => {
   if (process.platform === "win32") return;
-  const root = dirname(require.resolve("node-pty/package.json"));
+  // Inside the packaged archive the helper cannot be changed, so its unpacked copy is the one to repair.
+  const root = unpackedPathOf(dirname(require.resolve("node-pty/package.json")));
   for (const folder of [
     join(root, "prebuilds", `${process.platform}-${process.arch}`),
     join(root, "build", "Release"),

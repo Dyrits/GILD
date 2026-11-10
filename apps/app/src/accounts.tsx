@@ -1,7 +1,7 @@
 import type { AccountId, AccountStatus, HarnessInfo, HarnessList, HarnessName } from "@gild/contracts";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import type { ServiceClient } from "./client";
+import { messageOf, type ServiceClient } from "./client";
 import { harnessLabels } from "./formatting";
 import { GoldButton } from "./parchment";
 import { ProviderMark } from "./providerMarks";
@@ -50,7 +50,7 @@ function AccountRow({
         setIsSigningIn(true);
         onError(null);
       },
-      (reason: Error) => onError(reason.message),
+      (reason) => onError(messageOf(reason)),
     );
   const remove = (accountId: AccountId) =>
     client.request({ _tag: "RemoveAccount", accountId }).then(
@@ -58,7 +58,7 @@ function AccountRow({
         onChanged(list);
         onError(null);
       },
-      (reason: Error) => onError(reason.message),
+      (reason) => onError(messageOf(reason)),
     );
   return (
     <View style={local.account}>
@@ -99,7 +99,7 @@ function HarnessAccounts({
         onChanged(list);
         onError(null);
       },
-      (reason: Error) => onError(reason.message),
+      (reason) => onError(messageOf(reason)),
     );
   return (
     <View style={local.block}>

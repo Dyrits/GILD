@@ -6,7 +6,7 @@ import {
 } from "@gild/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import type { ServiceClient } from "./client";
+import { messageOf, type ServiceClient } from "./client";
 import { Choice } from "./pickers";
 import { allMissions } from "./queries";
 import { QuestionLine } from "./questions";
@@ -46,7 +46,7 @@ export function PermissionsScreen({ client, onBack }: { client: ServiceClient; o
   const act = (work: Promise<unknown>) =>
     work.then(
       () => setActionError(null),
-      (reason: Error) => setActionError(reason.message),
+      (reason) => setActionError(messageOf(reason)),
     );
   const missionTitle = (id: MissionId | null) =>
     id === null ? "All quests" : (missions?.find((mission) => mission.id === id)?.title ?? "Quest");

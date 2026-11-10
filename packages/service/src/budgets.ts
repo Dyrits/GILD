@@ -42,6 +42,14 @@ const insertEvent = (missionId: string, text: string) =>
     yield* sql`INSERT INTO budget_events (id, mission_id, text, at) VALUES (${crypto.randomUUID()}, ${missionId}, ${text}, ${now})`;
   });
 
+/** Records a line about the global budget in the Guildmaster's quest, where the owner reads it; nothing is recorded before the Guildmaster exists. */
+const insertGlobalEvent = (text: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const [guildmaster] = yield* sql<{ id: string }>`SELECT id FROM missions WHERE is_guildmaster = 1`;
+    if (guildmaster !== undefined) yield* insertEvent(guildmaster.id, text);
+  });
+
 /** The scope's open stop's holder, opening the stop with `holderId` when none is open. */
 const ensureStop = (missionId: string | null, holderId: string) =>
   Effect.gen(function* () {
@@ -56,6 +64,9 @@ const ensureStop = (missionId: string | null, holderId: string) =>
     if (missionId !== null) {
       const text = reachedTextOf(yield* missionLimitsOf(missionId), yield* missionSpendingOf(missionId));
       yield* insertEvent(missionId, `Stopped at the budget limit: ${text}`);
+    } else {
+      const global = yield* readGlobalBudget;
+      yield* insertGlobalEvent(`Stopped at the global budget limit: ${reachedTextOf(global.limits, global.spent)}`);
     }
     return holderId;
   });
@@ -201,11 +212,14 @@ export const setMissionBudget = (missionId: string, limits: BudgetLimits) =>
  * After the global budget changed: work stops if it is reached, or held threads are released; the halted
  * turns are cancelled and the released threads woken.
  */
-export const applyGlobalBudget = Effect.gen(function* () {
-  const global = yield* readGlobalBudget;
-  const halted = isReached(global.limits, global.spent) ? yield* stopScope(null, null) : [];
-  return changed(null, { threadsToWake: yield* releaseBudgets, turnsToCancel: halted });
-});
+export const applyGlobalBudget = (before: BudgetLimits) =>
+  Effect.gen(function* () {
+    const global = yield* readGlobalBudget;
+    const text = changeTextOf(before, global.limits);
+    if (text !== null) yield* insertGlobalEvent(text.replace(/^Budget/, "Global budget"));
+    const halted = isReached(global.limits, global.spent) ? yield* stopScope(null, null) : [];
+    return changed(null, { threadsToWake: yield* releaseBudgets, turnsToCancel: halted });
+  });
 
 /** Records a new mission's budget, copied from the default, with its line. Callers run it in a transaction. */
 export const applyDefaultBudget = (missionId: string, limits: BudgetLimits) =>

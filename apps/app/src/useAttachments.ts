@@ -2,7 +2,7 @@ import type { AttachmentCard, AttachmentId } from "@gild/contracts";
 import { useEffect, useRef, useState } from "react";
 import { limitRefusalOf, roomLeftOf } from "./attachmentRules";
 import { attachmentNameOf, base64Of, prepareImage } from "./attachments";
-import type { ServiceClient } from "./client";
+import { messageOf, type ServiceClient } from "./client";
 
 /** One file in the message box: shown at once, with its card once the service has stored it. */
 export interface AttachedFile {
@@ -38,7 +38,7 @@ export function useAttachments(client: ServiceClient | null) {
   const discard = (service: ServiceClient, attachmentId: AttachmentId) =>
     service.request({ _tag: "DiscardAttachment", attachmentId }).then(
       () => void 0,
-      (reason: Error) => setError(reason.message),
+      (reason) => setError(messageOf(reason)),
     );
 
   const attachOne = async (service: ServiceClient, file: File, key: string) => {
@@ -83,7 +83,7 @@ export function useAttachments(client: ServiceClient | null) {
         const messages = [...reasons, ...failed.flat()];
         setError(messages.length === 0 ? null : messages.join(" "));
       },
-      (reason: Error) => setError(reason.message),
+      (reason) => setError(messageOf(reason)),
     );
   };
 

@@ -11,7 +11,7 @@ import type {
 } from "@gild/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import type { ServiceClient } from "./client";
+import { messageOf, type ServiceClient } from "./client";
 import { clockOf, timeOf } from "./formatting";
 import {
   loreActionOf,
@@ -24,7 +24,7 @@ import {
 } from "./labels";
 import { DeletedLoreEntryRow, LoreHistoryScreen } from "./loreHistory";
 import { Choice } from "./pickers";
-import { useHasSidebar } from "./sidebar";
+import { useHasSidebar } from "./shell";
 import { styles } from "./styles";
 import { useServiceQuery } from "./useServiceQuery";
 
@@ -50,7 +50,7 @@ function Decision({ onResolve }: { onResolve: (isApproved: boolean) => Promise<u
   const resolve = (isApproved: boolean) =>
     onResolve(isApproved).then(
       () => setError(null),
-      (reason: Error) => setError(reason.message),
+      (reason) => setError(messageOf(reason)),
     );
   return (
     <View style={styles.section}>
@@ -145,7 +145,7 @@ function LoreEntryRow({
         after();
         setError(null);
       },
-      (reason: Error) => setError(reason.message),
+      (reason) => setError(messageOf(reason)),
     );
   return (
     <View style={styles.section}>

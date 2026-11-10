@@ -13,7 +13,8 @@ import { changed, unchanged } from "./commands.ts";
 import { endMission, previewEnding, readWorkingIds } from "./ending.ts";
 import { invalid } from "./errors.ts";
 import { claudeCheapestModel } from "./harnessCatalog.ts";
-import { insertMessage } from "./messaging.ts";
+import { timeOf } from "./journal.ts";
+import { insertMessage, readOwnerTextsOfTurn } from "./messaging.ts";
 import { insertMission, insertQuest, listMissionSummaries } from "./missions.ts";
 import { createRitual } from "./rituals.ts";
 import { type Runner, runnerOf } from "./runners.ts";
@@ -121,14 +122,13 @@ export const guildmasterContextOf = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const rows = yield* sql<{
     briefing: string | null;
-    ending: string | null;
     id: string;
     lastActivityAt: number;
     opening: string | null;
     realm: string | null;
     title: string;
   }>`
-    SELECT m.id, m.title, m.ending, m.last_activity_at AS lastActivityAt, j.briefing, w.name AS realm,
+    SELECT m.id, m.title, m.last_activity_at AS lastActivityAt, j.briefing, w.name AS realm,
       (SELECT x.text FROM messages x WHERE x.thread_id = m.top_thread_id AND x.sender_kind = 'user'
         ORDER BY x.sequence LIMIT 1) AS opening
     FROM missions m
@@ -138,10 +138,14 @@ export const guildmasterContextOf = Effect.gen(function* () {
     WHERE m.is_guildmaster = 0 AND top.is_deleting = 0 AND (m.ending IS NULL OR m.ending = 'Done')
       AND NOT EXISTS (SELECT 1 FROM rituals r WHERE r.mission_id = m.id)
     ORDER BY m.last_activity_at DESC LIMIT ${maxListedQuests}`;
+  // The state is the one the dashboard shows: Done once ended, else the most urgent state among the quest's threads.
+  const states = new Map<string, string>(
+    (yield* listMissionSummaries(rows.map((row) => row.id))).map((summary) => [summary.id, summary.state]),
+  );
   const lines = rows.map((row) => {
     const about = firstSentenceOf(row.briefing?.trim() ? row.briefing : (row.opening ?? ""));
-    const when = new Date(row.lastActivityAt).toISOString().slice(0, 16).replace("T", " ");
-    return `- "${row.title}" (id ${row.id}) · ${row.ending ?? "Open"} · ${row.realm ?? "no realm"} · last active ${when} UTC${about === "" ? "" : ` · ${about}`}`;
+    const when = timeOf(row.lastActivityAt);
+    return `- "${row.title}" (id ${row.id}) · ${states.get(row.id) ?? "Idle"} · ${row.realm ?? "no realm"} · last active ${when} UTC${about === "" ? "" : ` · ${about}`}`;
   });
   const { tiers } = yield* readSettings;
   const set = (["Light", "Balanced", "Heavy"] as const).flatMap((name) => {
@@ -222,13 +226,41 @@ export const openQuestFor = (quest: {
     return { runner, started, title: mission?.title ?? titleOf(quest.request) };
   });
 
+/** Where a quest or a Ritual the Guildmaster made is, in the words it is told. */
+const placeOf = (realm: { readonly name: string } | null) =>
+  realm === null ? "with no realm" : `in the realm ${realm.name}`;
+
+/** What a resolved card shows in a conversation: the quest or Ritual a thread opened, as a card with a link. */
+export type ResolvedCard = {
+  /** The thread whose conversation shows the card. */
+  readonly callerId: string;
+  readonly isRitual: boolean;
+  readonly realmPath: string | null;
+  readonly target: { readonly missionId: string; readonly threadId: string; readonly title: string };
+  readonly text: string;
+  readonly title: string;
+};
+
+/** Records, in the caller's conversation, a card for the quest or Ritual it opened for the owner without asking. */
+export const recordResolvedCard = (card: ResolvedCard) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const [caller] = yield* sql<{
+      missionId: string;
+    }>`SELECT mission_id AS missionId FROM threads WHERE id = ${card.callerId}`;
+    const now = yield* Clock.currentTimeMillis;
+    yield* sql`INSERT INTO suggestions (id, mission_id, thread_id, text, title, matches, asked_at, outcome, is_automatic,
+        is_ritual, target_mission_id, target_thread_id, target_title, resolved_at, realm_path)
+      VALUES (${crypto.randomUUID()}, ${caller?.missionId ?? ""}, ${card.callerId}, ${card.text}, ${card.title}, '[]', ${now},
+        'MovedToMission', 1, ${card.isRitual ? 1 : 0}, ${card.target.missionId}, ${card.target.threadId}, ${card.target.title}, ${now}, ${card.realmPath})`;
+  });
+
 /**
  * `open_mission`: the Guildmaster opens a new quest with the request, in a realm it names or none, on its own runner
  * unless it chooses one. The owner sees it as a card with a link. Only the Guildmaster calls it.
  */
 export const openMissionByGuildmaster = (callerId: string, args: ArgumentsOf<"open_mission">) =>
   Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
     if (!(yield* isGuildmasterThread(callerId))) return refusedOpening("Only the Guildmaster opens quests.");
     if (args.request.trim() === "") return refusedOpening("The request is empty.");
     const realm = args.realm === undefined || args.realm.trim() === "" ? null : yield* findRealm(args.realm);
@@ -243,16 +275,16 @@ export const openMissionByGuildmaster = (callerId: string, args: ArgumentsOf<"op
       tier: args.tier,
       title: args.title ?? null,
     });
-    const [guildmaster] = yield* sql<{
-      missionId: string;
-    }>`SELECT mission_id AS missionId FROM threads WHERE id = ${callerId}`;
-    const now = yield* Clock.currentTimeMillis;
     // The conversation shows the new quest as a card with a link, as it shows a resolved suggestion.
-    yield* sql`INSERT INTO suggestions (id, mission_id, thread_id, text, title, matches, asked_at, outcome, is_automatic,
-        target_mission_id, target_thread_id, target_title, resolved_at, realm_path)
-      VALUES (${crypto.randomUUID()}, ${guildmaster?.missionId ?? ""}, ${callerId}, ${args.request}, ${opened.title}, '[]', ${now},
-        'MovedToMission', 1, ${opened.started.missionId}, ${opened.started.threadId}, ${opened.title}, ${now}, ${realm?.path ?? null})`;
-    const where = realm === null ? "with no realm" : `in the realm ${realm.name}`;
+    yield* recordResolvedCard({
+      callerId,
+      isRitual: false,
+      realmPath: realm?.path ?? null,
+      target: { missionId: opened.started.missionId, threadId: opened.started.threadId, title: opened.title },
+      text: args.request,
+      title: opened.title,
+    });
+    const where = placeOf(realm);
     return changed<OpenedByGuildmaster>(
       {
         _tag: "Opened",
@@ -351,12 +383,8 @@ const isQuotedByOwner = (threadId: string, quote: string) =>
   Effect.gen(function* () {
     const wanted = quote.trim().toLowerCase();
     if (wanted.length < 2) return false;
-    const sql = yield* SqlClient.SqlClient;
-    const messages = yield* sql<{ text: string }>`
-      SELECT m.text FROM messages m
-      WHERE m.thread_id = ${threadId} AND m.sender_kind = 'user' AND m.delivered_turn_id = (
-        SELECT t.id FROM turns t WHERE t.thread_id = ${threadId} ORDER BY t.started_at DESC, t.rowid DESC LIMIT 1)`;
-    return messages.some((message) => message.text.toLowerCase().includes(wanted));
+    const texts = yield* readOwnerTextsOfTurn(threadId);
+    return texts.some((text) => text.toLowerCase().includes(wanted));
   });
 
 /** What `act_on_mission` came to: done, a confirmation to put to the owner first, or a refusal. */
@@ -365,6 +393,7 @@ export type ActedOnQuest =
   | { readonly _tag: "ToStop"; readonly missionId: string; readonly text: string }
   | { readonly _tag: "Refused"; readonly text: string };
 
+/** The outcome of an action the Guildmaster may not take, with the words that tell it why. */
 export const refusedAction = (text: string) => unchanged<ActedOnQuest>({ _tag: "Refused", text });
 
 /**
@@ -455,7 +484,6 @@ export const refusedRitual = (reason: string) => unchanged<RitualCreatedByGuildm
  */
 export const createRitualByGuildmaster = (callerId: string, args: ArgumentsOf<"create_ritual">) =>
   Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
     if (!(yield* isGuildmasterThread(callerId))) return refusedRitual("Only the Guildmaster creates Rituals.");
     if (args.instruction.trim() === "" || titleOf(args.title) === "")
       return refusedRitual("Give an instruction and a title.");
@@ -479,15 +507,15 @@ export const createRitualByGuildmaster = (callerId: string, args: ArgumentsOf<"c
       title,
       workspacePath: realm?.path ?? null,
     });
-    const [guildmaster] = yield* sql<{
-      missionId: string;
-    }>`SELECT mission_id AS missionId FROM threads WHERE id = ${callerId}`;
-    const now = yield* Clock.currentTimeMillis;
-    yield* sql`INSERT INTO suggestions (id, mission_id, thread_id, text, title, matches, asked_at, outcome, is_automatic,
-        is_ritual, target_mission_id, target_thread_id, target_title, resolved_at, realm_path)
-      VALUES (${crypto.randomUUID()}, ${guildmaster?.missionId ?? ""}, ${callerId}, ${args.instruction}, ${title}, '[]', ${now},
-        'MovedToMission', 1, 1, ${created.value.missionId}, ${created.value.threadId}, ${title}, ${now}, ${realm?.path ?? null})`;
-    const where = realm === null ? "with no realm" : `in the realm ${realm.name}`;
+    yield* recordResolvedCard({
+      callerId,
+      isRitual: true,
+      realmPath: realm?.path ?? null,
+      target: { missionId: created.value.missionId, threadId: created.value.threadId, title },
+      text: args.instruction,
+      title,
+    });
+    const where = placeOf(realm);
     return changed<RitualCreatedByGuildmaster>({
       _tag: "Created",
       text: `Created the Ritual "${title}" ${where}, ${JSON.stringify(args.schedule)}, on ${companionLineOf(args.tier, runner)}. It runs by itself in its own quest when due and is on. Tell the owner in a sentence what it will do and when; do not repeat the instruction.`,

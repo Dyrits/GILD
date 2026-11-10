@@ -98,6 +98,24 @@ describe("the Guildmaster's place", () => {
       expect(context).not.toContain("open_thread once per part");
     }).pipe(Effect.provide(layer));
   });
+
+  it.live("shows each quest's state, so it can tell which one needs the owner", () =>
+    Effect.gen(function* () {
+      const resting = yield* startIdle("Add dark mode to the settings page");
+      const asking = yield* start('ask {"action":"Push the commits","command":"git push origin main"}');
+      yield* settle(asking.missionId, (d) => d.thread.state === "Attention");
+      const place = yield* guildmaster;
+      yield* say(place.threadId, "context");
+      const detail = yield* settle(
+        place.missionId,
+        (d) => lastAgentText(d).includes("# You are the Guildmaster"),
+        place.threadId,
+      );
+      const context = lastAgentText(detail);
+      expect(context).toContain(`(id ${resting.missionId}) · Idle ·`);
+      expect(context).toContain(`(id ${asking.missionId}) · Attention ·`);
+    }).pipe(Effect.provide(setup().layer)),
+  );
 });
 
 describe("opening a quest", () => {

@@ -19,7 +19,7 @@ import {
 import { AccountsCard, HarnessesCard } from "./accounts";
 import { BackupsEditor } from "./backupsEditor";
 import { BudgetEditor } from "./budgets";
-import type { ServiceClient } from "./client";
+import { messageOf, type ServiceClient } from "./client";
 import { Toggle } from "./controls";
 import { GuildmasterSettings } from "./guildmasterSettings";
 import { GoldButton } from "./parchment";
@@ -28,7 +28,7 @@ import { Choice } from "./pickers";
 import { RunnerPickers, useHarnesses } from "./runners";
 import { SettingsCard, SettingsGuide, SettingsHeading, SettingsMenu, SettingsRule } from "./settingsParts";
 import { activeSectionOf, type SettingsSectionId } from "./settingsSections";
-import { useHasSidebar, useQuestPanel } from "./sidebar";
+import { useHasSidebar, useQuestPanel } from "./shell";
 import { styles } from "./styles";
 import { colors, fontSizes, fonts } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
@@ -145,7 +145,7 @@ export function SettingsScreen({
     if (settings === null) return;
     client.request({ _tag: "UpdateSettings", settings: { ...settings, ...change } }).then(
       () => setSaveError(null),
-      (reason: Error) => setSaveError(reason.message),
+      (reason) => setSaveError(messageOf(reason)),
     );
   };
   const mark = (event: NativeSyntheticEvent<NativeScrollEvent>) => {

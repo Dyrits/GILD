@@ -1,4 +1,4 @@
-import { Predicate } from "effect";
+import { textFieldOf } from "./records.ts";
 
 // A wildcard never spans a shell operator, so `git push *` cannot also cover
 // `git push && rm -rf ~` (CHG-0031, standing permissions).
@@ -21,9 +21,6 @@ export const matchesPattern = (pattern: string, target: string) => {
 export const savedPatternOf = (proposed: string | null, target: string) =>
   proposed !== null && isSavablePattern(proposed) && matchesPattern(proposed, target) ? proposed.trim() : target.trim();
 
-const stringField = (input: unknown, key: string) =>
-  Predicate.isObject(input) && Predicate.hasProperty(input, key) && Predicate.isString(input[key]) ? input[key] : null;
-
 const plainActions: Record<string, string> = {
   Bash: "Run a command",
   Edit: "Change a file",
@@ -37,7 +34,7 @@ const plainActions: Record<string, string> = {
 
 /** Claude Code's own reason for a tool call, without its final period, or null when it gives none. */
 export const reasonOf = (input: unknown) => {
-  const reason = stringField(input, "description")?.trim().replace(/\.$/, "") ?? "";
+  const reason = textFieldOf(input, "description")?.trim().replace(/\.$/, "") ?? "";
   return reason === "" ? null : reason;
 };
 
@@ -61,12 +58,12 @@ const unwrappedOf = (command: string) => {
  * tool and its file, address, or input.
  */
 export const targetOf = (toolName: string, input: unknown) => {
-  if (toolName === "Bash") return unwrappedOf(stringField(input, "command") ?? "");
+  if (toolName === "Bash") return unwrappedOf(textFieldOf(input, "command") ?? "");
   const subject =
-    stringField(input, "file_path") ??
-    stringField(input, "notebook_path") ??
-    stringField(input, "url") ??
-    stringField(input, "query") ??
+    textFieldOf(input, "file_path") ??
+    textFieldOf(input, "notebook_path") ??
+    textFieldOf(input, "url") ??
+    textFieldOf(input, "query") ??
     JSON.stringify(input);
   return `${toolName} ${subject}`;
 };
@@ -266,7 +263,7 @@ export const kindOfPermission = (sentence: string) => (sensitiveKinds.has(senten
  */
 export const sensitivityOf = (toolName: string, input: unknown): Sensitivity | null => {
   if (toolName === "Bash") {
-    const text = (stringField(input, "command") ?? "").trim();
+    const text = (textFieldOf(input, "command") ?? "").trim();
     if (secretPath.test(text) || secretCommand.test(text)) return secrets;
     return sensitiveCommands.find(([pattern]) => pattern.test(text))?.[1] ?? null;
   }
@@ -276,7 +273,7 @@ export const sensitivityOf = (toolName: string, input: unknown): Sensitivity | n
 };
 
 const pathFieldOf = (input: unknown) =>
-  stringField(input, "file_path") ?? stringField(input, "notebook_path") ?? stringField(input, "path");
+  textFieldOf(input, "file_path") ?? textFieldOf(input, "notebook_path") ?? textFieldOf(input, "path");
 
 /** Whether a sensitivity is a file change, which Approvals clears when every changed file is inside the thread's folder. */
 export const isFileChange = (sensitivity: Sensitivity | null) => sensitivity === fileChange;

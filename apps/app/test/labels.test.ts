@@ -5,6 +5,7 @@ import {
   contextLevelOf,
   contextPartLabels,
   contextUseTextOf,
+  countedOf,
   deletionQuestionOf,
   foldedLabelOf,
   journalAuthorOf,
@@ -24,6 +25,17 @@ import {
   threadCountOf,
   threadSpendingTextOf,
 } from "../src/labels";
+
+describe("counted nouns", () => {
+  it("names one in the singular", () => {
+    expect(countedOf(1, "step")).toBe("1 step");
+  });
+
+  it("names none or many in the plural", () => {
+    expect(countedOf(0, "step")).toBe("0 steps");
+    expect(countedOf(3, "step")).toBe("3 steps");
+  });
+});
 
 describe("tree and deletion labels", () => {
   it("names one folded side-quest in the singular", () => {

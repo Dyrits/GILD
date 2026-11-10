@@ -26,6 +26,10 @@ export const emblemPaths = {
 
 /** The names of the emblems a realm or a quest can wear. */
 export type EmblemName = keyof typeof emblemPaths;
+
+/** Whether a name read from storage is an emblem of the table: an own key, never an inherited one such as "constructor". */
+export const isEmblemName = (name: string): name is EmblemName => Object.hasOwn(emblemPaths, name);
+
 /** One emblem as a stroked line drawing. */
 export function Emblem({ name, size = 18, tint }: { name: EmblemName; size?: number; tint: string }) {
   return (

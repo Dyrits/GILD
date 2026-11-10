@@ -3,6 +3,12 @@ import { lexer, type Tokens } from "marked";
 /** A token of any kind: the lexer's own kinds all fit it. */
 type Token = Tokens.Generic;
 
+/** Whether a token is a list; the lexer's loose token type then narrows to the list's own fields. */
+const isList = (token: Token): token is Tokens.List => token.type === "list";
+
+/** Whether a token is a table. */
+const isTable = (token: Token): token is Tokens.Table => token.type === "table";
+
 import { Fragment, type ReactNode, useMemo } from "react";
 import { Linking, StyleSheet, Text, View } from "react-native";
 import { linkTargetOf, listMarkerOf } from "./markdownRules";
@@ -142,7 +148,7 @@ const blockOf = (token: Token, key: string): ReactNode => {
       </Text>
     );
   }
-  if (token.type === "list") return <ListView key={key} list={token as Tokens.List} />;
+  if (isList(token)) return <ListView key={key} list={token} />;
   if (token.type === "code") {
     return (
       <View key={key} style={styles.codeBlock}>
@@ -159,7 +165,7 @@ const blockOf = (token: Token, key: string): ReactNode => {
       </View>
     );
   }
-  if (token.type === "table") return <TableView key={key} table={token as Tokens.Table} />;
+  if (isTable(token)) return <TableView key={key} table={token} />;
   if (token.type === "hr") return <View key={key} style={styles.rule} />;
   if (token.type === "html") return <Paragraph key={key} tokens={[{ ...token, type: "text" }]} />;
   return null;

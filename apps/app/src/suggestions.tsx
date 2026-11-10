@@ -1,7 +1,7 @@
 import type { MissionId, Suggestion, SuggestionAnswer, ThreadId } from "@gild/contracts";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import type { ServiceClient } from "./client";
+import { messageOf, type ServiceClient } from "./client";
 import { suggestionLabels } from "./labels";
 import { type Runner, RunnerPickers, useHarnesses } from "./runners";
 import { styles } from "./styles";
@@ -60,7 +60,7 @@ export function SuggestionCard({ client, suggestion }: { client: ServiceClient; 
   const send = (answer: SuggestionAnswer) =>
     client.request({ _tag: "AnswerSuggestion", answer, suggestionId: suggestion.id }).then(
       () => setError(null),
-      (reason: Error) => setError(reason.message),
+      (reason) => setError(messageOf(reason)),
     );
   return (
     <View style={styles.question}>

@@ -8,7 +8,7 @@ import {
 } from "@gild/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import type { ServiceClient } from "./client";
+import { messageOf, type ServiceClient } from "./client";
 import { Emblem, type EmblemName } from "./emblems";
 import { timeOf } from "./formatting";
 import { budgetUseTextOf, meterLevelOf, raisedLimitsOf, reserveOf, tokenCountOf } from "./labels";
@@ -138,7 +138,7 @@ export function BudgetEditor({
         setTokens(next.tokens === null ? "" : String(next.tokens));
         setError(null);
       },
-      (reason: Error) => setError(reason.message),
+      (reason) => setError(messageOf(reason)),
     );
   const typed = (): BudgetLimits => ({ cost: numberOrNull(cost), tokens: numberOrNull(tokens) });
   const hasLimits = limits.cost !== null || limits.tokens !== null;
@@ -215,7 +215,7 @@ export function BudgetStopCard({
           onPress={() =>
             client.request({ _tag: "StopAtBudget", stopId: stop.id }).then(
               () => setError(null),
-              (reason: Error) => setError(reason.message),
+              (reason) => setError(messageOf(reason)),
             )
           }
           style={styles.answer}

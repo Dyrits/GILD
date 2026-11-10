@@ -2,7 +2,7 @@ import type { BackupCompanion, ContextGauge, ContextPartKind, MissionDetail, Thr
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { BackupsEditor } from "./backupsEditor";
-import type { ServiceClient } from "./client";
+import { messageOf, type ServiceClient } from "./client";
 import { effortLabel, harnessLabels, modelLabelOf } from "./formatting";
 import {
   contextLevelOf,
@@ -78,7 +78,7 @@ function BackupsInline({
     setError(null);
     client
       .request({ _tag: "SetThreadBackups", backups: next, threadId })
-      .catch((reason) => setError(reason instanceof Error ? reason.message : String(reason)));
+      .catch((reason) => setError(messageOf(reason)));
   };
   return (
     <View style={local.backups}>
@@ -103,7 +103,7 @@ function SideQuestDone({ client, state, threadId }: { client: ServiceClient; sta
         onPress={() =>
           client.request({ _tag: "MarkThreadDone", threadId }).then(
             () => setError(null),
-            (reason: Error) => setError(reason.message),
+            (reason) => setError(messageOf(reason)),
           )
         }
       />

@@ -6,7 +6,7 @@ import { newRequestId, type ServiceClient } from "./client";
 import { Composer } from "./controls";
 import { foldThreads } from "./folding";
 import { modelLabelOf } from "./formatting";
-import { foldedLabelOf, startingContextPartsOf, startingContextWarningOf } from "./labels";
+import { countedOf, foldedLabelOf, startingContextPartsOf, startingContextWarningOf } from "./labels";
 import { LoreScreen } from "./lore";
 import { type Runner, RunnerPickers, useHarnesses } from "./runners";
 import { styles } from "./styles";
@@ -55,9 +55,7 @@ export function ThreadTree({
             {thread.isAside && <Text style={styles.treeNote}>Aside</Text>}
             {foldedCount > 0 && <Text style={styles.treeNote}>{foldedLabelOf(foldedCount)}</Text>}
             {thread.waitingCount > 0 && thread.state !== "Running" && (
-              <Text style={styles.treeNote}>
-                {thread.waitingCount === 1 ? "1 message waiting" : `${thread.waitingCount} messages waiting`}
-              </Text>
+              <Text style={styles.treeNote}>{countedOf(thread.waitingCount, "message")} waiting</Text>
             )}
           </Pressable>
         </View>

@@ -15,16 +15,9 @@ import {
   type PooledTurn,
 } from "./harnessProcesses.ts";
 import { approvalInstructionsOf } from "./instructions.ts";
-import {
-  countOf,
-  fieldOf,
-  harnessEnvironmentOf,
-  type Incoming,
-  type RpcProcess,
-  startRpcProcess,
-  textFieldOf,
-} from "./lineProcess.ts";
+import { harnessEnvironmentOf, type Incoming, type RpcProcess, startRpcProcess } from "./lineProcess.ts";
 import { toolServerName } from "./mcp.ts";
+import { fieldOf, numberFieldOf, textFieldOf } from "./records.ts";
 
 // Codex through its app server (ADR 0008; protocol of codex-cli 0.160.1, probed 2026-11-07): one
 // `codex app-server` process per thread, one Codex thread per Gild thread.
@@ -86,7 +79,7 @@ const threadSettingsOf = (request: TurnRequest) => ({
 /** A turn's usage from Codex's per-call counts, whose input includes the cached part. */
 const usageOf = (calls: ReadonlyArray<unknown>): TokenUsage | null => {
   if (calls.length === 0) return null;
-  const sum = (key: string) => calls.reduce<number>((total, call) => total + countOf(call, key), 0);
+  const sum = (key: string) => calls.reduce<number>((total, call) => total + numberFieldOf(call, key), 0);
   return {
     cacheCreation: sum("cacheWriteInputTokens"),
     cacheRead: sum("cachedInputTokens"),
@@ -98,7 +91,7 @@ const usageOf = (calls: ReadonlyArray<unknown>): TokenUsage | null => {
 /** What the thread's context held after the latest call, whose input includes the cached part. */
 const contextOf = (calls: ReadonlyArray<unknown>): number | null => {
   const last = calls.at(-1);
-  return last === undefined ? null : countOf(last, "inputTokens") + countOf(last, "outputTokens");
+  return last === undefined ? null : numberFieldOf(last, "inputTokens") + numberFieldOf(last, "outputTokens");
 };
 
 /** The files of a file change item, for its approval question. */

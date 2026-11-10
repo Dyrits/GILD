@@ -1,7 +1,7 @@
 import type { MissionEnding, MissionSummary } from "@gild/contracts";
 import { useState } from "react";
 import { Pressable, type StyleProp, Text, TextInput, type TextStyle, View } from "react-native";
-import type { ServiceClient } from "./client";
+import { messageOf, type ServiceClient } from "./client";
 import { promptQuestionOf } from "./labels";
 import { GoldButton } from "./parchment";
 import { styles } from "./styles";
@@ -142,7 +142,7 @@ export function MissionTitle({
         setDraft(null);
         setError(null);
       },
-      (reason: Error) => setError(reason.message),
+      (reason) => setError(messageOf(reason)),
     );
   };
   if (draft === null) {

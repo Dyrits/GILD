@@ -9,7 +9,7 @@ import {
 } from "@gild/contracts";
 import { useCallback, useEffect, useState } from "react";
 import { Text, View } from "react-native";
-import type { ServiceClient } from "./client";
+import { messageOf, type ServiceClient } from "./client";
 import { effortLabel, harnessLabels, modelLabelOf } from "./formatting";
 import { Choice, Menu, Steps } from "./pickers";
 import { styles } from "./styles";
@@ -36,7 +36,7 @@ export function useHarnesses(client: ServiceClient) {
           setData(value);
           setError(null);
         },
-        (reason: Error) => setError(reason.message),
+        (reason) => setError(messageOf(reason)),
       ),
     [client],
   );

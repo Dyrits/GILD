@@ -1,7 +1,7 @@
 import type { DeletedLoreEntry, LoreEntryId, LoreHistoryEntry, LoreHistoryEntryId } from "@gild/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
-import type { ServiceClient } from "./client";
+import { messageOf, type ServiceClient } from "./client";
 import { timeOf } from "./formatting";
 import { loreHistoryLineOf, scopeNameOf } from "./labels";
 import { styles } from "./styles";
@@ -17,7 +17,7 @@ function useUndo(client: ServiceClient) {
   const undo = (entryId: LoreHistoryEntryId) =>
     client.request({ _tag: "UndoIntelChange", entryId }).then(
       () => setError(null),
-      (reason: Error) => setError(reason.message),
+      (reason) => setError(messageOf(reason)),
     );
   return { error, undo };
 }

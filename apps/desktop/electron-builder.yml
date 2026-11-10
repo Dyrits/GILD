@@ -1,0 +1,29 @@
+# The installed Gild: a .app in a .dmg built by `bun run package` (see ADR 0013).
+appId: app.gild.desktop
+productName: Gild
+# Reuses the Electron the repository already installed, so packaging downloads no second copy.
+electronDist: node_modules/electron/dist
+electronVersion: 45.2.3
+# node-pty ships prebuilt binaries for Electron (the development app already runs on them), so nothing is rebuilt.
+npmRebuild: false
+directories:
+  output: release
+files:
+  - dist/**
+  - assets/icon.png
+  - package.json
+# node-pty's native binary and its spawn helper must run from disk, not from inside the archive.
+asarUnpack:
+  - "**/node_modules/node-pty/**"
+mac:
+  category: public.app-category.developer-tools
+  icon: assets/icon.png
+  # No signing identity yet: "-" ad hoc signs the whole bundle, which is enough to run on the computer that built it (null would leave Electron's own, now broken, seal).
+  identity: "-"
+  # The hardened runtime is for notarized builds; with an ad hoc seal its library validation would refuse node-pty's native module.
+  hardenedRuntime: false
+  target:
+    - target: dmg
+      arch: arm64
+dmg:
+  title: Gild

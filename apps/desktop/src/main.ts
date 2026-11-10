@@ -1,24 +1,44 @@
 import { randomBytes } from "node:crypto";
-import { homedir } from "node:os";
+import { homedir, userInfo } from "node:os";
 import { dirname, join } from "node:path";
-import { fileURLToPath } from "node:url";
-import { app, BrowserWindow, dialog, ipcMain, utilityProcess } from "electron";
+import { fileURLToPath, pathToFileURL } from "node:url";
+import { app, BrowserWindow, dialog, ipcMain, net, protocol, utilityProcess } from "electron";
+import { appFileOf } from "./appFiles.ts";
 import { moveFormerData } from "./formerData.ts";
+import { instanceOf } from "./instance.ts";
+import { mergedPathOf, readLoginPath } from "./shellPath.ts";
 import { Terminals } from "./terminals.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 /** The app's icon, beside `dist` in the desktop app's own `assets`. */
 const iconPath = join(here, "..", "assets", "icon.png");
-const appUrl = process.env.GILD_APP_URL ?? "http://localhost:8081";
+/** The installed app carries its screens and loads them from its own scheme; a development run loads the dev server. */
+const appScheme = "gild-app";
+const appUrl = app.isPackaged ? `${appScheme}://app/` : (process.env.GILD_APP_URL ?? "http://localhost:8081");
 // Lets checks run against a throwaway folder instead of the owner's data.
 const dataDirectory = () => process.env.GILD_DATA_DIR ?? app.getPath("userData");
-app.setName("Gild");
+// Only the installed app is plain "Gild" on the default profile and data folder; dev and checks run as "Gild Dev".
+const instance = instanceOf({
+  appData: app.getPath("appData"),
+  dataDirectory: process.env.GILD_DATA_DIR,
+  hasProfileSwitch: app.commandLine.hasSwitch("user-data-dir"),
+  isPackaged: app.isPackaged,
+});
+app.setName(instance.name);
+if (instance.profileFolder !== null) app.setPath("userData", instance.profileFolder);
+// A scheme with a stable origin keeps the installed app's local storage from one launch to the next.
+protocol.registerSchemesAsPrivileged([
+  { privileges: { secure: true, standard: true, stream: true, supportFetchAPI: true }, scheme: appScheme },
+]);
+// One instance per profile: a second launch on the owner's data would run two services on one database.
+const isFirstInstance = app.requestSingleInstanceLock();
+if (!isFirstInstance) app.quit();
 // A stop signal quits through the usual path, so will-quit stops the service too (dev.ts relaunches with it).
 for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, () => app.quit());
 
 // Runs before Electron creates the new user-data folder at ready, so an install from before the rename keeps its data.
 const formerDataMoved = Promise.resolve().then(() => {
-  if (process.env.GILD_DATA_DIR !== undefined) return;
+  if (!isFirstInstance || !app.isPackaged || process.env.GILD_DATA_DIR !== undefined) return;
   const claudeFolder = process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), ".claude");
   moveFormerData(app.getPath("appData"), app.getPath("userData"), claudeFolder);
 });
@@ -45,6 +65,10 @@ const startService = (token: string) => {
 
 /** The dev server may still be starting; waits for it, then loads the app. Resolves false when it never answers. */
 const load = async (window: BrowserWindow) => {
+  if (app.isPackaged) {
+    await window.loadURL(appUrl);
+    return true;
+  }
   for (let attempt = 0; attempt < 120; attempt++) {
     const isReachable = await fetch(appUrl).then(
       (response) => response.ok,
@@ -65,25 +89,47 @@ const quitWith = (reason: string) => {
   app.quit();
 };
 
+let mainWindow: BrowserWindow | undefined;
+// A second launch on this profile brings the running window forward instead of starting another service.
+app.on("second-instance", () => {
+  if (mainWindow === undefined || mainWindow.isDestroyed()) return;
+  if (mainWindow.isMinimized()) mainWindow.restore();
+  mainWindow.focus();
+});
+
 app
   .whenReady()
   .then(() => formerDataMoved)
   .then(async () => {
+    if (!isFirstInstance) return;
+    if (app.isPackaged) {
+      const root = join(here, "app");
+      protocol.handle(appScheme, (request) => {
+        const file = appFileOf(root, new URL(request.url).pathname);
+        return file === null ? new Response("Not found", { status: 404 }) : net.fetch(pathToFileURL(file).toString());
+      });
+    }
+    // A Finder or Dock launch gives only the system folders, where the harness tools are not; the service and the shells inherit this path.
+    if (app.isPackaged) {
+      const loginPath = readLoginPath(userInfo().shell || process.env.SHELL || "/bin/sh");
+      process.env.PATH = mergedPathOf({ home: homedir(), launchPath: process.env.PATH, loginPath });
+    }
     const token = randomBytes(32).toString("base64url");
     const endpoint = await startService(token);
     ipcMain.handle("gild:endpoint", () => endpoint);
 
-    // macOS shows the dock icon of the running app; a packaged build will carry its own icon file.
+    // macOS shows the dock icon of the running app; the packaged build carries its own icon file.
     app.dock?.setIcon(iconPath);
     const window = new BrowserWindow({
       height: 800,
       icon: iconPath,
-      title: "Gild",
+      title: instance.name,
       // On macOS the app's top bar is the title bar: the system's is hidden and its buttons stay.
       ...(process.platform === "darwin" ? { titleBarStyle: "hidden", trafficLightPosition: { x: 14, y: 12 } } : {}),
       webPreferences: { contextIsolation: true, preload: join(here, "preload.cjs"), sandbox: true },
       width: 1200,
     });
+    mainWindow = window;
     const terminals = new Terminals(
       (id, data, sequence) => {
         if (!window.isDestroyed()) window.webContents.send("gild:terminalData", id, data, sequence);

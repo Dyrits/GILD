@@ -131,6 +131,20 @@ describe("running a Ritual by hand", () => {
       }),
     ),
   );
+
+  it.live("is refused while the Ritual's quest is stopped, and no run is begun", () =>
+    withService(
+      Effect.gen(function* () {
+        const created = yield* create("runner");
+        yield* call({ _tag: "StopThread", threadId: created.threadId });
+        const refusal = yield* run(created).pipe(Effect.flip);
+        expect(refusal.kind).toBe("InvalidInput");
+        expect(refusal.message).toContain("stopped");
+        expect(yield* readRitual(created.missionId)).toMatchObject({ lastRunAt: null, lastRunState: null });
+        expect((yield* read(created.missionId)).messages).toEqual([]);
+      }),
+    ),
+  );
 });
 
 describe("falling back to another Companion", () => {

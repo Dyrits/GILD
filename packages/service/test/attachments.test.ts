@@ -5,7 +5,7 @@ import { describe, expect, it } from "@effect/vitest";
 import type { AttachmentId, ThreadId } from "@gild/contracts";
 import { Effect, Layer } from "effect";
 import { afterEach } from "vitest";
-import { fakeHarnessToolsLayer, HarnessTools } from "../src/index.ts";
+import { fakeHarnessLayer, fakeHarnessToolsLayer, HarnessTools, serviceLayer } from "../src/index.ts";
 import { call, fixture, read, settle, start } from "./fixtures/service.ts";
 
 const fixtures: ReturnType<typeof fixture>[] = [];
@@ -275,6 +275,28 @@ describe("message attachments: images added to the owner's messages", () => {
     ),
   );
 
+  it.live("a handover to a model that cannot read images is refused while a message holding images waits", () =>
+    withService(
+      Effect.gen(function* () {
+        const started = yield* start("Hello");
+        const first = yield* settle(started.missionId, idle);
+        const threadId = first.thread.id;
+        yield* call({ _tag: "StopThread", threadId });
+        const card = yield* add("shot.png", png());
+        yield* sendWith(threadId, "see", [card.id]);
+        const change = (model: string) =>
+          call({ _tag: "ChangeThreadRunner", accountId: null, effort: "default", harness: "codex", model, threadId });
+        const failure = yield* Effect.flip(change("gpt-blind"));
+        expect(failure.message).toContain("cannot read images");
+        expect((yield* read(started.missionId)).thread.harness).toBe("claude");
+        // A model that reads images takes the waiting message.
+        yield* change("gpt-seeing");
+        expect((yield* read(started.missionId)).thread.harness).toBe("codex");
+      }),
+      codexModelsLayer,
+    ),
+  );
+
   it.live("starting a mission or opening a thread on a model that cannot read images is refused", () =>
     withService(
       Effect.gen(function* () {
@@ -295,6 +317,63 @@ describe("message attachments: images added to the owner's messages", () => {
       }),
       codexModelsLayer,
     ),
+  );
+
+  it.live("a handover's replay of the conversation names an image as text", () =>
+    withService(
+      Effect.gen(function* () {
+        const started = yield* start("Hello");
+        const first = yield* settle(started.missionId, idle);
+        const card = yield* add("shot.png", png());
+        yield* sendWith(first.thread.id, "see this", [card.id]);
+        yield* settle(started.missionId, (d) => d.messages.length === 4 && idle(d));
+        yield* call({
+          _tag: "ChangeThreadRunner",
+          accountId: null,
+          effort: "default",
+          harness: "codex",
+          model: "gpt-5",
+          threadId: first.thread.id,
+        });
+        yield* sendWith(first.thread.id, "context", []);
+        const after = yield* settle(started.missionId, (d) => d.messages.length === 6 && idle(d));
+        const history = after.messages.at(-1)?.text.split("Conversation so far")[1] ?? "";
+        expect(history).toContain("The owner: see this\nimage: shot.png");
+      }),
+    ),
+  );
+
+  it.live("a draft nobody sent is erased when the service starts again, and a sent image stays", () =>
+    Effect.gen(function* () {
+      const value = fixture();
+      fixtures.push(value);
+      const { draft, sent } = yield* Effect.gen(function* () {
+        const sent = yield* add("sent.png", png());
+        yield* call({
+          _tag: "StartMission",
+          attachmentIds: [sent.id],
+          effort: "default",
+          model: "default",
+          requestId: crypto.randomUUID(),
+          text: "see",
+          workspacePath: null,
+        });
+        return { draft: yield* add("draft.png", png(8)), sent };
+      }).pipe(Effect.provide(value.layer));
+      expect(attachmentFiles(value.directory)).toHaveLength(2);
+      // The same folder, a new service: as after a restart.
+      const restarted = serviceLayer({
+        filename: join(value.directory, "store.sqlite"),
+        harness: fakeHarnessLayer("10 millis"),
+        homeFolder: value.directory,
+        scratchRoot: join(value.directory, "missions"),
+      });
+      yield* Effect.gen(function* () {
+        expect((yield* Effect.flip(call({ _tag: "ReadAttachment", attachmentId: draft.id }))).kind).toBe("NotFound");
+        expect((yield* call({ _tag: "ReadAttachment", attachmentId: sent.id })).mediaType).toBe("image/png");
+      }).pipe(Effect.provide(restarted));
+      expect(attachmentFiles(value.directory)).toHaveLength(1);
+    }),
   );
 
   it.live("deleting a quest erases its images from disk", () =>

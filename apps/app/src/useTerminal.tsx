@@ -1,5 +1,6 @@
 import { useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
+import { messageOf } from "./client";
 import { styles } from "./styles";
 import { TerminalPanel } from "./terminalPanel";
 import type { TerminalPanelHandle } from "./terminalPanelTypes";
@@ -29,7 +30,7 @@ export function useTerminal(id: string, cwd: string | null) {
         setIsReady(false);
         setError(null);
       })
-      .catch((reason: Error) => setError(reason.message));
+      .catch((reason) => setError(messageOf(reason)));
   };
   return {
     hasContent: hasTerminal && isReady,

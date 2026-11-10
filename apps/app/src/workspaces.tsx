@@ -1,7 +1,7 @@
 import type { Crest, MissionSummary, ThreadId, WorkspaceChoice } from "@gild/contracts";
 import { type ReactNode, useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
-import type { ServiceClient } from "./client";
+import { messageOf, type ServiceClient } from "./client";
 import { CrestBadge } from "./crest";
 import { CrestStudio } from "./crestStudio";
 import { samePath } from "./paths";
@@ -63,7 +63,7 @@ export function RealmChooser({
         if (known !== undefined) onChange(known.path);
         else setEditing({ crest: null, name: folderNameOf(path), path });
       },
-      (reason: Error) => setChooseError(reason.message),
+      (reason) => setChooseError(messageOf(reason)),
     );
   const sorted = [...realms].sort((a, b) => a.name.localeCompare(b.name));
   return (
@@ -158,7 +158,7 @@ export function RealmChooser({
                   onPress={() =>
                     onCreate({ ...editing, name: editing.name.trim() }).then(
                       () => setEditing(null),
-                      (reason: Error) => setChooseError(reason.message),
+                      (reason) => setChooseError(messageOf(reason)),
                     )
                   }
                   style={[local.menuDone, editing.name.trim() === "" && local.menuDoneOff]}
@@ -234,7 +234,7 @@ export function MissingFolderNotice({
   const retry = () =>
     client.request({ _tag: "RetryThread", threadId }).then(
       () => setRetryError(null),
-      (reason: Error) => setRetryError(reason.message),
+      (reason) => setRetryError(messageOf(reason)),
     );
   return (
     <View style={styles.failure}>

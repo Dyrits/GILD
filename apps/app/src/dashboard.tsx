@@ -12,7 +12,7 @@ import { MissionPromptCard } from "./missionActions";
 import { allMissions } from "./queries";
 import { QuestionCard } from "./questions";
 import { QuestOverview, QuestPreview, RealmPanel } from "./questPanel";
-import { useHasSidebar, useQuestPanel } from "./sidebar";
+import { useHasSidebar, useQuestPanel } from "./shell";
 import { styles } from "./styles";
 import { colors, fonts } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";

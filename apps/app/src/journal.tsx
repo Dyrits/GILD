@@ -1,7 +1,7 @@
 import type { JournalView, MissionId } from "@gild/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import { newRequestId, type ServiceClient } from "./client";
+import { messageOf, newRequestId, type ServiceClient } from "./client";
 import { timeOf } from "./formatting";
 import { briefingSizeOf, journalAuthorOf } from "./labels";
 import { styles } from "./styles";
@@ -28,7 +28,7 @@ function Briefing({ client, journal }: { client: ServiceClient; journal: Journal
           setDraft(null);
           setError(null);
         },
-        (reason: Error) => setError(reason.message),
+        (reason) => setError(messageOf(reason)),
       );
   };
   if (draft === null) {
@@ -92,7 +92,7 @@ function NewEntry({ client, missionId }: { client: ServiceClient; missionId: Mis
         setText("");
         setError(null);
       },
-      (reason: Error) => setError(reason.message),
+      (reason) => setError(messageOf(reason)),
     );
   };
   return (

@@ -7,7 +7,7 @@ import { AttachmentStrip } from "./attachmentViews";
 import { ChipEditor } from "./chipEditor";
 import type { Chip, ChipEditorHandle, Trigger } from "./chipEditorTypes";
 import { ChipIcon } from "./chips";
-import type { ServiceClient } from "./client";
+import { messageOf, type ServiceClient } from "./client";
 import { styles } from "./styles";
 import { colors, stateLabels, stateTones } from "./theme";
 import { useAttachments } from "./useAttachments";
@@ -174,7 +174,7 @@ export function Composer({
   const interrupt = (handler: () => Promise<unknown>) =>
     handler().then(
       () => setError(null),
-      (reason: Error) => setError(reason.message),
+      (reason) => setError(messageOf(reason)),
     );
   return (
     <View style={styles.composer}>

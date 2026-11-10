@@ -17,6 +17,7 @@ export const iconPaths = {
   skill: ["M2.5 5.5 H6 a1.5 1.5 0 0 1 3 0 H11.5 V8 a1.5 1.5 0 0 1 0 3 V13.5 H2.5 Z"],
 } as const;
 
+/** The kinds of thing a chip can stand for. */
 export type ChipKind = keyof typeof iconPaths;
 
 /** A small outline icon: a file, a folder, or a puzzle piece for a skill. */

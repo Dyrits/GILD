@@ -1,7 +1,8 @@
 // Draws a crest (see crestShapes.ts for its parts); the system follows Crest Studio (github.com/pauljoda/Crest, MPL-2.0).
 
 import type { Crest, MissionState } from "@gild/contracts";
-import { useId } from "react";
+import { Match } from "effect";
+import { type ReactNode, useId } from "react";
 import { StyleSheet, View } from "react-native";
 import Svg, { ClipPath, Defs, G, LinearGradient, Path, Stop, Text as SvgText } from "react-native-svg";
 import { columnOf } from "./boardColumns";
@@ -17,7 +18,7 @@ import {
   raysPath,
   scaledBox,
 } from "./crestShapes";
-import { type EmblemName, emblemPaths } from "./emblems";
+import { emblemPaths, isEmblemName } from "./emblems";
 import { colors, radii } from "./theme";
 
 /** The dot of a quest in the rail: the dye of its column's banner, brightened to read on leather. */
@@ -39,26 +40,24 @@ function Finish({ finish, id }: { finish: Crest["finish"]; id: string }) {
   );
 }
 
-/** The emblem the crest carries, centered on the plate. */
-function EmblemView({ box, crest }: { box: Box; crest: Crest }) {
-  const side = Math.min(box.width, box.height) * emblemFraction * crest.emblemScale;
-  const cx = box.x + box.width / 2;
-  const cy = box.y + box.height / 2;
-  const color = crest.colors.emblem;
-  const emblem = crest.emblem;
-  switch (emblem._tag) {
-    case "Charge":
-      return (
-        <G transform={`translate(${cx - side / 2} ${cy - side / 2}) scale(${side / 512})`}>
-          <Path d={crestCharges[emblem.id].d} fill={color} />
-        </G>
-      );
-    case "Glyph": {
-      const paths = emblemPaths[emblem.name as EmblemName];
-      if (paths === undefined) return null;
-      return (
+/** Where an emblem is drawn: its center, its side, and its color. */
+type EmblemPlace = { color: string; cx: number; cy: number; side: number };
+
+/** How each kind of emblem is drawn: from the emblem, a drawing for a place. A name or a charge outside the tables draws nothing. */
+const emblemDrawings = {
+  Charge:
+    ({ id }) =>
+    ({ cx, color, cy, side }: EmblemPlace) => (
+      <G transform={`translate(${cx - side / 2} ${cy - side / 2}) scale(${side / 512})`}>
+        <Path d={crestCharges[id].d} fill={color} />
+      </G>
+    ),
+  Glyph:
+    ({ name }) =>
+    ({ cx, color, cy, side }: EmblemPlace) =>
+      isEmblemName(name) ? (
         <G transform={`translate(${cx - side / 2} ${cy - side / 2}) scale(${side / 24})`}>
-          {paths.map((d) => (
+          {emblemPaths[name].map((d) => (
             <Path
               d={d}
               fill="none"
@@ -70,15 +69,29 @@ function EmblemView({ box, crest }: { box: Box; crest: Crest }) {
             />
           ))}
         </G>
-      );
-    }
-    case "Text":
-      return (
-        <SvgText fill={color} fontSize={side * 0.9} fontWeight="700" textAnchor="middle" x={cx} y={cy + side * 0.32}>
-          {emblem.text}
-        </SvgText>
-      );
-  }
+      ) : null,
+  Text:
+    ({ text }) =>
+    ({ cx, color, cy, side }: EmblemPlace) => (
+      <SvgText fill={color} fontSize={side * 0.9} fontWeight="700" textAnchor="middle" x={cx} y={cy + side * 0.32}>
+        {text}
+      </SvgText>
+    ),
+} satisfies {
+  [Tag in Crest["emblem"]["_tag"]]: (
+    emblem: Extract<Crest["emblem"], { _tag: Tag }>,
+  ) => (place: EmblemPlace) => ReactNode;
+};
+
+/** The emblem the crest carries, centered on the plate. */
+function EmblemView({ box, crest }: { box: Box; crest: Crest }) {
+  const draw = Match.valueTags(crest.emblem, emblemDrawings);
+  return draw({
+    color: crest.colors.emblem,
+    cx: box.x + box.width / 2,
+    cy: box.y + box.height / 2,
+    side: Math.min(box.width, box.height) * emblemFraction * crest.emblemScale,
+  });
 }
 
 /**

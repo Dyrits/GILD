@@ -3,7 +3,7 @@ import { useState } from "react";
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { imageRefusalOf } from "./attachmentRules";
 import { BudgetScreen, BudgetStopCard } from "./budgets";
-import { newRequestId, type ServiceClient } from "./client";
+import { messageOf, newRequestId, type ServiceClient } from "./client";
 import { Composer, StateBadge } from "./controls";
 import { useDraft, useFollowNewest } from "./conversation";
 import { AgentReply, EntryView, WorkingIndicator } from "./conversationEntries";
@@ -12,7 +12,7 @@ import { companionLabelOf, harnessLabels } from "./formatting";
 import { allMissions } from "./queries";
 import { budgetValueOf } from "./questPanel";
 import { RunnerPickers, useHarnesses } from "./runners";
-import { useQuestPanel } from "./sidebar";
+import { useQuestPanel } from "./shell";
 import { styles } from "./styles";
 import { colors, fontSizes, fonts } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
@@ -140,7 +140,7 @@ function GuildmasterChat({
   const act = (request: Promise<unknown>) =>
     request.then(
       () => setActionError(null),
-      (reason: Error) => setActionError(reason.message),
+      (reason) => setActionError(messageOf(reason)),
     );
   return (
     <View style={local.page}>
