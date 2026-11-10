@@ -8,6 +8,7 @@ import { afterEach } from "vitest";
 import { Endpoints } from "../src/endpoints.ts";
 import { HarnessFailure } from "../src/execution.ts";
 import {
+  type FakeUpdates,
   fakeHarnessToolsLayer,
   Harness,
   makeClaudeHarness,
@@ -44,6 +45,7 @@ const withHarnesses = (idleTimeout: Duration.Input = "10 minutes") => {
   const log = join(directory, "log.jsonl");
   process.env.STAND_IN_LOG = log;
   const signIns: Array<string> = [];
+  const updates: FakeUpdates = { available: {}, updated: [] };
   const accountsRoot = join(directory, "accounts");
   const harness = Layer.effect(
     Harness,
@@ -74,7 +76,7 @@ const withHarnesses = (idleTimeout: Duration.Input = "10 minutes") => {
     accountsRoot,
     filename: join(directory, "gild.sqlite"),
     harness,
-    harnessTools: fakeHarnessToolsLayer(signIns),
+    harnessTools: fakeHarnessToolsLayer(signIns, updates),
     homeFolder: directory,
     scratchRoot: join(directory, "missions"),
   });
@@ -89,7 +91,7 @@ const withHarnesses = (idleTimeout: Duration.Input = "10 minutes") => {
     }
   };
   const requests = (method: string) => logged().filter((entry) => entry.method === method);
-  return { accountsRoot, directory, layer, logged, requests, signIns };
+  return { accountsRoot, directory, layer, logged, requests, signIns, updates };
 };
 
 const call = <R extends Request>(request: R) =>
@@ -559,6 +561,18 @@ describe("managing provider accounts", () => {
         "Sonnet 5.5",
         "Haiku 5.5",
       ]);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("offers an update only to a harness with a newer version, and updates it", () => {
+    const { layer, updates } = withHarnesses();
+    updates.available.codex = "0.167.0";
+    return Effect.gen(function* () {
+      const before = yield* call({ _tag: "ListHarnesses" });
+      expect(before.harnesses.map((harness) => harness.update)).toEqual([null, "0.167.0", null]);
+      const after = yield* call({ _tag: "UpdateHarness", harness: "codex" });
+      expect(updates.updated).toEqual(["codex"]);
+      expect(after.harnesses.map((harness) => harness.update)).toEqual([null, null, null]);
     }).pipe(Effect.provide(layer));
   });
 

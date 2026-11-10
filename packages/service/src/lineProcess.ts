@@ -31,13 +31,18 @@ export interface CommandRun {
   readonly stdout: string;
 }
 
-/** Runs a short command of a harness's tool; a missing tool or a timeout reads as exit code null. */
-export const runHarnessCommand = (command: string, args: ReadonlyArray<string>, env: Record<string, string>) =>
+/** Runs a command of a harness's tool, by default a short one; a missing tool or a timeout reads as exit code null. */
+export const runHarnessCommand = (
+  command: string,
+  args: ReadonlyArray<string>,
+  env: Record<string, string>,
+  timeoutMillis = 20_000,
+) =>
   Effect.callback<CommandRun>((resume) => {
     execFile(
       command,
       [...args],
-      { env: harnessEnvironmentOf(env), maxBuffer: 4_000_000, timeout: 20_000 },
+      { env: harnessEnvironmentOf(env), maxBuffer: 4_000_000, timeout: timeoutMillis },
       (error, stdout, stderr) => {
         const code = error === null ? 0 : typeof error.code === "number" ? error.code : null;
         resume(Effect.succeed({ code, output: `${stdout}\n${stderr}`, stdout: String(stdout) }));

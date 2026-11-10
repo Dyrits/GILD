@@ -260,7 +260,12 @@ export function SettingsScreen({
               </SettingsCard>
             </Section>
             <Section id="harnesses" tops={tops}>
-              <HarnessesCard harnesses={harnesses.data} onRefresh={harnesses.refresh} />
+              <HarnessesCard
+                client={client}
+                harnesses={harnesses.data}
+                onChanged={harnesses.setData}
+                onRefresh={harnesses.refresh}
+              />
             </Section>
             <Section id="accounts" tops={tops}>
               <AccountsCard client={client} harnesses={harnesses.data} onChanged={harnesses.setData} />

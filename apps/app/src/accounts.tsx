@@ -131,8 +131,58 @@ function HarnessAccounts({
   );
 }
 
-/** The installed harnesses, each with its logo, version, and whether it can run; Refresh asks each one again. */
-export function HarnessesCard({ harnesses, onRefresh }: { harnesses: HarnessList | null; onRefresh: () => void }) {
+/** What a harness row says beside its name: its problem, an update on offer, or that it is ready. */
+function HarnessState({
+  harness,
+  isUpdating,
+  onUpdate,
+}: {
+  harness: HarnessInfo;
+  isUpdating: boolean;
+  onUpdate: () => void;
+}) {
+  if (harness.problem !== null) return <Text style={[styles.error, styles.flex]}>{harness.problem}</Text>;
+  if (isUpdating) return <Text style={styles.muted}>Updating…</Text>;
+  if (harness.update === null) return <Text style={styles.muted}>Ready</Text>;
+  return (
+    <>
+      <Text style={styles.muted}>Ready · {harness.update} is available</Text>
+      <GoldButton label="Update" onPress={onUpdate} />
+    </>
+  );
+}
+
+/**
+ * The installed harnesses, each with its logo, version, and whether it can run; Refresh asks each one again.
+ * A harness with a newer version on offer has Update, which runs the harness's own update command.
+ */
+export function HarnessesCard({
+  client,
+  harnesses,
+  onChanged,
+  onRefresh,
+}: {
+  client: ServiceClient;
+  harnesses: HarnessList | null;
+  onChanged: (list: HarnessList) => void;
+  onRefresh: () => void;
+}) {
+  const [updating, setUpdating] = useState<HarnessName | null>(null);
+  const [error, setError] = useState<string | null>(null);
+  const update = (harness: HarnessName) => {
+    setUpdating(harness);
+    setError(null);
+    return client.request({ _tag: "UpdateHarness", harness }).then(
+      (list) => {
+        setUpdating(null);
+        onChanged(list);
+      },
+      (reason: Error) => {
+        setUpdating(null);
+        setError(reason.message);
+      },
+    );
+  };
   return (
     <SettingsCard
       icon="code"
@@ -143,6 +193,7 @@ export function HarnessesCard({ harnesses, onRefresh }: { harnesses: HarnessList
         </Pressable>
       }
     >
+      {error !== null && <Text style={styles.error}>{error}</Text>}
       {harnesses === null ? (
         <Text style={styles.muted}>Asking each harness who is signed in…</Text>
       ) : (
@@ -151,11 +202,11 @@ export function HarnessesCard({ harnesses, onRefresh }: { harnesses: HarnessList
             {index > 0 && <SettingsRule />}
             <View style={local.harness}>
               <HarnessTitle harness={harness} />
-              {harness.problem === null ? (
-                <Text style={styles.muted}>Ready</Text>
-              ) : (
-                <Text style={[styles.error, styles.flex]}>{harness.problem}</Text>
-              )}
+              <HarnessState
+                harness={harness}
+                isUpdating={updating === harness.name}
+                onUpdate={() => update(harness.name)}
+              />
             </View>
           </View>
         ))

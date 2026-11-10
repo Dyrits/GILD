@@ -355,6 +355,9 @@ export const AddAccount = Schema.TaggedStruct("AddAccount", { harness: HarnessNa
 /** Renames a provider account added in Gild. */
 export const RenameAccount = Schema.TaggedStruct("RenameAccount", { accountId: AccountId, label: AccountLabel });
 
+/** Updates a harness to its latest version through the harness's own update command, then lists the harnesses again. */
+export const UpdateHarness = Schema.TaggedStruct("UpdateHarness", { harness: HarnessName });
+
 /** Removes a provider account and its folder; refused while a thread that is not ended uses it. */
 export const RemoveAccount = Schema.TaggedStruct("RemoveAccount", { accountId: AccountId });
 
@@ -436,6 +439,7 @@ export const Request = Schema.Union([
   RenameAccount,
   RemoveAccount,
   SignInAccount,
+  UpdateHarness,
 ]);
 export type Request = typeof Request.Type;
 /** The name of one kind of request. */
@@ -517,6 +521,7 @@ export const Results = {
   StopAtBudget: Schema.Null,
   StopThread: Schema.Null,
   UndoIntelChange: Schema.Null,
+  UpdateHarness: HarnessList,
   UpdateRitual: Schema.Null,
   UpdateSettings: Settings,
   WidenPermission: Schema.Null,

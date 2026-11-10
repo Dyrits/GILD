@@ -1615,3 +1615,13 @@ Scope: Thread panel, quest panel
 Summary: The thread panel's column beside the conversation is merged into the quest panel, the window's one side panel, at the owner's request. Under the quest's heading come Companion, Realm, State, and Context, then Knows (Journal, Lore, Skills), Spends (this thread, quest budget, quest usage), and Does, all drawn as the same labelled groups. The Knows / Spends tabs, the blue journal note, the red Does box, and the "Thread panel" link are gone; the thread's groups now also show in narrow windows.
 References: documentation/capabilities/thread-panel/specifications.md (The panel).
 Validation: typecheck, Biome, and the app's 114 tests pass; the full suite has one failure outside this change (`packages/service/test/harnesses.test.ts`, an added Codex account's environment). Driven wide and narrow in a browser on the fake harness. The owner's look is pending; the bookmark covers the end of the top rows when the panel scrolls.
+
+## CHG-0110 · 2026-11-10 · Update a harness from the Charter
+
+Type: Code
+Event: Delivery
+Scope: Provider accounts, Charter
+
+Summary: The Charter's Harnesses card shows "Ready · <version> is available" and an Update button beside a harness with a newer release. The service reads each harness's newest version from the npm registry (cached 30 minutes; unreadable reads as no update) and `UpdateHarness` runs the harness's own update command (`claude update`, `codex update`, `opencode upgrade`), outside the command queue, then lists the harnesses again.
+References: documentation/capabilities/provider-accounts/specifications.md (Harnesses).
+Validation: typecheck and Biome pass; new tests for version reading and for the offer and the update (fake tools); no live update was run, so the three update commands and the registry read are unchecked end to end. One failure remains in `harnesses.test.ts` (an added Codex account's environment), already noted in CHG-0109. The owner's look is pending.

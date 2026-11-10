@@ -129,6 +129,7 @@ const harnessOf = (name: HarnessInfo["name"], models: HarnessInfo["models"]): Ha
   models,
   name,
   problem: null,
+  update: null,
   version: null,
 });
 

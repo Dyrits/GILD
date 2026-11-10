@@ -29,8 +29,12 @@ export interface HarnessFacts {
   readonly hasPromptTool: boolean;
   /** The harness's name as the owner reads it. */
   readonly label: string;
+  /** The package whose `latest` tag on the npm registry is the harness's newest release. */
+  readonly packageName: string;
   /** The arguments of the harness's own sign-in command. */
   readonly signInArgs: ReadonlyArray<string>;
+  /** The arguments of the harness's own command that updates it, which knows how it was installed. */
+  readonly updateArgs: ReadonlyArray<string>;
 }
 
 /** Each harness's facts, by name. */
@@ -41,7 +45,9 @@ export const harnessFacts = {
     fixedModels: claudeModels,
     hasPromptTool: true,
     label: "Claude Code",
+    packageName: "@anthropic-ai/claude-code",
     signInArgs: ["auth", "login"],
+    updateArgs: ["update"],
   },
   codex: {
     approvedCommandAdvice: "",
@@ -49,7 +55,9 @@ export const harnessFacts = {
     fixedModels: null,
     hasPromptTool: false,
     label: "Codex",
+    packageName: "@openai/codex",
     signInArgs: ["login"],
+    updateArgs: ["update"],
   },
   opencode: {
     approvedCommandAdvice: "",
@@ -58,7 +66,9 @@ export const harnessFacts = {
     fixedModels: null,
     hasPromptTool: false,
     label: "OpenCode",
+    packageName: "opencode-ai",
     signInArgs: ["auth", "login"],
+    updateArgs: ["upgrade"],
   },
 } as const satisfies Record<HarnessName, HarnessFacts>;
 

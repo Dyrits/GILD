@@ -5,7 +5,7 @@ export { ServiceFailure } from "./errors.ts";
 export { Harness, type HarnessAdapter, routeHarnesses } from "./execution.ts";
 export { fakeHarnessLayer } from "./fakeHarness.ts";
 export { harnesses, makeHarnessRouter } from "./harnesses.ts";
-export { fakeHarnessToolsLayer, HarnessTools, liveHarnessToolsLayer } from "./harnessTools.ts";
+export { type FakeUpdates, fakeHarnessToolsLayer, HarnessTools, liveHarnessToolsLayer } from "./harnessTools.ts";
 export { makeOpenCodeHarness, type OpenCodeOptions } from "./opencode.ts";
 export { serveLoopback } from "./server.ts";
 export { Service, type ServiceOptions, serviceLayer } from "./service.ts";

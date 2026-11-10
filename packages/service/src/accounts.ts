@@ -56,11 +56,13 @@ const readHarness = (harness: HarnessName, rows: ReadonlyArray<AccountRow>) =>
     const signedIn = accounts.find((account) => account.signIn === "SignedIn") ?? accounts[0];
     const models =
       installation.problem === null ? yield* tools.listModels(harness, signedIn?.configDirectory ?? null) : [];
+    const update = installation.problem === null ? yield* tools.findUpdate(harness, installation.version) : null;
     return {
       accounts: accounts.map(({ configDirectory: _, ...account }) => account),
       models,
       name: harness,
       problem: installation.problem,
+      update,
       version: installation.version,
     } satisfies HarnessInfo;
   });
@@ -74,6 +76,15 @@ export const listHarnesses = Effect.gen(function* () {
   });
   return { harnesses } satisfies HarnessList;
 });
+
+/** Updates a harness through its own update command; refused when it is not installed. */
+export const updateHarness = (harness: HarnessName) =>
+  Effect.gen(function* () {
+    const tools = yield* HarnessTools;
+    const installation = yield* tools.inspect(harness);
+    if (installation.problem !== null) return yield* invalid(installation.problem);
+    yield* tools.update(harness);
+  });
 
 const readAccount = (accountId: string) =>
   Effect.gen(function* () {

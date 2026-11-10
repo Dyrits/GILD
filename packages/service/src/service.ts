@@ -2,7 +2,7 @@ import { dirname, join } from "node:path";
 import type { Request } from "@gild/contracts";
 import { Context, Effect, Layer, Match, Semaphore } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
-import { addAccount, listHarnesses, removeAccount, renameAccount, signInAccount } from "./accounts.ts";
+import { addAccount, listHarnesses, removeAccount, renameAccount, signInAccount, updateHarness } from "./accounts.ts";
 import { Approvals, approvalsLayer } from "./approvals.ts";
 import { AttachmentsRoot, addAttachment, discardAttachment, readAttachment, sweepDrafts } from "./attachments.ts";
 import { budgetPeriodsLayer } from "./budgetPeriods.ts";
@@ -423,6 +423,13 @@ const make = Effect.gen(function* () {
         StopAtBudget: (given) => commands.run(stopAtBudget(given.stopId)),
         StopThread: (stop) => threads.stop(stop.threadId).pipe(Effect.as(null)),
         UndoIntelChange: (given) => change(undoLoreChange(given.entryId)),
+        // Not a command: the harness's own update runs for minutes and must not hold the command queue.
+        UpdateHarness: (given) =>
+          updateHarness(given.harness).pipe(
+            Effect.andThen(listHarnesses),
+            Effect.provideService(HarnessTools, harnessTools),
+            Effect.provideService(AccountsRoot, accountsRoot),
+          ),
         UpdateRitual: (update) =>
           commands.run(
             updateRitual({
