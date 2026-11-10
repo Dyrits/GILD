@@ -1635,3 +1635,13 @@ Scope: Thread panel, thread tree
 Summary: At the owner's request the side panel follows OpenBot's grouping: Companions (harness, model and effort, Backup companions, the context gauge), Knows (journal, realm, lore, skills as one row), and Does (spending, the quest's budget and usage, how it ends), each a labelled card of icon rows. Every thread has an ordered list of up to five backup Companions (harness, account, model, effort), edited in a menu of its own opened from the panel; a failed turn hands the thread over to the next one that differs from its own (migration `0031_thread_backups`; `SetThreadBackups`; `ReadThreadPanel` carries them). A side-quest's panel is headed by its own title, names its quest with a row that opens it, and has its own Mark as done (`MarkThreadDone`), which stops its turn and leaves its quest as it is.
 References: documentation/capabilities/thread-panel/specifications.md (The panel, Backup companions), documentation/capabilities/thread-tree/specifications.md (Thread states), documentation/verification/2026-11-10-one-side-panel.md.
 Validation: `packages/service/test/backups.test.ts` (4) pass; typecheck, Biome, and the full suite (599) pass; driven in a browser on the fake harness. The look, a live fall back, and the order controls are unchecked; the owner's look is pending.
+
+## CHG-0112 · 2026-11-10 · Default backup companions in the Charter
+
+Type: Code
+Event: Delivery
+Scope: Thread panel, Charter
+
+Summary: At the owner's request the Charter has a **Backup companions** card, under the default harness, model, and effort, holding the list of up to five backup Companions (harness, account, model, effort, in order) that a new quest's thread starts with; a side-quest starts with a copy of its parent's list. It is the thread menu's list editor, shared (`apps/app/src/backupsEditor.tsx`), and a new `backups` setting (empty at first). Quests that began already keep their own lists.
+References: documentation/capabilities/thread-panel/specifications.md (Backup companions).
+Validation: `packages/service/test/defaultBackups.test.ts` (3) pass; typecheck and Biome pass; the full suite has only the Codex-account failure in harnesses.test.ts that was there before. Driven in a browser on the fake harness: [documentation/verification/2026-11-10-charter-backups](verification/2026-11-10-charter-backups/); add, move, remove, and reload persistence observed. Not checked: the thread menu itself drawing the shared editor (it still has its own copy), a new quest's panel in the window, and the look.

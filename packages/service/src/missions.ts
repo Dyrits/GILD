@@ -87,8 +87,9 @@ export const insertQuest = (
     const threadId = crypto.randomUUID();
     yield* sql`INSERT INTO missions (id, top_thread_id, title, created_at, last_activity_at, is_title_by_user)
       VALUES (${missionId}, ${threadId}, ${quest.title}, ${now}, ${now}, ${quest.isTitleByOwner === true ? 1 : 0})`;
-    yield* sql`INSERT INTO threads (id, mission_id, state, harness, account_id, model, effort, workspace_id, title)
-      VALUES (${threadId}, ${missionId}, 'Idle', ${harness}, ${accountId}, ${model}, ${effort}, ${workspaceId}, ${quest.title})`;
+    // The Charter's backup Companions are the new thread's own from the start (thread-panel, Backup companions).
+    yield* sql`INSERT INTO threads (id, mission_id, state, harness, account_id, model, effort, workspace_id, title, backups)
+      VALUES (${threadId}, ${missionId}, 'Idle', ${harness}, ${accountId}, ${model}, ${effort}, ${workspaceId}, ${quest.title}, ${JSON.stringify(settings.backups)})`;
     const messageId =
       quest.firstMessage === null
         ? null

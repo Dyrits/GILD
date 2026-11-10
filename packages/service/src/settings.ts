@@ -12,6 +12,7 @@ export const dayMillis = 24 * 60 * 60 * 1000;
 export const defaultSettings: Settings = {
   approvalLevel: "RiskyOnly",
   autoArchiveDays: 30,
+  backups: [],
   briefingLimit: 2000,
   chatterThreshold: 20,
   defaultDelivery: "Steer",

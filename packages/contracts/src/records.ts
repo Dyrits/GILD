@@ -52,6 +52,16 @@ export type TokenUsage = typeof TokenUsage.Type;
 export const MessageDelivery = Schema.Literals(["Steer", "Queue"]);
 export type MessageDelivery = typeof MessageDelivery.Type;
 
+/** One backup Companion a thread falls back to: a harness, its account, a model, and an effort (thread-panel, Backups). */
+export const BackupCompanion = Schema.Struct({
+  /** The provider account, or null for the harness's own sign-in on this computer. */
+  accountId: Schema.NullOr(AccountId),
+  effort: EffortChoice,
+  harness: HarnessName,
+  model: ModelChoice,
+});
+export type BackupCompanion = typeof BackupCompanion.Type;
+
 /** The owner's settings. */
 /** A Companion a tier of the Guildmaster's settings names: harness, account, model, and effort (quest coordination). */
 export const Tier = Schema.Struct({
@@ -70,6 +80,8 @@ export const Settings = Schema.Struct({
   approvalLevel: ApprovalLevel,
   /** Days after a Done mission was marked Done before it is archived, when auto-archive is on. */
   autoArchiveDays: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
+  /** The backup Companions a new quest's thread starts with, in the order a failed turn falls back through them; at most five. */
+  backups: Schema.Array(BackupCompanion).check(Schema.isMaxLength(5)),
   /** The most tokens a mission's briefing may hold, estimated at about 4 characters per token (mission-journal, Size). */
   briefingLimit: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
   /** Messages between two threads before the owner decides how they continue. */
@@ -387,16 +399,6 @@ export const ContextGauge = Schema.Struct({
   windowTokens: Schema.Number,
 });
 export type ContextGauge = typeof ContextGauge.Type;
-
-/** One backup Companion a thread falls back to: a harness, its account, a model, and an effort (thread-panel, Backups). */
-export const BackupCompanion = Schema.Struct({
-  /** The provider account, or null for the harness's own sign-in on this computer. */
-  accountId: Schema.NullOr(AccountId),
-  effort: EffortChoice,
-  harness: HarnessName,
-  model: ModelChoice,
-});
-export type BackupCompanion = typeof BackupCompanion.Type;
 
 /** What the thread panel shows beyond the thread itself (thread-panel, The panel). */
 export const ThreadPanel = Schema.Struct({

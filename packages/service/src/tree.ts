@@ -60,15 +60,15 @@ const readParent = (parentId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const [parent] = yield* sql<
-      Runner & { missionId: string; workspaceId: string | null }
-    >`SELECT mission_id AS missionId, harness, account_id AS accountId, model, effort, workspace_id AS workspaceId
+      Runner & { backups: string; missionId: string; workspaceId: string | null }
+    >`SELECT mission_id AS missionId, harness, account_id AS accountId, model, effort, workspace_id AS workspaceId, backups
       FROM threads WHERE id = ${parentId} AND is_deleting = 0`;
     return parent;
   });
 
 /**
  * Records a thread beneath the parent, in the parent's workspace and, unless chosen, with its harness,
- * account, model, and effort, and its first message: the opener's request. The command that opens it wakes
+ * account, model, effort, and backup Companions, and its first message: the opener's request. The command that opens it wakes
  * it.
  */
 const insertThread = (opening: Opening) =>
@@ -80,10 +80,10 @@ const insertThread = (opening: Opening) =>
     const threadId = crypto.randomUUID();
     // An aside starts from the off-topic request alone, without its opener's conversation.
     const openerMessages = opening.isAside ? null : yield* openerMessagesOf(opening.parentId);
-    yield* sql`INSERT INTO threads (id, mission_id, parent_id, state, harness, account_id, model, effort, workspace_id, title, is_opened_by_agent, opener_messages, is_aside)
+    yield* sql`INSERT INTO threads (id, mission_id, parent_id, state, harness, account_id, model, effort, workspace_id, title, is_opened_by_agent, opener_messages, is_aside, backups)
       VALUES (${threadId}, ${parent.missionId}, ${opening.parentId}, 'Idle', ${runner.harness}, ${runner.accountId},
         ${runner.model}, ${runner.effort}, ${parent.workspaceId}, ${titleOf(opening.title ?? opening.text) || attachmentsTitle}, ${opening.isOpenedByAgent ? 1 : 0},
-        ${openerMessages}, ${opening.isAside ? 1 : 0})`;
+        ${openerMessages}, ${opening.isAside ? 1 : 0}, ${parent.backups})`;
     const messageId = yield* insertMessage({
       fromThreadId: opening.isOpenedByAgent ? opening.parentId : null,
       isQueued: false,

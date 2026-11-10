@@ -491,6 +491,7 @@ describe("running Claude Code threads", () => {
         settings: {
           approvalLevel: "RiskyOnly",
           autoArchiveDays: 30,
+          backups: [],
           briefingLimit: 2000,
           chatterThreshold: 20,
           defaultDelivery: "Steer",
@@ -664,6 +665,7 @@ describe("reading and saving settings", () => {
       expect(defaults).toEqual({
         approvalLevel: "RiskyOnly",
         autoArchiveDays: 30,
+        backups: [],
         briefingLimit: 2000,
         chatterThreshold: 20,
         defaultDelivery: "Steer",
@@ -688,6 +690,7 @@ describe("reading and saving settings", () => {
       const updated = {
         approvalLevel: "CommandsAndEdits",
         autoArchiveDays: 10,
+        backups: [],
         briefingLimit: 500,
         chatterThreshold: 20,
         defaultDelivery: "Queue",
@@ -723,6 +726,7 @@ describe("reading and saving settings", () => {
       expect(yield* call({ _tag: "ReadSettings" })).toEqual({
         ...saved,
         autoArchiveDays: 30,
+        backups: [],
         briefingLimit: 2000,
         chatterThreshold: 20,
         defaultDelivery: "Steer",

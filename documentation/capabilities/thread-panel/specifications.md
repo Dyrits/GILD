@@ -18,10 +18,11 @@ Status: agreed by the owner's instruction to build the backlog entry "Thread pan
 
 ### Backup companions
 
-- A thread has an ordered list of backup Companions, at most five, each a harness, an account, a model, and an effort, as a Ritual's fallbacks have (rituals). It is empty at first.
+- A thread has an ordered list of backup Companions, at most five, each a harness, an account, a model, and an effort, as a Ritual's fallbacks have (rituals). It is empty at first, or holds the Charter's list when the thread starts (below).
 - The **Backup companions** row opens a menu of its own: what the list does, the order with each entry's harness, model, and effort pickers, a move up and a move down, Remove, and **+ Add a backup Companion**. Every change is saved at once.
 - When a turn of the thread fails, the thread is handed over to the next backup that differs from its current Companion, the conversation so far carried over and the line saying why (thread-handover, ADR 0006: "Fell back to Codex · gpt-6.1-sol · default effort · Usage limit reached"), and the turn runs again. A backup that cannot be taken, such as one on a removed account, is passed over. When the list is used up the thread stays Failed. The count starts over when a turn completes, when the owner changes the Companion or the list.
 - A Ritual's thread falls back through the Ritual's own list first (rituals); this list is empty there.
+- The Charter has a **Backup companions** card, under the default harness, model, and effort, with the same list: up to five, each with harness, account, model, and effort, a move up and a move down, Remove, and **+ Add a backup Companion**, saved at once. It is empty at first. A quest's top thread starts with a copy of it, and a side-quest starts with a copy of its parent's list. Changing the Charter's list later leaves quests that began already as they were; each quest changes its own from its panel.
 
 - The panel changes with the selected thread and with the thread's work; it is read-only apart from the backups and a side-quest's Mark as done. Changing a model, effort, or budget stays where it is today.
 - The panel is shown or hidden with the quest panel's icon in the top bar.

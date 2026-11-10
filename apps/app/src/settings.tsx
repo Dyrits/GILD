@@ -17,6 +17,7 @@ import {
   View,
 } from "react-native";
 import { AccountsCard, HarnessesCard } from "./accounts";
+import { BackupsEditor } from "./backupsEditor";
 import { BudgetEditor } from "./budgets";
 import type { ServiceClient } from "./client";
 import { Toggle } from "./controls";
@@ -207,6 +208,19 @@ export function SettingsScreen({
                     harness: settings.defaultHarness,
                     model: settings.defaultModel,
                   }}
+                />
+              </SettingsCard>
+              <SettingsCard icon="layers" title="Backup companions">
+                <Text style={styles.body}>
+                  When a turn fails, as when a usage limit is reached, a quest carries on with the first of these that
+                  differs from its own Companion. New quests and their side-quests start with this list; each quest can
+                  change its own from its panel.
+                </Text>
+                <BackupsEditor
+                  backups={settings.backups}
+                  harnesses={harnesses.data}
+                  isCompact={false}
+                  onChange={(backups) => save({ backups })}
                 />
               </SettingsCard>
               <GuildmasterSettings client={client} onSave={save} settings={settings} />
