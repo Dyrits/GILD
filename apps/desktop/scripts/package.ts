@@ -1,5 +1,4 @@
-// Builds the installed app: the service and the main process, the Expo web export that the window shows, and
-// then the .app and .dmg in apps/desktop/release. It starts and stops no running Gild, and installs nothing.
+// Builds the installed app and its host-platform installer in apps/desktop/release without starting or stopping Gild.
 import { spawnSync } from "node:child_process";
 import { rmSync } from "node:fs";
 import { join } from "node:path";
@@ -16,7 +15,25 @@ run(process.execPath, ["run", "build"], desktop);
 // The window's screens ship inside the app, so it needs no dev server.
 const screens = join(desktop, "dist", "app");
 rmSync(screens, { force: true, recursive: true });
-run("bunx", ["expo", "export", "--platform", "web", "--output-dir", screens], join(root, "apps", "app"));
+run(
+  process.execPath,
+  ["x", "--no-install", "expo", "export", "--platform", "web", "--output-dir", screens],
+  join(root, "apps", "app"),
+);
 rmSync(join(desktop, "release"), { force: true, recursive: true });
-run("bunx", ["electron-builder", "--config", "electron-builder.yml"], desktop);
-console.log(`Built ${join(desktop, "release")}. Quit Gild, open the .dmg, and drag Gild to Applications.`);
+// Calling Bun directly also works on Windows, where bunx may be a command shim rather than an executable.
+run(
+  process.execPath,
+  [
+    "x",
+    "--no-install",
+    "electron-builder",
+    "--config",
+    "electron-builder.yml",
+    "--publish",
+    "never",
+    ...process.argv.slice(2),
+  ],
+  desktop,
+);
+console.log(`Built installers in ${join(desktop, "release")}.`);

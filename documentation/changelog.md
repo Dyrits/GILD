@@ -1798,3 +1798,15 @@ Reason: Eighty-odd files in one directory hid which modules belong together; the
 References: documentation/architecture-audit/architecture-audit-2026-11-10-2119.html, documentation/conventions.md (Layout), documentation/architecture.md (Source layout).
 Validation: `bun run typecheck` and `bun run check` pass; `bun run test --maxWorkers=4` passes (647 passed, 10 skipped live); `expo export --platform web` and the desktop `bun build` of the service and main process bundle.
 Evidence: the default `bun run test` times out on 5 service tests under full parallel load, identically on the unmoved commit d421b47; no behavior changed besides the added `unaskedTools` field.
+
+## CHG-0127 · 2026-11-10 · Desktop packaging workflow
+
+Type: Configuration
+Event: Delivery
+Scope: Desktop packaging configuration
+
+Summary: Added a GitHub Actions workflow on pushes to `main` and manual dispatch that checks lint and types, then packages Apple Silicon and Intel macOS DMGs, a Windows x64 NSIS executable, and a Linux x64 AppImage as downloadable artifacts retained for 14 days.
+The existing packaging command now forwards architecture options, invokes Bun directly on Windows, disables implicit release publication, and rebuilds native dependencies for Electron, including node-pty on Linux.
+References: [.github/workflows/package.yml](../.github/workflows/package.yml), [packaging instructions](../README.md#desktop-installers), [verification](verification/2026-11-10-desktop-packaging.md).
+Validation: Lint, workspace typecheck, actionlint, the macOS arm64 DMG build, the bundle signature, and the image checksum pass.
+Evidence: This delivers locally checked configuration; publication, all four native GitHub runner builds, artifact downloads, and target-system smoke tests remain pending in work in progress.

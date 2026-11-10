@@ -1,5 +1,13 @@
 # Work in progress
 
+## Desktop packaging automation · 2026-11-10 · locally verified, GitHub run pending
+
+Authorized by the owner's request to package on pushes to `main`, starting at `51d4ceb44a8fad62fbea27acb233856d6cb1c777`.
+The batch adds GitHub Actions artifacts for Apple Silicon and Intel DMGs, a Windows x64 NSIS installer, and a Linux x64 AppImage, using the existing Electron Builder setup.
+Verification: local lint, workspace typecheck, actionlint, macOS arm64 packaging, and bundle signature verification passed; see [proof](verification/2026-11-10-desktop-packaging.md).
+Next: publish the workflow, inspect all four native build jobs and their downloadable artifacts, then smoke-test the installers on their target systems.
+Installers remain unsigned on Windows and ad hoc signed without notarization on macOS; public releases, auto-updates, signing credentials, and runtime portability fixes are outside this batch.
+
 ## Compact left navigation specification · 2026-11-10
 
 The owner accepted the smaller main left menu in CHG-0123; see [mission tracking](capabilities/mission-tracking/specifications.md#compact-left-navigation).
