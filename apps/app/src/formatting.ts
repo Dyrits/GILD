@@ -83,3 +83,7 @@ export const timeOf = (millis: number) => new Date(millis).toLocaleString();
 /** A moment as its hours and minutes, in the owner's locale. */
 export const clockOf = (millis: number) =>
   new Date(millis).toLocaleTimeString([], { hour: "2-digit", minute: "2-digit" });
+
+/** Seconds as a short span: `16s`, `1m 4s`. */
+export const spanOf = (seconds: number) =>
+  seconds < 60 ? `${seconds}s` : `${Math.floor(seconds / 60)}m ${seconds % 60}s`;

@@ -1,16 +1,19 @@
 import type { HarnessName, Message, MissionId, Skill, ThreadId } from "@gild/contracts";
+import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { MessageImages } from "./attachmentViews";
 import { ChipText } from "./chips";
 import type { ServiceClient } from "./client";
 import type { Entry, QuestLink } from "./entries";
-import { clockOf, replyWriterOf } from "./formatting";
+import { clockOf, replyWriterOf, spanOf } from "./formatting";
 import { LoreChangeCard, LoreChangeLine } from "./lore";
 import { Markdown } from "./markdown";
 import { ProviderMark } from "./providerMarks";
 import { QuestionCard, QuestionLine } from "./questions";
+import { RowIcon } from "./rowIcons";
 import { styles } from "./styles";
 import { SuggestionCard, SuggestionLine } from "./suggestions";
+import { colors } from "./theme";
 
 const shortened = (title: string) => (title.length > 60 ? `${title.slice(0, 59)}…` : title);
 
@@ -94,6 +97,54 @@ export function AgentReply({
   );
 }
 
+/** The first line of a step, cut to one line of a label. */
+const stepLabelOf = (text: string) => shortened(text.trim().split("\n")[0] ?? "");
+
+/** While a thread works: its provider's mark and the step it is on, in place of lines of updates. */
+export function WorkingIndicator({ harness, label }: { harness: HarnessName; label: string }) {
+  return (
+    <View style={styles.stepsHeader}>
+      <ProviderMark harness={harness} />
+      <Text style={styles.stepText}>{label}</Text>
+    </View>
+  );
+}
+
+/** A turn's intermediate replies, folded under "2 steps · 16s" and listed when opened. */
+function StepsGroup({ seconds, steps }: { seconds: number; steps: ReadonlyArray<Message> }) {
+  const [isOpen, setIsOpen] = useState(false);
+  return (
+    <View>
+      <Pressable
+        accessibilityLabel={`${steps.length === 1 ? "1 step" : `${steps.length} steps`}, ${spanOf(seconds)}`}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: isOpen }}
+        onPress={() => setIsOpen(!isOpen)}
+        style={styles.stepsHeader}
+      >
+        <Text style={styles.stepsCount}>{steps.length === 1 ? "1 step" : `${steps.length} steps`}</Text>
+        <Text style={styles.muted}>{spanOf(seconds)}</Text>
+        <Text style={styles.muted}>{isOpen ? "⌃" : "⌄"}</Text>
+      </Pressable>
+      {isOpen && (
+        <View style={styles.stepsList}>
+          {steps.map((step) => (
+            <Text key={step.id} style={styles.stepText}>
+              {step.text.trim()}
+            </Text>
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
+
+/** The label of what a working thread is on: its latest step, or a plain word before the first. */
+export const workingLabelOf = (steps: ReadonlyArray<Message>) => {
+  const latest = steps.at(-1);
+  return latest === undefined ? "Working…" : `${stepLabelOf(latest.text)}`;
+};
+
 /** The label above a message: none for the owner's own unless it waits for the next turn. */
 const senderLabelOf = (message: Message) => {
   if (message.sender === "user") return message.isQueued ? "Queued for the next turn" : null;
@@ -103,6 +154,7 @@ const senderLabelOf = (message: Message) => {
 /** One message: the agent's reply with its provider's mark, or the owner's and another thread's as a card. */
 function MessageBubble({
   client,
+  fromQuest,
   harness,
   links,
   message,
@@ -111,6 +163,8 @@ function MessageBubble({
   workspacePath,
 }: {
   client: ServiceClient;
+  /** The quest a report came from, which its card opens by a small button at its corner. */
+  fromQuest: MissionId | null;
   harness: HarnessName;
   links: ReadonlyArray<QuestLink>;
   message: Message;
@@ -136,7 +190,7 @@ function MessageBubble({
   const sender = senderLabelOf(message);
   return (
     <View style={[styles.messageRow, message.sender === "user" && styles.messageRowUser]}>
-      <View style={[styles.messageCard, cardStyles[message.sender]]}>
+      <View style={[styles.messageCard, cardStyles[message.sender], fromQuest !== null && styles.cardWithCorner]}>
         {/* The owner's own messages need no label, as in a chat; a queued one says it waits. */}
         {sender !== null && <Text style={styles.senderName}>{sender}</Text>}
         {message.sender === "user" ? (
@@ -147,6 +201,16 @@ function MessageBubble({
           <Markdown text={message.text} />
         )}
         <MessageImages cards={message.attachments} client={client} />
+        {fromQuest !== null && (
+          <Pressable
+            accessibilityLabel={`Open quest: ${message.fromTitle ?? ""}`}
+            accessibilityRole="button"
+            onPress={() => onOpenMission(fromQuest)}
+            style={({ pressed }) => [styles.cardCornerButton, pressed && styles.questButtonPressed]}
+          >
+            <RowIcon name="external" tint={colors.text} />
+          </Pressable>
+        )}
       </View>
     </View>
   );
@@ -185,6 +249,7 @@ export function EntryView({
       </View>
     );
   }
+  if (entry._tag === "Steps") return <StepsGroup seconds={entry.seconds} steps={entry.steps} />;
   if (entry._tag === "QuestLink")
     return (
       <View style={styles.replyLinks}>
@@ -228,6 +293,7 @@ export function EntryView({
   return (
     <MessageBubble
       client={client}
+      fromQuest={entry.fromQuest}
       harness={harness}
       links={entry.links}
       message={entry.message}

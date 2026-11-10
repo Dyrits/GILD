@@ -27,6 +27,7 @@
 
 ## Handoffs
 
+To resume steps instead of update lines (CHG-0113, committed on branch `one-side-panel`; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1355-steps-instead-of-updates.md). Handoffs are shared and committed.
 To resume the harness update in the Charter (CHG-0110, pushed to `main`; a real update and the owner's look remain), read the [current handoff](.agents/handoffs/2026-11-10-1330-harness-update.md). Handoffs are shared and committed.
 To resume the one side panel (grouped as Companions, Knows, and Does; backup companions with a default list in the Charter; CHG-0111 on `main`, CHG-0112 committed on branch `one-side-panel`; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1342-backups-in-charter.md). Handoffs are shared and committed.
 To resume deleting a Ritual from its card (CHG-0108, committed on branch `ritual-delete`; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1152-ritual-delete.md). Handoffs are shared and committed.

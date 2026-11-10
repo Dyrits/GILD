@@ -45,6 +45,20 @@ export const styles = StyleSheet.create({
   },
   buttonSecondaryText: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.md, fontWeight: "500" },
   buttonText: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.md, fontWeight: "600" },
+  /** The small gold button at a card's top right corner that opens the quest it speaks of. */
+  cardCornerButton: {
+    ...ink,
+    ...cut,
+    alignItems: "center",
+    backgroundColor: colors.gold,
+    height: 34,
+    justifyContent: "center",
+    position: "absolute",
+    right: 12,
+    top: 10,
+    width: 34,
+  },
+  cardWithCorner: { paddingRight: 58 },
   chip: {
     backgroundColor: colors.control,
     borderColor: colors.border,
@@ -274,6 +288,11 @@ export const styles = StyleSheet.create({
   skillOption: { alignItems: "center", flexDirection: "row", gap: 8, paddingHorizontal: 8, paddingVertical: 4 },
   skillOptionChosen: { backgroundColor: colors.accentSoft, borderRadius: radii.sm },
   split: { flexDirection: "row", gap: 20 },
+  stepsCount: { color: colors.textSecondary, fontFamily: fonts.sans, fontSize: fontSizes.md, fontWeight: "600" },
+  /** The line that opens or closes a turn's steps, and the working indicator's row. */
+  stepsHeader: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 8, marginVertical: 6 },
+  stepsList: { borderLeftColor: colors.border, borderLeftWidth: 1, gap: 6, marginLeft: 6, paddingLeft: 12 },
+  stepText: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.md, fontStyle: "italic" },
   title: { color: colors.text, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.base, fontWeight: "500" },
   toggle: { alignItems: "center", flexDirection: "row", gap: 10, marginTop: 8 },
   tree: { flexGrow: 0 },

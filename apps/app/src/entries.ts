@@ -16,7 +16,9 @@ export type QuestLink = { key: string; label: string; missionId: MissionId; titl
 
 /** One entry of a thread's conversation, with the key the list keeps it by. */
 export type Entry = { key: string; at: number } & (
-  | { _tag: "Message"; message: Message; links: ReadonlyArray<QuestLink> }
+  | { _tag: "Message"; message: Message; links: ReadonlyArray<QuestLink>; fromQuest: MissionId | null }
+  /** The intermediate replies of one turn gathered as its steps, which the conversation folds under one line. */
+  | { _tag: "Steps"; steps: ReadonlyArray<Message>; seconds: number }
   | { _tag: "Question"; question: Question }
   | { _tag: "Suggestion"; suggestion: Suggestion }
   | { _tag: "BudgetEvent"; event: BudgetEvent }
@@ -39,30 +41,52 @@ const settledLabelOf = (suggestion: Suggestion) =>
       : suggestionLabels[suggestion.outcome ?? "Continued"];
 
 /**
+ * The agent replies that are steps, not answers: within each run of agent replies, all but the last, and all of the
+ * trailing run while the thread works, since its answer is not written yet. A reply with a link is an answer.
+ * Each group carries the seconds from what began the run to its last step.
+ */
+const stepGroupsOf = (messages: ReadonlyArray<Message>, isWorking: boolean, hasLink: (message: Message) => boolean) => {
+  const groups: Array<{ seconds: number; steps: Array<Message> }> = [];
+  let run: Array<Message> = [];
+  let before: Message | undefined;
+  const close = (isTrailing: boolean) => {
+    const steps = run.slice(0, isWorking && isTrailing ? run.length : -1).filter((reply) => !hasLink(reply));
+    const first = steps[0];
+    const last = steps.at(-1);
+    if (first !== undefined && last !== undefined)
+      groups.push({ seconds: Math.max(0, Math.round((last.sentAt - (before ?? first).sentAt) / 1000)), steps });
+    run = [];
+  };
+  for (const message of [...messages].sort((a, b) => a.sequence - b.sequence)) {
+    if (message.sender === "agent") run.push(message);
+    else {
+      close(false);
+      before = message;
+    }
+  }
+  close(true);
+  return groups;
+};
+
+/** The agent replies written since the last message of anyone else: while a thread works, the steps so far. */
+export const trailingReplies = (messages: ReadonlyArray<Message>) => {
+  const sorted = [...messages].sort((a, b) => a.sequence - b.sequence);
+  const lastOther = sorted.findLastIndex((message) => message.sender !== "agent");
+  return sorted.slice(lastOther + 1);
+};
+
+/**
  * Messages, questions, off-topic suggestions, budget lines, handovers, lore changes, and the threads opened beneath, in the order they happened.
  * An aside is left out: its suggestion line already leads to it.
- * In the Guildmaster's conversation what it opened, created, or continued, and each report from a quest, becomes a link carried by the Guildmaster's own reply to it, so its confirmation comes first and the link stands beside it.
+ * In the Guildmaster's conversation what it opened, created, or continued, becomes a link carried by the Guildmaster's own reply to it, so its confirmation comes first and the link stands beside it. A report from a quest carries its own small button.
  */
-export const entriesOf = (detail: MissionDetail): Array<Entry> => {
+export const entriesOf = (detail: MissionDetail, isWorking = false): Array<Entry> => {
   const replies = detail.messages.filter((message) => message.sender === "agent");
   /** The first reply written at or after the time. */
   const replyFrom = (time: number) => replies.find((reply) => reply.sentAt >= time);
   const isSettledByGuildmaster = (suggestion: Suggestion) =>
     suggestion.isFromGuildmaster && suggestion.outcome !== null && suggestion.outcome !== "Withdrawn";
   const links: Array<QuestLink & { at: number }> = [
-    ...detail.messages.flatMap((message) =>
-      message.sender === "thread" && message.fromMissionId !== null && message.fromMissionId !== detail.mission.id
-        ? [
-            {
-              at: message.sentAt + 1,
-              key: `link:${message.id}`,
-              label: "Open quest",
-              missionId: message.fromMissionId,
-              title: message.fromTitle ?? "",
-            },
-          ]
-        : [],
-    ),
     ...detail.suggestions.flatMap((suggestion) =>
       isSettledByGuildmaster(suggestion) && suggestion.targetMissionId !== null
         ? [
@@ -84,19 +108,34 @@ export const entriesOf = (detail: MissionDetail): Array<Entry> => {
     if (reply === undefined) waitingLinks.push({ _tag: "QuestLink", at: at + afterReply, ...link });
     else linksByReply.set(reply.id, [...(linksByReply.get(reply.id) ?? []), link]);
   }
+  const stepGroups = stepGroupsOf(detail.messages, isWorking, (message) => linksByReply.has(message.id));
+  const stepIds = new Set(stepGroups.flatMap((group) => group.steps.map((step) => step.id)));
   return [
+    ...stepGroups.map(
+      (group): Entry => ({
+        _tag: "Steps",
+        at: group.steps[0]?.sentAt ?? 0,
+        key: `steps:${group.steps[0]?.id}`,
+        seconds: group.seconds,
+        steps: group.steps,
+      }),
+    ),
     ...detail.threads
       .filter((thread) => thread.parentId === detail.thread.id && !thread.isAside)
       .map((thread): Entry => ({ _tag: "ThreadOpened", at: thread.openedAt, key: `opened:${thread.id}`, thread })),
-    ...detail.messages.map(
-      (message): Entry => ({
-        _tag: "Message",
-        at: message.sentAt,
-        key: message.id,
-        links: linksByReply.get(message.id) ?? [],
-        message,
-      }),
-    ),
+    ...detail.messages
+      .filter((message) => !stepIds.has(message.id))
+      .map(
+        (message): Entry => ({
+          _tag: "Message",
+          at: message.sentAt,
+          fromQuest:
+            message.sender === "thread" && message.fromMissionId !== detail.mission.id ? message.fromMissionId : null,
+          key: message.id,
+          links: linksByReply.get(message.id) ?? [],
+          message,
+        }),
+      ),
     ...waitingLinks,
     ...detail.questions.map(
       (question): Entry => ({ _tag: "Question", at: question.askedAt, key: question.id, question }),

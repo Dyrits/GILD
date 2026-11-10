@@ -1645,3 +1645,23 @@ Scope: Thread panel, Charter
 Summary: At the owner's request the Charter has a **Backup companions** card, under the default harness, model, and effort, holding the list of up to five backup Companions (harness, account, model, effort, in order) that a new quest's thread starts with; a side-quest starts with a copy of its parent's list. It is the thread menu's list editor, shared (`apps/app/src/backupsEditor.tsx`), and a new `backups` setting (empty at first). Quests that began already keep their own lists.
 References: documentation/capabilities/thread-panel/specifications.md (Backup companions).
 Validation: `packages/service/test/defaultBackups.test.ts` (3) pass; typecheck and Biome pass; the full suite has only the Codex-account failure in harnesses.test.ts that was there before. Driven in a browser on the fake harness: [documentation/verification/2026-11-10-charter-backups](verification/2026-11-10-charter-backups/); add, move, remove, and reload persistence observed. Not checked: the thread menu itself drawing the shared editor (it still has its own copy), a new quest's panel in the window, and the look.
+
+## CHG-0113 · 2026-11-10 · Steps instead of lines of updates in a conversation
+
+Type: Code
+Event: Delivery
+Scope: Thread messaging, conversation
+
+Summary: At the owner's request, following OpenBot: while a thread works, the conversation shows the provider's mark with the step it is on ("Working…" before the first) instead of each intermediate reply as a line; when the turn ends, its intermediate replies fold into one group, "2 steps · 16s", opened to list each step, and only the last reply stands as the answer. A reply carrying a quest link stays visible. Steps are the agent's intermediate text replies; tool calls are not steps yet, since the service does not record them.
+References: `apps/app/src/entries.ts` (`stepGroupsOf`, `trailingReplies`), `apps/app/src/conversationEntries.tsx` (`StepsGroup`, `WorkingIndicator`).
+Validation: three new tests in `apps/app/test/entries.test.ts`; typecheck, Biome, and the app tests (117) pass. Not driven in the window; the look is pending.
+
+## CHG-0114 · 2026-11-10 · Relaunch the desktop app on service and main-process changes in development
+
+Type: Code
+Event: Delivery
+Scope: Development tooling
+
+Summary: `apps/desktop/scripts/dev.ts` rebuilds and relaunches Electron when files under `packages/contracts/src`, `packages/service/src`, or `apps/desktop/src` change (the renderer already hot-reloads through Metro); `apps/desktop/src/main.ts` quits on SIGINT and SIGTERM so the service stops with it. A relaunch stops running turns.
+References: `apps/desktop/scripts/dev.ts`, `apps/desktop/src/main.ts`.
+Validation: Biome, desktop typecheck, and desktop build pass; the relaunch path was not run live.

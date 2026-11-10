@@ -133,30 +133,45 @@ describe("links from the Guildmaster's conversation, beside its replies", () => 
     ]);
   });
 
-  it("hangs a link to the quest a report came from on the Guildmaster's reply to it", () => {
+  it("gives a report from a quest its own button, not a link on the reply", () => {
     const entries = entriesOf(guildmasterDetail([report(10), reply(30)]));
-    expect(shapeOf(entries)).toEqual(["report-10", "reply [link:report-10]"]);
-    expect(entries.at(-1)).toMatchObject({
-      links: [{ label: "Open quest", missionId: "quest-1", title: "Delete a ritual" }],
-    });
+    expect(shapeOf(entries)).toEqual(["report-10", "reply"]);
+    expect(entries[0]).toMatchObject({ fromQuest: "quest-1" });
   });
 
-  it("links a later report on the reply to that one, and none for a message with no quest of its own", () => {
-    const entries = entriesOf(
-      guildmasterDetail([
-        report(10),
-        { ...reply(30), id: "reply-1" },
-        report(40),
-        { ...reply(60), id: "reply-2" },
-        report(70, null),
-      ]),
-    );
-    expect(shapeOf(entries)).toEqual([
-      "report-10",
-      "reply-1 [link:report-10]",
-      "report-40",
-      "reply-2 [link:report-40]",
-      "report-70",
-    ]);
+  it("gives a report a button only when it names a quest of its own", () => {
+    const entries = entriesOf(guildmasterDetail([report(10), report(40, null)]));
+    expect(entries.map((entry) => (entry._tag === "Message" ? entry.fromQuest : "other"))).toEqual(["quest-1", null]);
+  });
+});
+
+describe("a turn's intermediate replies, folded as steps", () => {
+  const turn = (messages: ReadonlyArray<object>) =>
+    ({
+      budgetEvents: [],
+      handovers: [],
+      loreChanges: [],
+      messages: messages.map((entry, sequence) => ({ sequence, ...entry })),
+      questions: [],
+      suggestions: [],
+      thread: { id: "top" },
+      threads: [],
+    }) as unknown as MissionDetail;
+  const owner = (sentAt: number) => ({ id: `owner-${sentAt}`, sender: "user", sentAt, text: "Go" });
+  const agent = (sentAt: number) => ({ id: `agent-${sentAt}`, sender: "agent", sentAt, text: "Step" });
+
+  it("folds all but the last reply of a finished turn and keeps the last as the answer", () => {
+    const entries = entriesOf(turn([owner(0), agent(4000), agent(16000), agent(20000)]));
+    expect(entries.map((entry) => entry.key)).toEqual(["owner-0", "steps:agent-4000", "agent-20000"]);
+    expect(entries[1]).toMatchObject({ _tag: "Steps", seconds: 16 });
+  });
+
+  it("folds every reply while the thread still works, since no answer is written yet", () => {
+    const entries = entriesOf(turn([owner(0), agent(4000), agent(9000)]), true);
+    expect(entries.map((entry) => entry._tag)).toEqual(["Message", "Steps"]);
+  });
+
+  it("leaves a lone reply of a finished turn as it is", () => {
+    expect(entriesOf(turn([owner(0), agent(4000)])).map((entry) => entry._tag)).toEqual(["Message", "Message"]);
   });
 });

@@ -14,8 +14,8 @@ import { BackupsScreen } from "./backups";
 import { BudgetScreen, BudgetStopCard } from "./budgets";
 import { newRequestId, type ServiceClient } from "./client";
 import { Composer, StateBadge } from "./controls";
-import { AgentReply, EntryView } from "./conversationEntries";
-import { type Entry, entriesOf } from "./entries";
+import { AgentReply, EntryView, WorkingIndicator, workingLabelOf } from "./conversationEntries";
+import { type Entry, entriesOf, trailingReplies } from "./entries";
 import { companionLabelOf, effortLabel, harnessLabels, modelLabelOf } from "./formatting";
 import { JournalScreen } from "./journal";
 import { LoreIcon, LoreScreen } from "./lore";
@@ -192,11 +192,15 @@ function ThreadPane({
       <FlatList<Entry>
         {...followNewest.listProps}
         contentContainerStyle={styles.feed}
-        data={entriesOf(detail)}
+        data={entriesOf(detail, thread.actions.isInTurn)}
         keyExtractor={(entry) => entry.key}
         ListFooterComponent={
           draft === "" ? (
-            void 0
+            thread.actions.isInTurn ? (
+              <WorkingIndicator harness={thread.harness} label={workingLabelOf(trailingReplies(detail.messages))} />
+            ) : (
+              void 0
+            )
           ) : (
             <AgentReply
               harness={thread.harness}

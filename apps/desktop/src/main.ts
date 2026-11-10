@@ -13,6 +13,8 @@ const appUrl = process.env.GILD_APP_URL ?? "http://localhost:8081";
 const dataDirectory = () => process.env.GILD_DATA_DIR ?? app.getPath("userData");
 
 app.setName("Gild");
+// A stop signal quits through the usual path, so will-quit stops the service too (dev.ts relaunches with it).
+for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, () => app.quit());
 
 // Runs before Electron creates the new user-data folder at ready, so an install from before the rename keeps its data.
 const formerDataMoved = Promise.resolve().then(() => {

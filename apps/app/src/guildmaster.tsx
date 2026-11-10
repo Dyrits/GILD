@@ -6,8 +6,8 @@ import { BudgetScreen, BudgetStopCard } from "./budgets";
 import { newRequestId, type ServiceClient } from "./client";
 import { Composer, StateBadge } from "./controls";
 import { useDraft, useFollowNewest } from "./conversation";
-import { AgentReply, EntryView } from "./conversationEntries";
-import { type Entry, entriesOf } from "./entries";
+import { AgentReply, EntryView, WorkingIndicator, workingLabelOf } from "./conversationEntries";
+import { type Entry, entriesOf, trailingReplies } from "./entries";
 import { companionLabelOf, harnessLabels } from "./formatting";
 import { allMissions } from "./queries";
 import { budgetValueOf } from "./questPanel";
@@ -119,7 +119,7 @@ function GuildmasterChat({
     );
   }
   const { thread } = detail;
-  const entries = entriesOf(detail);
+  const entries = entriesOf(detail, detail.thread.actions.isInTurn);
   const send = (text: string, attachmentIds: ReadonlyArray<AttachmentId>) => {
     followNewest.follow();
     return client.request({
@@ -188,7 +188,11 @@ function GuildmasterChat({
           keyExtractor={(entry) => entry.key}
           ListFooterComponent={
             draft === "" ? (
-              void 0
+              thread.actions.isInTurn ? (
+                <WorkingIndicator harness={thread.harness} label={workingLabelOf(trailingReplies(detail.messages))} />
+              ) : (
+                void 0
+              )
             ) : (
               <AgentReply
                 harness={thread.harness}
