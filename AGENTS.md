@@ -27,6 +27,7 @@
 
 ## Handoffs
 
+To resume the Workshop (Settings) redone from the owner's mockup with provider logos (CHG-0101; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-0950-workshop-settings.md). Handoffs are shared and committed.
 To resume Rituals as a place apart from the quests (CHG-0100, pushed to `main`; the look and a Ritual firing on a live harness await the owner), read the [current handoff](.agents/handoffs/2026-11-10-0914-rituals-place.md). Handoffs are shared and committed.
 To resume thread handover (changing harness, account, and model in the middle of a quest; pushed to `main`; the look and a live handover await the owner), read the [current handoff](.agents/handoffs/2026-11-10-0800-thread-handover.md). Handoffs are shared and committed.
 To resume the Quest tree menu restyle and the conversation cards (committed and pushed to `main`; the look of both awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-0736-quest-tree-menu.md). Handoffs are shared and committed.

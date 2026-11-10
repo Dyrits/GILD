@@ -648,3 +648,4 @@ Rituals batch (CHG-0098): scheduled runs in a quest of their own, with an ordere
 
 Rituals place (CHG-0100): Rituals leave the quest board for a place of their own, with a rail category, a screen of cards, and a compact form; typecheck, lint, and 500 tests pass; driven in the web export on the fake harness; the look awaits the owner ([proof](verification/2026-11-10-rituals.md)).
 
+Workshop batch (CHG-0101): the settings page as the owner's mockup, with provider logos and a pinned Settings guide; format, typecheck, lint, and 505 tests pass; driven in the web export on the fake harness; the look awaits the owner ([proof](verification/2026-11-10-workshop.md)).

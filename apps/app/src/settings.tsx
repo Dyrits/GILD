@@ -4,17 +4,31 @@ import {
   type MessageDelivery,
   type Settings,
 } from "@gild/contracts";
-import { useState } from "react";
-import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
-import { AccountsSection } from "./accounts";
+import { type ReactNode, useRef, useState } from "react";
+import {
+  type NativeScrollEvent,
+  type NativeSyntheticEvent,
+  Pressable,
+  ScrollView,
+  type ScrollViewInstance,
+  StyleSheet,
+  Text,
+  TextInput,
+  View,
+} from "react-native";
+import { AccountsCard, HarnessesCard } from "./accounts";
 import { BudgetEditor } from "./budgets";
 import type { ServiceClient } from "./client";
 import { Toggle } from "./controls";
+import { GoldButton } from "./parchment";
 import { levelLabels } from "./permissions";
 import { Choice } from "./pickers";
 import { RunnerPickers, useHarnesses } from "./runners";
-import { useHasSidebar } from "./sidebar";
+import { SettingsCard, SettingsGuide, SettingsHeading, SettingsMenu, SettingsRule } from "./settingsParts";
+import { activeSectionOf, type SettingsSectionId } from "./settingsSections";
+import { useHasSidebar, useQuestPanel } from "./sidebar";
 import { styles } from "./styles";
+import { colors, fontSizes, fonts } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
 
 // Stored and wire names keep `intel` so existing data and agents still work: settings keys (`intelHalfLives`, `intelWarningPercent`).
@@ -25,8 +39,8 @@ const deliveryLabels = {
   Steer: "Steer its current turn",
 } as const satisfies Record<MessageDelivery, string>;
 
-/** A whole-number setting with its own Save, checked against its minimum before saving. */
-function NumberSetting({
+/** A whole-number field with its own Save, checked against its minimum before saving. */
+function NumberField({
   label,
   minimum,
   value,
@@ -41,34 +55,72 @@ function NumberSetting({
 }) {
   const [draft, setDraft] = useState<string | null>(null);
   return (
-    <View>
-      <Text style={styles.label}>{label}</Text>
-      <View style={styles.inlineRow}>
-        <TextInput
-          accessibilityLabel={label}
-          keyboardType="number-pad"
-          onChangeText={setDraft}
-          style={styles.input}
-          value={draft ?? String(value)}
-        />
-        <Pressable
-          onPress={() => {
-            const parsed = Number(draft ?? value);
-            if (!Number.isSafeInteger(parsed) || parsed < minimum) {
-              onInvalid(`Use a whole number of at least ${minimum}.`);
-              return;
-            }
-            onSave(parsed);
-          }}
-        >
-          <Text style={styles.link}>Save</Text>
-        </Pressable>
-      </View>
+    <View style={styles.inlineRow}>
+      <TextInput
+        accessibilityLabel={label}
+        keyboardType="number-pad"
+        onChangeText={setDraft}
+        style={[styles.input, local.number]}
+        value={draft ?? String(value)}
+      />
+      <GoldButton
+        label="Save"
+        onPress={() => {
+          const parsed = Number(draft ?? value);
+          if (!Number.isSafeInteger(parsed) || parsed < minimum) {
+            onInvalid(`Use a whole number of at least ${minimum}.`);
+            return;
+          }
+          onSave(parsed);
+        }}
+      />
     </View>
   );
 }
 
-/** The Settings page, where the owner chooses how Gild runs their threads. */
+/** A labelled whole-number setting, as one row of a card that holds several. */
+function NumberSetting(props: Parameters<typeof NumberField>[0]) {
+  return (
+    <View style={local.settingRow}>
+      <Text style={[styles.body, styles.flex, local.settingLabel]}>{props.label}</Text>
+      <NumberField {...props} />
+    </View>
+  );
+}
+
+/** An on and off switch with its words. */
+function ToggleRow({ label, onChange, value }: { label: string; onChange: (value: boolean) => void; value: boolean }) {
+  return (
+    <View style={local.toggleRow}>
+      <Toggle onValueChange={onChange} value={value} />
+      <Text style={[styles.body, local.toggleLabel]}>{label}</Text>
+    </View>
+  );
+}
+
+/** One section of the page: its cards, with its top measured for the menu to scroll to and to mark. */
+function Section({
+  children,
+  id,
+  tops,
+}: {
+  children: ReactNode;
+  id: SettingsSectionId;
+  tops: { current: Partial<Record<SettingsSectionId, number>> };
+}) {
+  return (
+    <View
+      onLayout={(event) => {
+        tops.current[id] = event.nativeEvent.layout.y;
+      }}
+      style={local.section}
+    >
+      {children}
+    </View>
+  );
+}
+
+/** The Workshop (Settings), where the owner chooses how Gild runs their threads. */
 export function SettingsScreen({
   client,
   onBack,
@@ -82,6 +134,11 @@ export function SettingsScreen({
   const { data: settings, error } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
   const [saveError, setSaveError] = useState<string | null>(null);
   const harnesses = useHarnesses(client);
+  const scroll = useRef<ScrollViewInstance>(null);
+  const tops = useRef<Partial<Record<SettingsSectionId, number>>>({});
+  const [active, setActive] = useState<SettingsSectionId>("permissions");
+  // The guide goes to the window's frame, where a narrow window has no room for it.
+  useQuestPanel(hasSidebar && <SettingsGuide />, "Settings guide");
   const save = (change: Partial<Settings>) => {
     if (settings === null) return;
     client.request({ _tag: "UpdateSettings", settings: { ...settings, ...change } }).then(
@@ -89,172 +146,225 @@ export function SettingsScreen({
       (reason: Error) => setSaveError(reason.message),
     );
   };
+  const mark = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
+    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
+    setActive(
+      activeSectionOf({
+        isAtEnd: contentOffset.y + layoutMeasurement.height >= contentSize.height - 4,
+        scrollTop: contentOffset.y,
+        tops: tops.current,
+      }),
+    );
+  };
+  const choose = (id: SettingsSectionId) => {
+    setActive(id);
+    scroll.current?.scrollTo({ animated: true, y: Math.max(0, (tops.current[id] ?? 0) - 4) });
+  };
+  const menu = <SettingsMenu active={active} isCompact={!hasSidebar} onChoose={choose} />;
   return (
-    <ScrollView contentContainerStyle={styles.screen}>
-      <View style={styles.header}>
+    <View style={[local.page, hasSidebar && local.pageWide]}>
+      {hasSidebar && <View style={local.menuColumn}>{menu}</View>}
+      <ScrollView
+        contentContainerStyle={local.content}
+        onScroll={mark}
+        ref={scroll}
+        scrollEventThrottle={50}
+        style={styles.flex}
+      >
         {!hasSidebar && (
           <Pressable onPress={onBack}>
-            <Text style={styles.link}>← Quests</Text>
+            <Text style={[styles.link, local.back]}>← Quests</Text>
           </Pressable>
         )}
-        {!hasSidebar && <Text style={styles.heading}>Workshop</Text>}
-      </View>
-      {error !== null && <Text style={styles.error}>{error}</Text>}
-      {saveError !== null && <Text style={styles.error}>{saveError}</Text>}
-      {settings && (
-        <View style={styles.settings}>
-          <Pressable onPress={onPermissions} style={styles.row}>
-            <Text style={[styles.body, styles.flex]}>Permissions · {levelLabels[settings.approvalLevel]}</Text>
-            <Text style={styles.link}>›</Text>
-          </Pressable>
-          <Text style={styles.label}>Default harness, model, and effort before your first quest</Text>
-          <RunnerPickers
-            harnesses={harnesses.data}
-            isAccountShown={false}
-            isCompact={false}
-            onChange={(runner) =>
-              save({ defaultEffort: runner.effort, defaultHarness: runner.harness, defaultModel: runner.model })
-            }
-            // The account is chosen per mission; new missions otherwise start as the last one did.
-            value={{
-              accountId: null,
-              effort: settings.defaultEffort,
-              harness: settings.defaultHarness,
-              model: settings.defaultModel,
-            }}
-          />
-          <AccountsSection
-            client={client}
-            harnesses={harnesses.data}
-            onChanged={harnesses.setData}
-            onRefresh={harnesses.refresh}
-          />
-          <Text style={styles.label}>Send, while work is underway</Text>
-          <Choice
-            label={(delivery) => deliveryLabels[delivery]}
-            onChange={(defaultDelivery) => save({ defaultDelivery })}
-            options={MessageDeliveries.literals}
-            value={settings.defaultDelivery}
-          />
-          <View style={styles.toggle}>
-            <Toggle
-              onValueChange={(shouldShowAgentThreads) => save({ shouldShowAgentThreads })}
-              value={settings.shouldShowAgentThreads}
-            />
-            <Text style={styles.body}>Show side-quests opened by agents</Text>
-          </View>
-          <NumberSetting
-            label="Chatter guard · messages between quests and side-quests"
-            minimum={2}
-            onInvalid={setSaveError}
-            onSave={(chatterThreshold) => save({ chatterThreshold })}
-            value={settings.chatterThreshold}
-          />
-          <NumberSetting
-            label="Briefing limit · tokens a quest's briefing may hold"
-            minimum={1}
-            onInvalid={setSaveError}
-            onSave={(briefingLimit) => save({ briefingLimit })}
-            value={settings.briefingLimit}
-          />
-          <NumberSetting
-            label="Lore warning · percent of a model's context window before a quest or side-quest's lore icon turns red"
-            minimum={1}
-            onInvalid={setSaveError}
-            onSave={(intelWarningPercent) => save({ intelWarningPercent: Math.min(intelWarningPercent, 100) })}
-            value={settings.intelWarningPercent}
-          />
-          <NumberSetting
-            label="Lore half-life · days for an unused preference lore to fade by half"
-            minimum={1}
-            onInvalid={setSaveError}
-            onSave={(preference) => save({ intelHalfLives: { ...settings.intelHalfLives, preference } })}
-            value={settings.intelHalfLives.preference}
-          />
-          <NumberSetting
-            label="Lore half-life · days for an unused decision lore to fade by half"
-            minimum={1}
-            onInvalid={setSaveError}
-            onSave={(decision) => save({ intelHalfLives: { ...settings.intelHalfLives, decision } })}
-            value={settings.intelHalfLives.decision}
-          />
-          <NumberSetting
-            label="Lore half-life · days for an unused fact lore to fade by half"
-            minimum={1}
-            onInvalid={setSaveError}
-            onSave={(fact) => save({ intelHalfLives: { ...settings.intelHalfLives, fact } })}
-            value={settings.intelHalfLives.fact}
-          />
-          <NumberSetting
-            label="Lore half-life · days for an unused temporary lore to fade by half"
-            minimum={1}
-            onInvalid={setSaveError}
-            onSave={(temporary) => save({ intelHalfLives: { ...settings.intelHalfLives, temporary } })}
-            value={settings.intelHalfLives.temporary}
-          />
-          <NumberSetting
-            label="Ask about a quest after this many days without activity"
-            minimum={1}
-            onInvalid={setSaveError}
-            onSave={(inactivityDays) => save({ inactivityDays })}
-            value={settings.inactivityDays}
-          />
-          <View style={styles.toggle}>
-            <Toggle
-              onValueChange={(shouldAutoArchive) => save({ shouldAutoArchive })}
-              value={settings.shouldAutoArchive}
-            />
-            <Text style={styles.body}>Archive done quests automatically</Text>
-          </View>
-          <View style={styles.toggle}>
-            <Toggle
-              onValueChange={(shouldOpenOffTopicMissions) => save({ shouldOpenOffTopicMissions })}
-              value={settings.shouldOpenOffTopicMissions}
-            />
-            <Text style={styles.body}>
-              Open an off-topic message as a new quest without asking when no other quest fits
-            </Text>
-          </View>
-          <NumberSetting
-            label="Days after a quest is marked done before it is archived"
-            minimum={1}
-            onInvalid={setSaveError}
-            onSave={(autoArchiveDays) => save({ autoArchiveDays })}
-            value={settings.autoArchiveDays}
-          />
-          <View style={styles.toggle}>
-            <Toggle
-              onValueChange={(shouldStreamReplies) => save({ shouldStreamReplies })}
-              value={settings.shouldStreamReplies}
-            />
-            <Text style={styles.body}>Show replies as they're written</Text>
-          </View>
-          <Text style={styles.label}>Default budget for new quests</Text>
-          <BudgetEditor
-            key={`default:${JSON.stringify(settings.defaultMissionBudget)}`}
-            limits={settings.defaultMissionBudget}
-            onSave={(defaultMissionBudget) =>
-              client.request({ _tag: "UpdateSettings", settings: { ...settings, defaultMissionBudget } })
-            }
-            saveLabel="Save default"
-          />
-          <Text style={styles.label}>Global budget, over the period</Text>
-          <Choice
-            label={(period) => period}
-            onChange={(globalBudgetPeriod) => save({ globalBudgetPeriod })}
-            options={BudgetPeriod.literals}
-            value={settings.globalBudgetPeriod}
-          />
-          <BudgetEditor
-            key={`global:${JSON.stringify(settings.globalBudget)}`}
-            limits={settings.globalBudget}
-            onSave={(globalBudget) =>
-              client.request({ _tag: "UpdateSettings", settings: { ...settings, globalBudget } })
-            }
-            saveLabel="Save global budget"
-          />
-        </View>
-      )}
-    </ScrollView>
+        <SettingsHeading />
+        {!hasSidebar && menu}
+        {error !== null && <Text style={local.error}>{error}</Text>}
+        {saveError !== null && <Text style={local.error}>{saveError}</Text>}
+        {settings && (
+          <>
+            <Section id="permissions" tops={tops}>
+              <SettingsCard
+                icon="shield"
+                onPress={onPermissions}
+                summary={levelLabels[settings.approvalLevel]}
+                title="Permissions"
+              />
+            </Section>
+            <Section id="defaults" tops={tops}>
+              <SettingsCard icon="sliders" title="Default harness, model, and effort before your first quest">
+                <RunnerPickers
+                  harnesses={harnesses.data}
+                  isAccountShown={false}
+                  isCompact={false}
+                  onChange={(runner) =>
+                    save({ defaultEffort: runner.effort, defaultHarness: runner.harness, defaultModel: runner.model })
+                  }
+                  // The account is chosen per mission; new missions otherwise start as the last one did.
+                  value={{
+                    accountId: null,
+                    effort: settings.defaultEffort,
+                    harness: settings.defaultHarness,
+                    model: settings.defaultModel,
+                  }}
+                />
+              </SettingsCard>
+              <SettingsCard icon="hourglass" title="Quest upkeep">
+                <NumberSetting
+                  label="Ask about a quest after this many days without activity"
+                  minimum={1}
+                  onInvalid={setSaveError}
+                  onSave={(inactivityDays) => save({ inactivityDays })}
+                  value={settings.inactivityDays}
+                />
+                <SettingsRule />
+                <ToggleRow
+                  label="Archive done quests automatically"
+                  onChange={(shouldAutoArchive) => save({ shouldAutoArchive })}
+                  value={settings.shouldAutoArchive}
+                />
+                <NumberSetting
+                  label="Days after a quest is marked done before it is archived"
+                  minimum={1}
+                  onInvalid={setSaveError}
+                  onSave={(autoArchiveDays) => save({ autoArchiveDays })}
+                  value={settings.autoArchiveDays}
+                />
+                <SettingsRule />
+                <ToggleRow
+                  label="Open an off-topic message as a new quest without asking when no other quest fits"
+                  onChange={(shouldOpenOffTopicMissions) => save({ shouldOpenOffTopicMissions })}
+                  value={settings.shouldOpenOffTopicMissions}
+                />
+                <ToggleRow
+                  label="Show replies as they're written"
+                  onChange={(shouldStreamReplies) => save({ shouldStreamReplies })}
+                  value={settings.shouldStreamReplies}
+                />
+              </SettingsCard>
+              <SettingsCard icon="gem" title="Default budget for new quests">
+                <BudgetEditor
+                  key={`default:${JSON.stringify(settings.defaultMissionBudget)}`}
+                  limits={settings.defaultMissionBudget}
+                  onSave={(defaultMissionBudget) =>
+                    client.request({ _tag: "UpdateSettings", settings: { ...settings, defaultMissionBudget } })
+                  }
+                  saveLabel="Save default"
+                />
+              </SettingsCard>
+            </Section>
+            <Section id="harnesses" tops={tops}>
+              <HarnessesCard harnesses={harnesses.data} onRefresh={harnesses.refresh} />
+            </Section>
+            <Section id="accounts" tops={tops}>
+              <AccountsCard client={client} harnesses={harnesses.data} onChanged={harnesses.setData} />
+            </Section>
+            <Section id="messaging" tops={tops}>
+              <SettingsCard
+                icon="hourglass"
+                title="Send, while work is underway"
+                trailing={
+                  <Choice
+                    label={(delivery) => deliveryLabels[delivery]}
+                    onChange={(defaultDelivery) => save({ defaultDelivery })}
+                    options={MessageDeliveries.literals}
+                    value={settings.defaultDelivery}
+                  />
+                }
+              >
+                <ToggleRow
+                  label="Show side-quests opened by agents"
+                  onChange={(shouldShowAgentThreads) => save({ shouldShowAgentThreads })}
+                  value={settings.shouldShowAgentThreads}
+                />
+              </SettingsCard>
+              <SettingsCard
+                icon="chat"
+                title="Chatter guard · messages between quests and side-quests"
+                trailing={
+                  <NumberField
+                    label="Chatter guard · messages between quests and side-quests"
+                    minimum={2}
+                    onInvalid={setSaveError}
+                    onSave={(chatterThreshold) => save({ chatterThreshold })}
+                    value={settings.chatterThreshold}
+                  />
+                }
+              />
+            </Section>
+            <Section id="limits" tops={tops}>
+              <SettingsCard
+                icon="layers"
+                title="Briefing limit · tokens a quest's briefing may hold"
+                trailing={
+                  <NumberField
+                    label="Briefing limit · tokens a quest's briefing may hold"
+                    minimum={1}
+                    onInvalid={setSaveError}
+                    onSave={(briefingLimit) => save({ briefingLimit })}
+                    value={settings.briefingLimit}
+                  />
+                }
+              />
+              <SettingsCard
+                icon="scroll"
+                title="Lore warning · percent of a model's context window before a quest or side-quest's lore icon turns red"
+                trailing={
+                  <NumberField
+                    label="Lore warning · percent of a model's context window before a quest or side-quest's lore icon turns red"
+                    minimum={1}
+                    onInvalid={setSaveError}
+                    onSave={(intelWarningPercent) => save({ intelWarningPercent: Math.min(intelWarningPercent, 100) })}
+                    value={settings.intelWarningPercent}
+                  />
+                }
+              />
+              <SettingsCard icon="hourglass" title="Lore half-life · days for an unused lore to fade by half">
+                {(["preference", "decision", "fact", "temporary"] as const).map((kind) => (
+                  <NumberSetting
+                    key={kind}
+                    label={`Lore half-life · days for an unused ${kind} lore to fade by half`}
+                    minimum={1}
+                    onInvalid={setSaveError}
+                    onSave={(days) => save({ intelHalfLives: { ...settings.intelHalfLives, [kind]: days } })}
+                    value={settings.intelHalfLives[kind]}
+                  />
+                ))}
+              </SettingsCard>
+              <SettingsCard icon="gem" title="Global budget, over the period">
+                <Choice
+                  label={(period) => period}
+                  onChange={(globalBudgetPeriod) => save({ globalBudgetPeriod })}
+                  options={BudgetPeriod.literals}
+                  value={settings.globalBudgetPeriod}
+                />
+                <BudgetEditor
+                  key={`global:${JSON.stringify(settings.globalBudget)}`}
+                  limits={settings.globalBudget}
+                  onSave={(globalBudget) =>
+                    client.request({ _tag: "UpdateSettings", settings: { ...settings, globalBudget } })
+                  }
+                  saveLabel="Save global budget"
+                />
+              </SettingsCard>
+            </Section>
+          </>
+        )}
+      </ScrollView>
+    </View>
   );
 }
+
+const local = StyleSheet.create({
+  back: { color: colors.goldHi },
+  content: { gap: 18, paddingHorizontal: 28, paddingVertical: 20 },
+  error: { color: colors.goldHi, fontFamily: fonts.sans, fontSize: fontSizes.md },
+  menuColumn: { paddingLeft: 20, paddingTop: 20 },
+  number: { textAlign: "center", width: 96 },
+  page: { backgroundColor: colors.wood, flex: 1 },
+  pageWide: { flexDirection: "row" },
+  section: { gap: 14 },
+  settingLabel: { minWidth: 200 },
+  settingRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 12 },
+  toggleLabel: { flexShrink: 1 },
+  toggleRow: { alignItems: "center", flexDirection: "row", gap: 10 },
+});

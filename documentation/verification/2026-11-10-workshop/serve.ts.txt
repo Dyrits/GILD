@@ -1,0 +1,19 @@
+import { join } from "node:path";
+import { Effect, Layer } from "effect";
+import { fakeHarnessLayer, fakeHarnessToolsLayer, serveLoopback, serviceLayer } from "./src/index.ts";
+
+const dir = process.env.GILD_DATA_DIR ?? "/tmp/gild-handover";
+const layer = serviceLayer({
+  accountsRoot: join(dir, "accounts"),
+  filename: join(dir, "gild.sqlite"),
+  harness: fakeHarnessLayer("800 millis"),
+  harnessTools: fakeHarnessToolsLayer(),
+  homeFolder: dir,
+  scratchRoot: join(dir, "missions"),
+});
+const program = Effect.gen(function* () {
+  const { port } = yield* serveLoopback({ port: 0, token: "t" });
+  console.log(`ENDPOINT ws://127.0.0.1:${port}/?token=t`);
+  return yield* Effect.never;
+}).pipe(Effect.scoped, Effect.provide(Layer.fresh(layer)));
+Effect.runFork(program);

@@ -1,5 +1,14 @@
 import type { MissionId, MissionSummary, Crest as RealmCrest, Ritual, WorkspaceId } from "@gild/contracts";
-import { type ComponentRef, createContext, type ReactNode, useContext, useEffect, useRef, useState } from "react";
+import {
+  type ComponentRef,
+  createContext,
+  type ReactNode,
+  useCallback,
+  useContext,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import {
   PanResponder,
   Platform,
@@ -47,16 +56,16 @@ const TopBarShown = createContext(false);
 /** Whether the window has a top bar, so a screen can leave out what the bar's icons already offer. */
 export const useHasTopBar = () => useContext(TopBarShown);
 
-const QuestPanelSetter = createContext<(panel: ReactNode) => void>(() => {});
+const QuestPanelSetter = createContext<(panel: ReactNode, title: string) => void>(() => {});
 
 /**
  * Hands the window's frame the quest's side panel, which it shows beside the top bar's icon, spanning the window's
  * height. The panel leaves with the screen that gave it. The frame redraws without the screen, so this cannot loop.
  */
-export const useQuestPanel = (panel: ReactNode) => {
+export const useQuestPanel = (panel: ReactNode, title = "Quest") => {
   const set = useContext(QuestPanelSetter);
-  useEffect(() => set(panel));
-  useEffect(() => () => set(null), [set]);
+  useEffect(() => set(panel, title));
+  useEffect(() => () => set(null, "Quest"), [set]);
 };
 
 /** The quest's side panel as the top bar offers it: whether it shows, and how to show or hide it. */
@@ -829,11 +838,14 @@ function QuestColumn({
   children,
   isWide,
   onClose,
+  title,
 }: {
   children: ReactNode;
   isWide: boolean;
   /** Hides the panel; none when the panel is pinned open. */
   onClose: (() => void) | null;
+  /** The panel's name in its top bar: Quest, or what another screen gave it. */
+  title: string;
 }) {
   return (
     <View style={isWide ? local.questColumn : local.questColumnNarrow}>
@@ -848,7 +860,7 @@ function QuestColumn({
             <Text style={local.questClose}>✕</Text>
           </Pressable>
         )}
-        <Text style={[local.crumbText, local.crumbCurrent, onClose === null && local.crumbPinned]}>Quest</Text>
+        <Text style={[local.crumbText, local.crumbCurrent, onClose === null && local.crumbPinned]}>{title}</Text>
       </View>
       <View style={local.questBody}>{children}</View>
     </View>
@@ -869,6 +881,11 @@ export function Shell(
   const [isCollapsed, setIsCollapsed] = useState(readCollapsed);
   const [railWidth, setRailWidth] = useState(readRailWidth);
   const [questPanel, setQuestPanel] = useState<ReactNode>(null);
+  const [panelTitle, setPanelTitle] = useState("Quest");
+  const setPanel = useCallback((panel: ReactNode, title: string) => {
+    setQuestPanel(panel);
+    setPanelTitle(title);
+  }, []);
   const { data } = useServiceQuery(props.client, allMissions.request, allMissions.key);
   const hasRail = width >= sidebarBreakpoint;
   const [tip, setTip] = useState<RailTip | null>(null);
@@ -907,7 +924,7 @@ export function Shell(
   const { details } = props;
   const isPanelShown = details?.isOpen === true && questPanel !== null;
   const panelColumn = isPanelShown && details !== null && (
-    <QuestColumn isWide={hasRail} onClose={details.isPinned === true ? null : details.onToggle}>
+    <QuestColumn isWide={hasRail} onClose={details.isPinned === true ? null : details.onToggle} title={panelTitle}>
       {questPanel}
     </QuestColumn>
   );
@@ -915,7 +932,7 @@ export function Shell(
   // open quest panel takes the content's place; the content stays mounted, so the open thread is kept.
   if (!hasRail) {
     return (
-      <QuestPanelSetter.Provider value={setQuestPanel}>
+      <QuestPanelSetter.Provider value={setPanel}>
         <TopBarShown.Provider value={hasOwnTitleBar}>
           <View style={local.narrow}>
             {hasOwnTitleBar && <TopBar client={props.client} crumbs={crumbs} details={details} />}
@@ -927,7 +944,7 @@ export function Shell(
     );
   }
   return (
-    <QuestPanelSetter.Provider value={setQuestPanel}>
+    <QuestPanelSetter.Provider value={setPanel}>
       <SidebarShown.Provider value={true}>
         <TopBarShown.Provider value={true}>
           <RailTipSetter.Provider value={setTip}>

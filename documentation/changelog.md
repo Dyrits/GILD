@@ -1507,3 +1507,13 @@ References: documentation/capabilities/rituals/specifications.md, packages/contr
 Validation: format, typecheck, lint, and tests pass (500 passed, 10 skipped); the listing test fails without the quest-list exclusion; driven in the web export on the fake harness ([proof](verification/2026-11-10-rituals.md)).
 Evidence: Baseline `9e6e2e3`; not proven: the look, which awaits the owner, the rail with many Rituals, and the narrow window (no rail).
 
+## CHG-0101 · 2026-11-10 · The Workshop follows the owner's mockup, with provider logos
+
+Type: Code
+Event: Delivery
+Scope: Settings
+
+Summary: The owner supplied a mockup of the settings page and asked for it, with each provider's logo in place of its crest. The Workshop (Settings keeps the name chosen in CHG-0092, not the mockup's "Sanctum") is a page of parchment cards on the wood: a heading with a gear, a menu of Permissions, Defaults, Harnesses, Accounts, Messaging, and Limits that scrolls to its section and marks the one in view, and a pinned **Settings guide** side panel on a window with a rail. The old Harnesses and accounts section is two cards, **Harnesses** (logo, version, ready or problem, Refresh) and **Accounts** (logo, the computer's sign-in and added accounts, Add account). Every setting is kept: the mockup's cards are as drawn; the quest upkeep rows and the default budget join Defaults, and the lore half-lives and the global budget join Limits. The mockup's painted artwork (sunset castle, tree banner, guide castle) is left out at the owner's choice. The side panel's top-bar name is now set by the screen that gives the panel (`useQuestPanel`'s second argument), "Quest" by default.
+References: apps/app/{App.tsx,src/settings.tsx,src/settingsParts.tsx,src/settingsSections.ts,src/settingsIcons.tsx,src/accounts.tsx,src/sidebar.tsx}, apps/app/test/settingsSections.test.ts.
+Validation: format, typecheck, lint, and tests pass (505 passed, 10 skipped); five new tests cover the section the menu marks and fail when the foot rule or the early margin is removed; the web export builds.
+Evidence: Baseline `77d925b`; driven once in the web export on the fake harness at 1440px ([proof](verification/2026-11-10-workshop.md)); not proven: the look, which awaits the owner, the narrow window (a row menu and no guide), and that choosing a section near the page's foot marks that section rather than the last one.
