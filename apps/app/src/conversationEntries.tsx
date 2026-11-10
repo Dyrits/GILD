@@ -4,13 +4,13 @@ import { Pressable, Text, View } from "react-native";
 import { MessageImages } from "./attachmentViews";
 import { ChipText } from "./chips";
 import type { ServiceClient } from "./client";
+import { Emblem } from "./emblems";
 import type { Entry, QuestLink, Step } from "./entries";
 import { clockOf, replyWriterOf, spanOf } from "./formatting";
 import { LoreChangeCard, LoreChangeLine } from "./lore";
 import { Markdown } from "./markdown";
 import { ProviderMark } from "./providerMarks";
 import { QuestionCard, QuestionLine } from "./questions";
-import { RowIcon } from "./rowIcons";
 import { styles } from "./styles";
 import { SuggestionCard, SuggestionLine } from "./suggestions";
 import { colors } from "./theme";
@@ -39,7 +39,7 @@ function QuestButton({
       onPress={() => onOpenMission(link.missionId)}
       style={({ pressed }) => [styles.cardCornerButton, pressed && styles.questButtonPressed]}
     >
-      <RowIcon name="external" tint={colors.text} />
+      <Emblem name="sword" tint={colors.goldHi} />
     </Pressable>
   );
 }
@@ -215,9 +215,6 @@ export function EntryView({
   if (entry._tag === "QuestLink")
     return (
       <View style={styles.messageRow}>
-        <View style={styles.medallion}>
-          <RowIcon name="arrow" tint={colors.text} />
-        </View>
         <View style={[styles.messageCard, styles.messageCardThread, styles.cardWithCorner]}>
           <View style={styles.senderHeader}>
             <Text style={styles.senderName}>{entry.label}</Text>

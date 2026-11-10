@@ -1685,3 +1685,14 @@ Scope: Thread messaging, conversation
 Summary: At the owner's request, the lines of actions a thread ran or was allowed to run ("Ran · …", "Always allowed · …", "Allowed by a standing permission · …") fold into the turn's "N steps" group beside its replies, in time order, and count in its total and duration; a Denied, Discarded, or Withdrawn action keeps its own line. While a thread works, the indicator shows its latest step, reply or action. This completes the tool-call steps CHG-0113 left out: the service already recorded them as settled questions.
 References: `apps/app/src/entries.ts` (`Step`, `stepGroupsOf`, `workingLabelOf`), `apps/app/src/conversationEntries.tsx` (`StepsGroup`).
 Validation: a new test in `apps/app/test/entries.test.ts`; typecheck, Biome, and the app tests (118) pass. Not driven in the window; the look is pending.
+
+## CHG-0117 · 2026-11-10 · Quest cards use the existing sword for navigation
+
+Type: Code
+Event: Delivery
+Scope: Guildmaster conversation
+
+Summary: At the owner's request, the dedicated information card has no left icon and opens its quest through the existing sword emblem at its top right, in gold on a dark button; quest reports use the same button.
+Obsolete large-button styles are removed.
+References: apps/app/src/conversationEntries.tsx, apps/app/src/styles.ts, .agents/handoffs/2026-11-10-1425-quest-navigation.md.
+Validation: lint, typecheck, and all 118 app tests pass; appearance and navigation in the running app await the owner.

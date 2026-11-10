@@ -47,10 +47,9 @@ export const styles = StyleSheet.create({
   buttonText: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.md, fontWeight: "600" },
   /** The small gold button at a card's top right corner that opens the quest it speaks of. */
   cardCornerButton: {
-    ...ink,
     ...cut,
     alignItems: "center",
-    backgroundColor: colors.gold,
+    backgroundColor: colors.text,
     height: 34,
     justifyContent: "center",
     position: "absolute",
@@ -200,8 +199,6 @@ export const styles = StyleSheet.create({
   messageCardThread: { backgroundColor: colors.successSoft },
   messageCardUser: { backgroundColor: colors.accentSoft },
   messageRow: { alignItems: "flex-start", flexDirection: "row", gap: 10, marginVertical: 6, maxWidth: "88%" },
-  /** A reply that shares its line with the buttons on its right: it takes the room they leave. */
-  messageRowLinked: { flexBasis: 0, flexGrow: 1, flexShrink: 1, minWidth: 280 },
   messageRowUser: { alignSelf: "flex-end" },
   missionRowMain: { gap: 2 },
   muted: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.md },
@@ -215,28 +212,7 @@ export const styles = StyleSheet.create({
   },
   pane: { gap: 10 },
   paneTitle: { color: colors.text, fontFamily: fonts.hand, fontSize: 18, lineHeight: 26 },
-  /** The button beside a reply that opens the quest or Ritual it led to. */
-  questButton: {
-    ...ink,
-    ...cut,
-    ...lift,
-    backgroundColor: colors.gold,
-    gap: 3,
-    maxWidth: 260,
-    minWidth: 180,
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-  },
-  questButtonLabel: {
-    color: colors.text,
-    fontFamily: fonts.hand,
-    fontSize: fontSizes.sm,
-    fontWeight: "700",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-  },
-  questButtonPressed: { backgroundColor: colors.goldHi },
-  questButtonTitle: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.base, fontWeight: "600" },
+  questButtonPressed: { backgroundColor: colors.leather },
   question: {
     ...cut,
     ...lift,
@@ -254,9 +230,6 @@ export const styles = StyleSheet.create({
   questSide: { borderColor: colors.border, borderRightWidth: 1, gap: 8, padding: 12, width: 240 },
   questSideCompact: { borderBottomWidth: 1, borderRightWidth: 0, maxHeight: 180, width: "100%" },
   raised: { zIndex: 2 },
-  /** The buttons a reply carries, held to the right edge whether they share its line or wrap beneath it. */
-  replyLinks: { alignItems: "flex-end", flexShrink: 0, gap: 8, marginLeft: "auto", marginVertical: 6 },
-  replyWithLinks: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 12 },
   row: {
     alignItems: "center",
     borderBottomWidth: 1,
@@ -291,7 +264,14 @@ export const styles = StyleSheet.create({
   stepsCount: { color: colors.textSecondary, fontFamily: fonts.sans, fontSize: fontSizes.md, fontWeight: "600" },
   /** The line that opens or closes a turn's steps, and the working indicator's row. */
   stepsHeader: { alignItems: "center", alignSelf: "flex-start", flexDirection: "row", gap: 8, marginVertical: 6 },
-  stepsList: { borderLeftColor: colors.border, borderLeftWidth: 1, gap: 6, marginLeft: 6, paddingLeft: 12 },
+  stepsList: {
+    alignItems: "flex-start",
+    borderLeftColor: colors.border,
+    borderLeftWidth: 1,
+    gap: 6,
+    marginLeft: 6,
+    paddingLeft: 12,
+  },
   stepText: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.md, fontStyle: "italic" },
   title: { color: colors.text, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.base, fontWeight: "500" },
   toggle: { alignItems: "center", flexDirection: "row", gap: 10, marginTop: 8 },
