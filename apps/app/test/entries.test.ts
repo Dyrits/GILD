@@ -1,6 +1,6 @@
 import type { MissionDetail, ThreadSummary } from "@gild/contracts";
 import { describe, expect, it } from "vitest";
-import { entriesOf } from "../src/entries";
+import { entriesOf, workingLabelOf } from "../src/entries";
 
 const summary = (id: string, parentId: string | null, openedAt: number, isAside = false) =>
   ({
@@ -177,6 +177,15 @@ describe("a turn's actions, folded as steps while messages stay visible", () => 
     } as unknown as MissionDetail);
     expect(entries.map((entry) => entry.key)).toEqual(["owner-0", "agent-1000", "steps:a", "b", "agent-20000"]);
     expect(entries[2]).toMatchObject({ _tag: "Steps", seconds: 2, steps: [{ _tag: "Action", id: "a" }] });
+  });
+
+  it("does not present a settled approval as current work after a reply", () => {
+    const detail = turn([owner(0), agent(1000), agent(4000)]);
+    const questions = [
+      { askedAt: 2000, id: "install", outcome: "Allowed", summary: "May I install the project dependencies?" },
+    ];
+    const entries = entriesOf({ ...detail, questions } as unknown as MissionDetail, true);
+    expect(workingLabelOf(entries)).toBe("Working…");
   });
 
   it("leaves a lone reply of a finished turn as it is", () => {

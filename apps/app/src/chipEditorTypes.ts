@@ -24,6 +24,8 @@ export interface ChipEditorHandle {
 }
 
 export interface ChipEditorProps {
+  /** Opens the terminal when the caret is at an empty line. */
+  onBang?: () => void;
   /** Hears the message as plain text, each chip as its token, and the trigger at the caret. */
   onChange: (text: string, trigger: Trigger | null) => void;
   /** Hears the files pasted or dropped on the field, where files can be; text pasted with files stays text. */

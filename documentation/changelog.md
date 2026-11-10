@@ -1708,3 +1708,18 @@ This supersedes the reply folding in CHG-0113 and CHG-0116 and applies to both q
 References: apps/app/src/entries.ts, apps/app/src/conversationEntries.tsx, apps/app/test/entries.test.ts.
 Validation: the 13 entries tests pass, including visibility during and after work and replies mixed with actions; workspace typecheck, targeted Biome, and diff whitespace checks pass.
 Repository-wide lint has unrelated failures in other sessions' files; the running appearance remains unverified.
+
+## CHG-0119 · 2026-11-10 · An inline conversation terminal
+
+Type: Code
+Event: Agreement and Delivery
+Scope: Conversation terminal and progress display
+
+Summary: The owner requested Delta's `!` interaction, the default shell, home-folder startup without a realm, realm-root startup with one, and terminal output in the Companion's context.
+The live terminal is an interactive owner-message bubble in the conversation; sending preserves a terminal block and accompanying text in the conversation while supplying the transcript through the normal message delivery path.
+Hiding and sending keep the shell alive; closing it or the desktop window ends it.
+The shell helper's missing execute permission is repaired before startup.
+The progress-display side-quest also fixed a completed approval summary remaining as the current work label.
+References: documentation/capabilities/conversation-terminal/specifications.md, documentation/architecture-decision-record/0012-desktop-conversation-terminals.md, documentation/verification/2026-11-10-bang-terminal.md.
+Validation: workspace typecheck, Biome, desktop build, Expo web export, and 617 tests pass, with 10 skipped; an isolated Electron drive on the owner's Fish shell proves home-folder execution and snapshot delivery to a fake harness.
+The owner's review of the final inline appearance is pending.

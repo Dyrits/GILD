@@ -26,6 +26,7 @@ import { ThreadPanel } from "./threadPanel";
 import { OpenThreadForm, ThreadTree } from "./threadTree";
 import { useServiceQuery } from "./useServiceQuery";
 import { useSkills } from "./useSkills";
+import { useTerminal } from "./useTerminal";
 import { MissingFolderNotice } from "./workspaces";
 
 /** The reply a thread is writing, while the service streams it. */
@@ -99,6 +100,7 @@ function ThreadPane({
   const skills = useSkills(client, thread.workspace?.path ?? null);
   const [actionError, setActionError] = useState<string | null>(null);
   const [isOpening, setIsOpening] = useState(false);
+  const terminal = useTerminal(thread.id, thread.workspace?.path ?? null);
   const followNewest = useFollowNewest();
   const { data: harnesses } = useHarnesses(client);
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
@@ -108,17 +110,20 @@ function ThreadPane({
   const other = ({ Queue: "Steer", Steer: "Queue" } as const satisfies Record<MessageDelivery, MessageDelivery>)[
     defaultDelivery
   ];
-  const sendAs = (delivery: MessageDelivery | null) => (text: string, attachmentIds: ReadonlyArray<AttachmentId>) => {
-    followNewest.follow();
-    return client.request({
-      _tag: "SendMessage",
-      attachmentIds,
-      delivery,
-      requestId: newRequestId(),
-      text,
-      threadId: thread.id,
-    });
-  };
+  const sendAs =
+    (delivery: MessageDelivery | null) => async (text: string, attachmentIds: ReadonlyArray<AttachmentId>) => {
+      const prepared = await terminal.prepare(text);
+      followNewest.follow();
+      await client.request({
+        _tag: "SendMessage",
+        attachmentIds,
+        delivery,
+        requestId: newRequestId(),
+        text: prepared,
+        threadId: thread.id,
+      });
+      terminal.sent();
+    };
   const entries = entriesOf(detail, isInTurn);
   const act = (request: Promise<unknown>) =>
     request.then(
@@ -195,21 +200,24 @@ function ThreadPane({
         data={entries}
         keyExtractor={(entry) => entry.key}
         ListFooterComponent={
-          draft === "" ? (
-            thread.actions.isInTurn ? (
-              <WorkingIndicator harness={thread.harness} label={workingLabelOf(entries)} />
+          <View>
+            {draft === "" ? (
+              thread.actions.isInTurn ? (
+                <WorkingIndicator harness={thread.harness} label={workingLabelOf(entries)} />
+              ) : (
+                void 0
+              )
             ) : (
-              void 0
-            )
-          ) : (
-            <AgentReply
-              harness={thread.harness}
-              isDraft
-              label={`${companionLabelOf(thread.harness, null, thread.model)} · writing…`}
-              text={draft}
-              time={null}
-            />
-          )
+              <AgentReply
+                harness={thread.harness}
+                isDraft
+                label={`${companionLabelOf(thread.harness, null, thread.model)} · writing…`}
+                text={draft}
+                time={null}
+              />
+            )}
+            {terminal.panel}
+          </View>
         }
         renderItem={({ item }) => (
           <EntryView
@@ -236,6 +244,8 @@ function ThreadPane({
         />
       ) : (
         <Composer
+          hasContent={terminal.hasContent}
+          {...(terminal.onBang === null ? {} : { onBang: terminal.onBang })}
           attachments={{ client, refusal: imageRefusalOf(harnesses, thread.harness, thread.model) }}
           mentions={{ client, workspacePath: thread.workspace?.path ?? null }}
           skills={skills}

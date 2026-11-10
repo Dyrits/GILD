@@ -4,6 +4,7 @@ import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { app, BrowserWindow, dialog, ipcMain, utilityProcess } from "electron";
 import { moveFormerData } from "./formerData.ts";
+import { Terminals } from "./terminals.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 /** The app's icon, beside `dist` in the desktop app's own `assets`. */
@@ -11,7 +12,6 @@ const iconPath = join(here, "..", "assets", "icon.png");
 const appUrl = process.env.GILD_APP_URL ?? "http://localhost:8081";
 // Lets checks run against a throwaway folder instead of the owner's data.
 const dataDirectory = () => process.env.GILD_DATA_DIR ?? app.getPath("userData");
-
 app.setName("Gild");
 // A stop signal quits through the usual path, so will-quit stops the service too (dev.ts relaunches with it).
 for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, () => app.quit());
@@ -84,6 +84,40 @@ app
       webPreferences: { contextIsolation: true, preload: join(here, "preload.cjs"), sandbox: true },
       width: 1200,
     });
+    const terminals = new Terminals(
+      (id, data, sequence) => {
+        if (!window.isDestroyed()) window.webContents.send("gild:terminalData", id, data, sequence);
+      },
+      (id) => {
+        if (!window.isDestroyed()) window.webContents.send("gild:terminalExit", id);
+      },
+    );
+    // Terminal execution is a desktop capability; embedded frames cannot call it.
+    const checkTerminalSender = (event: Electron.IpcMainInvokeEvent) => {
+      if (
+        event.sender !== window.webContents ||
+        event.senderFrame !== window.webContents.mainFrame ||
+        new URL(event.senderFrame.url).origin !== new URL(appUrl).origin
+      )
+        throw new Error("Terminal access is only available in Gild's desktop window.");
+    };
+    ipcMain.handle("gild:terminalOpen", (event, id: string, cwd: string | null) => {
+      checkTerminalSender(event);
+      return terminals.open(id, cwd);
+    });
+    ipcMain.handle("gild:terminalWrite", (event, id: string, data: string) => {
+      checkTerminalSender(event);
+      terminals.write(id, data);
+    });
+    ipcMain.handle("gild:terminalResize", (event, id: string, cols: number, rows: number) => {
+      checkTerminalSender(event);
+      terminals.resize(id, cols, rows);
+    });
+    ipcMain.handle("gild:terminalClose", (event, id: string) => {
+      checkTerminalSender(event);
+      terminals.close(id);
+    });
+    window.on("closed", () => terminals.dispose());
     // Choose folder… opens the system's own dialog, Finder or Explorer (CHG-0035); null when cancelled.
     ipcMain.handle("gild:chooseFolder", async () => {
       const chosen = await dialog.showOpenDialog(window, {

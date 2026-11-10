@@ -13,6 +13,8 @@ import { ProviderMark } from "./providerMarks";
 import { QuestionCard, QuestionLine } from "./questions";
 import { styles } from "./styles";
 import { SuggestionCard, SuggestionLine } from "./suggestions";
+import { TerminalMessage } from "./terminalMessage";
+import { terminalSnapshotOf } from "./terminalSnapshot";
 import { colors } from "./theme";
 
 const shortened = (title: string) => (title.length > 60 ? `${title.slice(0, 59)}…` : title);
@@ -148,13 +150,24 @@ function MessageBubble({
     );
   }
   const sender = senderLabelOf(message);
+  const terminal = message.sender === "user" ? terminalSnapshotOf(message.text) : null;
   return (
     <View style={[styles.messageRow, message.sender === "user" && styles.messageRowUser]}>
       <View style={[styles.messageCard, cardStyles[message.sender], fromQuest !== null && styles.cardWithCorner]}>
         {/* The owner's own messages need no label, as in a chat; a queued one says it waits. */}
         {sender !== null && <Text style={styles.senderName}>{sender}</Text>}
         {message.sender === "user" ? (
-          message.text === "" ? null : (
+          terminal !== null ? (
+            <View style={{ gap: 10 }}>
+              {terminal.before !== "" && (
+                <ChipText client={client} skills={skills} text={terminal.before} workspacePath={workspacePath} />
+              )}
+              <TerminalMessage cwd={terminal.cwd} output={terminal.output} />
+              {terminal.after !== "" && (
+                <ChipText client={client} skills={skills} text={terminal.after} workspacePath={workspacePath} />
+              )}
+            </View>
+          ) : message.text === "" ? null : (
             <ChipText client={client} skills={skills} text={message.text} workspacePath={workspacePath} />
           )
         ) : (

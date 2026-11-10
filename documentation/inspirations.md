@@ -151,3 +151,10 @@ Review this list when starting a capability, and every few weeks: read each prod
 - **Good ideas** (from its marketing site only): every lesson becomes a rule for the next run; agents read a local notes vault before they act; every run leaves a trace that can be replayed step by step.
 - **Taken**: none yet. Rules as a never-fading intel kind match its first idea.
 - **Check on**: whether it publishes documentation on how lessons and the vault are stored, and its [pricing](https://timon-ai.com/pricing) page for new features.
+
+### Delta conversation terminals, checked 2026-11-10
+
+Delta's [terminal documentation](https://delta.dev/docs/agents/terminals) describes `!` on an empty composer line opening a shell, ordinary exclamation marks staying text, and sending a frozen terminal snapshot while its process continues.
+The owner's screenshot shows that snapshot as a terminal block inside the owner's message, with accompanying text beneath it.
+Gild takes that interaction independently, using the owner's home folder without a realm and the realm root with one, as the owner requested.
+No Delta code was copied.

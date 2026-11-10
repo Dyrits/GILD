@@ -76,14 +76,8 @@ const stepGroupsOf = (messages: ReadonlyArray<Message>, questions: ReadonlyArray
   return groups;
 };
 
-/** The words for a working thread's current step: the latest step of the turn still going, else a plain word. */
-export const workingLabelOf = (entries: ReadonlyArray<Entry>) => {
-  const current = entries.findLast((entry) => entry._tag === "Steps" && entry.isCurrent);
-  const latest = current?._tag === "Steps" ? current.steps.at(-1) : undefined;
-  if (latest === undefined) return "Working…";
-  const text = latest.question.summary;
-  return text.trim().split("\n")[0]?.replace(/\.$/, "") ?? "Working…";
-};
+/** A settled action does not establish what a working thread is doing now. */
+export const workingLabelOf = (_entries: ReadonlyArray<Entry>) => "Working…";
 
 /**
  * Messages, questions, off-topic suggestions, budget lines, handovers, lore changes, and the threads opened beneath, in the order they happened.

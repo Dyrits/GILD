@@ -52,7 +52,7 @@ const chipElementOf = (chip: Chip) => {
 };
 
 /** The message as plain text: chips as their tokens, kept apart from the words around them by a space. */
-const textOf = (root: Node): string => {
+const textOf = (root: Node, shouldKeepLastBreak = false): string => {
   let text = "";
   const add = (piece: string) => {
     text += piece;
@@ -65,7 +65,7 @@ const textOf = (root: Node): string => {
         if (next !== "" && !/^\s/.test(next)) add(" ");
       } else if (child instanceof HTMLBRElement) {
         // The last break of a block only holds the line open, as the browser leaves one after a deletion.
-        if (child.nextSibling !== null) add("\n");
+        if (child.nextSibling !== null || shouldKeepLastBreak) add("\n");
       } else if (child instanceof HTMLElement) {
         if (text !== "" && !text.endsWith("\n")) add("\n");
         walk(child);
@@ -92,7 +92,7 @@ const triggerBeforeCaret = (root: HTMLElement) => {
   return { end: selection.anchorOffset, node, start: before.length - query.length - 1, trigger };
 };
 
-export function ChipEditor({ onChange, onFiles, onKeyDown, placeholder, ref }: ChipEditorProps) {
+export function ChipEditor({ onChange, onFiles, onKeyDown, onBang, placeholder, ref }: ChipEditorProps) {
   const root = useRef<HTMLDivElement>(null);
   const [isEmpty, setIsEmpty] = useState(true);
   // The trigger as last read, kept because choosing from the list takes the focus and the caret with it.
@@ -181,6 +181,36 @@ export function ChipEditor({ onChange, onFiles, onKeyDown, placeholder, ref }: C
         onInput={report}
         onKeyDown={(event) => {
           if (event.nativeEvent.isComposing) return;
+          if (
+            event.key === "!" &&
+            !event.altKey &&
+            !event.metaKey &&
+            !event.ctrlKey &&
+            onBang !== undefined &&
+            root.current !== null
+          ) {
+            const selection = window.getSelection();
+            if (
+              selection !== null &&
+              selection.anchorNode !== null &&
+              selection.isCollapsed &&
+              selection.rangeCount > 0 &&
+              root.current.contains(selection.anchorNode)
+            ) {
+              const range = selection.getRangeAt(0).cloneRange();
+              range.selectNodeContents(root.current);
+              range.setEnd(selection.anchorNode, selection.anchorOffset);
+              const before = textOf(range.cloneContents(), true);
+              range.selectNodeContents(root.current);
+              range.setStart(selection.anchorNode, selection.anchorOffset);
+              const after = textOf(range.cloneContents(), true);
+              if (before.split("\n").at(-1) === "" && after.split("\n")[0] === "") {
+                event.preventDefault();
+                onBang();
+                return;
+              }
+            }
+          }
           if (handlers.current.onKeyDown({ key: event.key, shiftKey: event.shiftKey })) {
             event.preventDefault();
           } else if (event.key === "Enter" && event.shiftKey) {

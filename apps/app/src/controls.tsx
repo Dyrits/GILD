@@ -90,6 +90,8 @@ export function Composer({
   accessory,
   skills = [],
   mentions,
+  onBang,
+  hasContent = false,
 }: {
   placeholder: string;
   onSend: (text: string, attachmentIds: ReadonlyArray<AttachmentId>) => Promise<unknown>;
@@ -111,6 +113,9 @@ export function Composer({
   skills?: ReadonlyArray<Skill>;
   /** The workspace an `@` names files and folders of; with no path (a quest outside a realm) an `@` offers nothing. */
   mentions?: { readonly client: ServiceClient; readonly workspacePath: string | null };
+  onBang?: () => void;
+  /** Whether an attached terminal can be sent without typed text. */
+  hasContent?: boolean;
 }) {
   const [text, setText] = useState("");
   const [trigger, setTrigger] = useState<Trigger | null>(null);
@@ -118,7 +123,7 @@ export function Composer({
   const [isSending, setIsSending] = useState(false);
   const files = useAttachments(attachable?.client ?? null);
   // A message may hold images alone.
-  const isEmpty = text.trim() === "" && files.ids.length === 0;
+  const isEmpty = text.trim() === "" && files.ids.length === 0 && !hasContent;
   const refusal = files.ids.length > 0 ? (attachable?.refusal ?? null) : null;
   const cannotSend = isEmpty || files.isBusy || refusal !== null;
   const [error, setError] = useState<string | null>(null);
@@ -195,6 +200,7 @@ export function Composer({
         {attachable !== undefined && <AttachButton onFiles={files.attach} />}
         <View style={styles.composerField}>
           <ChipEditor
+            {...(onBang === undefined ? {} : { onBang })}
             {...(attachable === undefined ? {} : { onFiles: files.attach })}
             onChange={(value, typed) => {
               setText(value);

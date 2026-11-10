@@ -7,10 +7,11 @@ import {
   type ServiceError,
 } from "@gild/contracts";
 import { Schema } from "effect";
+import type { DesktopBridge } from "./desktopBridge";
 
 declare global {
   interface Window {
-    gild?: { chooseFolder(): Promise<string | null>; endpoint(): Promise<string>; hasOwnTitleBar: boolean };
+    gild?: DesktopBridge;
   }
 }
 

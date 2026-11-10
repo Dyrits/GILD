@@ -17,6 +17,7 @@ import { styles } from "./styles";
 import { colors, fontSizes, fonts } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
 import { useSkills } from "./useSkills";
+import { useTerminal } from "./useTerminal";
 import { RealmChooser } from "./workspaces";
 
 /** The realm chosen for the next message, shown over the message box and cleared with its ×. */
@@ -81,6 +82,7 @@ function GuildmasterChat({
   const draft = useDraft(client, place.threadId);
   const followNewest = useFollowNewest();
   const skills = useSkills(client, realm?.path ?? null);
+  const terminal = useTerminal(place.threadId, realmPath);
   const [actionError, setActionError] = useState<string | null>(null);
   // The Guildmaster can have a budget of its own, set on its own screen like a quest's (budget-control).
   const [isBudgetOpen, setIsBudgetOpen] = useState(false);
@@ -120,17 +122,19 @@ function GuildmasterChat({
   }
   const { thread } = detail;
   const entries = entriesOf(detail, detail.thread.actions.isInTurn);
-  const send = (text: string, attachmentIds: ReadonlyArray<AttachmentId>) => {
+  const send = async (text: string, attachmentIds: ReadonlyArray<AttachmentId>) => {
+    const prepared = await terminal.prepare(text);
     followNewest.follow();
-    return client.request({
+    await client.request({
       _tag: "SendMessage",
       attachmentIds,
       delivery: null,
       realmPath,
       requestId: newRequestId(),
-      text,
+      text: prepared,
       threadId: thread.id,
     });
+    terminal.sent();
   };
   const { canResume, canStop, isInTurn } = thread.actions;
   const act = (request: Promise<unknown>) =>
@@ -172,7 +176,7 @@ function GuildmasterChat({
       <Text numberOfLines={1} style={local.sub}>
         {harnessLabels[thread.harness]} · {companionLabelOf(thread.harness, null, thread.model)}
       </Text>
-      {entries.length === 0 && draft === "" ? (
+      {entries.length === 0 && draft === "" && terminal.panel === null ? (
         <View style={local.empty}>
           <Text style={local.emptyTitle}>Tell the Guildmaster what you need.</Text>
           <Text style={local.emptyText}>
@@ -187,21 +191,24 @@ function GuildmasterChat({
           data={entries}
           keyExtractor={(entry) => entry.key}
           ListFooterComponent={
-            draft === "" ? (
-              thread.actions.isInTurn ? (
-                <WorkingIndicator harness={thread.harness} label={workingLabelOf(entries)} />
+            <View>
+              {draft === "" ? (
+                thread.actions.isInTurn ? (
+                  <WorkingIndicator harness={thread.harness} label={workingLabelOf(entries)} />
+                ) : (
+                  void 0
+                )
               ) : (
-                void 0
-              )
-            ) : (
-              <AgentReply
-                harness={thread.harness}
-                isDraft
-                label={`${companionLabelOf(thread.harness, null, thread.model)} · writing…`}
-                text={draft}
-                time={null}
-              />
-            )
+                <AgentReply
+                  harness={thread.harness}
+                  isDraft
+                  label={`${companionLabelOf(thread.harness, null, thread.model)} · writing…`}
+                  text={draft}
+                  time={null}
+                />
+              )}
+              {terminal.panel}
+            </View>
           }
           renderItem={({ item }) => (
             <EntryView
@@ -219,6 +226,8 @@ function GuildmasterChat({
       )}
       {realm !== null && <RealmNote name={realm.name} onClear={() => onRealm(null)} />}
       <Composer
+        hasContent={terminal.hasContent}
+        {...(terminal.onBang === null ? {} : { onBang: terminal.onBang })}
         accessory={
           isInTurn ? undefined : (
             <RunnerPickers

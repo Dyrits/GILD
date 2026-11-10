@@ -666,3 +666,13 @@ Message attachments batch (CHG-0102): images attached to the owner's messages by
 ## Delete a Ritual · 2026-11-10 · built and checked, owner look pending
 
 Starting commit `ca173da`; branch `ritual-delete`. Delete added to the Ritual card (CHG-0108). Not decided by the owner: whether deleting should offer to delete the quest too (kept as agreed: the quest stays). Full suite not run.
+
+## Conversation terminal · 2026-11-10 · owner review pending
+
+Authorized by the owner's request for Delta's `!` interaction, default shell, home folder without a realm, realm root with one, and shell output included in context.
+Implementation and verification are on branch `bang-terminal`, based on `e770774`, in `/private/tmp/gild-bang-terminal`.
+The terminal appears as an interactive owner-message bubble in the conversation and renders as a frozen terminal block when sent.
+The same serialized output travels through the existing SendMessage and harness context paths.
+The progress-display side-quest fix is included: completed approvals no longer masquerade as current work.
+Proof and current validation: [terminal verification](verification/2026-11-10-bang-terminal.md).
+The owner requested integration onto local main, without pushing to the remote.

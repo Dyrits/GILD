@@ -36,6 +36,7 @@ Mission-state ownership is settled provisionally. Execution, guest discussion be
 - **Toolchain**: Expo CLI with Metro builds the app. Vite+ is excluded. Vitest with `@effect/vitest` tests on Node; Biome lints and formats (CHG-0025).
 - **Service host and transport**: Electron runs the service in a utilityProcess on its bundled Node. SQLite is reached through Effect's Node driver over `node:sqlite`. The app talks to the service over one authenticated loopback WebSocket; shared records are Effect Schema definitions in `packages/contracts` (CHG-0025).
 - **Desktop shell**: Electron. See [0004](architecture-decision-record/0004-electron-desktop-shell.md).
+- **Conversation terminals**: node-pty in the desktop process and xterm in the web composer, with sent transcripts persisted through ordinary owner messages; see [0012](architecture-decision-record/0012-desktop-conversation-terminals.md).
 - **Storage**: one SQLite file, with full-text search for lore; `sqlite-vec` later if semantic search is needed. See [0002](architecture-decision-record/0002-one-local-service-owns-all-data.md).
 - **Harness integration**: each harness's command-line tool driven directly: Claude Code over its JSON stream, Codex through its app server, OpenCode and others through the Agent Client Protocol (ACP). See [0008](architecture-decision-record/0008-drive-harness-tools-directly.md).
 - **Thread tools**: a local MCP server. See [0005](architecture-decision-record/0005-thread-tools-over-mcp.md).
