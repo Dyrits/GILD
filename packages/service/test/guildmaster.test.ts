@@ -279,3 +279,365 @@ describe("an ordinary quest", () => {
     }).pipe(Effect.provide(setup().layer)),
   );
 });
+
+describe("creating a Ritual", () => {
+  it.live("makes a Ritual in its own quest, with a card, in no quest list, and runs nothing yet", () => {
+    const { directory, layer } = setup();
+    return Effect.gen(function* () {
+      const folder = folderIn(directory, "app");
+      yield* startIdle("Existing work", folder);
+      const place = yield* guildmaster;
+      const args = {
+        instruction: "Say hello to me",
+        realm: "app",
+        schedule: { _tag: "Hourly", hours: 1 },
+        title: "Hourly hello",
+      };
+      yield* say(place.threadId, `call create_ritual ${JSON.stringify(args)}`);
+      const detail = yield* settle(place.missionId, (d) => d.suggestions.length === 1 && isIdle(d), place.threadId);
+      expect(detail.suggestions[0]).toMatchObject({
+        isFromGuildmaster: true,
+        isRitual: true,
+        targetTitle: "Hourly hello",
+      });
+      expect(lastAgentText(detail)).toContain('Created the Ritual "Hourly hello"');
+      const rituals = yield* call({ _tag: "ListRituals" });
+      expect(rituals).toHaveLength(1);
+      expect(rituals[0]).toMatchObject({
+        instruction: "Say hello to me",
+        isOn: true,
+        lastRunAt: null,
+        schedule: { _tag: "Hourly", hours: 1 },
+        title: "Hourly hello",
+      });
+      expect((yield* listed).missions.map((mission) => mission.title)).not.toContain("Hourly hello");
+      const context = yield* tool(place.threadId, "read_control_history", { query: "hourly" });
+      expect(context).toContain("create_ritual");
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("is the Guildmaster's alone, and refuses a realm that does not exist", () =>
+    Effect.gen(function* () {
+      const quest = yield* startIdle("Some quest");
+      const args = { instruction: "Ping", schedule: { _tag: "Daily", time: "07:00" }, title: "Ping" };
+      expect(yield* tool(quest.threadId, "create_ritual", args)).toBe("Only the Guildmaster creates Rituals.");
+      const place = yield* guildmaster;
+      expect(yield* tool(place.threadId, "create_ritual", { ...args, realm: "nowhere" })).toContain(
+        'no realm "nowhere"',
+      );
+      expect(yield* call({ _tag: "ListRituals" })).toEqual([]);
+    }).pipe(Effect.provide(setup().layer)),
+  );
+
+  it.live("starts its turn knowing the Rituals that exist", () =>
+    Effect.gen(function* () {
+      const place = yield* guildmaster;
+      const args = { instruction: "Say hello", schedule: { _tag: "Daily", time: "07:00" }, title: "Morning hello" };
+      yield* tool(place.threadId, "create_ritual", args);
+      yield* say(place.threadId, "context");
+      const detail = yield* settle(place.missionId, (d) => lastAgentText(d).includes("# Rituals"), place.threadId);
+      expect(lastAgentText(detail)).toContain('"Morning hello" · on');
+    }).pipe(Effect.provide(setup().layer)),
+  );
+});
+
+describe("hearing back from quests it opened", () => {
+  const threadMessages = (detail: MissionDetail) =>
+    detail.messages.filter((m) => m.sender === "thread").map((m) => m.text);
+
+  it.live("is told once when a quest it opened reports its result, and not of quests it did not open", () =>
+    Effect.gen(function* () {
+      const place = yield* guildmaster;
+      const unrelated = yield* start('call report_result {"journal":"nothing to record","result":"done"}');
+      yield* settle(unrelated.missionId, (d) => d.mission.prompt === "MarkDone");
+      const request = 'call report_result {"journal":"nothing to record","result":"All checked"}';
+      yield* tool(place.threadId, "open_mission", { request, title: "Checks" });
+      const told = yield* settle(
+        place.missionId,
+        (d) => threadMessages(d).some((text) => text.includes("reported its result")),
+        place.threadId,
+      );
+      const reports = threadMessages(told);
+      expect(reports).toHaveLength(1);
+      expect(reports[0]).toContain('Quest "Checks"');
+      yield* settle(place.missionId, isIdle, place.threadId);
+      yield* Effect.sleep("300 millis");
+      expect(threadMessages(yield* read(place.missionId, place.threadId))).toHaveLength(1);
+    }).pipe(Effect.provide(setup().layer)),
+  );
+
+  it.live("is told when a quest it opened needs the owner", () =>
+    Effect.gen(function* () {
+      const place = yield* guildmaster;
+      const request = 'ask {"action":"Push the commits","command":"git push origin main"}';
+      yield* tool(place.threadId, "open_mission", { request, title: "Pushing" });
+      const told = yield* settle(
+        place.missionId,
+        (d) => threadMessages(d).some((text) => text.includes("needs the owner")),
+        place.threadId,
+      );
+      expect(threadMessages(told)[0]).toContain('Quest "Pushing"');
+    }).pipe(Effect.provide(setup().layer)),
+  );
+
+  it.live("is told when a quest it opened fails, with the reason", () =>
+    Effect.gen(function* () {
+      const place = yield* guildmaster;
+      yield* tool(place.threadId, "open_mission", { request: "fail claude Usage limit reached", title: "Doomed" });
+      const told = yield* settle(
+        place.missionId,
+        (d) => threadMessages(d).some((text) => text.includes("failed")),
+        place.threadId,
+      );
+      expect(threadMessages(told)[0]).toContain("Usage limit reached");
+    }).pipe(Effect.provide(setup().layer)),
+  );
+});
+
+describe("acting on quests at the owner's request", () => {
+  const act = (threadId: ThreadId, args: object) => say(threadId, `call act_on_mission ${JSON.stringify(args)}`);
+  const lastToolText = (detail: MissionDetail) => lastAgentText(detail);
+
+  it.live("renames and ends a resting quest only on the owner's quoted words", () =>
+    Effect.gen(function* () {
+      const place = yield* guildmaster;
+      const quest = yield* startIdle("Old name");
+      const refused = yield* tool(place.threadId, "act_on_mission", {
+        action: "Rename",
+        mission: quest.missionId,
+        quote: "rename it",
+        title: "New name",
+      });
+      expect(refused).toContain("only when the owner asks");
+      expect((yield* read(quest.missionId)).mission.title).toBe("Old name");
+      yield* act(place.threadId, {
+        action: "Rename",
+        mission: quest.missionId,
+        quote: "act_on_mission",
+        title: "New name",
+      });
+      yield* settle(quest.missionId, (d) => d.mission.title === "New name");
+      yield* settle(place.missionId, isIdle, place.threadId);
+      yield* act(place.threadId, { action: "Done", mission: quest.missionId, quote: "act_on_mission" });
+      const ended = yield* settle(quest.missionId, (d) => d.mission.state === "Done");
+      expect(ended.mission.title).toBe("New name");
+    }).pipe(Effect.provide(setup().layer)),
+  );
+
+  it.live("asks first when threads are at work, and goes ahead only on the snapshot it gave", () =>
+    Effect.gen(function* () {
+      const place = yield* guildmaster;
+      const quest = yield* start("wait 4000");
+      yield* settle(quest.missionId, (d) => d.thread.state === "Running");
+      yield* act(place.threadId, { action: "Done", mission: quest.missionId, quote: "act_on_mission" });
+      const asked = yield* settle(
+        place.missionId,
+        (d) => lastToolText(d).includes("Confirmation needed"),
+        place.threadId,
+      );
+      const snapshot = /snapshot "([^"]+)"/.exec(lastToolText(asked).replaceAll("\\", ""))?.[1];
+      expect(snapshot).toBeDefined();
+      expect((yield* read(quest.missionId)).mission.state).toBe("Running");
+      yield* settle(place.missionId, isIdle, place.threadId);
+      const done = yield* tool(place.threadId, "act_on_mission", {
+        action: "Done",
+        mission: quest.missionId,
+        quote: "x",
+        snapshot,
+      });
+      expect(done).toContain("only when the owner asks");
+    }).pipe(Effect.provide(setup().layer)),
+  );
+
+  it.live("is the Guildmaster's alone", () =>
+    Effect.gen(function* () {
+      const quest = yield* startIdle("A quest");
+      const refused = yield* tool(quest.threadId, "act_on_mission", {
+        action: "Done",
+        mission: quest.missionId,
+        quote: "mark done",
+      });
+      expect(refused).toBe("Only the Guildmaster acts on quests.");
+    }).pipe(Effect.provide(setup().layer)),
+  );
+});
+
+describe("reading and messaging across quests", () => {
+  it.live("reads another quest's journal, which only the Guildmaster may", () =>
+    Effect.gen(function* () {
+      const place = yield* guildmaster;
+      const quest = yield* startIdle("Plan the trip");
+      yield* call({
+        _tag: "RewriteBriefing",
+        basedOn: 0,
+        briefing: "Booking flights to Lisbon.",
+        entry: null,
+        missionId: quest.missionId,
+        requestId: crypto.randomUUID(),
+      });
+      expect(yield* tool(place.threadId, "read_journal", { mission: quest.missionId })).toContain(
+        "Booking flights to Lisbon",
+      );
+      expect(yield* tool(quest.threadId, "read_journal", { mission: quest.missionId })).toContain(
+        "Only the Guildmaster",
+      );
+      expect(yield* tool(place.threadId, "read_journal", { mission: place.missionId })).toBe("No such quest.");
+    }).pipe(Effect.provide(setup().layer)),
+  );
+
+  it.live("lets any thread message the Guildmaster, which forwards to a quest's top thread", () =>
+    Effect.gen(function* () {
+      const place = yield* guildmaster;
+      const asker = yield* startIdle("Asker");
+      const target = yield* startIdle("Target");
+      const other = yield* startIdle("Other");
+      expect(
+        yield* tool(asker.threadId, "send_thread_message", {
+          text: "Which quest handles the invoices?",
+          to: place.threadId,
+        }),
+      ).toBe("Sent.");
+      yield* settle(place.missionId, (d) => d.messages.some((m) => m.text.includes("invoices")), place.threadId);
+      expect(
+        yield* tool(place.threadId, "send_thread_message", { text: "Please take the invoices.", to: target.threadId }),
+      ).toBe("Sent.");
+      const received = yield* settle(target.missionId, (d) =>
+        d.messages.some((m) => m.text.includes("take the invoices")),
+      );
+      expect(received.messages.find((m) => m.text.includes("take the invoices"))?.sender).toBe("thread");
+      expect(yield* tool(asker.threadId, "send_thread_message", { text: "Hello", to: other.threadId })).toContain(
+        "Not sent",
+      );
+    }).pipe(Effect.provide(setup().layer)),
+  );
+
+  it.live("tells every other thread where the Guildmaster is", () =>
+    Effect.gen(function* () {
+      const place = yield* guildmaster;
+      const quest = yield* startIdle("context");
+      yield* send(quest.threadId, "context");
+      const detail = yield* settle(quest.missionId, (d) => lastAgentText(d).includes("Guildmaster, thread"));
+      expect(lastAgentText(detail)).toContain(place.threadId);
+    }).pipe(Effect.provide(setup().layer)),
+  );
+});
+
+describe("tiers, the Guildmaster's own Companion, and its budget", () => {
+  const withTiers = Effect.gen(function* () {
+    const settings = yield* call({ _tag: "ReadSettings" });
+    yield* call({
+      _tag: "UpdateSettings",
+      settings: {
+        ...settings,
+        defaultHarness: "claude",
+        defaultModel: "claude-sonnet-5-5",
+        tiers: {
+          Balanced: { accountId: null, effort: "medium", harness: "codex", model: "gpt-6.1-terra" },
+          Heavy: { accountId: null, effort: "high", harness: "claude", model: "claude-opus-5-5" },
+          Light: null,
+        },
+      },
+    });
+  });
+
+  it.live("starts on the cheapest model Gild knows and with no budget of the quests' default", () =>
+    Effect.gen(function* () {
+      const settings = yield* call({ _tag: "ReadSettings" });
+      yield* call({
+        _tag: "UpdateSettings",
+        settings: { ...settings, defaultMissionBudget: { cost: null, tokens: 5000 } },
+      });
+      const place = yield* guildmaster;
+      const detail = yield* read(place.missionId, place.threadId);
+      expect(detail.thread).toMatchObject({ harness: "claude", model: "claude-haiku-5-5" });
+      expect(detail.mission.budget.limits).toEqual({ cost: null, tokens: null });
+    }).pipe(Effect.provide(setup().layer)),
+  );
+
+  it.live("opens a quest on the tier it picks, names it, and falls back to the default for a tier not set", () =>
+    Effect.gen(function* () {
+      yield* withTiers;
+      const place = yield* guildmaster;
+      const balanced = yield* tool(place.threadId, "open_mission", {
+        request: "Ordinary job",
+        tier: "Balanced",
+        title: "Ordinary",
+      });
+      expect(balanced).toContain("Balanced: codex, model gpt-6.1-terra, effort medium");
+      const light = yield* tool(place.threadId, "open_mission", { request: "Tiny job", tier: "Light", title: "Tiny" });
+      expect(light).toContain("claude, model claude-sonnet-5-5");
+      const plain = yield* tool(place.threadId, "open_mission", { request: "Plain job", title: "Plain" });
+      expect(plain).toContain("on claude, model claude-sonnet-5-5");
+      const quests = (yield* listed).missions;
+      const of = (title: string) => quests.find((quest) => quest.title === title);
+      expect(of("Ordinary")).toMatchObject({ harness: "codex", model: "gpt-6.1-terra" });
+      expect(of("Tiny")).toMatchObject({ harness: "claude", model: "claude-sonnet-5-5" });
+    }).pipe(Effect.provide(setup().layer)),
+  );
+
+  it.live("lets the owner's default stand when no tier is set, never the Guildmaster's cheap model", () =>
+    Effect.gen(function* () {
+      const settings = yield* call({ _tag: "ReadSettings" });
+      yield* call({ _tag: "UpdateSettings", settings: { ...settings, defaultModel: "claude-sonnet-5-5" } });
+      const place = yield* guildmaster;
+      yield* tool(place.threadId, "open_mission", { request: "Job", tier: "Heavy", title: "Job" });
+      const quest = (yield* listed).missions.find((candidate) => candidate.title === "Job");
+      expect(quest).toMatchObject({ harness: "claude", model: "claude-sonnet-5-5" });
+    }).pipe(Effect.provide(setup().layer)),
+  );
+
+  it.live("makes a Ritual on a tier, and offers a new quest on the tier it chose", () =>
+    Effect.gen(function* () {
+      yield* withTiers;
+      const place = yield* guildmaster;
+      yield* tool(place.threadId, "create_ritual", {
+        instruction: "Check it",
+        schedule: { _tag: "Daily", time: "07:00" },
+        tier: "Heavy",
+        title: "Heavy check",
+      });
+      expect((yield* call({ _tag: "ListRituals" }))[0]?.primary).toMatchObject({
+        harness: "claude",
+        model: "claude-opus-5-5",
+      });
+      const existing = yield* startIdle("Fix the billing total, ticket PAY-9");
+      const args = { missions: [existing.missionId], text: "PAY-9 again", tier: "Balanced", title: "Again" };
+      yield* say(place.threadId, `call suggest_mission ${JSON.stringify(args)}`);
+      const waiting = yield* settle(
+        place.missionId,
+        (d) => d.suggestions.some((s) => s.outcome === null),
+        place.threadId,
+      );
+      expect(waiting.suggestions.find((s) => s.outcome === null)).toMatchObject({
+        harness: "codex",
+        model: "gpt-6.1-terra",
+      });
+    }).pipe(Effect.provide(setup().layer)),
+  );
+
+  it.live("starts its turn knowing the tiers, or that none are set", () =>
+    Effect.gen(function* () {
+      const place = yield* guildmaster;
+      yield* say(place.threadId, "context");
+      const none = yield* settle(place.missionId, (d) => lastAgentText(d).includes("# Tiers"), place.threadId);
+      expect(lastAgentText(none)).toContain("None set");
+      yield* withTiers;
+      yield* settle(place.missionId, isIdle, place.threadId);
+      yield* say(place.threadId, "context");
+      const set = yield* settle(place.missionId, (d) => lastAgentText(d).includes("- Heavy: claude"), place.threadId);
+      expect(lastAgentText(set)).toContain("- Balanced: codex, model gpt-6.1-terra, effort medium");
+    }).pipe(Effect.provide(setup().layer)),
+  );
+
+  it.live("can be given a budget of its own, which stops its turns when reached", () =>
+    Effect.gen(function* () {
+      const place = yield* guildmaster;
+      yield* call({ _tag: "SetMissionBudget", limits: { cost: null, tokens: 100 }, missionId: place.missionId });
+      const detail = yield* read(place.missionId, place.threadId);
+      expect(detail.mission.budget.limits).toEqual({ cost: null, tokens: 100 });
+      yield* say(place.threadId, "spend 500");
+      const stopped = yield* settle(place.missionId, (d) => d.budgetStop !== null, place.threadId);
+      expect(stopped.budgetStop).not.toBeNull();
+    }).pipe(Effect.provide(setup().layer)),
+  );
+});

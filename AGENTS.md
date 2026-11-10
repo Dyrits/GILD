@@ -27,7 +27,7 @@
 
 ## Handoffs
 
-To resume the Guildmaster as the one place quests start (increment A committed and pushed on branch `guildmaster`; B and C and a live-model check remain), read the [current handoff](.agents/handoffs/2026-11-10-1118-guildmaster-increment-a.md). Handoffs are shared and committed.
+To resume the Guildmaster (increments A, B, and C built and pushed on branch `guildmaster`; a live-model check and the owner's look remain), read the [current handoff](.agents/handoffs/2026-11-10-1133-guildmaster-complete.md). Handoffs are shared and committed.
 To resume agent replies drawn as Markdown (committed on branch `markdown-replies`; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1043-markdown-replies.md). Handoffs are shared and committed.
 To resume message attachments, the large-paste freeze, and the startup failure (images on the owner's messages built and checked; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1034-message-attachments.md). Handoffs are shared and committed.
 To resume the Charter (Settings, first named Workshop; renamed in CHG-0105, committed on branch `charter-rename`; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1052-charter-rename.md). Handoffs are shared and committed.

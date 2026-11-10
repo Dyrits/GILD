@@ -1,5 +1,6 @@
 import { Effect, Match } from "effect";
-import type { SqlClient } from "effect/sql";
+import { SqlClient } from "effect/sql";
+import { isGuildmasterThread } from "./guildmaster.ts";
 import { journalTextOf, missionOf, readJournalText, updateJournal } from "./journal.ts";
 import type { ToolAnswer, ToolHandlers } from "./threadTools.ts";
 import { isAside } from "./tree.ts";
@@ -8,9 +9,20 @@ import { isAside } from "./tree.ts";
 export const journalToolsOf = (
   commit: <A, E>(work: Effect.Effect<A, E, SqlClient.SqlClient>) => Effect.Effect<A>,
 ): Pick<ToolHandlers, "read_journal" | "update_journal"> => ({
-  read_journal: (threadId, { before, count }) => {
-    return commit(readJournalText(threadId, before ?? null, count ?? null)).pipe(
-      Effect.map((text) => ({ isError: false, text })),
+  read_journal: (threadId, { before, count, mission }) => {
+    return commit(
+      Effect.gen(function* () {
+        if (mission === undefined)
+          return { isError: false, text: yield* readJournalText(threadId, before ?? null, count ?? null) };
+        // Another quest's journal is the Guildmaster's to read, whatever the quest.
+        if (!(yield* isGuildmasterThread(threadId)))
+          return { isError: true, text: "Only the Guildmaster reads another quest's journal." };
+        const sql = yield* SqlClient.SqlClient;
+        const rows = yield* sql<{ id: string }>`SELECT m.id FROM missions m JOIN threads top ON top.id = m.top_thread_id
+          WHERE m.id = ${mission} AND m.is_guildmaster = 0 AND top.is_deleting = 0`;
+        if (rows.length === 0) return { isError: true, text: "No such quest." };
+        return { isError: false, text: yield* readJournalText(threadId, before ?? null, count ?? null, mission) };
+      }),
     );
   },
   update_journal: (threadId, { basedOn, briefing, entry }) => {

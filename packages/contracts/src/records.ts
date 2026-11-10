@@ -53,6 +53,19 @@ export const MessageDelivery = Schema.Literals(["Steer", "Queue"]);
 export type MessageDelivery = typeof MessageDelivery.Type;
 
 /** The owner's settings. */
+/** A Companion a tier of the Guildmaster's settings names: harness, account, model, and effort (quest coordination). */
+export const Tier = Schema.Struct({
+  accountId: Schema.NullOr(AccountId),
+  effort: EffortChoice,
+  harness: HarnessName,
+  model: ModelChoice,
+});
+export type Tier = typeof Tier.Type;
+
+/** The three tiers the Guildmaster picks from by how complex a request is; each is optional. */
+export const TierName = Schema.Literals(["Light", "Balanced", "Heavy"]);
+export type TierName = typeof TierName.Type;
+
 export const Settings = Schema.Struct({
   approvalLevel: ApprovalLevel,
   /** Days after a Done mission was marked Done before it is archived, when auto-archive is on. */
@@ -88,7 +101,11 @@ export const Settings = Schema.Struct({
   /** Whether an off-topic request opens a new mission without asking when no mission matches (thread-tree). */
   shouldOpenOffTopicMissions: Schema.Boolean,
   shouldShowAgentThreads: Schema.Boolean,
+  /** Whether the rail shows the Guildmaster, on by default (quest coordination, Place). */
+  shouldShowGuildmaster: Schema.Boolean,
   shouldStreamReplies: Schema.Boolean,
+  /** The Companions the Guildmaster picks from by a request's complexity; none set means the defaults above. */
+  tiers: Schema.Struct({ Balanced: Schema.NullOr(Tier), Heavy: Schema.NullOr(Tier), Light: Schema.NullOr(Tier) }),
 });
 export type Settings = typeof Settings.Type;
 
@@ -284,6 +301,8 @@ export const Suggestion = Schema.Struct({
   isAutomatic: Schema.Boolean,
   /** Whether the Guildmaster asked: it offers no aside, and opens the quest in the realm the owner named. */
   isFromGuildmaster: Schema.Boolean,
+  /** Whether the card is a Ritual the Guildmaster created, whose link opens the Ritual's quest. */
+  isRitual: Schema.Boolean,
   /** Matching missions, best first, at most 3. */
   matches: Schema.Array(SuggestionMatch),
   /** The suggesting thread's model, prefilled for Open as new mission. */

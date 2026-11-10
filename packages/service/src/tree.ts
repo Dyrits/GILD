@@ -192,14 +192,25 @@ export const openThreadByAgent = (
     return changed<OpenedByAgent>({ _tag: "Opened", threadId: opened.threadId }, { threadsToWake: [opened.threadId] });
   });
 
-/** Whether a thread may message another: its parent, or a thread directly beneath it (thread-messaging). */
+/**
+ * Whether a thread may message another: its parent, a thread directly beneath it (thread-messaging), any thread to
+ * the Guildmaster, and the Guildmaster to a quest's top thread (quest coordination, References between quests).
+ */
 export const isWithinReach = (fromId: string, toId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const rows = yield* sql<{ id: string }>`
       SELECT id FROM threads
       WHERE (id = ${toId} AND parent_id = ${fromId})
-        OR (id = ${fromId} AND parent_id = ${toId})`;
+        OR (id = ${fromId} AND parent_id = ${toId})
+      UNION
+      SELECT t.id FROM threads t JOIN missions m ON m.id = t.mission_id
+      WHERE t.id = ${toId} AND m.is_guildmaster = 1 AND t.id <> ${fromId} AND t.is_deleting = 0
+      UNION
+      SELECT t.id FROM threads t JOIN missions m ON m.id = t.mission_id
+      WHERE t.id = ${toId} AND m.is_guildmaster = 0 AND t.parent_id IS NULL AND t.is_deleting = 0
+        AND EXISTS (SELECT 1 FROM threads f JOIN missions fm ON fm.id = f.mission_id
+          WHERE f.id = ${fromId} AND fm.is_guildmaster = 1)`;
     return rows.length > 0;
   });
 

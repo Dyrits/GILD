@@ -19,6 +19,7 @@ import { invalid, ServiceFailure } from "./errors.ts";
 import type { Harness } from "./execution.ts";
 import { addBrowsableRoot, browseFolders, createFolder, seedBrowsableRoots } from "./folders.ts";
 import { readGuildmaster } from "./guildmaster.ts";
+import { guildmasterReportsLayer } from "./guildmasterReports.ts";
 import { changeThreadRunner } from "./handover.ts";
 import { fakeHarnessToolsLayer, HarnessTools } from "./harnessTools.ts";
 import { type JournalOutcome, readJournalView, updateJournal } from "./journal.ts";
@@ -493,7 +494,9 @@ export const serviceLayer = (options: ServiceOptions) => {
     Layer.provideMerge(foundation),
   );
   return Layer.effect(Service, make).pipe(
-    Layer.provideMerge(Layer.mergeAll(autoArchiveLayer, budgetPeriodsLayer, ritualsLayer, toolServerLayer)),
+    Layer.provideMerge(
+      Layer.mergeAll(autoArchiveLayer, budgetPeriodsLayer, guildmasterReportsLayer, ritualsLayer, toolServerLayer),
+    ),
     Layer.provideMerge(commandsLayer),
     Layer.provideMerge(running),
   );

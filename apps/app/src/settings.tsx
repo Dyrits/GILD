@@ -20,6 +20,7 @@ import { AccountsCard, HarnessesCard } from "./accounts";
 import { BudgetEditor } from "./budgets";
 import type { ServiceClient } from "./client";
 import { Toggle } from "./controls";
+import { GuildmasterSettings } from "./guildmasterSettings";
 import { GoldButton } from "./parchment";
 import { levelLabels } from "./permissions";
 import { Choice } from "./pickers";
@@ -208,6 +209,7 @@ export function SettingsScreen({
                   }}
                 />
               </SettingsCard>
+              <GuildmasterSettings client={client} onSave={save} settings={settings} />
               <SettingsCard icon="hourglass" title="Quest upkeep">
                 <NumberSetting
                   label="Ask about a quest after this many days without activity"

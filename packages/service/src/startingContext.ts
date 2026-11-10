@@ -104,6 +104,7 @@ const readThreadSubject = (threadId: string) =>
     const sql = yield* SqlClient.SqlClient;
     const [row] = yield* sql<{
       harness: HarnessName;
+      guildmasterId: string | null;
       isAside: number;
       isGuildmaster: number;
       missionId: string;
@@ -113,11 +114,13 @@ const readThreadSubject = (threadId: string) =>
       title: string;
     }>`
       SELECT t.mission_id AS missionId, t.harness, t.title, t.parent_id AS parentId, p.title AS parentTitle,
-        t.is_aside AS isAside, t.opener_messages AS openerMessages, m.is_guildmaster AS isGuildmaster
+        t.is_aside AS isAside, t.opener_messages AS openerMessages, m.is_guildmaster AS isGuildmaster,
+        (SELECT g.top_thread_id FROM missions g WHERE g.is_guildmaster = 1 LIMIT 1) AS guildmasterId
       FROM threads t JOIN missions m ON m.id = t.mission_id LEFT JOIN threads p ON p.id = t.parent_id
       WHERE t.id = ${threadId}`;
     if (row === undefined) return yield* notFound("No such thread.");
     const position = {
+      guildmasterId: row.isGuildmaster === 1 ? null : row.guildmasterId,
       isAside: row.isAside === 1,
       parent: row.parentId === null ? null : { id: row.parentId, title: row.parentTitle ?? "" },
       threadId,

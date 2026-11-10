@@ -43,6 +43,15 @@ export default function App() {
   useEffect(() => {
     ServiceClient.connect().then(setClient, (error: Error) => setFailure(error.message));
   }, []);
+  // With the Guildmaster hidden in the Charter, the window opens on the quests instead.
+  useEffect(() => {
+    client
+      ?.request({ _tag: "ReadSettings" })
+      .then((settings) => {
+        if (!settings.shouldShowGuildmaster) setPlace((current) => (current === "Guildmaster" ? "Quests" : current));
+      })
+      .catch(() => {});
+  }, [client]);
 
   if (client === null || (!areFontsLoaded && fontError === null)) {
     return (

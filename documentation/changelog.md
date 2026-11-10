@@ -1585,3 +1585,13 @@ Agreed with it: every start goes through the Guildmaster, so the realm page's bo
 Stored as a hidden quest (`is_guildmaster`) so its turns, messages, usage, and cards reuse the quest machinery; it is left out of every list, search, and the dashboard text.
 References: documentation/capabilities/mission-coordination/specifications.md, documentation/glossary.md, documentation/work-in-progress.md.
 Validation: The owner's choices of 2026-11-10 (full specification, in increments starting with A; every start through the Guildmaster; realm tiles in the right side panel; rename).
+
+## CHG-0107 · 2026-11-10 · The Guildmaster creates Rituals, acts on quests, and hears back
+
+Type: Documentation
+Event: Agreement
+Scope: Quest coordination, Rituals
+
+Summary: After a live run in which "Say hello to me every hour" became a plain quest, the owner asked that the Guildmaster also create Rituals. Agreed, with the rest of increments B and C of CHG-0106: `create_ritual` (Guildmaster only, on a preset schedule, a card in its conversation); quests it opened tell it when they report, need the owner, or fail; `act_on_mission` (stop, Done, archive, rename) only on the owner's own words in their latest message, with the dashboard's question and snapshot before ending a quest with threads at work; `read_journal` of another quest and `read_control_history`; any thread may message the Guildmaster, which may message any quest's top thread; optional Light, Balanced, and Heavy tiers in the Charter, named when it opens a quest; its own Companion on the cheapest known model; its own budget; and a setting that hides it. The Rituals specification's "not built: a Ritual created by a thread tool" now excepts the Guildmaster.
+References: documentation/capabilities/mission-coordination/specifications.md (Provisional choices to review), documentation/capabilities/rituals/specifications.md, CHG-0106.
+Validation: The owner's request of 2026-11-10 ("It should be able to create Rituals as well") and their earlier choice to build the full specification.

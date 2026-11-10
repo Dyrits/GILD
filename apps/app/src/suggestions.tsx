@@ -17,8 +17,9 @@ export function SuggestionLine({
   onSelectThread: (threadId: ThreadId) => void;
 }) {
   if (suggestion.outcome === null) return null;
-  const label =
-    suggestion.isFromGuildmaster && suggestion.outcome === "MovedToMission"
+  const label = suggestion.isRitual
+    ? "Created Ritual"
+    : suggestion.isFromGuildmaster && suggestion.outcome === "MovedToMission"
       ? "Opened quest"
       : suggestionLabels[suggestion.outcome];
   const { targetMissionId, targetThreadId } = suggestion;

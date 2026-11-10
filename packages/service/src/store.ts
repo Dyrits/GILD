@@ -464,6 +464,17 @@ const migrations = {
     yield* sql`ALTER TABLE messages ADD COLUMN realm_path TEXT`;
     yield* sql`ALTER TABLE suggestions ADD COLUMN realm_path TEXT`;
   }),
+  // Hearing back (quest coordination): the quests the Guildmaster opened, and the latest report it was told of each
+  // (Reported, Attention, or Failed; null when none stands), so it hears of each change once.
+  "0030_guildmaster_reports": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE missions ADD COLUMN opened_by_guildmaster INTEGER NOT NULL DEFAULT 0`;
+    yield* sql`ALTER TABLE missions ADD COLUMN guildmaster_told TEXT`;
+    // A card in the Guildmaster's conversation for a Ritual it created, not a quest it opened.
+    yield* sql`ALTER TABLE suggestions ADD COLUMN is_ritual INTEGER NOT NULL DEFAULT 0`;
+    // The tier the Guildmaster chose for the quest a suggestion may open (quest coordination, Opening a quest).
+    yield* sql`ALTER TABLE suggestions ADD COLUMN tier TEXT`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

@@ -24,7 +24,7 @@ The owner repeats the same request: a morning digest, a weekly dependency check.
 - Webhook and event triggers (they need the relay Worker).
 - Catching up missed runs, jitter, and time zones other than the computer's.
 - Opening a new quest on each run (the Ritual's quest is the only target).
-- A Ritual created by a thread tool.
+- A Ritual created by a thread tool, except by the Guildmaster, whose `create_ritual` makes one at the owner's request ([quest coordination](../mission-coordination/specifications.md#rituals)).
 
 ## Provisional choices to review
 

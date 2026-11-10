@@ -506,7 +506,9 @@ describe("running Claude Code threads", () => {
           shouldAutoArchive: false,
           shouldOpenOffTopicMissions: false,
           shouldShowAgentThreads: true,
+          shouldShowGuildmaster: true,
           shouldStreamReplies: false,
+          tiers: { Balanced: null, Heavy: null, Light: null },
         },
       });
       const off = yield* call({
@@ -676,7 +678,9 @@ describe("reading and saving settings", () => {
         shouldAutoArchive: false,
         shouldOpenOffTopicMissions: false,
         shouldShowAgentThreads: true,
+        shouldShowGuildmaster: true,
         shouldStreamReplies: true,
+        tiers: { Balanced: null, Heavy: null, Light: null },
       });
 
       const updated = {
@@ -697,7 +701,9 @@ describe("reading and saving settings", () => {
         shouldAutoArchive: true,
         shouldOpenOffTopicMissions: true,
         shouldShowAgentThreads: true,
+        shouldShowGuildmaster: true,
         shouldStreamReplies: false,
+        tiers: { Balanced: null, Heavy: null, Light: null },
       } as const;
       yield* call({ _tag: "UpdateSettings", settings: updated }).pipe(Effect.provide(serviceLayer(options)));
       expect(yield* call({ _tag: "ReadSettings" }).pipe(Effect.provide(serviceLayer(options)))).toEqual(updated);
@@ -727,7 +733,9 @@ describe("reading and saving settings", () => {
         shouldAutoArchive: false,
         shouldOpenOffTopicMissions: false,
         shouldShowAgentThreads: true,
+        shouldShowGuildmaster: true,
         shouldStreamReplies: false,
+        tiers: { Balanced: null, Heavy: null, Light: null },
       });
     }).pipe(Effect.provide(layer));
   });

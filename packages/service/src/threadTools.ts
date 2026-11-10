@@ -1,4 +1,4 @@
-import { EffortChoice, HarnessName, ModelChoice } from "@gild/contracts";
+import { EffortChoice, HarnessName, ModelChoice, RitualSchedule, TierName } from "@gild/contracts";
 import { Effect, Exit, Schema } from "effect";
 import { latestEntryCount, nothingToRecord } from "./journal.ts";
 
@@ -49,6 +49,21 @@ const scopeHelp =
 
 /** Every thread tool, by name. */
 export const threadTools = {
+  act_on_mission: definitionOf({
+    description:
+      "Only the Guildmaster uses it, and only because the owner asked in their latest message: stop a quest's threads, mark it Done, archive it, or rename it. Pass the owner's exact words asking for it as quote; Gild checks them. When threads are still running, marking Done or archiving first answers with the question to put to the owner; when they agree in their next message, call again with the same arguments, the snapshot you were given, and their words as quote.",
+    invalid: invalid("Invalid arguments: give mission, action (Stop, Done, Archive, or Rename), and quote."),
+    isUnasked: true,
+    schema: Schema.Struct({
+      action: Schema.Literals(["Stop", "Done", "Archive", "Rename"]).annotate({
+        description: "Stop: stop every thread at work in the quest. Done and Archive: end it. Rename: give it a title.",
+      }),
+      mission: text("The quest's id, from your context or find_missions."),
+      quote: text("The owner's exact words from their latest message that ask for this, copied verbatim."),
+      snapshot: optionalText("The snapshot a confirmation question gave, when the owner has agreed to it."),
+      title: optionalText("For Rename: the new title."),
+    }),
+  }),
   answer_prompt: definitionOf({
     description: "Used by Claude Code itself to answer permission prompts. Never call it yourself.",
     // Claude Code reads the decision from the text, so an invalid prompt is denied, not an error.
@@ -58,6 +73,34 @@ export const threadTools = {
       input: Schema.Record(Schema.String, Schema.Unknown),
       tool_name: Schema.String,
       tool_use_id: Schema.optionalKey(Schema.String),
+    }),
+  }),
+  create_ritual: definitionOf({
+    description:
+      "Only the Guildmaster uses it. Create a Ritual: an instruction that runs by itself on a schedule, in a quest of its own, for anything the owner wants done repeatedly (every hour, every morning, weekly). Use it instead of open_mission for a repeating request. Pick the preset that fits; there is no cron. Check the Rituals in your context first, so the same one is not made twice. The Ritual starts on and runs when next due.",
+    invalid: invalid(
+      "Invalid arguments: give instruction, title, and schedule (Daily, Weekdays, Weekly, Monthly, or Hourly).",
+    ),
+    isUnasked: true,
+    schema: Schema.Struct({
+      effort: Schema.optionalKey(
+        EffortChoice.annotate({ description: "How hard each run works. Yours when left out." }),
+      ),
+      harness: Schema.optionalKey(HarnessName.annotate({ description: "The harness. Yours when left out." })),
+      instruction: text("What each run does, complete enough to act on: a run sees none of your conversation."),
+      model: Schema.optionalKey(ModelChoice.annotate({ description: "The model. Yours when left out." })),
+      realm: optionalText("The name or folder of one of the realms in your context, when each run works there."),
+      schedule: RitualSchedule.annotate({
+        description:
+          'When it runs, in the computer\'s local time, for example {"_tag":"Hourly","hours":1}, {"_tag":"Daily","time":"07:00"}, {"_tag":"Weekly","day":1,"time":"09:00"} (day 0 is Sunday), {"_tag":"Monthly","day":1,"time":"08:00"}, or {"_tag":"Weekdays","time":"08:30"}.',
+      }),
+      tier: Schema.optionalKey(
+        TierName.annotate({
+          description:
+            "How demanding the work is, as the owner set their Companions for it: Light (small, well-scoped, checkable), Balanced (ordinary work), Heavy (ambiguous, architectural, or risky). Left out, the default Companion; a tier the owner did not set also falls back to it.",
+        }),
+      ),
+      title: text("A short title of a few words, at most 80 characters."),
     }),
   }),
   find_missions: definitionOf({
@@ -98,6 +141,12 @@ export const threadTools = {
         "The name or folder of one of the realms listed in your context, when the request belongs in it, or the realm the owner chose for the message; none when left out.",
       ),
       request: text("The owner's request, complete enough to act on: the new quest sees none of your conversation."),
+      tier: Schema.optionalKey(
+        TierName.annotate({
+          description:
+            "How demanding the work is, as the owner set their Companions for it: Light (small, well-scoped, checkable), Balanced (ordinary work), Heavy (ambiguous, architectural, or risky). Left out, the default Companion; a tier the owner did not set also falls back to it.",
+        }),
+      ),
       title: optionalText("A short title for the quest, a few words."),
     }),
   }),
@@ -126,6 +175,17 @@ export const threadTools = {
       title: optionalText("A short title for the new thread, a few words, shown to the owner."),
     }),
   }),
+  read_control_history: definitionOf({
+    description:
+      "Only the Guildmaster uses it. Read your own older messages with the owner, newest first, when they ask about something said earlier, for example 'Remember what we did about X?'.",
+    invalid: invalid("Invalid arguments: query is text; before and count are whole numbers."),
+    isUnasked: true,
+    schema: Schema.Struct({
+      before: optionalWhole("Only messages numbered below this one, to read older ones."),
+      count: optionalWhole("How many messages, 10 by default, at most 40."),
+      query: optionalText("Only messages that contain these words."),
+    }),
+  }),
   read_journal: definitionOf({
     description: `Read the mission's journal: the briefing of where the mission stands, its version, and change log entries. Without arguments it gives the ${latestEntryCount} latest entries.`,
     invalid: invalid("Invalid arguments: before and count are whole numbers."),
@@ -137,6 +197,7 @@ export const threadTools = {
           description: `How many entries, ${latestEntryCount} by default.`,
         }),
       ),
+      mission: optionalText("Only the Guildmaster uses it: the id of the quest whose journal to read."),
     }),
   }),
   relied_on_intel: definitionOf({
@@ -212,7 +273,7 @@ export const threadTools = {
   }),
   send_thread_message: definitionOf({
     description:
-      "Send a message to your parent thread or to a thread directly beneath you, by its id. It joins that thread's current turn if it is running, and wakes it if it is idle.",
+      "Send a message to your parent thread or to a thread directly beneath you, by its id. Any thread may also message the Guildmaster by its id, to ask it to find the right quest, and the Guildmaster may message any quest's top thread. It joins that thread's current turn if it is running, and wakes it if it is idle.",
     invalid: invalid("Invalid arguments: give to and text."),
     isUnasked: true,
     schema: Schema.Struct({
@@ -240,6 +301,12 @@ export const threadTools = {
       ),
       realm: optionalText("The Guildmaster only: the realm for a new quest, when the owner chose or named one."),
       text: text("The off-topic part of the owner's message, as written."),
+      tier: Schema.optionalKey(
+        TierName.annotate({
+          description:
+            "How demanding the work is, as the owner set their Companions for it: Light (small, well-scoped, checkable), Balanced (ordinary work), Heavy (ambiguous, architectural, or risky). Left out, the default Companion; a tier the owner did not set also falls back to it.",
+        }),
+      ),
       title: text("A short title of a few words for a new mission or aside."),
     }),
   }),

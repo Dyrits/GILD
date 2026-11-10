@@ -27,7 +27,7 @@ const endingQuestionOf = (count: number, ending: MissionEnding) =>
     ? `1 thread is still running. Stop it and ${questionEndings[ending]}?`
     : `${count} threads are still running. Stop them and ${questionEndings[ending]}?`;
 
-const readWorkingIds = Effect.fn("readWorkingIds")(function* (missionId: string) {
+export const readWorkingIds = Effect.fn("readWorkingIds")(function* (missionId: string) {
   const sql = yield* SqlClient.SqlClient;
   const [mission] = yield* sql<{ ending: MissionEnding | null }>`SELECT ending FROM missions WHERE id = ${missionId}`;
   if (mission === undefined) return yield* notFound("No such mission.");

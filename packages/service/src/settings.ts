@@ -27,7 +27,9 @@ export const defaultSettings: Settings = {
   shouldAutoArchive: false,
   shouldOpenOffTopicMissions: false,
   shouldShowAgentThreads: true,
+  shouldShowGuildmaster: true,
   shouldStreamReplies: true,
+  tiers: { Balanced: null, Heavy: null, Light: null },
 };
 
 const decode = Schema.decodeUnknownSync(Settings);

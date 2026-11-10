@@ -14,6 +14,9 @@ export const claudeModels: ReadonlyArray<ModelOption> = [
   { id: "claude-haiku-5-5", label: "Haiku 5.5" },
 ];
 
+/** The cheapest model Gild knows for Claude Code, where the Guildmaster, which only routes, starts. */
+export const claudeCheapestModel = "claude-haiku-5-5";
+
 /** What Gild knows of one harness without running it. */
 export interface HarnessFacts {
   /** What a command approved through `request_approval` needs on this harness, appended to that rule. */

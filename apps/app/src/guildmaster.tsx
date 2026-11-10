@@ -2,6 +2,7 @@ import type { AttachmentId, GuildmasterPlace, MissionId } from "@gild/contracts"
 import { useState } from "react";
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { imageRefusalOf } from "./attachmentRules";
+import { BudgetScreen, BudgetStopCard } from "./budgets";
 import { newRequestId, type ServiceClient } from "./client";
 import { Composer, StateBadge } from "./controls";
 import { useDraft, useFollowNewest } from "./conversation";
@@ -9,6 +10,7 @@ import { AgentReply, EntryView } from "./conversationEntries";
 import { type Entry, entriesOf } from "./entries";
 import { companionLabelOf, harnessLabels } from "./formatting";
 import { allMissions } from "./queries";
+import { budgetValueOf } from "./questPanel";
 import { RunnerPickers, useHarnesses } from "./runners";
 import { useQuestPanel } from "./sidebar";
 import { styles } from "./styles";
@@ -80,6 +82,8 @@ function GuildmasterChat({
   const followNewest = useFollowNewest();
   const skills = useSkills(client, realm?.path ?? null);
   const [actionError, setActionError] = useState<string | null>(null);
+  // The Guildmaster can have a budget of its own, set on its own screen like a quest's (budget-control).
+  const [isBudgetOpen, setIsBudgetOpen] = useState(false);
   useQuestPanel(
     <ScrollView contentContainerStyle={local.panel}>
       <RealmChooser
@@ -102,6 +106,16 @@ function GuildmasterChat({
       <View style={local.page}>
         <Text style={styles.muted}>Calling the Guildmaster…</Text>
       </View>
+    );
+  }
+  if (isBudgetOpen) {
+    return (
+      <BudgetScreen
+        client={client}
+        missionId={place.missionId}
+        onBack={() => setIsBudgetOpen(false)}
+        title="Budget · Guildmaster"
+      />
     );
   }
   const { thread } = detail;
@@ -130,6 +144,9 @@ function GuildmasterChat({
         <Text numberOfLines={1} style={[local.title, styles.flex]}>
           Guildmaster
         </Text>
+        <Pressable accessibilityRole="button" onPress={() => setIsBudgetOpen(true)}>
+          <Text style={local.link}>Budget · {budgetValueOf(detail.mission.budget)}</Text>
+        </Pressable>
         <StateBadge state={thread.state} />
         {canStop && (
           <Pressable onPress={() => act(client.request({ _tag: "StopThread", threadId: thread.id }))}>
@@ -142,6 +159,9 @@ function GuildmasterChat({
           </Pressable>
         )}
       </View>
+      {detail.budgetStop !== null && (
+        <BudgetStopCard client={client} onRaise={() => setIsBudgetOpen(true)} stop={detail.budgetStop} />
+      )}
       {actionError !== null && <Text style={styles.error}>{actionError}</Text>}
       {thread.failure != null && (
         <View style={styles.failure}>

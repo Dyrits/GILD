@@ -403,6 +403,8 @@ function Sidebar({
   const { data } = useServiceQuery(client, allMissions.request, allMissions.key);
   const missions = [...(data?.missions ?? [])].sort((a, b) => b.lastActivityAt - a.lastActivityAt);
   const rituals = useRituals(client) ?? [];
+  // A setting hides the Guildmaster's entry; its screen is still where a realm page's message goes.
+  const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
   // The rail lists the latest quests of every realm; "+ N more" unfolds the rest.
   const [areAllQuestsShown, setAreAllQuestsShown] = useState(false);
   const railQuests = areAllQuestsShown ? missions : missions.slice(0, railQuestLimit);
@@ -426,14 +428,16 @@ function Sidebar({
     <View style={[local.sidebar, isCollapsed ? local.sidebarCollapsed : { width }]}>
       <View pointerEvents="none" style={local.sidebarInner} />
       <ScrollView contentContainerStyle={local.group} style={local.flex}>
-        <Category
-          emblem="crown"
-          hasRule={false}
-          isCollapsed={isCollapsed}
-          isSelected={isHere("Guildmaster")}
-          label="Guildmaster"
-          onPress={() => onPlace("Guildmaster")}
-        />
+        {settings?.shouldShowGuildmaster !== false && (
+          <Category
+            emblem="crown"
+            hasRule={false}
+            isCollapsed={isCollapsed}
+            isSelected={isHere("Guildmaster")}
+            label="Guildmaster"
+            onPress={() => onPlace("Guildmaster")}
+          />
+        )}
         {isCollapsed ? (
           <Category
             emblem="compass"

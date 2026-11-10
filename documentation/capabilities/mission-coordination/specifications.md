@@ -18,6 +18,10 @@ A user who is new to agents does not know which harness, model, or quest fits a 
 - Guildmaster opens no threads beneath itself; its work goes into quests. Since it belongs to no quest, the off-topic suggestion never appears in Guildmaster.
 - Guildmaster acts on quests (stopping threads, marking Done, archiving, renaming) only when the user asks in Guildmaster, with the same confirmations as on the dashboard, and never on its own.
 
+### Rituals
+
+- A request to do something repeatedly on a schedule (every hour, every morning) is a [Ritual](../rituals/specifications.md), not a quest. Guildmaster creates it with `create_ritual`, on a preset schedule, and its reply says what it will do and when. It lists the existing Rituals in its context so it does not make one twice. A Ritual's quest stays in the Rituals place, and Guildmaster does not hear back from its runs.
+
 ### Opening a quest
 
 - Every way of starting a quest goes through Guildmaster; no box starts a quest directly. At the foot of a realm's page, the message box sends the message to Guildmaster with that realm attached. Guildmaster still checks for matching quests, and opens any new quest in that realm; the realm is fixed, not a suggestion.
@@ -62,10 +66,11 @@ Guildmaster uses these thread tools in addition to `find_missions`, `suggest_mis
 | Tool | Purpose | Arguments | Answer |
 | --- | --- | --- | --- |
 | `open_mission` | Open a new quest | The request; optionally a tier, harness, agent, model, effort, and workspace | The new quest's identifier and the choices it started with, or a refusal and its reason |
-| `act_on_mission` | Stop threads, mark Done, archive, or rename, at the user's request | A quest, an action, and for renaming a title | Done, or the confirmation the user must give first |
+| `create_ritual` | Create a [Ritual](../rituals/specifications.md) for a repeating request | The instruction, a title, a schedule preset; optionally a tier, harness, model, effort, and realm | The Ritual's title, schedule, and Companion, or a refusal and its reason |
+| `act_on_mission` | Stop threads, mark Done, archive, or rename, at the user's request | A quest, an action, the user's exact words asking for it as `quote`, for renaming a title, and for a confirmed ending the snapshot it was given | Done, or the confirmation the user must give first, or a refusal |
 | `read_control_history` | Read Guildmaster's older messages | A query or a starting point | The matching messages |
 
-Only Guildmaster can call these three tools. Any thread can address Guildmaster with `send_thread_message`.
+Only Guildmaster can call these four tools. Any thread can address Guildmaster with `send_thread_message`.
 
 ## Acceptance and validation
 
@@ -104,3 +109,12 @@ Only Guildmaster can call these three tools. Any thread can address Guildmaster 
 - Guildmaster doing the work of a quest itself.
 - Guildmaster acting on quests on its own initiative.
 - More than one Guildmaster.
+
+## Provisional choices to review
+
+- **The owner's words authorize an action.** `act_on_mission` is refused unless the `quote` appears in the owner's message that started Guildmaster's current turn; a Done or archive with threads at work first answers with the dashboard's question and goes ahead only with that question's snapshot and the owner's agreement quoted in a later message. A quote cannot prove that the owner meant it for this action.
+- **Stop** takes no confirmation, as the dashboard's Stop does not.
+- **A quest reports once its turn has ended**, so its closing reply travels with the report; a quest that stands in the same report is not told twice, and one that leaves it is told again later.
+- **Hiding Guildmaster** removes its rail entry and opens the window on the quests; the screen is still where a realm page's message goes.
+- **Tiers** are optional Companions; a tier not set, or no tier, starts on the Settings default, never on Guildmaster's own cheap Companion. Guildmaster's own Companion starts on Claude Code's cheapest model (Haiku) when the default harness is Claude Code, and on the harness's own default otherwise.
+- **Not built**: the 20-message window with older messages summarized (the harness session carries the conversation); messages between quests by `@` reference with their event lines in Guildmaster; Guildmaster's spending on the quests' dashboard (it shows on its own screen).

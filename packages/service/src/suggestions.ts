@@ -98,9 +98,13 @@ export const suggestionsLayer = Layer.effect(
       title: string,
       choice: Parameters<typeof insertMission>[1],
       realmPath: string | null = null,
+      isFromGuildmaster = false,
     ) =>
       Effect.gen(function* () {
         const started = yield* insertMission(text, choice, realmPath, false);
+        // The Guildmaster hears of this quest's result, Summons, and failure from now on (hearing back).
+        if (isFromGuildmaster)
+          yield* sql`UPDATE missions SET opened_by_guildmaster = 1 WHERE id = ${started.missionId}`;
         if (titleOf(title) !== "") yield* proposeTitle(started.missionId, title);
         const [mission] = yield* sql<{ title: string }>`SELECT title FROM missions WHERE id = ${started.missionId}`;
         return {
@@ -161,6 +165,7 @@ export const suggestionsLayer = Layer.effect(
                 model: chosen.model,
               },
               stored?.realmPath ?? null,
+              suggestion.isFromGuildmaster,
             );
           }),
       });
@@ -192,14 +197,15 @@ export const suggestionsLayer = Layer.effect(
       title: string,
       matches: ReadonlyArray<string>,
       realmPath: string | null,
+      tier: string | null,
     ) =>
       waits.ask({
         // A caller that gave up leaves nobody to carry on: the suggestion is withdrawn.
         abandon: (id) => withdrawOne(id, threadId),
         missionId,
         record: (id, now) =>
-          sql`INSERT INTO suggestions (id, mission_id, thread_id, text, title, matches, asked_at, realm_path)
-            VALUES (${id}, ${missionId}, ${threadId}, ${text}, ${title}, ${JSON.stringify(matches)}, ${now}, ${realmPath})`.pipe(
+          sql`INSERT INTO suggestions (id, mission_id, thread_id, text, title, matches, asked_at, realm_path, tier)
+            VALUES (${id}, ${missionId}, ${threadId}, ${text}, ${title}, ${JSON.stringify(matches)}, ${now}, ${realmPath}, ${tier})`.pipe(
             Effect.asVoid,
           ),
         threadId,
@@ -267,7 +273,15 @@ export const suggestionsLayer = Layer.effect(
             { _tag: "OpenedWithoutAsking", resolution: opened },
             { threadsToWake: opened.targetThreadId === null ? [] : [opened.targetThreadId] },
           );
-        const resolution = yield* ask(threadId, caller.missionId, text, title, matches, realm?.path ?? null);
+        const resolution = yield* ask(
+          threadId,
+          caller.missionId,
+          text,
+          title,
+          matches,
+          realm?.path ?? null,
+          isGuildmaster ? (args.tier ?? null) : null,
+        );
         return unchanged<Suggested>(resolution === null ? { _tag: "NotAsked" } : { _tag: "Resolved", resolution });
       }).pipe(Effect.provideService(SqlClient.SqlClient, sql), Effect.orDie);
 

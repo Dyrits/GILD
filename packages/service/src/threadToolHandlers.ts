@@ -4,8 +4,19 @@ import { SqlClient } from "effect/sql";
 import type { Approvals } from "./approvals.ts";
 import { countChatter } from "./chatter.ts";
 import { type CommandRunner, changed, unchanged, type WithFollowUps } from "./commands.ts";
+import { readWorkingIds } from "./ending.ts";
 import { HarnessFailure, type HarnessPrompt, type PromptAnswer } from "./execution.ts";
-import { isGuildmasterThread, openedAnswerOf, openMissionByGuildmaster, refusedOpening } from "./guildmaster.ts";
+import {
+  actOnMission,
+  createRitualByGuildmaster,
+  isGuildmasterThread,
+  openedAnswerOf,
+  openMissionByGuildmaster,
+  readControlHistory,
+  refusedAction,
+  refusedOpening,
+  refusedRitual,
+} from "./guildmaster.ts";
 import { journalToolsOf } from "./journalTools.ts";
 import { loreToolsOf } from "./loreTools.ts";
 import { insertMessage } from "./messaging.ts";
@@ -129,6 +140,21 @@ export const makeToolHandlers = (dependencies: {
     ...loreToolsOf(commit),
     ...journalToolsOf(commit),
     ...titleToolsOf(commit),
+    act_on_mission: (threadId, args) =>
+      runTool(
+        actOnMission(threadId, args).pipe(
+          Effect.catchTag("ServiceFailure", (failure) => Effect.succeed(refusedAction(failure.message))),
+        ),
+      ).pipe(
+        Effect.flatMap((outcome) =>
+          outcome._tag === "ToStop"
+            ? commit(readWorkingIds(outcome.missionId)).pipe(
+                Effect.flatMap((ids) => Effect.forEach(ids, (id) => threads.stop(id), { discard: true })),
+                Effect.as(answer(outcome.text)),
+              )
+            : Effect.succeed(answer(outcome.text, outcome._tag === "Refused")),
+        ),
+      ),
     answer_prompt: (threadId, { input, tool_name }) =>
       approvals
         .answerPrompt(threadId, tool_name, input)
@@ -143,6 +169,14 @@ export const makeToolHandlers = (dependencies: {
             ),
           ),
         ),
+    create_ritual: (threadId, args) =>
+      runTool(
+        createRitualByGuildmaster(threadId, args).pipe(
+          Effect.catchTag("ServiceFailure", (failure) => Effect.succeed(refusedRitual(failure.message))),
+        ),
+      ).pipe(
+        Effect.map((outcome) => (outcome._tag === "Created" ? answer(outcome.text) : answer(outcome.reason, true))),
+      ),
     find_missions: suggestions.findMissions,
     interrupt_thread: (threadId, { thread: target }) =>
       commit(isBeneath(threadId, target)).pipe(
@@ -178,6 +212,7 @@ export const makeToolHandlers = (dependencies: {
             : openThread(args)(threadId),
         ),
       ),
+    read_control_history: (threadId, args) => commit(readControlHistory(threadId, args)),
     report_result: (threadId, { journal, result }) =>
       journal.trim() === ""
         ? Effect.succeed(toolCatalogue.report_result.invalid)

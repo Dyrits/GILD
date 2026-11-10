@@ -1,13 +1,12 @@
 # Work in progress
 
-## Guildmaster batch · 2026-11-10 · increment A implemented and checked, owner review pending
+## Guildmaster batch · 2026-11-10 · increments A, B, and C implemented and checked, owner review pending
 
-Agreed in CHG-0106: the Guildmaster is the one place quests start, built from the full [quest coordination](capabilities/mission-coordination/specifications.md) in three increments. Starting revision: `b913921`.
-Increment A (built): a hidden Guildmaster quest and thread; `find_missions` over title, briefing, and opening request, with ticket keys and links weighed; `open_mission` (Guildmaster only) and `suggest_mission` as Continue in or Open a new quest anyway; the realm carried on a message; the screen as the conversation with the realm tiles in the right panel; the realm page's box sending to the Guildmaster.
-Checks: 11 new fake-harness tests; typecheck and Biome pass; full suite 562 passed with one timing-sensitive failure under machine load that passes alone; window driven on a throwaway database ([proof](verification/2026-11-10-guildmaster.md)).
-Awaiting the owner: the look; a live Claude Code, Codex, or OpenCode run of the Guildmaster's prompt (does it search first and never open a quest that fits?).
-Pending, increment B: hearing back from quests it opened, `act_on_mission`, `@Guildmaster` forwarding, event lines, `read_control_history`. Increment C: tiers, the Guildmaster's budget, the hide setting, a prefilled cheapest model.
-Open: the owner's own message does not show its realm in the conversation; the Guildmaster thread carries the delivered note only.
+Agreed in CHG-0106 and CHG-0107: the Guildmaster is the one place quests start and the control panel over them, built from the full [quest coordination](capabilities/mission-coordination/specifications.md). Starting revision: `b913921`.
+Built: A (CHG-0106) the conversation, matching on ticket keys, Continue in or open, realm hand-off; B hearing back, `act_on_mission`, `create_ritual`, `read_journal` and `read_control_history`, messaging to and from the Guildmaster; C tiers, its own cheap Companion and budget, the hide setting.
+Checks: 29 fake-harness tests in `guildmaster.test.ts`; typecheck and Biome pass; full suite 581 passed, 10 skipped; the window driven on a throwaway database for A, B, and C ([proof](verification/2026-11-10-guildmaster.md)).
+Awaiting the owner: the look; a live Claude Code, Codex, or OpenCode run of the Guildmaster's prompt (does it search first, pick Rituals for repeating work, never open a quest that fits, and act only when asked?).
+Not built: messages between quests by `@` reference and their event lines; the 20-message window with summarized older messages; Guildmaster's spending on the quests' dashboard.
 
 ## Guild-board batch · 2026-11-09 · implemented and checked, owner review pending
 

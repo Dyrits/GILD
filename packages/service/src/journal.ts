@@ -163,9 +163,15 @@ export const journalTextOf = (
   ].join("\n");
 
 /** What `read_journal` answers: the briefing and up to `count` entries before `before`. */
-export const readJournalText = (threadId: string, before: number | null, count: number | null) =>
+export const readJournalText = (
+  threadId: string,
+  before: number | null,
+  count: number | null,
+  /** Another quest's journal, for the Guildmaster; the caller's own when null. */
+  ofMissionId: string | null = null,
+) =>
   Effect.gen(function* () {
-    const missionId = yield* missionOf(threadId);
+    const missionId = ofMissionId ?? (yield* missionOf(threadId));
     const briefing = yield* readBriefing(missionId);
     const entries = yield* listEntries(missionId, before, count ?? latestEntryCount);
     return journalTextOf(briefing, entries);
