@@ -1733,3 +1733,15 @@ Scope: Conversation terminal
 Summary: At the owner's request, the live terminal, its wrapper, and the frozen terminal snapshot use the same soft blue as the owner's message bubble.
 References: apps/app/src/terminalPanel.web.tsx, apps/app/src/terminalMessage.tsx.
 Validation: workspace typecheck and Biome pass; the owner's look remains pending.
+
+## CHG-0121 · 2026-11-10 · Recorded actions align left
+
+Type: Code
+Event: Delivery
+Scope: Conversation steps
+
+Summary: At the owner's screenshot request, recorded action rows align left beside the expanded steps' vertical rule.
+The shared questionLine style also left-aligns other conversation event lines using it.
+References: apps/app/src/styles.ts, commit 473b2e9.
+Validation: the implementing side-quest reports Biome, workspace typecheck, and diff whitespace checks passing; the parent confirmed the committed style and git history.
+Live appearance remains unverified.
