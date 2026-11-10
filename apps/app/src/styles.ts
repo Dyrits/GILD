@@ -222,7 +222,7 @@ export const styles = StyleSheet.create({
     gap: 8,
     padding: 14,
   },
-  questionLine: { alignSelf: "center", gap: 2, marginVertical: 6, maxWidth: "90%" },
+  questionLine: { alignSelf: "flex-start", gap: 2, marginVertical: 6, maxWidth: "90%" },
   questionText: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.base, fontWeight: "600" },
   questLayout: { backgroundColor: colors.paper, flex: 1, flexDirection: "row" },
   questLayoutCompact: { flexDirection: "column" },
