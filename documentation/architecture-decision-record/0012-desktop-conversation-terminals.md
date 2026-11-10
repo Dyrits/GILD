@@ -3,7 +3,7 @@
 The desktop main process owns the owner's ephemeral interactive shells through node-pty, while xterm renders them in the Expo web conversation.
 The platform's process pipes do not provide terminal job control, interactive prompts, or screen programs, and React Native has no terminal emulator; these two dependencies cover those jobs.
 The existing Electron preload exposes only open, input, resize, close, and output subscriptions to its main frame, with no terminal endpoint on the service or relay.
-The shell uses the owner's default login shell and home folder or selected realm root.
+The shell uses the owner's default login shell; its starting folder follows the [conversation terminal specification](../capabilities/conversation-terminal/specifications.md#behavior), including the Free Realm fallback agreed in CHG-0131.
 Owner-entered commands are direct desktop interaction rather than harness actions.
 
 The local service remains the owner of persisted conversation data.

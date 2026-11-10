@@ -17,6 +17,37 @@ When work runs in many threads across harnesses, the user loses track of which m
 - The user starts a mission from the dashboard with a first message, a harness, agent, model, effort, and workspace (or none).
 - All but the message are prefilled from the user's last choices, so a mission starts with one message and Enter.
 - A new mission's top thread starts as **Open as new mission** does in [thread-tree](../thread-tree/specifications.md#off-topic-requests): with global skills and intel, and nothing from another mission.
+- The owner can create a quest directly from a Realm or Free Realm without going through Guildmaster.
+  The quest belongs to that realm and receives its lore; a workspace-backed Realm also supplies its workspace.
+- Proposed sidebar control: a `+` button beside each Realm and Free Realm opens a new quest there.
+  The owner suggested this placement; its final appearance remains to be decided.
+
+Direct realm creation was agreed on 2026-11-10 (CHG-0133); implementation and verification remain pending.
+
+### Quest placement and moves
+
+Agreed on 2026-11-10 (CHG-0130); implementation and verification remain pending.
+
+- A quest belongs to a Realm tied to a workspace, to a Free Realm with no workspace, or to no realm (realmless).
+- Lore access follows [lore scopes](../scoped-intel/specifications.md#scopes).
+- The owner can move an existing quest between any of these placements, including correcting a quest started in the wrong workspace.
+- The sidebar supports dragging a quest from its current Realm, Free Realm, or realmless group onto another placement.
+- Before changing placement, Gild asks for confirmation naming the source and destination and explaining that the available realm lore will change.
+  Confirm applies the move; Cancel leaves the quest and its tree in their original placement.
+  This confirmation applies to every placement-changing move, including making a quest realmless, whichever interface initiates it.
+- A move includes the quest and every side-quest at every depth, including threads explicitly attached to another workspace; no branch stays behind.
+- A move is refused while any thread in the quest tree is running; it does not stop running threads automatically.
+  The running-thread check applies when the owner confirms, even if no thread was running when the drag began.
+- Moving into a workspace-backed Realm changes the workspace of every thread in the tree to that Realm's workspace.
+- Moving into a Free Realm or making a quest realmless removes workspace attachments throughout the tree; its threads then use the quest's scratch folder.
+- The conversation, journal, and thread-scoped lore stay with the quest; shared lore access follows the destination, without copying lore between realms.
+- Earlier conversation content can still refer to the former realm or workspace; a move does not rewrite that history.
+- A quest is independent of the artifacts it produces or modifies; moving it does not move, copy, or delete files, edits, branches, or existing own copies.
+- Existing own copies remain accessible at their original locations, which the interface shows after a move.
+- A move does not merge old own copies into the destination workspace or use them as its working folder.
+- Moving changes future turns' workspace context; relocating a workspace's folder is a separate operation in [workspace attachment](../workspace-attachment/specifications.md#missing-folder).
+
+Sidebar drag-and-drop and confirmation were agreed on 2026-11-10 (CHG-0133); implementation and verification remain pending.
 
 ### Title
 
@@ -74,6 +105,14 @@ Threads use this thread tool (see [0005](../../architecture-decision-record/0005
 ## Acceptance and validation
 
 - **Automated, with a fake harness**:
+  - direct creation from a Realm or Free Realm placing the quest there with the correct lore and workspace, without a Guildmaster turn;
+  - dragging quests between sidebar placements opening the move confirmation, with no placement change before confirmation and none on Cancel;
+  - confirming a move refused if any descendant starts running while confirmation is open;
+  - quests in a workspace-backed Realm, a Free Realm, and no realm, with the correct shared lore;
+  - moving the entire quest tree between each placement, including nested threads with a different prior workspace;
+  - refusing the move without changing any placement or attachment when any thread in the tree is running;
+  - preserving conversations, journals, and thread lore while changing workspace attachments and shared lore access;
+  - leaving files, edits, branches, and own copies at their original locations after a move, with old own-copy locations still accessible;
   - a mission's state worked out from its threads, in the order of urgency;
   - the top thread's result asking "Mark as done?" without ending the mission;
   - the inactivity question after the set duration, agent activity resetting it, and a dismissed question coming back;

@@ -10,12 +10,30 @@ Version 1 serves the installation's owner. In future hosted missions, the sharin
 
 ### Scopes
 
-- An intel belongs to one intel scope: a thread (and the threads beneath it), a workspace, or global.
-- Intel saved on a mission's top thread applies to the whole mission.
+Each lore entry belongs to one scope.
+For ordinary threads, visibility follows this table:
+
+| Scope | Lore available |
+| --- | --- |
+| Side-quest | Its own, its ancestor side-quests', its quest's, its realm's when present, and global lore |
+| Quest | Its own, its realm's when present, and global lore |
+| Realm or Free Realm | Its own and global lore |
+| Global | Global lore |
+
+- A quest holds its lore on its top thread, making it available throughout the quest tree.
+- Lore stays hidden from ancestors and sibling branches unless the owner approves [widening](#widening-and-narrowing).
+- Realm membership determines realm lore, even when a side-quest works in another workspace.
+  A realmless quest has no realm lore.
+- Guildmaster can search and read lore at every scope for the owner's requests (CHG-0132).
+  This exception leaves ordinary threads' access unchanged and does not copy lore into broader scopes.
+  Guildmaster follows the save, change, widening, and deletion rules below.
+- Quest moves follow [quest placement and moves](../mission-tracking/specifications.md#quest-placement-and-moves).
+
+Realm scopes and moves (CHG-0130), visibility across scopes (CHG-0131), and Guildmaster's access exception (CHG-0132) are agreed; implementation and verification remain pending.
 
 ### Lookup
 
-- A search looks in the thread first, then in each thread above it, then in the thread's workspace, then globally.
+- A search looks in the thread first, then in each thread above it, then in the quest's realm if it has one, then globally.
 - When two intels conflict, the one from the most specific scope wins.
 
 ### Kinds
@@ -36,7 +54,7 @@ Each intel has a kind, which sets how fast it fades when no thread uses it. The 
 ### Recall
 
 - A new thread starts with the intel in scope for it, like a memory:
-  - thread, mission, and workspace intel in full;
+  - thread, mission, and realm intel in full (including Free Realm intel, when applicable);
   - global intel as an index of one line per active intel (its identifier, kind, and a short summary), followed by how many dormant intels are not listed. The thread reads a global intel in full through `search_intel`.
 - The index is ordered so that a new intel is added at its end, and the lines before it stay unchanged.
 - The user is warned before a thread starts when its starting context is too large (see [thread-tree](../thread-tree/specifications.md#opening-a-thread)).
@@ -54,7 +72,7 @@ Each intel has a kind, which sets how fast it fades when no thread uses it. The 
 
 - Before saving, a thread checks whether there is anything worth keeping. Saving nothing is better than saving a vague or forced intel.
 - A thread chooses the narrowest scope that fits.
-- It saves thread and workspace intel on its own, and shows each save in the thread.
+- It saves thread and realm intel on its own, and shows each save in the thread.
 - It saves global intel only after the user's approval.
 - An intel holds at most 200 tokens, estimated as for the [journal](../mission-journal/specifications.md#size), so one intel holds one fact.
 - A rule the user gives in a chat, such as "always run the tests before a commit", is saved as an intel without the user asking. Instructions are only what the user writes in settings.
@@ -69,7 +87,8 @@ Each intel has a kind, which sets how fast it fades when no thread uses it. The 
 ### Correcting and deleting
 
 - The user can edit or delete any intel.
-- A thread can correct or delete thread and workspace intels on its own, and shows each change in the thread. It corrects or deletes a global intel only after the user's approval.
+- A thread can correct or delete thread and realm intels on its own, and shows each change in the thread.
+  It corrects or deletes a global intel only after the user's approval.
 
 ### History and undo
 
@@ -79,8 +98,8 @@ Each intel has a kind, which sets how fast it fades when no thread uses it. The 
 ### Widening and narrowing
 
 - A thread can propose moving an intel to a wider scope when it is not specific to where it was saved, for example a global convention or a preference of the user. The move needs the user's approval.
-- The service proposes widening from evidence: when the same intel is saved separately in two or more workspaces, it proposes one global intel in their place.
-- The service proposes narrowing from evidence: when a global intel has been used only in one workspace for its whole half-life, it proposes moving it to that workspace.
+- When the same intel is saved separately in two or more realms, the service proposes one global intel in their place.
+- When a global intel has been used only in one realm for its whole half-life, the service proposes moving it to that realm.
 - Each proposal waits in the intel panel for the user's approval and changes nothing before it.
 
 ### Size warning
@@ -113,23 +132,27 @@ Search ranks the closest match first and ranks higher an intel matching a word f
 ## Acceptance and validation
 
 - **Automated, with a fake harness**:
-  - a new thread starting with thread, mission, and workspace intel in full, the global index, and the count of dormant intels;
+  - side-quest lore visible to that thread and its descendants, hidden from ordinary ancestor and sibling threads, with Guildmaster's read exception checked separately;
+  - quest lore visible throughout its tree but not to its realm or another quest;
+  - realm lore visible throughout its quests, with global lore available at every scope and narrower lore winning conflicts;
+  - a side-quest working in another workspace retaining its quest's realm lore without acquiring the other workspace's realm lore;
+  - a new thread starting with thread, quest, and realm intel in full, the global index, and the count of dormant intels;
   - a new global intel added at the end of the index, leaving the lines before it unchanged;
   - the lookup order, and the most specific intel winning a conflict;
   - fading by kind on a fake clock: a temporary intel dormant after 30 days of unrelated turns, a rule and a pinned intel never fading, a dormant intel found by search and active again after use, an archived intel restored from the panel;
   - a greeting, or an intel only present in context, not counting as a use; `search_intel` counting as one and slowing fading;
   - a near-duplicate save becoming a replacement, a global replacement awaiting approval with the old and new text, and an unclear match saved as a new intel;
-  - widening proposed for the same intel in two workspaces, narrowing proposed for a global intel used in one workspace, neither applied before approval;
+  - widening proposed for the same intel in two realms, narrowing proposed for a global intel used in one realm, neither applied before approval;
   - undo of a change, a replacement, and a deletion;
   - search ranking the closest match first and boosting rare words;
-  - thread and workspace saves without approval, global saves awaiting it;
+  - thread and realm saves without approval, global saves awaiting it;
   - an intel over 200 tokens refused;
   - a rule given in a chat saved as an intel;
-  - a thread correcting and deleting thread and workspace intels, and awaiting approval for global ones;
+  - a thread correcting and deleting thread and realm intels, and awaiting approval for global ones;
   - widening awaiting approval;
   - the intel icon turning red past 10% of the chosen model's context window, and not on a model with a larger window;
   - Tidy up intel changing nothing before approval, then applying all or each approved change, from the panel and from a routine.
-- **Human acceptance**: the user tells a thread "always run the tests before a commit" and sees it saved as a rule, sees that intel in a thread of another mission in the same workspace, approves a global save, sees a global intel as an index line that a thread reads in full, then makes the intel icon turn red, runs Tidy up intel, and undoes one of its changes.
+- **Human acceptance**: the user tells a thread "always run the tests before a commit" and sees it saved as a rule, sees that intel in a thread of another quest in the same realm, approves a global save, sees a global intel as an index line that a thread reads in full, then makes the intel icon turn red, runs Tidy up intel, and undoes one of its changes.
 
 ## Requirements
 
@@ -139,7 +162,8 @@ Search ranks the closest match first and ranks higher an intel matching a word f
 ## Dependencies
 
 - [thread-tree](../thread-tree/specifications.md): gives each new thread the intel in scope, and warns when its starting context is too large.
-- [workspace-attachment](../workspace-attachment/specifications.md): decides which workspace's intel a thread sees.
+- [mission-tracking](../mission-tracking/specifications.md#quest-placement-and-moves): quest placement and moves between realms.
+- [mission-coordination](../mission-coordination/specifications.md#what-guildmaster-does-itself): Guildmaster's app-wide role.
 - [action-approval](../action-approval/specifications.md): carries the approvals for global intel, replacements, widening, and narrowing.
 - Routines: run a scheduled Tidy up intel.
 

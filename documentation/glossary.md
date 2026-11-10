@@ -14,8 +14,11 @@ User-authored text and historical service messages are not rewritten.
 | Top-level mission thread | Quest |
 | Model selected to do the work | Companion |
 | Thread opened beneath another thread | Side-quest |
-| Workspace | Realm |
-| Control | Guildmaster |
+| Workspace-backed grouping of missions | Realm |
+| Workspace-free grouping of missions | Free Realm |
+| Mission outside any realm | Realmless Quest |
+| Control conversation | Guild Hall |
+| Entity the user talks with in Control | Guildmaster |
 | Workflow | Craft |
 | Workflow run | Craft run |
 | Routine | Ritual |
@@ -74,13 +77,25 @@ _Avoid_: Summary, journal summary, description, brief
 The one overview of all missions with their state, threads, spending, and the start of each briefing. Control reads it as text.
 _Avoid_: Mission dashboard, index, mission list, board, kanban
 
-**Guildmaster** (technical term: Control):
-The one permanent thread outside every mission that the user can talk to about anything. Every quest starts through it: it looks for a quest that already fits, offers to continue it, or opens a new one, and it never does the work itself.
+**Guild Hall** (technical term: Control conversation):
+The place where the user talks with Guildmaster, containing the one permanent thread outside every quest.
+
+**Guildmaster**:
+The app-wide assistant the user talks with in the Guild Hall to find information, manage Gild, and coordinate quests.
 _Avoid_: Coordinator, dispatcher, orchestrator, main thread, Mission control
 
 **Workspace**:
-A folder or repository on the user's computer, chosen by the user or cloned by Gild, that a thread is attached to before it starts.
+A folder or repository on the user's computer, chosen by the user or cloned by Gild, where a thread works.
 _Avoid_: Project, repo, directory
+
+**Realm**:
+A grouping of quests tied to one workspace, with lore shared across its quests.
+
+**Free Realm**:
+A grouping of quests with shared lore and no workspace.
+
+**Realmless Quest**:
+An independent quest outside any realm, with its own lore and global lore but no realm lore.
 
 **Browsable root**:
 A folder set in the Charter (Settings) under which the user and threads can browse and choose workspaces.
@@ -190,7 +205,8 @@ Saved facts, preferences, and decisions, each held at one lore scope. One item i
 _Avoid_: Memory, note, knowledge, intel
 
 **Lore scope**:
-Where a lore entry lives and who sees it: a thread (and the threads beneath it), a workspace, or global.
+Where a lore entry belongs: a side-quest, a quest, a realm (including a free realm), or global.
+See [lore scopes](capabilities/scoped-intel/specifications.md#scopes) for visibility and Guildmaster's access exception.
 
 **Lore kind**:
 What a lore entry is (rule, preference, decision, fact, or temporary), which sets how fast it fades when unused.

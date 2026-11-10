@@ -1,3 +1,10 @@
 # Thread tools are served over MCP
 
-The local service gives threads their tools (`open_thread`, `find_missions`, `suggest_mission`, `send_thread_message`, `interrupt_thread`, `request_approval`, journal and intel tools, `report_result`) through one local MCP server, because MCP is the tool mechanism that Claude Code, Codex, and ACP harnesses all support. A thread may act only on itself and the threads beneath it, enforced by the server, not by the harness. The one exception is reading: `find_missions` shows other missions' titles, journal summaries, and states, and a message reaches another mission only when the user chooses Continue in. Amended by CHG-0009: a thread can also message a thread or mission it references with `@`, and Control can open, message, and act on any mission at the user's request (see [mission-coordination](../capabilities/mission-coordination/specifications.md)).
+The local service gives threads their tools (`open_thread`, `find_missions`, `suggest_mission`, `send_thread_message`, `interrupt_thread`, `request_approval`, journal and intel tools, `report_result`) through one local MCP server, because Claude Code, Codex, and ACP harnesses all support MCP.
+The service enforces each thread's authority over itself and its descendants.
+`find_missions` can read other missions' titles, journal summaries, and states; Continue in routes a message to the mission the user selects.
+CHG-0009 added messaging to threads and missions referenced with `@`, and let Control open, message, and act on any mission at the user's request.
+
+CHG-0132 extends Control's authority to the [Guildmaster role](../capabilities/mission-coordination/specifications.md#what-guildmaster-does-itself).
+The service must distinguish Guildmaster's app-wide authority from ordinary thread authority and enforce each operation's rules, approvals, and budgets.
+The additional tools still need design and implementation.

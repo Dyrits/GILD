@@ -47,6 +47,6 @@ When adding a handoff, keep only the three newest current handoffs linked below;
 
 Latest handoffs:
 
+- To resume Free Realms, quest moves, and Guild Hall, read the [current handoff](.agents/handoffs/2026-11-10-2334-free-realms-and-quest-moves.md). Handoffs are shared and committed.
 - To resume the README and agent guide, read the [current handoff](.agents/handoffs/2026-11-10-2220-readme-and-agent-guide.md). Handoffs are shared and committed.
 - To resume tagged desktop releases (pushed to main; hosted checks and the first tagged release remain unverified), read the [current handoff](.agents/handoffs/2026-11-10-2209-tagged-releases.md). Handoffs are shared and committed.
-- [2026-11-10 21:48: compact navigation](.agents/handoffs/2026-11-10-2148-compact-navigation.md).

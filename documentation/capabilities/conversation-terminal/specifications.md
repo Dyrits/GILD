@@ -7,7 +7,9 @@ The owner confirmed that shell output belongs in the Companion's context and cla
 
 - In a desktop conversation, typing `!` on an empty composer line opens the owner's default login shell as an interactive owner-message bubble in the conversation, without triggering the Companion.
 - An exclamation mark in ordinary text stays text; paste and input composition do not trigger a shell.
-- Without a realm, the starting folder is the owner's home folder; with a realm, it is that realm's root, including the realm chosen in Guildmaster.
+- With a workspace-backed Realm, the starting folder is that Realm's root, including the Realm selected in the Guild Hall.
+- For a Free Realm or realmless quest, the terminal starts in the owner's home folder.
+  Agents without a workspace still use the quest's [scratch folder](../workspace-attachment/specifications.md#no-workspace).
 - The terminal accepts interactive input, control keys, and resizing through a pseudo-terminal.
 - Hide keeps the shell running; Show or `!` brings it back.
 - Send freezes the recent rendered output as a terminal block in the owner's message and includes that same output in the persisted text supplied to the harness.
@@ -16,6 +18,8 @@ The owner confirmed that shell output belongs in the Companion's context and cla
 - Close shell ends the process and removes it from the draft; an exited shell keeps its output and offers New shell.
 - The desktop window owns these temporary processes and ends them when it closes.
 - Phone and standalone browser clients cannot create or control a shell.
+
+The Free Realm fallback was agreed on 2026-11-10 (CHG-0131); implementation and verification remain pending.
 
 ## Bounds
 

@@ -1849,3 +1849,60 @@ The owner's local installed copy was repaired using a fresh byte-identical execu
 References: [release workflow](../.github/workflows/package.yml), [packaged-app check](../apps/desktop/scripts/check-package.ts), [diagnosis and recovery evidence](verification/2026-11-10-dmg-launch.md).
 Validation: The check fails for the blocked copy and passes for both the repaired installed copy and a fresh copy of the untouched downloaded DMG; Finder-style startup renders Gild, and the normal installed process now owns its profile.
 Actionlint, desktop typechecking, Biome, and all seven offline release scenarios pass; hosted execution of the new gate and the owner's final acceptance remain pending.
+
+## CHG-0130 · 2026-11-10 · Free Realms, realmless quests, and whole-quest moves
+
+Type: Documentation
+Event: Agreement
+Scope: Quest placement, workspace attachment, and shared lore
+
+Summary: The owner distinguished workspace-backed Realms, Free Realms that group quests and share lore without a workspace, and independent realmless quests.
+Quests can move between these placements, including correcting a quest begun in the wrong workspace.
+The quest and every side-quest move together, including branches with another workspace; no thread in the tree may be running.
+Destination workspace and realm lore apply to the whole tree, while its conversation, journal, and own lore stay intact.
+This replaces the earlier rule that a started thread cannot change its workspace.
+Source: the owner's delineate interview, including "A quest and its subquest will all move together, but not must be running for that."
+References: [glossary](glossary.md), [outline](outline.md), [mission tracking](capabilities/mission-tracking/specifications.md#quest-placement-and-moves), [workspace attachment](capabilities/workspace-attachment/specifications.md#changing-a-threads-workspace), [scoped intel](capabilities/scoped-intel/specifications.md#scopes), [thread tree](capabilities/thread-tree/specifications.md#threads-and-missions).
+Validation: documentation agreement only; no implementation or runtime verification.
+The owner then confirmed that a quest is independent of the artifacts it produces or modifies.
+Moving preserves files, edits, branches, and existing own copies in their original locations, with old own-copy locations shown and accessible; future turns use the destination workspace or the quest's scratch folder.
+
+## CHG-0131 · 2026-11-10 · Guild Hall, Lore visibility, and Free Realm terminals
+
+Type: Documentation
+Event: Agreement
+Scope: Quest coordination, scoped lore, workspace attachment, and conversation terminals
+
+Summary: The owner named the conversation place Guild Hall and retained Guildmaster as the entity the user talks with there.
+The owner clarified lore visibility across side-quest, quest, realm, and global scopes, with narrower lore taking precedence and realm membership determining realm lore.
+Free Realm terminals use the realmless terminal's home-folder fallback; agent scratch folders are unchanged.
+Source: the owner's clarification following the capability and architecture-decision-record consistency check.
+References: [glossary](glossary.md), [quest coordination](capabilities/mission-coordination/specifications.md), [scoped intel](capabilities/scoped-intel/specifications.md#scopes), [workspace attachment](capabilities/workspace-attachment/specifications.md), [conversation terminal](capabilities/conversation-terminal/specifications.md), [ADR 0012](architecture-decision-record/0012-desktop-conversation-terminals.md).
+Validation: documentation agreement only; interface rename, Free Realm behavior, and runtime verification remain pending.
+
+## CHG-0132 · 2026-11-10 · Guildmaster orchestrates the whole app
+
+Type: Documentation
+Event: Agreement
+Scope: Guildmaster access, information retrieval, and app orchestration
+
+Summary: The owner gave Guildmaster access to all app-managed information and resources to answer questions and manage Gild directly from the Guild Hall.
+This replaces its global-lore-only read restriction and the requirement to open a quest for every request beyond questions about quests or using Gild.
+Ordinary threads retain their scoped access, and each operation keeps its rules, approvals, and budgets.
+Source: the owner, "Guildmaster will allows to orchestrate the app, not only create quest but search for information, having access to everything."
+References: [quest coordination](capabilities/mission-coordination/specifications.md), [scoped intel](capabilities/scoped-intel/specifications.md#scopes), [glossary](glossary.md), [outline](outline.md), [architecture](architecture.md), [ADR 0005](architecture-decision-record/0005-thread-tools-over-mcp.md).
+Validation: documentation agreement only; broader tool contracts, technical design, implementation, and runtime verification remain pending.
+
+## CHG-0133 · 2026-11-10 · Direct quest creation and confirmed sidebar moves
+
+Type: Documentation
+Event: Agreement
+Scope: Quest creation, sidebar navigation, and realm moves
+
+Summary: The owner requested direct quest creation from realms, suggesting a sidebar `+` button, and drag-and-drop moves between realms and the realmless group.
+Every placement-changing move requires confirmation because realm lore can be specific to its original context.
+The existing whole-tree move rule remains: no quest or side-quest may be running, and artifacts stay where they are.
+This replaces the requirement that all quest creation go through Guildmaster; requests sent to Guildmaster still use its quest-matching behavior.
+Source: the owner, referring to delta.dev as inspiration for the sidebar interaction; the exact `+` placement remains a proposal.
+References: [mission tracking](capabilities/mission-tracking/specifications.md#starting-a-mission), [quest moves](capabilities/mission-tracking/specifications.md#quest-placement-and-moves), [quest coordination](capabilities/mission-coordination/specifications.md#opening-a-quest), [architecture](architecture.md#flows).
+Validation: documentation agreement only; implementation, interaction checks, and the owner's visual review remain pending.

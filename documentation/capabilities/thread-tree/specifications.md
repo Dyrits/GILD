@@ -13,6 +13,7 @@ Work with AI agents spreads across disconnected chats, and subagents run out of 
 - Every thread has its own identifier and at most one parent thread. A thread with no parent is a mission's top thread, except Guildmaster (see [mission-coordination](../mission-coordination/specifications.md)); the mission is that thread and every thread beneath it.
 - The user can open a thread beneath any thread, or a new mission. A thread can open threads only beneath itself.
 - Each thread shows its harness, agent (when one is chosen), model, effort, workspace (or none), state, and spending.
+- Moving a quest moves every thread beneath it together, only while none is running; the destination changes every thread's workspace and shared realm lore as specified in [mission tracking](../mission-tracking/specifications.md#quest-placement-and-moves) (CHG-0130, agreed; implementation pending).
 
 ### Quest tree visibility
 

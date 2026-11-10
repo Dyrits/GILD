@@ -2,17 +2,23 @@
 
 ## Problem and outcome
 
-Agents work on files: a repository to fix, a folder of documents to sort. Each thread has to know which folder it works in, what intel, permissions, skills, and instructions go with that folder, and must not wander into folders the user never offered. Attaching each thread to one workspace, chosen before it starts from folders the user allowed or from a repository Gild clones, gives every thread the right place and context, from the computer or the phone.
+Agents work on files: a repository to fix, a folder of documents to sort.
+Each thread has to know which folder it works in, what intel, permissions, skills, and instructions go with that folder, and must not wander into folders the user never offered.
+Attaching each thread to one workspace from folders the user allowed or from a repository Gild clones gives every thread the right place and context, from the computer or the phone.
+The owner can correct a wrong workspace by moving a whole quest when none of its threads is running.
 
 ## Agreed behavior
 
 ### Choosing a workspace
 
-- A mission's or thread's workspace is chosen before it starts, in its settings: by choosing a folder, by giving a git repository link, or none. A new thread copies its opener's workspace unless the opener chooses another or none (see [thread-tree](../thread-tree/specifications.md#opening-a-thread)).
+- A mission's or thread's initial workspace is chosen before it starts, in its settings: by choosing a folder, by giving a git repository link, or none.
+  A new thread copies its opener's workspace unless the opener chooses another or none (see [thread-tree](../thread-tree/specifications.md#opening-a-thread)).
+  Moving the whole quest can change these attachments later as specified below.
 - On the desktop, **Choose folder…** opens the system's own folder dialog (Finder on macOS, Explorer on Windows), with its New Folder and hidden-file controls; any folder the user can open may be chosen (CHG-0035).
 - The phone browses the computer's folders in Gild's own browser, limited to the **browsable roots** in Settings. These start with the user's home folder; **Add root** adds others, for example `/Volumes/Drive/Code`. The browser has **New folder**. The browser, with **Show hidden**, and the roots are built and kept for phone browsing; the desktop does not show them.
 - A folder becomes a workspace the first time it is chosen; there is no separate setup. Workspaces are listed on the **Workspaces** page in Settings, where the user can rename them.
-- A thread belongs only to the workspace chosen for it. A workspace inside another stays part of the outer folder for the outer workspace's threads, but its intel and standing permissions apply only to its own threads.
+- A thread works in the workspace chosen for it.
+  A workspace inside another stays part of the outer folder for the outer workspace's threads, but its standing permissions apply only to threads attached to it.
 
 ### Cloning a repository
 
@@ -40,7 +46,8 @@ Agents work on files: a repository to fix, a folder of documents to sort. Each t
 ### What a workspace gives its threads
 
 - Its instructions, from the folder's own `AGENTS.md` and `CLAUDE.md`, and its skills from `.agents`, `.claude`, and equivalent supported harness folders. Workspace MCP servers are configured in Gild. A harness that does not read the selected instructions itself gets them in its starting context. See [tool-and-skill-loading](../tool-and-skill-loading/specifications.md).
-- Its intel (see [scoped-intel](../scoped-intel/specifications.md)) and its standing permissions (see [action-approval](../action-approval/specifications.md)), kept in Gild's own data, never written into the folder, so they survive a relocation or a new clone.
+- Its standing permissions (see [action-approval](../action-approval/specifications.md)), kept in Gild's own data, never written into the folder, so they survive a relocation or a new clone.
+- Lore access follows [lore scopes](../scoped-intel/specifications.md#scopes), independently of the thread's working folder.
 - Editing inside it without asking; editing outside it asks.
 - Each thread's starting context names its workspace and path, or says it has none.
 
@@ -54,8 +61,8 @@ Agents work on files: a repository to fix, a folder of documents to sort. Each t
 
 ### Changing a thread's workspace
 
-- A thread's workspace never changes after the thread starts. To work in another folder, a thread opens a thread beneath it there.
-- The one exception is a new location for a moved workspace (see below).
+A started thread's workspace can change through a [whole-quest move](../mission-tracking/specifications.md#quest-placement-and-moves), which defines the running-thread check, destination attachments, and artifact preservation (CHG-0130; implementation pending).
+[Relocating a workspace](#missing-folder) changes the folder's location while preserving the workspace's identity.
 
 ### Missing folder
 
@@ -91,7 +98,7 @@ Threads use these thread tools in addition to `open_thread` and `open_mission`, 
   - threads with no workspace sharing their mission's scratch folder, kept on archive and deleted with the mission;
   - workspace instructions and skills reaching a harness that does not read the files itself;
   - the starting context naming the workspace;
-  - nested workspaces keeping their own intel and standing permissions;
+  - nested workspaces keeping their own standing permissions, with lore access determined separately by quest realm membership;
   - a missing folder sending a thread to Attention with Retry, Relocate, and Clone again only for a cloned workspace; relocating keeping intel and permissions;
   - Hide and re-adding restoring missions, intel, and permissions; Delete permanently erasing them; both refused while a thread runs; the folder untouched by either;
   - Own copy creating a worktree on its branch, shared by threads beneath, merged with one button, conflicts resolved by the thread in its copy, a blocked merge refused with its reason, and the worktree folder deleted on archive with its branch kept.
@@ -99,7 +106,7 @@ Threads use these thread tools in addition to `open_thread` and `open_mission`, 
 
 ## Requirements
 
-- [Local data](../../requirements.md): workspace intel and settings stay in Gild's data on the computer; browsing from the phone travels only over the encrypted connection.
+- [Local data](../../requirements.md): workspace settings and realm lore stay in Gild's data on the computer; browsing from the phone travels only over the encrypted connection.
 - [Approval per action](../../requirements.md): a standing permission applies in its workspace, or in its mission with no workspace.
 
 ## Dependencies
@@ -107,14 +114,14 @@ Threads use these thread tools in addition to `open_thread` and `open_mission`, 
 - [thread-tree](../thread-tree/specifications.md): opening threads with a workspace, and the Attention state.
 - [mission-tracking](../mission-tracking/specifications.md): choosing the workspace when starting a mission, and filtering by it.
 - [mission-coordination](../mission-coordination/specifications.md): Control picking or cloning the workspace.
-- [scoped-intel](../scoped-intel/specifications.md): workspace intel.
+- [scoped-intel](../scoped-intel/specifications.md#scopes): lore visibility, separate from working-folder attachment.
 - [action-approval](../action-approval/specifications.md): standing permissions per workspace, and approval before a push.
 - **tool-and-skill-loading**: loading the workspace's MCP servers and skills.
 - **device-pairing**: browsing the computer's folders from the phone.
 
 ## Exclusions
 
-- Changing a thread's workspace after it starts, except relocating it.
+- Changing only one existing thread's workspace independently of a whole-quest move, except relocating its workspace.
 - Several workspaces for one thread.
 - A `.gild` folder inside workspaces.
 - Folders outside the browsable roots, when browsing from the phone or opened by a thread.
