@@ -1,7 +1,10 @@
-name: Package desktop app
+name: Check and release desktop app
 
 on:
   push:
+    branches: [main]
+    tags: ["v*"]
+  pull_request:
     branches: [main]
   workflow_dispatch:
 
@@ -29,10 +32,17 @@ jobs:
       - run: bun install --frozen-lockfile
       - run: bun run check
       - run: bun run typecheck
+      - name: Download Electron
+        run: node node_modules/electron/install.js
+      - name: Prepare terminal native module for tests
+        working-directory: apps/desktop
+        run: bun x --no-install electron-builder install-app-deps
+      - run: bun run test --maxWorkers=4
 
   package:
     name: Package ${{ matrix.platform }} (${{ matrix.arch }})
     needs: check
+    if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
     runs-on: ${{ matrix.runner }}
     timeout-minutes: 30
     strategy:
@@ -67,14 +77,56 @@ jobs:
       - name: Download Electron
         run: node node_modules/electron/install.js
       - name: Build installer
-        run: bun run package --${{ matrix.arch }}
+        shell: bash
+        run: |
+          args=("--$BUILD_ARCH")
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            args+=("--config.extraMetadata.version=${GITHUB_REF_NAME#v}")
+          fi
+          bun run package "${args[@]}"
         env:
+          BUILD_ARCH: ${{ matrix.arch }}
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
       - name: Upload installer
         uses: actions/upload-artifact@v7
         with:
-          name: Gild-${{ matrix.platform }}-${{ matrix.arch }}-${{ github.sha }}
           path: apps/desktop/release/*.${{ matrix.extension }}
+          archive: false
           if-no-files-found: error
           retention-days: 14
-          compression-level: 0
+
+  release:
+    name: Publish installers
+    needs: package
+    if: github.event_name == 'push' && github.ref_type == 'tag'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: Gild-*
+          path: installers
+          merge-multiple: true
+      - name: Publish GitHub Release
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          GH_REPO: ${{ github.repository }}
+          RELEASE_TAG: ${{ github.ref_name }}
+        run: |
+          # Publish only after every platform succeeded and every installer is present.
+          files=(installers/*.dmg installers/*.exe installers/*.AppImage)
+          [[ ${#files[@]} -eq 4 ]]
+          for file in "${files[@]}"; do test -s "$file"; done
+          isPrerelease=false
+          if [[ "$RELEASE_TAG" == *-* ]]; then isPrerelease=true; fi
+          if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
+            # A failed upload can resume its draft; published releases stay immutable.
+            test "$(gh release view "$RELEASE_TAG" --json isDraft --jq '.isDraft')" = true
+          else
+            gh release create "$RELEASE_TAG" --verify-tag --generate-notes --draft --prerelease="$isPrerelease"
+          fi
+          gh release upload "$RELEASE_TAG" "${files[@]}" --clobber
+          gh release edit "$RELEASE_TAG" --draft=false --prerelease="$isPrerelease"

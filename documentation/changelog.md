@@ -1810,3 +1810,14 @@ The existing packaging command now forwards architecture options, invokes Bun di
 References: [.github/workflows/package.yml](../.github/workflows/package.yml), [packaging instructions](../README.md#desktop-installers), [verification](verification/2026-11-10-desktop-packaging.md).
 Validation: Lint, workspace typecheck, actionlint, the macOS arm64 DMG build, the bundle signature, and the image checksum pass.
 Evidence: This delivers locally checked configuration; publication, all four native GitHub runner builds, artifact downloads, and target-system smoke tests remain pending in work in progress.
+
+## CHG-0128 · 2026-11-10 · Version tags publish direct installers
+
+Type: Configuration
+Event: Delivery
+Scope: Desktop release configuration
+
+Summary: At the owner's request, main pushes and pull requests now run lint, types, and tests; version tag pushes package all four desktop targets and publish their installers directly on GitHub Releases.
+Manual packaging remains available with unarchived Actions artifacts, and tag versions set the packaged app version with hyphenated versions marked as prereleases.
+References: [.github/workflows/package.yml](../.github/workflows/package.yml), [installer instructions](../README.md#desktop-installers), [verification](verification/2026-11-10-tagged-releases.md).
+Validation: Actionlint, seven offline build/release shell scenarios, and whitespace checks pass; the first hosted check and tagged release remain pending.

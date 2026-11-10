@@ -1,12 +1,13 @@
 # Work in progress
 
-## Desktop packaging automation · 2026-11-10 · locally verified, GitHub run pending
+## Desktop packaging automation · 2026-11-10 · tagged releases configured
 
-Authorized by the owner's request to package on pushes to `main`, starting at `51d4ceb44a8fad62fbea27acb233856d6cb1c777`.
-The batch adds GitHub Actions artifacts for Apple Silicon and Intel DMGs, a Windows x64 NSIS installer, and a Linux x64 AppImage, using the existing Electron Builder setup.
-Verification: local lint, workspace typecheck, actionlint, macOS arm64 packaging, and bundle signature verification passed; see [proof](verification/2026-11-10-desktop-packaging.md).
-Next: publish the workflow, inspect all four native build jobs and their downloadable artifacts, then smoke-test the installers on their target systems.
-Installers remain unsigned on Windows and ad hoc signed without notarization on macOS; public releases, auto-updates, signing credentials, and runtime portability fixes are outside this batch.
+The owner reported the initial packaging workflow works, then authorized moving packaging to version tags and direct downloads.
+This follow-up starts at `45893948e884f6208b633e1a1155b7fcb5fcbf92`; `main` pushes and pull requests now run lint, types, and tests, while `v*` tag pushes build all four installers and publish a GitHub Release.
+Manual builds publish direct Actions artifacts only; prerelease tags become GitHub prereleases, and the tag sets the packaged app version.
+Verification: actionlint and seven offline shell scenarios pass; see [tagged release proof](verification/2026-11-10-tagged-releases.md).
+Next: inspect the first check-only run after publication, then push a version tag when the owner chooses to release and verify the direct release downloads.
+Trusted signing, notarization, auto-updates, and runtime portability fixes remain outside this batch.
 
 ## Compact left navigation specification · 2026-11-10
 
