@@ -7,7 +7,7 @@ export function TerminalMessage({ cwd, output }: { cwd: string; output: string }
     <View
       accessibilityLabel="Terminal snapshot"
       style={{
-        backgroundColor: colors.paper,
+        backgroundColor: colors.accentSoft,
         borderColor: colors.border,
         borderRadius: 4,
         borderWidth: 1,

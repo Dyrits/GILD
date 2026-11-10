@@ -1723,3 +1723,13 @@ The progress-display side-quest also fixed a completed approval summary remainin
 References: documentation/capabilities/conversation-terminal/specifications.md, documentation/architecture-decision-record/0012-desktop-conversation-terminals.md, documentation/verification/2026-11-10-bang-terminal.md.
 Validation: workspace typecheck, Biome, desktop build, Expo web export, and 617 tests pass, with 10 skipped; an isolated Electron drive on the owner's Fish shell proves home-folder execution and snapshot delivery to a fake harness.
 The owner's review of the final inline appearance is pending.
+
+## CHG-0120 · 2026-11-10 · Blue throughout the terminal bubble
+
+Type: Code
+Event: Delivery
+Scope: Conversation terminal
+
+Summary: At the owner's request, the live terminal, its wrapper, and the frozen terminal snapshot use the same soft blue as the owner's message bubble.
+References: apps/app/src/terminalPanel.web.tsx, apps/app/src/terminalMessage.tsx.
+Validation: workspace typecheck and Biome pass; the owner's look remains pending.

@@ -49,7 +49,7 @@ export function TerminalPanel({ id, cwd, ref, onReady }: TerminalPanelProps) {
       fontSize: 13,
       scrollback: 3000,
       theme: {
-        background: colors.paper,
+        background: colors.accentSoft,
         black: colors.text,
         blue: colors.accentText,
         brightBlack: colors.textMuted,
@@ -146,7 +146,7 @@ export function TerminalPanel({ id, cwd, ref, onReady }: TerminalPanelProps) {
       .catch((reason: Error) => setError(reason.message));
   };
   return (
-    <View style={{ backgroundColor: colors.paper, borderRadius: 8, gap: 4, padding: 8 }}>
+    <View style={{ backgroundColor: colors.accentSoft, borderRadius: 8, gap: 4, padding: 8 }}>
       {!isRunning && (
         <View style={styles.row}>
           <Text style={{ color: colors.textSecondary }}>Shell exited</Text>
