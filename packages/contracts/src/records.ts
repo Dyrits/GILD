@@ -101,6 +101,8 @@ export const Settings = Schema.Struct({
   /** Whether an off-topic request opens a new mission without asking when no mission matches (thread-tree). */
   shouldOpenOffTopicMissions: Schema.Boolean,
   shouldShowAgentThreads: Schema.Boolean,
+  /** Whether the rail lists finished (Done) quests among the quests; off by default, the board still shows them. */
+  shouldShowFinishedQuests: Schema.Boolean,
   /** Whether the rail shows the Guildmaster, on by default (quest coordination, Place). */
   shouldShowGuildmaster: Schema.Boolean,
   shouldStreamReplies: Schema.Boolean,

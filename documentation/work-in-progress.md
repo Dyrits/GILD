@@ -8,6 +8,8 @@ Checks: 29 fake-harness tests in `guildmaster.test.ts`; typecheck and Biome pass
 Awaiting the owner: the look; a live Claude Code, Codex, or OpenCode run of the Guildmaster's prompt (does it search first, pick Rituals for repeating work, never open a quest that fits, and act only when asked?).
 Not built: messages between quests by `@` reference and their event lines; the 20-message window with summarized older messages; Guildmaster's spending on the quests' dashboard.
 
+Sidebar follow-up (2026-11-10): the rail no longer lists finished (Done) quests by default; a Charter toggle ("Show finished quests in the sidebar", `shouldShowFinishedQuests`) brings them back, and a finished quest stays listed while it is open. The board and the realm counts are unchanged. Checked by `apps/app/test/railQuests.test.ts`, typecheck, lint, and the full suite (590 passed); not driven in the window; the look awaits the owner.
+
 ## Guild-board batch · 2026-11-09 · implemented and checked, owner review pending
 
 The owner selected [the Guild direction](art-direction/2026-11-08-guild-board.html) and requested its naming through iterate.

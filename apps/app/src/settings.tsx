@@ -238,6 +238,11 @@ export function SettingsScreen({
                   value={settings.shouldOpenOffTopicMissions}
                 />
                 <ToggleRow
+                  label="Show finished quests in the sidebar"
+                  onChange={(shouldShowFinishedQuests) => save({ shouldShowFinishedQuests })}
+                  value={settings.shouldShowFinishedQuests}
+                />
+                <ToggleRow
                   label="Show replies as they're written"
                   onChange={(shouldStreamReplies) => save({ shouldStreamReplies })}
                   value={settings.shouldStreamReplies}

@@ -27,6 +27,7 @@ export const defaultSettings: Settings = {
   shouldAutoArchive: false,
   shouldOpenOffTopicMissions: false,
   shouldShowAgentThreads: true,
+  shouldShowFinishedQuests: false,
   shouldShowGuildmaster: true,
   shouldStreamReplies: true,
   tiers: { Balanced: null, Heavy: null, Light: null },

@@ -25,6 +25,7 @@ import { CrestBadge } from "./crest";
 import { Emblem, type EmblemName } from "./emblems";
 import { tokenCountOf } from "./labels";
 import { allMissions } from "./queries";
+import { railQuestsOf } from "./railQuests";
 import { useRituals } from "./rituals";
 import { colors, cut, fontSizes, fonts, ink, lift, radii } from "./theme";
 import { useServiceQuery } from "./useServiceQuery";
@@ -405,9 +406,14 @@ function Sidebar({
   const rituals = useRituals(client) ?? [];
   // A setting hides the Guildmaster's entry; its screen is still where a realm page's message goes.
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
-  // The rail lists the latest quests of every realm; "+ N more" unfolds the rest.
+  // The rail lists the latest quests of every realm, finished ones only when the Charter says so or while one is open;
+  // "+ N more" unfolds the rest.
   const [areAllQuestsShown, setAreAllQuestsShown] = useState(false);
-  const railQuests = areAllQuestsShown ? missions : missions.slice(0, railQuestLimit);
+  const listed = railQuestsOf(missions, {
+    openMission,
+    shouldShowFinished: settings?.shouldShowFinishedQuests === true,
+  });
+  const railQuests = areAllQuestsShown ? listed : listed.slice(0, railQuestLimit);
   const workspaces = [...(data?.workspaces ?? [])].sort((a, b) => a.name.localeCompare(b.name));
   const realms = workspaces.map((workspace) => ({
     count: missions.filter((mission) => mission.workspaceId === workspace.id && mission.state !== "Done").length,
@@ -482,8 +488,8 @@ function Sidebar({
           onPress={() => onPlace("Quests")}
           {...props("Quests")}
         />
-        {!isCollapsed && !folded.has("Quests") && missions.length === 0 && (
-          <Text style={local.empty}>No quests yet.</Text>
+        {!isCollapsed && !folded.has("Quests") && listed.length === 0 && (
+          <Text style={local.empty}>{missions.length === 0 ? "No quests yet." : "No open quests."}</Text>
         )}
         {!isCollapsed &&
           !folded.has("Quests") &&
@@ -496,14 +502,14 @@ function Sidebar({
               onPress={() => onOpenMission(mission.id)}
             />
           ))}
-        {!isCollapsed && !folded.has("Quests") && missions.length > railQuestLimit && (
+        {!isCollapsed && !folded.has("Quests") && listed.length > railQuestLimit && (
           <Pressable
             accessibilityRole="button"
             accessibilityState={{ expanded: areAllQuestsShown }}
             onPress={() => setAreAllQuestsShown(!areAllQuestsShown)}
           >
             <Text style={[local.empty, local.moreQuests]}>
-              {areAllQuestsShown ? "Show fewer" : `+ ${missions.length - railQuestLimit} more`}
+              {areAllQuestsShown ? "Show fewer" : `+ ${listed.length - railQuestLimit} more`}
             </Text>
           </Pressable>
         )}
