@@ -1,72 +1,52 @@
 # Gild
 
+## Start here
+
+Read [README.md](README.md) for the product overview, setup, commands, and repository layout.
+When resuming work, read [work in progress](documentation/work-in-progress.md) first, then the relevant [handoff](#handoffs).
+Work proceeds in batches with the iterate skill.
+
 ## Documents
 
-- `documentation/outline.md`: what the system is for, its actors and capabilities. Read before any product or design work.
-- `documentation/requirements.md`: system-wide obligations. Read before any design or technical choice.
-- `documentation/glossary.md`: the domain language. Read before naming anything; use its terms.
-- `documentation/architecture.md`: the system's parts, flows, and how each requirement is met. Read before any technical or structural change.
-- `documentation/architecture-decision-record/`: why hard-to-reverse choices were made. Read before reversing one; add a record for each new one.
-- `documentation/capabilities/<capability>/specifications.md`: each capability's agreed behavior and acceptance. Read before changing that capability.
-- `documentation/first-slice-design.md` and `documentation/capabilities/<capability>/blueprint.md`: proposed modules, interfaces, and staged acceptance. Read before implementing or reviewing the first slice; settle the listed review decisions before production code.
-- `documentation/backlog.md`: candidate work and deferrals. Read when choosing what to do next.
-- `documentation/inspirations.md`: products Gild follows, their good ideas, what was taken, and what to check on. Read before designing a capability one of them covers; add new findings with their date.
-- `documentation/work-in-progress.md`: the current batch, its checks, and open questions. Read first when resuming; work proceeds in batches with the iterate skill.
-- `documentation/changelog.md`: authorized agreements and verified deliveries. Append a record for each.
-- `documentation/verification/`: reproducible proofs that delivered work behaves as claimed, with their scripts and screenshots. Read before re-verifying a batch or trusting its claims.
-- `documentation/architecture-audit/`: architecture audit reports (HTML), one per run. Read before proposing structural refactors.
-- `apps/app/AGENTS.md`: Expo-specific rules for the app. Read before changing `apps/app`.
-- `documentation/conventions.md`: how code is written here (naming, absence, errors, comments, tests). Read before writing or reviewing code.
-- `packages/service/node_modules/effect/AGENTS.md`: Effect's own guide for this installed version. Read completely before writing Effect code; search its `src/` for APIs it does not cover.
+Read the documents that apply to the task before making changes:
 
-## Tooling
+- Product or design work: [outline](documentation/outline.md) for purpose, actors, and capabilities.
+- Design or technical choices: [requirements](documentation/requirements.md) for system-wide obligations.
+- Naming: [glossary](documentation/glossary.md) for domain terms and their interface names; use its terms.
+- Technical or structural changes: [architecture](documentation/architecture.md) for boundaries, flows, and how requirements are met.
+- Reversing an architectural decision: read its [decision record](documentation/architecture-decision-record/); add a record for each new hard-to-reverse choice.
+- Capability changes: read `documentation/capabilities/<capability>/specifications.md` for agreed behavior and acceptance.
+- First-slice implementation or review: read [first-slice design](documentation/first-slice-design.md) and the relevant `documentation/capabilities/<capability>/blueprint.md`; settle the listed review decisions before production code.
+- Choosing the next work: [backlog](documentation/backlog.md) for candidates and deferrals.
+- Designing a capability covered by an inspiration: [inspirations](documentation/inspirations.md) for ideas adopted and follow-up checks; date new findings.
+- Recording agreements or verified deliveries: append each to the [changelog](documentation/changelog.md).
+- Re-verifying a batch or relying on its claims: read its [verification evidence](documentation/verification/) and distinguish recorded results from checks run now.
+- Proposing structural refactors: read previous [architecture audits](documentation/architecture-audit/).
+- Writing or reviewing code: read [conventions](documentation/conventions.md).
+- Changing `apps/app`: read [apps/app/AGENTS.md](apps/app/AGENTS.md) for Expo-specific rules.
+- Writing Effect code: read `packages/service/node_modules/effect/AGENTS.md` completely for the installed version; search Effect's `src/` for APIs it does not cover.
 
-- `.agents/ai-tooling.md`: installed AI tools (CodeGraph, Context7, ast-grep, Playwright CLI), their checks, gaps, and session recovery. Read before reinstalling or measuring tooling, or when a session must be recovered.
-- Commits run `.githooks/pre-commit` (Biome on staged files, then `bun run typecheck`); fix with `bun run format` and stage again.
-- A Git guard (`.agents/hooks/guard-git.py`, level 2) asks before, or blocks, pushes to `main` and commands that lose local work; `.githooks/pre-push` refuses pushes to `main`. A person approves a push to `main` with `git push --no-verify`; an agent asks the user instead.
+## Tooling and Git
+
+Read [.agents/ai-tooling.md](.agents/ai-tooling.md) before reinstalling or measuring AI tools, or recovering a session.
+Use the root `package.json` for current commands and the README for setup.
+
+The [pre-commit hook](.githooks/pre-commit) runs Biome on staged files and runs the workspace typecheck when code or configuration is staged.
+Fix reported issues and stage the corrected files again.
+
+The [Git guard](.agents/hooks/guard-git.py) asks before, or blocks, pushes to `main` and commands that lose local work.
+The [pre-push hook](.githooks/pre-push) refuses protected-branch pushes and remote-ref deletion.
+A person can approve a push to `main` with `git push --no-verify`; an agent must obtain the user's approval before bypassing the hook.
 
 ## Handoffs
 
-To resume tagged desktop releases (pushed to main; hosted checks and the first tagged release remain unverified), read the [current handoff](.agents/handoffs/2026-11-10-2209-tagged-releases.md). Handoffs are shared and committed.
+Find session-specific context in [.agents/handoffs/](.agents/handoffs/), ordered by the timestamp in each filename.
+Read the newest handoff for the task being resumed and check its claims against its sources and the current working tree.
+Handoffs are shared and committed; preserve existing files and write a new handoff for later state.
+When adding a handoff, keep only the three newest current handoffs linked below; older and superseded handoffs remain available in the folder.
 
-To resume the compact left menu and conditional quest tree (committed and pushed; the running appearance awaits review), read the [current handoff](.agents/handoffs/2026-11-10-2148-compact-navigation.md). Handoffs are shared and committed.
+Latest handoffs:
 
-To resume the source files grouped into folders (CHG-0125; committed and pushed to `main`; the running app's look after the move is unchecked), read the [current handoff](.agents/handoffs/2026-11-10-2144-source-folders.md). Handoffs are shared and committed.
-
-To resume the installed app (.dmg) and the full-project review fixes, read the [current handoff](.agents/handoffs/2026-11-10-2116-installed-app-and-review-fixes.md). Handoffs are shared and committed.
-
-To resume left-aligned conversation actions and check their appearance, read the [current handoff](.agents/handoffs/2026-11-10-1551-left-aligned-actions.md). Handoffs are shared and committed.
-
-To resume the conversation terminal and its blue message bubble, read the [current handoff](.agents/handoffs/2026-11-10-1538-conversation-terminal.md). Handoffs are shared and committed.
-
-To resume the small quest navigation button (existing sword at the top right, no left icon; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1425-quest-navigation.md). Handoffs are shared and committed.
-
-To resume messages outside steps (CHG-0118; the live appearance awaits review), read the [current handoff](.agents/handoffs/2026-11-10-1458-messages-outside-steps.md). Handoffs are shared and committed.
-To resume the harness update in the Charter (CHG-0110, pushed to `main`; a real update and the owner's look remain), read the [current handoff](.agents/handoffs/2026-11-10-1330-harness-update.md). Handoffs are shared and committed.
-To resume the one side panel and its border removal, read the [current handoff](.agents/handoffs/2026-11-10-1444-right-sidebar.md). Handoffs are shared and committed.
-To resume deleting a Ritual from its card (CHG-0108, committed on branch `ritual-delete`; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1152-ritual-delete.md). Handoffs are shared and committed.
-To resume the Guildmaster (increments A, B, and C, the link buttons beside its replies, and finished quests off the sidebar, all on `main`; a live-model check and the owner's look remain), read the [current handoff](.agents/handoffs/2026-11-10-1317-guildmaster-link-buttons-and-sidebar.md). Handoffs are shared and committed.
-To resume agent replies drawn as Markdown (committed on branch `markdown-replies`; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1043-markdown-replies.md). Handoffs are shared and committed.
-To resume message attachments, the large-paste freeze, and the startup failure (images on the owner's messages built and checked; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1034-message-attachments.md). Handoffs are shared and committed.
-To resume the Charter (Settings, first named Workshop; renamed in CHG-0105, committed on branch `charter-rename`; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-1052-charter-rename.md). Handoffs are shared and committed.
-To resume Rituals as a place apart from the quests (CHG-0100, pushed to `main`; the look and a Ritual firing on a live harness await the owner), read the [current handoff](.agents/handoffs/2026-11-10-0914-rituals-place.md). Handoffs are shared and committed.
-To resume thread handover (changing harness, account, and model in the middle of a quest; pushed to `main`; the look and a live handover await the owner), read the [current handoff](.agents/handoffs/2026-11-10-0800-thread-handover.md). Handoffs are shared and committed.
-To resume the Quest tree menu restyle and the conversation cards (committed and pushed to `main`; the look of both awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-0736-quest-tree-menu.md). Handoffs are shared and committed.
-To resume the review fixes, the lore rename, and the architecture audit (committed and pushed to `main`; the owner picks a candidate and looks at the screens), read the [current handoff](.agents/handoffs/2026-11-10-0015-review-fixes-and-lore.md). Handoffs are shared and committed.
-To resume the Companion model label and the `ask_question` specification for Summons (CHG not yet written; the label is committed and pushed, the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-09-2332-companion-label.md). Handoffs are shared and committed.
-To resume realms, crests, and the board redesign (pushed to `main`; its records still to write), read the [current handoff](.agents/handoffs/2026-11-09-2323-realms-and-crests.md). Handoffs are shared and committed.
-To resume the thread panel and context gauge (CHG-0079; the look and the live per-call usage await the owner), read the [current handoff](.agents/handoffs/2026-11-09-2000-thread-panel.md). Handoffs are shared and committed.
-To resume the quest board cards and column ribbons (committed on branch `board-cards`; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-09-1909-board-cards.md). Handoffs are shared and committed.
-To resume `@` mentions and chips merged onto the redesigned composer (committed and pushed to `main`; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-10-0901-mentions-chips-merged.md). Handoffs are shared and committed.
-To resume after the rename to Gild and the owner's logo (CHG-0072; the next launch moves the install; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-09-0900-renamed-to-gild.md). Handoffs are shared and committed.
-To resume the Guild interface layout (breadcrumbs, rail handle, quest screen, quest panel; committed on a branch, the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-09-1626-quest-layout.md). Handoffs are shared and committed.
-To resume after the sidebar trim (CHG-0070 pushed; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-08-1602-sidebar-trim.md). Handoffs are shared and committed.
-To resume after the thread-opening indicators (CHG-0067 pushed; the look awaits the owner), read the [current handoff](.agents/handoffs/2026-11-08-1135-thread-opening-indicators.md). Handoffs are shared and committed.
-To resume after the five Low findings (CHG-0066 uncommitted; awaiting the owner), read the [current handoff](.agents/handoffs/2026-11-08-1110-low-findings.md). Handoffs are shared and committed.
-To resume after OpenCode carries on after a refusal (CHG-0065 uncommitted; awaiting the owner), read the [current handoff](.agents/handoffs/2026-11-08-0955-opencode-refusals.md). Handoffs are shared and committed.
-To resume after the live probes and the Codex wrapper fix (CHG-0064 uncommitted; awaiting the owner), read the [current handoff](.agents/handoffs/2026-11-08-0945-live-probes.md). Handoffs are shared and committed.
-To resume after the OpenCode edit and Always allow fixes (CHG-0064 uncommitted; awaiting the owner), read the [current handoff](.agents/handoffs/2026-11-08-0200-edits-and-pattern-kinds.md). Handoffs are shared and committed.
-To resume after the approval fixes (CHG-0063 committed, not pushed; awaiting the owner), read the [current handoff](.agents/handoffs/2026-11-07-2310-approval-fixes.md). Handoffs are shared and committed.
-To resume after the architecture pass (CHG-0062 committed; its behavior changes await the owner), read the [current handoff](.agents/handoffs/2026-11-07-1911-architecture-pass.md). Handoffs are shared and committed.
-To resume after the cost audit (committed; the interface pass still awaits the owner's judgment), read the [current handoff](.agents/handoffs/2026-11-07-1748-cost-audit.md). Handoffs are shared and committed.
-To resume after the rename to Canopy (batch 18 still awaiting the owner), read the [current handoff](.agents/handoffs/2026-11-07-1455-renamed-to-canopy.md). Handoffs are shared and committed.
+- To resume the README and agent guide, read the [current handoff](.agents/handoffs/2026-11-10-2220-readme-and-agent-guide.md). Handoffs are shared and committed.
+- To resume tagged desktop releases (pushed to main; hosted checks and the first tagged release remain unverified), read the [current handoff](.agents/handoffs/2026-11-10-2209-tagged-releases.md). Handoffs are shared and committed.
+- [2026-11-10 21:48: compact navigation](.agents/handoffs/2026-11-10-2148-compact-navigation.md).
