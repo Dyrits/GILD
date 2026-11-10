@@ -1,21 +1,55 @@
-import type { Message, MissionId, ThreadId } from "@gild/contracts";
+import type { HarnessName, Message, MissionId, ThreadId } from "@gild/contracts";
 import { Pressable, Text, View } from "react-native";
 import type { ServiceClient } from "./client";
 import type { Entry } from "./entries";
 import { clockOf } from "./formatting";
 import { LoreChangeCard, LoreChangeLine } from "./lore";
+import { ProviderMark } from "./providerMarks";
 import { QuestionCard, QuestionLine } from "./questions";
 import { styles } from "./styles";
 import { SuggestionCard, SuggestionLine } from "./suggestions";
 
 const shortened = (title: string) => (title.length > 60 ? `${title.slice(0, 59)}…` : title);
 
-/** Each sender's bubble. */
-const senderStyles = {
-  agent: styles.fromAgent,
-  thread: styles.fromThread,
-  user: styles.fromUser,
+/** Each sender's card. */
+const cardStyles = {
+  agent: styles.messageCardAgent,
+  thread: styles.messageCardThread,
+  user: styles.messageCardUser,
 } satisfies Record<Message["sender"], unknown>;
+
+/**
+ * A reply from the thread's agent: the provider's mark beside a parchment card that names the model and its time.
+ * A draft has no time yet and is drawn faded.
+ */
+export function AgentReply({
+  harness,
+  isDraft = false,
+  label,
+  text,
+  time,
+}: {
+  harness: HarnessName;
+  isDraft?: boolean;
+  label: string;
+  text: string;
+  time: string | null;
+}) {
+  return (
+    <View style={[styles.messageRow, isDraft && styles.draft]}>
+      <View style={styles.medallion}>
+        <ProviderMark harness={harness} />
+      </View>
+      <View style={[styles.messageCard, styles.messageCardAgent]}>
+        <View style={styles.senderHeader}>
+          <Text style={styles.senderName}>{label}</Text>
+          {time !== null && <Text style={styles.senderTime}>{time}</Text>}
+        </View>
+        <Text style={styles.body}>{text}</Text>
+      </View>
+    </View>
+  );
+}
 
 /** The label above a message: none for the owner's own unless it waits for the next turn. */
 const senderLabelOf = (message: Message, companionOf: (reported: string | null) => string) => {
@@ -24,20 +58,33 @@ const senderLabelOf = (message: Message, companionOf: (reported: string | null) 
   return `${message.isResult ? "Result from" : "From"} "${shortened(message.fromTitle ?? "a quest")}"`;
 };
 
-/** One message, labelled by its sender: the owner, the thread's agent, or another thread. */
+/** One message: the agent's reply with its provider's mark, or the owner's and another thread's as a card. */
 function MessageBubble({
   companionOf,
+  harness,
   message,
 }: {
   companionOf: (reported: string | null) => string;
+  harness: HarnessName;
   message: Message;
 }) {
+  if (message.sender === "agent")
+    return (
+      <AgentReply
+        harness={harness}
+        label={companionOf(message.model)}
+        text={message.text}
+        time={clockOf(message.sentAt)}
+      />
+    );
   const sender = senderLabelOf(message, companionOf);
   return (
-    <View style={[styles.message, senderStyles[message.sender]]}>
-      {/* The owner's own messages need no label, as in a chat; a queued one says it waits. */}
-      {sender !== null && <Text style={styles.sender}>{sender}</Text>}
-      <Text style={styles.body}>{message.text}</Text>
+    <View style={[styles.messageRow, message.sender === "user" && styles.messageRowUser]}>
+      <View style={[styles.messageCard, cardStyles[message.sender]]}>
+        {/* The owner's own messages need no label, as in a chat; a queued one says it waits. */}
+        {sender !== null && <Text style={styles.senderName}>{sender}</Text>}
+        <Text style={styles.body}>{message.text}</Text>
+      </View>
     </View>
   );
 }
@@ -47,6 +94,7 @@ export function EntryView({
   client,
   companionOf,
   entry,
+  harness,
   onOpenMission,
   onSelectThread,
 }: {
@@ -54,6 +102,8 @@ export function EntryView({
   /** The Companion label for a reply, given the model its harness reported for it (null when none did). */
   companionOf: (reported: string | null) => string;
   entry: Entry;
+  /** The harness of the thread the entry belongs to; its provider's mark marks the agent's replies. */
+  harness: HarnessName;
   onOpenMission: (missionId: MissionId) => void;
   onSelectThread: (threadId: ThreadId) => void;
 }) {
@@ -96,5 +146,5 @@ export function EntryView({
     ) : (
       <QuestionLine question={entry.question} />
     );
-  return <MessageBubble companionOf={companionOf} message={entry.message} />;
+  return <MessageBubble companionOf={companionOf} harness={harness} message={entry.message} />;
 }

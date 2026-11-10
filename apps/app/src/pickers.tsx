@@ -202,7 +202,9 @@ const local = StyleSheet.create({
   fieldText: { color: colors.text, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.md },
   fieldWrap: { alignSelf: "stretch", maxWidth: 420 },
   // The list's own place comes from its button's frame; the shared style's place below the button is dropped.
-  floating: { position: "absolute", top: undefined },
+  // `auto` and not an undefined `top`: react-native-web skips an undefined value, so `top: 100%` stayed and a list
+  // placed above its button (a composer at the window's foot) was pushed out of the window.
+  floating: { position: "absolute", top: "auto" },
   itemHovered: { backgroundColor: colors.controlHover },
   knob: {
     ...ink,

@@ -12,7 +12,7 @@ import {
 import { BudgetScreen, BudgetStopCard } from "./budgets";
 import { newRequestId, type ServiceClient } from "./client";
 import { Composer, StateBadge } from "./controls";
-import { EntryView } from "./conversationEntries";
+import { AgentReply, EntryView } from "./conversationEntries";
 import { type Entry, entriesOf } from "./entries";
 import { companionLabelOf, effortLabel, harnessLabels, modelLabelOf } from "./formatting";
 import { JournalScreen } from "./journal";
@@ -218,10 +218,13 @@ function ThreadPane({
           draft === "" ? (
             void 0
           ) : (
-            <View style={[styles.message, styles.fromAgent, styles.draft]}>
-              <Text style={styles.sender}>{companionOf(null)} · writing…</Text>
-              <Text style={styles.body}>{draft}</Text>
-            </View>
+            <AgentReply
+              harness={thread.harness}
+              isDraft
+              label={`${companionOf(null)} · writing…`}
+              text={draft}
+              time={null}
+            />
           )
         }
         renderItem={({ item }) => (
@@ -229,6 +232,7 @@ function ThreadPane({
             client={client}
             companionOf={companionOf}
             entry={item}
+            harness={thread.harness}
             onOpenMission={onOpenMission}
             onSelectThread={onSelect}
           />
