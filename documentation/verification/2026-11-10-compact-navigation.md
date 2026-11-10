@@ -34,4 +34,6 @@ No browser observation or screenshot is claimed.
 6. Collapse, expand, and resize the main left menu; reload to confirm that its width is remembered.
 7. Ask the owner to judge the smaller menu's proportions and label readability in the running app.
 
-Changes remain uncommitted while verification is pending, alongside the pre-existing staged repository reorganization.
+The navigation changes, specifications, and this proof were included in commit `51d4ceb` with the source-folder reorganization and are on `origin/main`.
+This was verified by reading the committed files and comparing local `main` with `origin/main` on 2026-11-10.
+CHG-0125 records a later full-suite run with four workers (647 passed, 10 skipped); this navigation session has not independently rerun that check or observed the layout in a browser.

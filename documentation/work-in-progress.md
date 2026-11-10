@@ -9,7 +9,8 @@ Built: a 220px default main left menu with 15px labels, smaller crests and icons
 The quest tree renders only while any side-quest exists, including folded and finished children; the narrow-screen back link remains available without the tree.
 Checks: lint, workspace typecheck, and Expo web export pass; all 132 existing app tests pass; the sandbox blocks localhost fixtures in the full suite (216 passed, 431 failed, 10 skipped).
 Evidence and remaining acceptance: [compact navigation verification](verification/2026-11-10-compact-navigation.md).
-Next: await permission for a rerun with local networking and the browser check; the owner must review the final proportions in the running app.
+The implementation and agreements are committed and pushed in `51d4ceb` alongside the source-folder reorganization; CHG-0125 records a later full-suite run with four workers (647 passed, 10 skipped), not independently rerun in this navigation session.
+Next: verify the layout in the running app and have the owner review its proportions; the installed app has not been rebuilt by this session.
 
 ## Guildmaster batch · 2026-11-10 · increments A, B, and C implemented and checked, owner review pending
 

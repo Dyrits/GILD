@@ -27,6 +27,8 @@
 
 ## Handoffs
 
+To resume the compact left menu and conditional quest tree (committed and pushed; the running appearance awaits review), read the [current handoff](.agents/handoffs/2026-11-10-2148-compact-navigation.md). Handoffs are shared and committed.
+
 To resume the source files grouped into folders (CHG-0125; committed and pushed to `main`; the running app's look after the move is unchecked), read the [current handoff](.agents/handoffs/2026-11-10-2144-source-folders.md). Handoffs are shared and committed.
 
 To resume the installed app (.dmg) and the full-project review fixes, read the [current handoff](.agents/handoffs/2026-11-10-2116-installed-app-and-review-fixes.md). Handoffs are shared and committed.
