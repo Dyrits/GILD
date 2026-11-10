@@ -13,8 +13,10 @@ Status: agreed by the owner's instruction to build the backlog entry "Thread pan
 - The thread's groups live in the quest panel, the window's one side panel, at any width (the owner asked for one side panel instead of two, 2026-11-10, CHG-0109). The panel has no tabs and no link in the thread's header. Each group is a small label above a card of rows; a row has an icon, a name, a short value, and a chevron when pressing it opens something. Under the quest's heading come **Companions**, **Knows**, and **Does** (the grouping follows OpenBot's agent panel, at the owner's request, CHG-0111). It shows, for the selected thread:
   - **Companions**: the harness (with the account when it is not this computer's; for any account, including this computer's, its plan limits and budget when it has them, [budget-control](../budget-control/specifications.md#plan-limits)); the model and the effort; **Backup companions**, with how many there are, which opens their menu (below); and the context gauge (below).
   - **Knows**: the quest's journal; the realm (workspace name and folder, or the quest's scratch folder); **Lore** (how many intels are in scope and the share of the context window they take, which opens the lore panel); and **Skills**, one row with how many the owner can name in a message in this thread's folder, which shows their names in a block when pressed.
-  - **Does**: what this thread alone spent (turns, API cost, tokens counted as subscription use, and the estimated cost as `≈ $1.20`, agreed in [budget-control](../budget-control/specifications.md#estimated-cost), CHG-0126), the quest's budget and usage, as the quest panel shows them, and how the quest ends (Mark as done, Archive; none on a Ritual).
-- **A side-quest's panel** is headed with the side-quest's own title, and a **Quest** row that names its quest and opens it. Its Does has the side-quest's own **Mark as done**, which stops its turn and makes it Done without ending the quest or touching the threads around it; the quest's Mark as done and Archive are in the quest's own panel. A quest's own thread is not a side-quest, and cannot be marked done on its own.
+  - **Does**: what this thread alone spent (turns, API cost, tokens counted as subscription use, and the estimated cost as `≈ $1.20`, agreed in [budget-control](../budget-control/specifications.md#estimated-cost), CHG-0126), the quest's budget and usage, as the quest panel shows them, and Archive (none on a Ritual).
+- **A side-quest's panel** is headed with the side-quest's own title, and a **Quest** row that names its quest and opens it.
+  Mark as done is removed from both the quest and side-quest panels (CHG-0135 and CHG-0136).
+  The quest's Archive action is in the quest's own panel.
 
 ### Backup companions
 
@@ -24,7 +26,8 @@ Status: agreed by the owner's instruction to build the backlog entry "Thread pan
 - A Ritual's thread falls back through the Ritual's own list first (rituals); this list is empty there.
 - The Charter has a **Backup companions** card, under the default harness, model, and effort, with the same list: up to five, each with harness, account, model, and effort, a move up and a move down, Remove, and **+ Add a backup Companion**, saved at once. It is empty at first. A quest's top thread starts with a copy of it, and a side-quest starts with a copy of its parent's list. Changing the Charter's list later leaves quests that began already as they were; each quest changes its own from its panel.
 
-- The panel changes with the selected thread and with the thread's work; it is read-only apart from the backups and a side-quest's Mark as done. Changing a model, effort, or budget stays where it is today.
+- The panel changes with the selected thread and with the thread's work; it is read-only apart from the backups and the quest actions described above.
+  Changing a model, effort, or budget stays where it is today.
 - The panel is shown or hidden with the quest panel's icon in the top bar.
 
 ### The context gauge

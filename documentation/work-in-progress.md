@@ -1,5 +1,19 @@
 # Work in progress
 
+## Left navigation structure · 2026-11-11 · specified, not implemented
+
+The owner explicitly requested specification only, with no application update.
+CHG-0134 records the ten sidebar entries, nested quest presentation using the supplied image, Library's artifact purpose, Workshop's resource management location, and Reserves' detailed usage destination.
+Canonical behavior: [mission tracking](capabilities/mission-tracking/specifications.md#left-navigation-structure) and [Reserves](capabilities/budget-control/specifications.md#reserves-usage-page).
+CHG-0135 settles one sidebar on each side, removes the separate left tree column and quest Done status, and adopts the detailed usage content from the owner's supplied OpenBot text.
+CHG-0136 settles side-quest states, failure Summons and stopped details, usage grouping names, reliable skill attribution, and usage filter defaults and drill-down.
+CHG-0137 removes the migration requirement because development data may be reset, confirms usage counts and local date ranges, and defers further Reserves screen specification until work on that screen begins.
+The sidebar scope is specified; [deferred capability work](capabilities/mission-tracking/draft.md) does not block its agreement.
+Library collection and lifecycle, connector operations, and Craft execution require their own specifications.
+Starting revision: `5b4e2a9`; unrelated uncommitted account-budget work is preserved.
+No implementation, runtime checks, or visual acceptance are claimed.
+Documentation whitespace validation passes; no data reset was performed.
+
 ## Release launch recovery · 2026-11-10 · repaired locally, CI gate implemented
 
 The owner wants a release that installs and runs; this batch starts at `4724ebc` alongside unrelated account-budget changes.

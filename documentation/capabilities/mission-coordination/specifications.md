@@ -88,7 +88,7 @@ Guildmaster uses these thread tools in addition to `find_missions`, `suggest_mis
 | --- | --- | --- | --- |
 | `open_mission` | Open a new quest | The request; optionally a tier, harness, agent, model, effort, and workspace | The new quest's identifier and the choices it started with, or a refusal and its reason |
 | `create_ritual` | Create a [Ritual](../rituals/specifications.md) for a repeating request | The instruction, a title, a schedule preset; optionally a tier, harness, model, effort, and realm | The Ritual's title, schedule, and Companion, or a refusal and its reason |
-| `act_on_mission` | Stop threads, mark Done, archive, or rename, at the user's request | A quest, an action, the user's exact words asking for it as `quote`, for renaming a title, and for a confirmed ending the snapshot it was given | Done, or the confirmation the user must give first, or a refusal |
+| `act_on_mission` | Stop threads, archive, or rename, at the user's request | A quest, an action, the user's exact words asking for it as `quote`, for renaming a title, and for a confirmed ending the snapshot it was given | Done, or the confirmation the user must give first, or a refusal |
 | `read_control_history` | Read Guildmaster's older messages | A query or a starting point | The matching messages |
 
 Only Guildmaster can call these four tools. Any thread can address Guildmaster with `send_thread_message`.
@@ -141,7 +141,7 @@ The additional search and management tools for CHG-0132 need a contract and serv
 
 ## Provisional choices to review
 
-- **The owner's words authorize an action.** `act_on_mission` is refused unless the `quote` appears in the owner's message that started Guildmaster's current turn; a Done or archive with threads at work first answers with the dashboard's question and goes ahead only with that question's snapshot and the owner's agreement quoted in a later message. A quote cannot prove that the owner meant it for this action.
+- **The owner's words authorize an action.** `act_on_mission` is refused unless the `quote` appears in the owner's message that started Guildmaster's current turn; an archive with threads at work first answers with the dashboard's question and goes ahead only with that question's snapshot and the owner's agreement quoted in a later message. A quote cannot prove that the owner meant it for this action.
 - **Stop** takes no confirmation, as the dashboard's Stop does not.
 - **A quest reports once its turn has ended**, so its closing reply travels with the report; a quest that stands in the same report is not told twice, and one that leaves it is told again later.
 - **Hiding Guild Hall** removes its rail entry and opens the window on the quests; the screen is still where a realm page's message goes.

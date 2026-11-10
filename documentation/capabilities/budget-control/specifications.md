@@ -67,6 +67,54 @@ Version 1 serves the installation's owner. In future hosted missions, guest-trig
 - The ring turning orange or red is the warning; no message is sent at 80%.
 - Each thread's starting context and the start of each turn carry one line on the budget, for example "Budget: $8.40 of $10 used (84%), global: 61% of this month, account Work: 40% of this month's tokens", so an agent can choose cheaper work as it gets close. With no budget at all, the line is left out. Estimated costs are not in the line.
 
+### Reserves usage page
+
+Agreed on 2026-11-11 (CHG-0134), specification only.
+CHG-0135 through CHG-0137 record the agreed direction and supporting rules below.
+The owner deferred further screen specification until work on Reserves begins; these agreements do not make the full screen implementation-ready or block the sidebar specification.
+
+- Reserves remains the sidebar name, with a compact usage summary that opens a detailed usage page.
+- The page covers consumption, budgets, remaining allowances, and reported plan limits under this capability's existing counting and display rules.
+- Reported and estimated costs remain distinguishable; unavailable usage or limits are identified rather than guessed.
+- On 2026-11-11 the owner supplied the text of OpenBot's Usage page and requested similar detail (CHG-0135).
+  The following content is adopted from that supplied example, independently of OpenBot's code or exact visual layout.
+- The page defaults to all Gild usage, Cost, and the last 30 days (CHG-0136).
+  The metric selector offers Cost and Tokens; the period selector offers 7 days, 30 days, and a custom date range.
+- Selecting a breakdown row filters the graph and totals and exposes the corresponding turn records.
+  Active filters stay visible and are easy to clear.
+- A graph shows daily usage for the selected scope, metric, and period, with date and value axes.
+- The summary shows the selected period's cost in USD, separate quest, thread, and turn counts instead of an ambiguous Sessions count, and whether the amounts are API estimates, reported costs, or a mixture.
+- Date ranges use local calendar days, including today in the 7-day and 30-day presets and both selected dates in a custom range (CHG-0137).
+- Harness summaries show known cost, share of known cost, and tokens.
+  Breakdowns use Gild's terms: Quest/side-quest, Harness, Account, Companion, Day, and Skill, with Guildmaster separately identifiable.
+- Skill costs appear only when usage can be reliably attributed to that skill.
+  Other usage is unattributed; loading or invoking a skill alone does not establish its share of a turn's cost, and the whole turn is never charged to every skill it loaded.
+- Token totals distinguish tokens without cache reads from processed tokens including cache reads.
+  The detailed totals show cached input, uncached input, cache creation, and output.
+  Cached input means cache-read tokens; tokens without cache reads include uncached input, cache creation, and output, and processed tokens add cache reads to that total.
+  A missing category is unavailable, never an assumed zero; harness reports must be normalized without counting overlapping token categories twice.
+- Message totals show user messages and completed assistant messages.
+  Each sent user message and each completed assistant text message counts once; tool messages and streamed fragments are excluded.
+  Completed replies still count if their turn is later interrupted; incomplete replies do not.
+- A partial-data notice counts turns without reported usage, records without cost estimates, and records with incomplete token data.
+  Missing prices and missing usage remain visible as gaps; known totals may understate actual use.
+- Breakdown rows show cost, share, and tokens; shares use known amounts only.
+  No usage and no known price must remain distinguishable from a known zero.
+- The page shows when collection started and when its data was last updated.
+- An explanation states that API-equivalent estimates are not subscription charges, separate tool and media fees are not calculated, unknown prices and incomplete usage stay unavailable, and cache reads can exceed other tokens because cached conversation context is read repeatedly.
+- Compact amounts remain readable and their exact values are accessible without displaying duplicate numbers as in the pasted example.
+- This analytical token presentation does not change the token counts used for budget enforcement above, which include cache reads.
+
+Recorded Reserves acceptance direction, to refine when the screen is specified for implementation:
+
+- **Agent validation**: use recorded usage covering multiple harnesses, models, days, cache categories, billing kinds, and known and unknown prices; check the graph, summaries, totals, and breakdown shares against those records.
+- **Agent validation**: include a turn without usage, a record without a cost estimate, incomplete tokens, a known zero, and an empty period; check the partial-data notice and unavailable values without invented costs or tokens.
+- **Agent validation**: a record with 100 uncached input, 20 cache creation, 30 output, and 1,000 cache-read tokens shows 150 tokens without cache reads and 1,150 processed tokens.
+- **Agent validation**: initial filters are all usage, Cost, and 30 days; selecting Tokens, 7 days, or a custom range updates graph and totals, and selecting and clearing a breakdown row keeps graph, totals, and turn records consistent.
+- **Agent validation**: Guildmaster and every named grouping remain distinguishable; a turn loading several skills without reliable attribution stays unattributed rather than contributing its entire cost to each skill.
+- **Agent validation**: a multi-reply interrupted turn counts its completed replies once and excludes partial replies, tool messages, and streamed fragments; date-range boundaries follow local calendar days and include both custom-range dates.
+- **Human acceptance**: inspect the graph, totals, breakdowns, partial-data explanation, and readable numbers in the running app against the level of detail in the supplied example.
+
 ### Plan limits
 
 - For each account on a subscription, the owner sees each **plan limit** its harness reports (for example a 5-hour and a weekly window): how much is used and when it resets, with the time of the reading ("as of 14:02"). It shows on the account's row in the Charter, in the rail beside the reserves, and in the thread panel's Companion row. Orange from 80%, red at 100%, no message.

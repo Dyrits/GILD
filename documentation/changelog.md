@@ -1906,3 +1906,68 @@ This replaces the requirement that all quest creation go through Guildmaster; re
 Source: the owner, referring to delta.dev as inspiration for the sidebar interaction; the exact `+` placement remains a proposal.
 References: [mission tracking](capabilities/mission-tracking/specifications.md#starting-a-mission), [quest moves](capabilities/mission-tracking/specifications.md#quest-placement-and-moves), [quest coordination](capabilities/mission-coordination/specifications.md#opening-a-quest), [architecture](architecture.md#flows).
 Validation: documentation agreement only; implementation, interaction checks, and the owner's visual review remain pending.
+
+## CHG-0134 · 2026-11-11 · Left navigation, artifact Library, and detailed Reserves
+
+Type: Documentation
+Event: Agreement
+Scope: Left navigation and usage destination
+
+Summary: The owner requested the sidebar order Guild Hall, Realms, Free Realms, Realmless, Rituals, Craft, The Keep, Workshop, Reserves, and Charter.
+Realms and Free Realms contain their quests with nested side-quests, and Realmless contains its own nested quests, using the supplied image as the quest-nesting reference.
+The Keep contains Library, Lore, and Archive; Library holds generated and uploaded artifacts, especially for quests without a workspace.
+Workshop takes MCP servers, connectors, and skills management out of Charter, which retains application settings, accounts, permissions, and defaults.
+Reserves keeps its name and compact summary and opens a detailed usage page, with OpenBot named as inspiration for the level of detail.
+Reason: The owner wants work grouped by placement, reusable artifacts accessible without a workspace, resource management separated from application settings, and detailed usage accessible from the sidebar.
+References: [left navigation](capabilities/mission-tracking/specifications.md#left-navigation-structure), [open decisions](capabilities/mission-tracking/draft.md), [tool management](capabilities/tool-and-skill-loading/specifications.md#sources-and-management), [Reserves](capabilities/budget-control/specifications.md#reserves-usage-page), [glossary](glossary.md).
+Validation: The owner's sidebar request and subsequent answers authorize these documentation agreements only; the owner explicitly said not to update the application.
+Evidence: The conversation includes the reference image, confirmation of nesting, Library's artifact purpose, Workshop's management role, and the request for a detailed usage page.
+The separate tree column, finished-quest visibility, usage-page interactions, and related capability details remain open; no implementation or runtime acceptance is claimed.
+
+## CHG-0135 · 2026-11-11 · One sidebar per side, archive instead of Finished, and usage analytics
+
+Type: Documentation
+Event: Agreement
+Scope: Quest navigation, quest lifecycle, and Reserves
+
+Summary: The owner confirmed one navigation sidebar on the left and one details sidebar on the right, replacing the separate left quest-tree column with the nested main sidebar.
+The owner removed the Finished status: quests remain idle, running, or asking for the user (Summons), and can be archived when done.
+The Done action, completion prompt, finished-quest visibility setting, and Done-based auto-archive no longer apply to quests.
+The owner supplied OpenBot's Usage text and requested a similar graph, detailed cache-aware token and message totals, breakdowns, collection timestamps, data-quality notices, and estimate explanations.
+Reason: Avoid duplicate left sidebars, keep active work visible until explicitly archived, and make consumption understandable without presenting incomplete estimates as provider charges.
+References: [navigation and lifecycle](capabilities/mission-tracking/specifications.md), [tree visibility](capabilities/thread-tree/specifications.md#quest-tree-visibility), [usage page](capabilities/budget-control/specifications.md#reserves-usage-page), [journal](capabilities/mission-journal/specifications.md#when-a-mission-ends), [open decisions](capabilities/mission-tracking/draft.md).
+Validation: The owner's answers to questions 5 through 7 and supplied usage example authorize specification changes only.
+Evidence: The owner said "a sidebar each side, and not two sidebars on the same side" and "We'll remove the finished status", and supplied the usage-page text in this conversation.
+Side-quest completion, exceptional-state aggregation, existing Done quests, usage counting and attribution, and control details remain unresolved.
+No application changes, runtime verification, or visual acceptance are claimed.
+
+## CHG-0136 · 2026-11-11 · Side-quest lifecycle and Reserves controls
+
+Type: Documentation
+Event: Agreement
+Scope: Thread states and usage analytics
+
+Summary: The owner confirmed that side-quests also lose Finished; reporting a result still informs the parent and leaves the side-quest idle unless it has more work or needs the owner.
+Failures needing the owner produce Summons, while waiting and stopped remain visible details and stopped threads require explicit resume.
+Usage breakdowns use Quest/side-quest, Harness, Account, Companion, Day, and Skill, with Guildmaster separately identifiable.
+Skill costs require reliable usage attribution; otherwise usage stays unattributed rather than assigning a turn's whole cost to each loaded skill.
+Reserves defaults to all usage, Cost, and 30 days, offers Tokens, 7 days, and a custom range, and filters the graph and totals and exposes turn records when a breakdown row is selected, with visible filters that are easy to clear.
+Reason: Keep lifecycle rules consistent throughout the tree and make usage understandable without ambiguous grouping names or invented skill costs.
+References: [quest states](capabilities/mission-tracking/specifications.md#mission-state), [thread states](capabilities/thread-tree/specifications.md#thread-states), [thread panel](capabilities/thread-panel/specifications.md), [Reserves](capabilities/budget-control/specifications.md#reserves-usage-page), [remaining decisions](capabilities/mission-tracking/draft.md).
+Validation: The owner explicitly answered Yes to questions 8, 9, 10, and 11 in this conversation; specification only.
+Evidence: The four numbered answers confirm the questions and their recommendations; no application update or runtime verification was performed.
+
+## CHG-0137 · 2026-11-11 · Sidebar scope settled and further usage-screen specification deferred
+
+Type: Documentation
+Event: Agreement
+Scope: Sidebar specification and deferred Reserves screen
+
+Summary: The owner requires no migration of existing finished quests because the product is unshipped and development data may be reset.
+The owner confirmed separate quest, thread, and turn counts instead of Sessions, counting each sent user message and completed assistant text message once, excluding tool messages and streamed fragments, retaining completed replies from interrupted turns and excluding incomplete replies.
+Usage ranges use local calendar days, include today in the 7-day and 30-day views, and include both selected dates in custom ranges.
+The owner deferred further usage-screen specification until work on that screen begins; the sidebar specification is settled independently.
+Reason: Avoid migration work for disposable development data and keep this effort focused on navigation rather than exhaustive screen design.
+References: [sidebar](capabilities/mission-tracking/specifications.md#left-navigation-structure), [usage direction](capabilities/budget-control/specifications.md#reserves-usage-page), [deferred capability work](capabilities/mission-tracking/draft.md), [backlog](backlog.md).
+Validation: The owner's answers to questions 12 through 14 and explicit instruction to specify the screen further when working on it.
+Evidence: Documentation only; whitespace checks pass, and no application changes, data reset, or runtime verification were performed.

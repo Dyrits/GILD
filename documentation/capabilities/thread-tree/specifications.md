@@ -17,13 +17,13 @@ Work with AI agents spreads across disconnected chats, and subagents run out of 
 
 ### Quest tree visibility
 
-- The quest tree stays on the left of the selected conversation when the quest contains any side-quest, including nested, folded, or finished side-quests.
-- A quest with no side-quests has no tree column or space reserved for it; the conversation uses the available width.
-- The tree appears when the first side-quest is created and disappears when the last side-quest is deleted.
-- The main quest remains accessible from the tree when viewing a side-quest.
-- On narrow screens without the main left menu, the Back to quests link remains available even when there is no tree.
+- The main left sidebar contains the quest tree, nested beneath Realms, Free Realms, or Realmless as defined in [mission tracking](../mission-tracking/specifications.md#left-navigation-structure).
+- There is one navigation sidebar on the left and one details sidebar on the right; no second quest-tree sidebar sits beside the left navigation (CHG-0135, agreed on 2026-11-11; implementation pending).
+- Creating the first side-quest or deleting the last changes the nested sidebar tree without adding or removing another column.
+- The main quest remains accessible from the sidebar when viewing a side-quest.
+- Thread navigation stays accessible when the sidebar is collapsed or hidden on a narrow screen, and the Back to quests link remains available.
 - The right details panel keeps its existing behavior without new tabs.
-- Agent validation covers quests with no children, creating and deleting children, folded and finished children, selecting a child and returning to its quest, and the narrow-screen back link.
+- Agent validation covers quests with no children, creating and deleting children, folded children, selecting a child and returning to its quest, collapsed navigation, the narrow-screen back link, and the absence of a duplicate left tree column.
 - Human acceptance checks the appearance and conversation space in the running app.
 
 ### Opening a thread
@@ -53,13 +53,15 @@ Work with AI agents spreads across disconnected chats, and subagents run out of 
 
 ### Thread states
 
+CHG-0135 and CHG-0136 remove Done from quests and side-quests, as defined in [mission tracking](../mission-tracking/specifications.md#mission-state).
+The interface presents idle, running, or Summons; waiting, failure, and stopped conditions remain visible details, and a failure needing the owner produces Summons.
+
 | State | Meaning |
 | --- | --- |
 | Running | A turn is in progress. |
 | Waiting | It waits for a reply or for a thread beneath it. |
 | Attention | It waits for an approval, an answer, a raised budget, a missing workspace folder, or a tool or skill loading problem that prevents a turn. Shown prominently and sent as a phone notification. |
 | Idle | No turn in progress and nothing awaited. |
-| Done | It reported its result, or the owner marked the side-quest done from its panel (it stops its turn; the quest carries on). |
 | Failed | Its harness failed; the user can hand it over to another. |
 | Stopped | The user stopped it; it stays stopped until the user resumes it. |
 
@@ -71,7 +73,8 @@ Work with AI agents spreads across disconnected chats, and subagents run out of 
   - **Continue in "mission title"**: one for each matching mission, best match first, at most 3, each showing that mission's state;
   - **Open as new mission**;
   - **Keep as aside**.
-- **Continue in** sends the off-topic part to that mission's top thread as the user's message, steering or queued as the user's default sets. As with any message, it wakes the thread if it is Done or Idle.
+- **Continue in** sends the off-topic part to that mission's top thread as the user's message, steering or queued as the user's default sets.
+  As with any message, it continues an idle quest or reopens an archived quest.
 - A setting lets the thread open a new mission without asking when no other mission matches.
 - **Open as new mission** opens a new mission whose top thread starts fresh with only the off-topic part of the message. Nothing from the current mission is preloaded: no journal, no messages, no workspace. Global skills and intel stay available to it, as to any thread. Its harness, agent, model, and effort copy the current thread's, and the user can change them before it starts.
 - **Keep as aside** opens an aside beneath the current thread. It starts with:
@@ -84,9 +87,11 @@ Work with AI agents spreads across disconnected chats, and subagents run out of 
 
 ### Results
 
-- A thread reports a result when its work is done. The result goes to its parent as a thread message (see [thread-messaging](../thread-messaging/specifications.md)), whatever the parent is doing, and the thread becomes Done.
+- A thread reports a result when its work is done.
+  A side-quest's result goes to its parent as a thread message (see [thread-messaging](../thread-messaging/specifications.md)), whatever the parent is doing.
+  Reporting a result leaves the thread idle unless it has further work or needs the owner; it does not archive the quest.
 - A thread can report its result while threads beneath it still run; their results reach it whenever they come.
-- Writing in a Done thread continues it.
+- Writing in an idle thread continues it; an explicitly stopped thread still requires resume.
 
 ### Stopping
 
@@ -123,7 +128,7 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
   - the starting context, including summarizing when it is too long;
   - each state change;
   - results reaching the parent;
-  - continuing a Done thread;
+  - reporting a result without a Done state and continuing an idle thread;
   - stopping without cascade, and keeping messages for a stopped thread;
   - deleting with its count;
   - each limit's refusal;
@@ -131,7 +136,7 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
   - folding threads opened by agents, with their count, and a folded thread appearing when it enters Attention or Failed;
   - the off-topic suggestion and both choices: the new mission's fresh start, the aside's starting context, the link left behind, and the setting that skips the suggestion;
   - an aside informing its parent when the conversation comes back to the mission;
-  - matching missions offered first, including Done and Idle ones, deleted ones never offered, and Continue in waking the chosen mission.
+  - matching missions offered first, including idle and archived ones, deleted ones never offered, and Continue in waking the chosen mission.
 - **Human acceptance**: on the desktop and on the phone web app, the user follows a mission with at least 3 levels of threads on 2 different harnesses, writes to one of the subagents, and stops one branch.
 
 ## Requirements

@@ -26,10 +26,10 @@ User-authored text and historical service messages are not rewritten.
 | Running | Underway |
 | Idle | Resting |
 | Waiting | Awaiting word |
-| Done | Fulfilled |
 | Settings | Charter |
 
 Journal, briefing, harness, effort, budget, approval, and archive keep their meanings and names.
+Done and its former interface name Fulfilled are retired for quests and side-quests (CHG-0135 and CHG-0136); work remains idle, running, or asking for the owner until the quest is archived.
 Companion means the selected model doing the work, not a conversation or a distinct saved agent definition; selectors say Companion (model) to make this explicit.
 Craft and Ritual are the agreed names for the future automation interfaces.
 Waystones, Spoils, and Chronicle remain mockup suggestions for devices, changes, and traces.
@@ -83,6 +83,20 @@ The place where the user talks with Guildmaster, containing the one permanent th
 **Guildmaster**:
 The app-wide assistant the user talks with in the Guild Hall to find information, manage Gild, and coordinate quests.
 _Avoid_: Coordinator, dispatcher, orchestrator, main thread, Mission control
+
+**The Keep**:
+The navigation group containing Library, Lore, and Archive.
+
+**Library**:
+The place for generated and uploaded artifacts, including those from quests without a workspace.
+Collection and lifecycle behavior remain to be specified.
+
+**Workshop**:
+The place to manage MCP servers, connectors, and skills.
+Charter retains application settings, accounts, permissions, and defaults.
+
+**Reserves**:
+The usage summary and destination for detailed consumption, budgets, remaining allowances, and reported plan limits.
 
 **Workspace**:
 A folder or repository on the user's computer, chosen by the user or cloned by Gild, where a thread works.

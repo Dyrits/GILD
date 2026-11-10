@@ -56,21 +56,29 @@ Sidebar drag-and-drop and confirmation were agreed on 2026-11-10 (CHG-0133); imp
 
 ### Mission state
 
-- While a mission is not ended, its state is the most urgent state among its threads, in this order: Attention, Failed, Running, Waiting, Idle.
-- Done and Archived are set only when the mission ends, never worked out from its threads.
-- When the top thread reports its result, the dashboard asks "Mark as done?". The mission does not become Done on its own.
+- A non-archived quest is idle, running, or asking for the user (Summons).
+- Done, Finished, and Fulfilled are no longer quest or side-quest statuses (CHG-0135 and CHG-0136, agreed on 2026-11-11; implementation pending).
+- Reporting a result does not finish or archive a quest, and there is no "Mark as done?" prompt.
+- A quest whose work is complete remains available until the owner archives it.
+- A quest shows Summons if any thread needs the owner; otherwise it shows running while any thread has a turn in progress, and idle otherwise.
+- A failure requiring owner intervention produces Summons with its reason.
+  Waiting and stopped remain visible thread details, and stopped threads require explicit resume.
+- Reporting a side-quest's result still informs its parent, then leaves it idle unless it has more work or needs the owner.
+- No migration of existing Done quests or side-quests is required: the product is unshipped, and the owner accepts resetting development data instead (CHG-0137).
+  This specification does not perform a reset.
 
 ### Ending a mission
 
-- The user marks a mission Done by hand.
-- After 14 days without activity, the dashboard asks of a mission "Archive it or mark it as done?". The question is not sent as a phone notification.
+- The user archives a quest when it is no longer needed in the active list; marking a quest Done is removed.
+- After 14 days without activity, the dashboard asks whether to archive the quest; it no longer offers Mark as done.
+  The question is not sent as a phone notification.
 - Activity is any turn or message in any of the mission's threads, by the user or by an agent. A dismissed question comes back after another 14 days without activity.
-- Marking Done or archiving a mission with running threads asks one confirmation that names them, for example "2 threads are still running. Stop them and mark as done?", then stops them.
-- An auto-archive setting, off by default, archives a Done mission 30 days after it was marked Done.
-- Both durations are adjustable in settings.
+- Archiving a mission with running threads asks one confirmation that names them, for example "2 threads are still running. Stop them and archive?", then stops them.
+- The previous auto-archive rule based on time since Done no longer applies; no replacement automatic archiving rule is agreed.
+- The inactivity duration is adjustable in settings.
 - An archived mission leaves the main list and appears in the Archived view, from which the user can reopen it.
-- Writing in a thread of a Done or archived mission brings the mission back to the state worked out from its threads.
-- Ending a mission adds an entry to its journal (see [mission-journal](../mission-journal/specifications.md#when-a-mission-ends)), and `find_missions` still matches Done and archived missions.
+- Writing in a thread of an archived mission brings the mission back to the active list and the state worked out from its threads.
+- Archiving a mission adds an entry to its journal (see [mission-journal](../mission-journal/specifications.md#when-a-mission-ends)), and `find_missions` still matches archived missions.
 
 ### Dashboard
 
@@ -91,8 +99,50 @@ Sidebar drag-and-drop and confirmation were agreed on 2026-11-10 (CHG-0133); imp
 - The owner agreed on 2026-11-10 to a narrower main left menu with smaller icons, tighter rows, readable labels, and the existing collapse and resize controls.
 - The starting proportions are about 220px wide and 15px labels instead of 17px, with less space around crests and the Guild styling retained.
 - The owner judges the final proportions in the running app.
-- The quest tree's separate column follows [quest tree visibility](../thread-tree/specifications.md#quest-tree-visibility).
+- The quest tree lives within the main sidebar, following [quest tree visibility](../thread-tree/specifications.md#quest-tree-visibility).
 - Agent validation checks navigation, collapse, resizing, and readable access to long labels at the reduced width; human acceptance checks the proportions in the running app.
+
+### Left navigation structure
+
+Agreed on 2026-11-11 (CHG-0134), specification only; implementation is not authorized by this agreement.
+This navigation scope is specified; [related capability work](draft.md) is deferred to the relevant capability's implementation preparation.
+
+The expanded left sidebar uses this order:
+
+| Position | Entry | Contents or destination |
+| --- | --- | --- |
+| 1 | Guild Hall | The place where the owner talks with Guildmaster |
+| 2 | Realms | Workspace-backed Realms, each containing its quests and their nested side-quests |
+| 3 | Free Realms | Workspace-free Realms, each containing its quests and their nested side-quests |
+| 4 | Realmless | Quests outside any realm, each with its nested side-quests |
+| 5 | Rituals | Routines |
+| 6 | Craft | Workflows |
+| 7 | The Keep | Library, Lore, Archive, in that order |
+| 8 | Workshop | MCP servers, connectors, and skills |
+| 9 | Reserves | Compact usage summary leading to a detailed usage page |
+| 10 | Charter | Application settings, accounts, permissions, and defaults |
+
+- Each Realm and Free Realm can expand or collapse its quests; each quest and side-quest can expand or collapse its children at every supported depth.
+- Realmless has no intermediate realm grouping.
+- All non-archived quests are reachable in their placement without a recent-quests cutoff or a finished-quest visibility setting.
+  The sidebar reveals the selected thread and its ancestors.
+- The sidebar is the only left quest tree; the conversation retains its details sidebar on the right, following [quest tree visibility](../thread-tree/specifications.md#quest-tree-visibility).
+- The owner's supplied Guild Hall image is the reference for the nested quest presentation: visible parent-child relationships, indentation, branch guides, expansion controls, and state indicators.
+  The image does not authorize its other Guild Hall contents, footer, wording, or new actions.
+- Library holds generated and uploaded artifacts, especially artifacts from quests without a workspace; it is not limited to workspace-free quests.
+  Artifact collection, supported types, storage, retention, and file actions need a separate Library specification before implementation.
+- Workshop is the management destination for MCP servers, connectors, and skills, moving those controls out of Charter.
+  Resource scope, inheritance, loading, and failures remain governed by [tool and skill loading](../tool-and-skill-loading/specifications.md).
+  Additional Workshop categories and connector behavior are not settled by this navigation agreement.
+- Reserves opens the [detailed usage page](../budget-control/specifications.md#reserves-usage-page); its name is retained.
+- Quest placement, direct creation, and confirmed moves follow the existing agreements above.
+
+Navigation acceptance, once the draft decisions are settled:
+
+- **Agent validation**: check the ten entries and their order; the three Keep destinations; Workshop access to its three resource categories; and Reserves access to the usage page.
+- **Agent validation**: use quests in all three placements with multiple side-quest depths; expand and collapse parents, open descendants, and check that selection reaches the intended conversation.
+- **Human acceptance**: compare the nesting with the supplied reference in the running desktop app and judge readability at the compact sidebar width.
+- Agent validation includes more quests than the former recent-quests cutoff, an idle quest after reporting a result, archive and reopen, long titles, empty groups, and collapsed and narrow-screen navigation.
 
 ## External contract
 
@@ -113,18 +163,20 @@ Threads use this thread tool (see [0005](../../architecture-decision-record/0005
   - refusing the move without changing any placement or attachment when any thread in the tree is running;
   - preserving conversations, journals, and thread lore while changing workspace attachments and shared lore access;
   - leaving files, edits, branches, and own copies at their original locations after a move, with old own-copy locations still accessible;
-  - a mission's state worked out from its threads, in the order of urgency;
-  - the top thread's result asking "Mark as done?" without ending the mission;
+  - a mission's three active states, with Summons taking precedence over running and running over idle, including nested descendants;
+  - a side-quest reporting its result to its parent and returning to idle, with no Mark as done action;
+  - failures needing the owner producing Summons, waiting and stopped shown as details, and stopped threads staying stopped until explicitly resumed;
+  - the top thread's result leaving the quest available without a Done state or Mark as done prompt;
   - the inactivity question after the set duration, agent activity resetting it, and a dismissed question coming back;
-  - the confirmation naming running threads before Done or archiving, and those threads stopped;
+  - the confirmation naming running threads before archiving, and those threads stopped;
   - spending totalled per provider unit by billing kind, with an estimated cost beside it that never counts toward a limit (budget-control);
-  - auto-archive off by default, and archiving a Done mission after the set duration when on;
-  - writing in a Done or archived mission bringing it back;
+  - absence of the old Done-based auto-archive and finished-quest visibility controls;
+  - writing in an archived mission bringing it back;
   - reopening from the Archived view;
   - the proposed title, the user's rename, and `set_mission_title` refused afterwards;
   - prefilled choices when starting a mission;
   - dashboard order, filters, and search.
-- **Human acceptance**: on the desktop and on the phone web app, the user starts 3 missions, sees the one that needs them first, marks one Done, archives one, and reopens it.
+- **Human acceptance**: on the desktop and on the phone web app, the user starts 3 missions, sees the one that needs them first, leaves a completed quest idle, archives one, and reopens it.
 
 ## Requirements
 

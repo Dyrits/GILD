@@ -1,5 +1,10 @@
 # Backlog
 
+- **Left navigation implementation**: [specified](capabilities/mission-tracking/specifications.md#left-navigation-structure) in CHG-0134 through CHG-0137; implementation remains unauthorized in this session, which is specification only.
+- **Library artifacts**: specify collection, supported types, access, and lifecycle for generated and uploaded artifacts, including quests without a workspace; its destination is agreed under [left navigation](capabilities/mission-tracking/specifications.md#left-navigation-structure).
+- **Reserves usage page**: [direction agreed](capabilities/budget-control/specifications.md#reserves-usage-page), including graphs, totals, breakdowns, reliable skill attribution, filter interactions, count definitions, and local date boundaries (CHG-0135 through CHG-0137); further screen specification is deferred until work on the screen begins, at the owner's request.
+- **Workshop connectors and Craft destination**: specify connector operations and the behavior of destinations whose capabilities are not available yet; the sidebar agreement alone does not define those capabilities.
+
 - **Multiplayer architecture**: preserve the [hosted agreements](architecture.md#future-multiplayer-open-architecture-questions) when designing the single-user first build. Before building hosted participation, settle invitation expiry after a pending request, reconnecting guest identity, and how removal affects work delegated from a guest-triggered turn. Execution across installations and synchronization remain undesigned.
 - **Discussion summarization** (multiplayer): automatic summaries of guest discussions are deferred. The user set this aside after discussing the extra model use; it is not required for the first multiplayer version.
 - **Guest local copies** (multiplayer): the first hosted version keeps mission documents and data on the host. A future version may give guests local copies. Define which documents and data are copied, synchronization, offline behavior, and retention after access removal before adding this support (CHG-0021).

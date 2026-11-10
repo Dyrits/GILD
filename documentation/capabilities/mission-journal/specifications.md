@@ -43,8 +43,9 @@ Threads in a mission run on different harnesses and start without each other's h
 
 ### When a mission ends
 
-- Ending a mission adds an entry saying how and by whom, for example "Marked done by the user" or "Archived by the user".
-- The journal stays readable, and `find_missions` still matches Done and archived missions.
+- Archiving a mission adds an entry saying how and by whom, for example "Archived by the user".
+- The journal stays readable, and `find_missions` still matches archived missions.
+  The quest's former Done status is removed under [mission tracking](../mission-tracking/specifications.md#mission-state) (CHG-0135).
 - When the mission continues, its threads update the journal again.
 
 ## External contract
@@ -82,5 +83,5 @@ Threads use these thread tools (see [0005](../../architecture-decision-record/00
 
 ## Exclusions
 
-- Mission states, marking a mission done, and archiving belong to mission-tracking.
+- Mission states and archiving belong to mission-tracking.
 - Intel: facts worth keeping beyond where the mission stands belong to scoped-intel.
