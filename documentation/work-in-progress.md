@@ -1,5 +1,15 @@
 # Work in progress
 
+## Release launch recovery · 2026-11-10 · repaired locally, CI gate implemented
+
+The owner wants a release that installs and runs; this batch starts at `4724ebc` alongside unrelated account-budget changes.
+The packaged-app check fails on the blocked executable and passes on a byte-identical fresh copy and the repaired installation; it exercises the rendered Guildmaster screen, service bridge, and native terminal on isolated fake-harness data.
+The installed app was replaced with the passing copy, preserving its new file identity; its Finder registration was corrected after a temporary test bundle claimed the normal profile.
+The normal app now runs from `/Applications/Gild.app` and owns its ordinary profile; the owner's final acceptance remains pending.
+The exact macOS DMG launch gate passes against the untouched GitHub download and runs before release artifact upload; this proves packaged startup on the build runner, not Gatekeeper acceptance on other Macs.
+Evidence: [DMG launch recovery](verification/2026-11-10-dmg-launch.md).
+Developer ID signing and notarization require the owner's membership and credentials; no Developer ID Application identity is currently available in this Mac's keychain.
+
 ## Desktop packaging automation · 2026-11-10 · tagged releases configured
 
 The owner reported the initial packaging workflow works, then authorized moving packaging to version tags and direct downloads.

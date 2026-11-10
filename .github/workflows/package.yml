@@ -87,6 +87,31 @@ jobs:
         env:
           BUILD_ARCH: ${{ matrix.arch }}
           CSC_IDENTITY_AUTO_DISCOVERY: "false"
+      - name: Verify macOS installer launch
+        if: runner.os == 'macOS'
+        shell: bash
+        run: |
+          probe=$(mktemp -d)
+          mkdir "$probe/mount" "$probe/install"
+          mounted=false
+          cleanup() {
+            # Keep temporary test bundles out of future Finder and Dock resolution.
+            /System/Library/Frameworks/CoreServices.framework/Frameworks/LaunchServices.framework/Support/lsregister -u "$probe/install/Gild.app" >/dev/null 2>&1 || true
+            if [[ "$mounted" == true ]]; then
+              hdiutil detach "$probe/mount" || return
+            fi
+            rm -rf "$probe"
+          }
+          trap cleanup EXIT
+          images=(apps/desktop/release/*.dmg)
+          [[ ${#images[@]} -eq 1 ]]
+          hdiutil verify "${images[0]}"
+          hdiutil attach -nobrowse -readonly -mountpoint "$probe/mount" "${images[0]}"
+          mounted=true
+          # A fresh copy also avoids reusing a macOS cached launch-block decision from an earlier install.
+          cp -RX "$probe/mount/Gild.app" "$probe/install/Gild.app"
+          codesign --verify --deep --strict "$probe/install/Gild.app"
+          bun apps/desktop/scripts/check-package.ts "$probe/install/Gild.app"
       - name: Upload installer
         uses: actions/upload-artifact@v7
         with:

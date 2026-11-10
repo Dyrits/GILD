@@ -1837,3 +1837,15 @@ Summary: At the owner's request, main pushes and pull requests now run lint, typ
 Manual packaging remains available with unarchived Actions artifacts, and tag versions set the packaged app version with hyphenated versions marked as prereleases.
 References: [.github/workflows/package.yml](../.github/workflows/package.yml), [installer instructions](../README.md#desktop-installers), [verification](verification/2026-11-10-tagged-releases.md).
 Validation: Actionlint, seven offline build/release shell scenarios, and whitespace checks pass; the first hosted check and tagged release remain pending.
+
+## CHG-0129 · 2026-11-10 · Check that the macOS release actually launches
+
+Type: Configuration
+Event: Delivery
+Scope: Desktop release verification
+
+Summary: Added a macOS release gate that verifies and mounts the DMG, installs a fresh temporary copy, and checks its rendered Guildmaster screen, service bridge, and native terminal before uploading the installer.
+The owner's local installed copy was repaired using a fresh byte-identical executable with a new file identity, and its LaunchServices registration was corrected after a temporary test copy claimed the normal profile.
+References: [release workflow](../.github/workflows/package.yml), [packaged-app check](../apps/desktop/scripts/check-package.ts), [diagnosis and recovery evidence](verification/2026-11-10-dmg-launch.md).
+Validation: The check fails for the blocked copy and passes for both the repaired installed copy and a fresh copy of the untouched downloaded DMG; Finder-style startup renders Gild, and the normal installed process now owns its profile.
+Actionlint, desktop typechecking, Biome, and all seven offline release scenarios pass; hosted execution of the new gate and the owner's final acceptance remain pending.

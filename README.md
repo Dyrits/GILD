@@ -51,6 +51,13 @@ Manual builds are also available from the **Artifacts** section of the [desktop 
 | Linux | x64 | `.AppImage` |
 
 Automatic updates are not configured.
+
+Before uploading a macOS installer, the workflow verifies and mounts its DMG, copies the app to a fresh location, and checks the rendered Guildmaster screen, service bridge, and native terminal on temporary data.
+Run that same application check locally with `bun apps/desktop/scripts/check-package.ts /Applications/Gild.app`.
+This check proves packaged startup; Apple trust checks on other computers still require Developer ID signing and notarization.
+
+If the Dock icon keeps bouncing without a window, a stale macOS launch-block decision can survive Open Anyway and re-signing.
+Gild's observed case was resolved with a fresh byte-identical copy, preserving its new file identity when moving it into Applications; see the [diagnosis and verified recovery procedure](documentation/verification/2026-11-10-dmg-launch.md).
 Cross-platform builds still need smoke-testing on their target systems.
 
 ### macOS
