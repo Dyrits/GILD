@@ -108,8 +108,6 @@ export default function App() {
   };
   // The quest board always has its panel open, with the overview when no quest is chosen.
   const isBoard = openMission === null && place === "Quests";
-  // The Guildmaster's realm tiles stand in a pinned panel, as the board's overview does.
-  const isGuildmaster = openMission === null && place === "Guildmaster";
   const content =
     openMission !== null ? (
       <Conversation
@@ -179,7 +177,7 @@ export default function App() {
     <Shell
       client={client}
       details={
-        isBoard || isGuildmaster
+        isBoard
           ? { isOpen: true, isPinned: true, onToggle: () => {} }
           : openMission === null && selectedMission === null && !(place === "RealmQuests" && listedRealm !== null)
             ? null

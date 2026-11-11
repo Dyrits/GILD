@@ -2418,3 +2418,12 @@ Scope: Service, Interface
 
 Summary: Iskios was run with Claude Code in a throwaway Electron window: it made and renamed a realm, proposed a quest as a card with the realm preselected, and the quest opened from the card ran in that realm and did the work. Found and fixed: the request `ReadGuildmaster` announced a change at every read, so every screen following changes reloaded it forever; it now announces only when it makes the place. Also: the page title, the realm page's note, the empty-state text, and the tiers' note in the Charter said Guildmaster or "opens a quest"; they say Iskios and propose; Iskios names a tier only when it passed one.
 Validation: [verification](verification/2026-11-11-iskios-live.md); typecheck and Biome pass; a new test of the announcement fails without the fix and passes with it.
+
+## CHG-0179 · 2026-11-11 · Guild Hall without a side panel; the card offers Companions by tier
+
+Type: Code
+Event: Delivery
+Scope: Interface
+
+Summary: Two owner corrections. The Guild Hall's right panel (realm tiles, "Choose a folder...") is gone, and the conversation takes the width: the realm is chosen on Iskios's card, and a message from a realm's page still carries its realm. The proposal card no longer shows the harness, model, and effort pickers: it shows the realm and Companion as rows of chips; the Companion row offers Default and each tier set in the Workshop (Light, Balanced, Heavy) with its model, Iskios's proposal preselected; with no tier set a line says the quest starts on the default Companion and points to the Workshop. A "Customize the Companion" link opens the three pickers for the owner who wants them (my addition, to keep that control); other threads' off-topic cards are unchanged.
+Validation: typecheck and Biome pass; the app's 211 tests pass. Driven in the throwaway Electron window with Claude Code, with no tier set and with three tiers set: the card as described, Heavy preselected for an architecture request, a click on Light selecting it and the pickers following ([screens](verification/2026-11-11-iskios-live/)). Light mode and a narrow window not checked.

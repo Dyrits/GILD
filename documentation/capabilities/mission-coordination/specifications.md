@@ -9,7 +9,8 @@ In the Guild Hall, the user talks with Iskios, the app's assistant, to learn how
 
 From 2026-11-11 the entity formerly called Guildmaster is **Iskios**, a janitor of the app more than a dispatcher; the Guild Hall keeps its name. Everywhere below, "Guildmaster" reads as Iskios; the interface and the text the assistant reads say Iskios (CHG-0177); only the code identifiers, stored columns, request names, and settings keys keep the old name.
 
-- Iskios never opens a quest on its own. When a request calls for one, it proposes it in the conversation as a card: title, realm (and its folder), and the Companion it would use, with a **Create** button; the owner picks the realm on the card (the proposed one preselected, or the Borderlands) before creating; realms tied to no folder are not offered yet. Nothing starts until the owner presses it.
+- Iskios never opens a quest on its own. When a request calls for one, it proposes it in the conversation as a card: title, realm (and its folder), and the Companion it would use, with a **Create** button; the owner picks the realm on the card (the proposed one preselected, or the Borderlands) before creating; realms tied to no folder are not offered yet.
+  The card also offers the Companion by tier: Default and each of Light, Balanced, and Heavy the owner set in the Workshop, the one Iskios proposed preselected; with no tier set it only says the quest starts on the default Companion. The harness, model, and effort pickers stay behind "Customize the Companion" (CHG-0179). Nothing starts until the owner presses it.
 - Iskios explains how the app works, and manages realms and quests at the owner's request, each operation under its existing rules and confirmations.
 - The delegation below (matching with `find_missions`, tiers, hearing back from a quest it opened) is kept, but the opening of a quest follows the proposal above.
 - Scope over time: Iskios is meant to be able to do everything the app does, usually asking the owner to delegate the work to a quest. Realms can be deleted; quests are never deleted, only archived. First batch: Iskios creates and renames realms, and proposes quests; deleting realms and the rest follow in later batches.
@@ -23,7 +24,7 @@ From 2026-11-11 the entity formerly called Guildmaster is **Iskios**, a janitor 
 - Guild Hall contains one permanent thread outside every quest, where the user talks with Guildmaster.
   Its entry is pinned at the top of the dashboard, on the desktop and on the phone, and its thread cannot be deleted, archived, or ended.
 - Guild Hall is the place the rail's first entry leads to: its conversation fills the screen, with the message box at the foot.
-  The realms show as tiles in the right side panel, and the owner can pick one for the next message.
+  There is no side panel (CHG-0179): the owner picks the realm on the proposal card, and a message sent from a realm's page still carries that realm.
   Every action Guildmaster takes shows in the conversation as a card: the quest or Ritual it opened, created, or continued, with a link, and the Companion it chose.
   A button beside Guildmaster's confirmation names the action and opens the quest or Ritual.
   It wraps below the confirmation in narrow windows and appears on its own until the confirmation is written.

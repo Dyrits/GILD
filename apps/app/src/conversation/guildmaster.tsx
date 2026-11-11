@@ -1,19 +1,17 @@
 import type { AttachmentId, GuildmasterPlace, MissionId } from "@iskios/contracts";
 import { useState } from "react";
-import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { imageRefusalOf } from "../attachments/attachmentRules";
 import { BudgetScreen, BudgetStopCard } from "../editors/budgets";
 import { RunnerPickers, useHarnesses } from "../editors/runners";
 import { messageOf, newRequestId, type ServiceClient } from "../foundation/client";
 import { companionLabelOf, harnessLabels } from "../foundation/formatting";
 import { allMissions } from "../foundation/queries";
-import { useQuestPanel } from "../foundation/shellContext";
 import { styles } from "../foundation/styles";
 import { colors, fontSizes, fonts } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
 import { useSkills } from "../foundation/useSkills";
 import { budgetValueOf } from "../quests/questPanel";
-import { RealmChooser } from "../realms/workspaces";
 import { useTerminal } from "../terminal/useTerminal";
 import { Composer, StateBadge } from "../ui/controls";
 import { useDraft, useFollowNewest } from "./conversation";
@@ -87,23 +85,6 @@ function GuildmasterChat({
   const [actionError, setActionError] = useState<string | null>(null);
   // The Guildmaster can have a budget of its own, set on its own screen like a quest's (budget-control).
   const [isBudgetOpen, setIsBudgetOpen] = useState(false);
-  useQuestPanel(
-    <ScrollView contentContainerStyle={local.panel}>
-      <RealmChooser
-        isBig
-        missions={known?.missions ?? []}
-        onChange={onRealm}
-        onCreate={(created) =>
-          client
-            .request({ _tag: "CreateRealm", crest: created.crest, name: created.name, path: created.path })
-            .then(() => onRealm(created.path))
-        }
-        realms={realms}
-        value={realmPath}
-      />
-    </ScrollView>,
-    "Realms",
-  );
   if (detail === null) {
     return (
       <View style={local.page}>
@@ -182,7 +163,7 @@ function GuildmasterChat({
           <Text style={local.emptyTitle}>Tell Iskios what you need.</Text>
           <Text style={local.emptyText}>
             It looks for a quest that already covers it and offers to continue that one, or proposes a new quest for you
-            to open. Choose a realm on the right to propose the next quest there.
+            to open.
           </Text>
         </View>
       ) : (
@@ -319,7 +300,6 @@ const local = StyleSheet.create({
   noteName: { color: colors.highlight, fontFamily: fonts.sans, fontWeight: "700" },
   noteText: { color: colors.onGround, fontFamily: fonts.sans, fontSize: fontSizes.md },
   page: { backgroundColor: colors.page, flex: 1, gap: 8, paddingBottom: 18, paddingHorizontal: 28, paddingTop: 20 },
-  panel: { gap: 12, padding: 16 },
   sub: { color: colors.onGround, fontFamily: fonts.sans, fontSize: fontSizes.md, opacity: 0.8 },
   title: { color: colors.onGround, fontFamily: fonts.sans, fontSize: fontSizes.lg, fontWeight: "700" },
 });
