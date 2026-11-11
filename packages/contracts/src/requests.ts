@@ -21,6 +21,7 @@ import {
 } from "./ids.ts";
 import { JournalView } from "./journal.ts";
 import { LoreHistory, LoreScope, LoreStateFilter, LoreView } from "./lore.ts";
+import { Mentionable } from "./mentions.ts";
 import { PermissionsView, Question } from "./questions.ts";
 import {
   BackupCompanion,
@@ -392,6 +393,8 @@ export const ListWorkspaceEntries = Schema.TaggedStruct("ListWorkspaceEntries", 
   query: Schema.String,
   workspacePath: Schema.String,
 });
+/** The quests, side-quests, and realms a typed `@` can name: none archived, and never Iskios's own (CHG-0181). */
+export const ListMentionables = Schema.TaggedStruct("ListMentionables", {});
 /** Makes a folder inside a browsable folder (New folder). */
 export const CreateFolder = Schema.TaggedStruct("CreateFolder", { name: Schema.String, parent: Schema.String });
 /** Adds an existing folder to the browsable roots (Add root). */
@@ -508,6 +511,7 @@ export const Request = Schema.Union([
   BrowseFolders,
   ListSkills,
   ListWorkspaceEntries,
+  ListMentionables,
   CreateFolder,
   AddBrowsableRoot,
   ListHarnesses,
@@ -561,6 +565,7 @@ export const Results = {
   InterruptThread: Schema.Null,
   ListHarnesses: HarnessList,
   ListIntel: LoreView,
+  ListMentionables: Schema.Array(Mentionable),
   ListMissions: MissionList,
   ListModelEfforts: Schema.Array(EffortChoice),
   ListOpenQuestions: Schema.Array(Question),

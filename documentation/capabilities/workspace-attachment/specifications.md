@@ -41,7 +41,8 @@ The owner can correct a wrong workspace by moving a whole quest when none of its
 
 - Typing `@` at the start of a word in a message box lists up to 8 files and folders of the workspace the message is written in, matched on their name or path; Tab, Enter, or a click completes the path, relative to the workspace, a folder's ending with a slash so the list goes on inside it. The text stays as typed and reaches the thread unchanged. Once chosen, a path shows as a chip with a file or folder icon in the owner's messages (a skill likewise with a puzzle piece), and, in the message box, as a chip inside the text where it was chosen, removed like a character, and sent as plain text.
 - In a git workspace the list leaves out what `.gitignore` ignores; otherwise it skips `.git` and `node_modules`.
-- With no workspace (a quest in its scratch folder) an `@` offers nothing.
+- With no workspace (a quest in its scratch folder) an `@` offers no files or folders; it still offers quests and realms (CHG-0181).
+- The `@` list also names quests, side-quests, and realms beside files and folders; the menu and what a mention does are in [thread-messaging](../thread-messaging/specifications.md#mentions-with-) (CHG-0181).
 
 ### What a workspace gives its threads
 

@@ -8,10 +8,19 @@ import { useAttachments } from "../attachments/useAttachments";
 import { messageOf, type ServiceClient } from "../foundation/client";
 import { styles } from "../foundation/styles";
 import { colors, stateLabels, stateTones } from "../foundation/theme";
+import { useMentionables } from "../foundation/useMentionables";
 import { useWorkspaceEntries } from "../foundation/useWorkspaceEntries";
 import { ChipEditor } from "./chipEditor";
-import type { Chip, ChipEditorHandle, Trigger } from "./chipEditorTypes";
+import type { ChipEditorHandle, Trigger } from "./chipEditorTypes";
 import { ChipIcon } from "./chips";
+import {
+  type MentionCategory,
+  type MenuRow,
+  mentionCategories,
+  mentionMenuOf,
+  menuKeyActionOf,
+  selectableRowsOf,
+} from "./mentionMenu";
 
 // The web's switch takes the thumb's color when on from a prop the native types do not declare.
 const webSwitchColors = { activeThumbColor: colors.canvas };
@@ -70,12 +79,6 @@ function SendArrow() {
   );
 }
 
-/** One way to complete what is typed after a `/` or `@`: the chip it becomes and what the list shows. */
-interface Completion extends Chip {
-  readonly description: string;
-  readonly key: string;
-}
-
 /**
  * A message box that keeps the text until the service accepts it, sent with Enter or the arrow button. While a thread runs, a smaller second
  * button sends the other way (Steer or Queue) and Interrupt ends the thread's current turn (CHG-0039).
@@ -111,7 +114,10 @@ export function Composer({
   accessory?: ReactNode;
   /** The skills a slash offers; a slash-name matching one is highlighted. */
   skills?: ReadonlyArray<Skill>;
-  /** The workspace an `@` names files and folders of; with no path (a quest outside a realm) an `@` offers nothing. */
+  /**
+   * What an `@` names: quests, side-quests, and realms, and the files and folders of the workspace when it has a path
+   * (CHG-0181). Without it, an `@` offers nothing.
+   */
   mentions?: { readonly client: ServiceClient; readonly workspacePath: string | null };
   onBang?: () => void;
   /** Whether an attached terminal can be sent without typed text. */
@@ -128,35 +134,42 @@ export function Composer({
   const cannotSend = isEmpty || files.isBusy || refusal !== null;
   const [error, setError] = useState<string | null>(null);
   const partial = trigger?.character === "/" ? trigger.query : null;
-  const mentioned = trigger?.character === "@" ? trigger.query : null;
+  const mentioned = mentions === undefined || trigger?.character !== "@" ? null : trigger.query;
+  // The category opened from a bare `@`; typing after the `@` mixes every category again (CHG-0181).
+  const [category, setCategory] = useState<MentionCategory | null>(null);
   const entries = useWorkspaceEntries(mentions?.client, mentions?.workspacePath ?? null, mentioned);
+  const mentionables = useMentionables(mentions?.client, mentioned !== null);
   // What the typed word can be completed to; a name already complete offers nothing more.
-  const options: ReadonlyArray<Completion> =
+  const rows: ReadonlyArray<MenuRow> =
     partial !== null
       ? skills
           .filter((skill) => skill.name !== partial && skill.name.toLowerCase().startsWith(partial.toLowerCase()))
           .slice(0, 6)
           .map((skill) => ({
+            chip: { kind: "skill", label: skill.name, token: `/${skill.name}` },
             description: skill.description,
             key: skill.name,
-            kind: "skill" as const,
-            label: skill.name,
-            token: `/${skill.name}`,
+            type: "option",
           }))
       : mentioned === null
         ? []
-        : entries
-            .filter((entry) => entry.path !== mentioned)
-            .map((entry) => ({
-              description: "",
-              key: entry.path,
-              kind: entry.kind,
-              label: entry.path,
-              token: `@${entry.path}`,
-            }));
+        : mentionMenuOf({
+            category,
+            entries,
+            hasFolder: (mentions?.workspacePath ?? null) !== null,
+            mentionables: mentionables ?? [],
+            query: mentioned,
+          });
+  const selectable = selectableRowsOf(rows);
   const [chosen, setChosen] = useState(0);
-  const highlighted = options[Math.min(chosen, options.length - 1)];
-  const pick = (option: Completion) => editor.current?.insertChip(option);
+  const highlighted = selectable[Math.min(chosen, selectable.length - 1)];
+  const choose = (row: MenuRow) => {
+    if (row.type === "option") editor.current?.insertChip(row.chip);
+    else if (row.type === "category") {
+      setCategory(row.category);
+      setChosen(0);
+    }
+  };
   const send = async (handler: (text: string, attachmentIds: ReadonlyArray<AttachmentId>) => Promise<unknown>) => {
     if (cannotSend || isSending) return;
     setIsSending(true);
@@ -178,21 +191,29 @@ export function Composer({
     );
   return (
     <View style={styles.composer}>
-      {options.length > 0 && (
+      {rows.length > 0 && (
         <View style={styles.skillList}>
-          {options.map((option) => (
-            <Pressable
-              key={option.key}
-              onPress={() => pick(option)}
-              style={[styles.skillOption, option === highlighted && styles.skillOptionChosen]}
-            >
-              <ChipIcon kind={option.kind} />
-              <Text style={styles.skillName}>{option.label}</Text>
-              <Text numberOfLines={1} style={styles.skillDescription}>
-                {option.description}
+          {rows.map((row) =>
+            row.type === "heading" ? (
+              <Text key={row.key} style={styles.mentionHeading}>
+                {mentionCategories[row.category].label}
               </Text>
-            </Pressable>
-          ))}
+            ) : (
+              <Pressable
+                key={row.key}
+                onPress={() => choose(row)}
+                style={[styles.skillOption, row === highlighted && styles.skillOptionChosen]}
+              >
+                <ChipIcon kind={row.type === "category" ? mentionCategories[row.category].kind : row.chip.kind} />
+                <Text style={styles.skillName}>
+                  {row.type === "category" ? mentionCategories[row.category].label : row.chip.label}
+                </Text>
+                <Text numberOfLines={1} style={styles.skillDescription}>
+                  {row.type === "category" ? "›" : row.description}
+                </Text>
+              </Pressable>
+            ),
+          )}
         </View>
       )}
       {attachable !== undefined && <AttachmentStrip files={files.files} onRemove={files.remove} />}
@@ -206,22 +227,27 @@ export function Composer({
               setText(value);
               setTrigger(typed);
               setChosen(0);
+              if (typed?.character !== "@" || typed.query !== "") setCategory(null);
               onChangeText?.(value);
             }}
-            onKeyDown={({ key, shiftKey }) => {
-              if (highlighted !== undefined) {
-                const moves: Record<string, number> = { ArrowDown: 1, ArrowUp: -1 };
-                const move = moves[key];
-                if (move !== undefined) {
-                  setChosen((Math.min(chosen, options.length - 1) + move + options.length) % options.length);
-                  return true;
+            onKeyDown={(key) => {
+              const action = menuKeyActionOf(key, {
+                hasRows: highlighted !== undefined,
+                isInCategory: category !== null && mentioned === "",
+              });
+              if (action !== null) {
+                if (action.type === "back") {
+                  setCategory(null);
+                  setChosen(0);
+                } else if (action.type === "choose") {
+                  if (highlighted !== undefined) choose(highlighted);
+                } else {
+                  const at = Math.min(chosen, selectable.length - 1);
+                  setChosen((at + action.by + selectable.length) % selectable.length);
                 }
-                if (key === "Tab" || (key === "Enter" && !shiftKey)) {
-                  pick(highlighted);
-                  return true;
-                }
+                return true;
               }
-              if (key === "Enter" && !shiftKey) {
+              if (key.key === "Enter" && !key.shiftKey) {
                 void send(onSend);
                 return true;
               }

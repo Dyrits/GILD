@@ -47,10 +47,11 @@ When adding a handoff, keep only the three newest current handoffs linked below;
 
 Latest handoffs:
 
+- To resume the @ menu with quests, side-quests, and realms (built and checked; owner review pending), read the [current handoff](.agents/handoffs/2026-11-11-2156-at-mentions.md). Handoffs are shared and committed.
+
 - To resume Iskios, the assistant formerly called Guildmaster (reviewed and pushed; the Guild Hall hub, the code renaming, and four owner decisions remain), read the [current handoff](.agents/handoffs/2026-11-11-2123-iskios-reviewed.md). Handoffs are shared and committed.
 
 - To resume the quest moves by dragging (built and driven in a throwaway Electron window, not yet seen by the owner; sessions kept across a move), read the [current handoff](.agents/handoffs/2026-11-11-1743-quest-moves.md). Handoffs are shared and committed.
 
-- To resume the Realms and Borderlands sidebar and its polish (hover marks, folder icon, spacing; seen in the web export, whole-row hover not yet proven in the Electron window), read the [current handoff](.agents/handoffs/2026-11-11-1700-sidebar-polish-and-hover.md). Handoffs are shared and committed.
 
 

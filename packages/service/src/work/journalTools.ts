@@ -3,6 +3,7 @@ import { SqlClient } from "effect/sql";
 import type { ToolAnswer } from "../core/index.ts";
 import { isGuildmasterThread } from "./guildmaster.ts";
 import { journalTextOf, missionOf, readJournalText, updateJournal } from "./journal.ts";
+import { readTurnReach } from "./mentions.ts";
 import type { ToolHandlers } from "./threadTools.ts";
 import { isAside } from "./tree.ts";
 
@@ -15,9 +16,14 @@ export const journalToolsOf = (
       Effect.gen(function* () {
         if (mission === undefined)
           return { isError: false, text: yield* readJournalText(threadId, before ?? null, count ?? null) };
-        // Another quest's journal is the Guildmaster's to read, whatever the quest.
-        if (!(yield* isGuildmasterThread(threadId)))
-          return { isError: true, text: "Only Iskios reads another quest's journal." };
+        // Another quest's journal is the Guildmaster's to read, whatever the quest; another thread reads one only
+        // when the owner mentioned that quest, or one of its side-quests, in a message its current turn received.
+        const isMentioned = (yield* readTurnReach(threadId)).readable.has(mission);
+        if (!isMentioned && !(yield* isGuildmasterThread(threadId)))
+          return {
+            isError: true,
+            text: "Only Iskios reads another quest's journal, unless the owner mentioned that quest with @ in a message of this turn.",
+          };
         const sql = yield* SqlClient.SqlClient;
         const rows = yield* sql<{ id: string }>`SELECT m.id FROM missions m JOIN threads top ON top.id = m.top_thread_id
           WHERE m.id = ${mission} AND m.is_guildmaster = 0 AND top.is_deleting = 0`;

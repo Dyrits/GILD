@@ -17,6 +17,7 @@ import {
 import { createRealmByGuildmaster, renameRealmByGuildmaster } from "./guildmasterRealms.ts";
 import { journalToolsOf } from "./journalTools.ts";
 import { loreToolsOf } from "./loreTools.ts";
+import { readTurnReach } from "./mentions.ts";
 import { insertMessage } from "./messaging.ts";
 import type { Resolution, Suggested, Suggestions } from "./suggestions.ts";
 import type { Threads } from "./threads.ts";
@@ -233,7 +234,10 @@ export const makeToolHandlers = (dependencies: {
     send_thread_message: (threadId, { text, to }) =>
       runTool(
         Effect.gen(function* () {
-          if (!(yield* isWithinReach(threadId, to))) return unchanged(false);
+          // Beyond the tree, the owner's mentions and the messages received in this turn open a way (CHG-0181).
+          const isReachable =
+            (yield* isWithinReach(threadId, to)) || (yield* readTurnReach(threadId)).reachable.has(to);
+          if (!isReachable) return unchanged(false);
           yield* insertMessage({ fromThreadId: threadId, isQueued: false, isResult: false, text, threadId: to });
           // A pause the message set off ends both turns before the receiver is woken.
           return changed(true, { threadsToWake: [to], turnsToCancel: yield* countChatter(threadId, to) });
@@ -242,7 +246,10 @@ export const makeToolHandlers = (dependencies: {
         Effect.map((isSent) =>
           isSent
             ? answer("Sent.")
-            : answer("Not sent: you can only message your parent or a thread directly beneath you, by its id.", true),
+            : answer(
+                "Not sent: you can only message your parent, a thread directly beneath you, Iskios, a quest or side-quest the owner mentioned with @ in this turn, or a thread that wrote to you in this turn, by its id.",
+                true,
+              ),
         ),
       ),
     suggest_mission: (threadId, args) =>

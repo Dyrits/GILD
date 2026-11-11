@@ -156,6 +156,15 @@ export const styles = StyleSheet.create({
     paddingHorizontal: 5,
   },
   mentionChipText: { color: colors.accentText, fontFamily: fonts.sans, fontSize: fontSizes.base },
+  mentionHeading: {
+    color: colors.textMuted,
+    fontFamily: fonts.sans,
+    fontSize: fontSizes.xs,
+    fontWeight: "600",
+    paddingBottom: 2,
+    paddingHorizontal: 8,
+    paddingTop: 6,
+  },
   menu: { position: "relative" },
   menuButton: {
     alignItems: "center",

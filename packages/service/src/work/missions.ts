@@ -9,7 +9,6 @@ import type {
   Settings,
   StartChoices,
   StartMissionResult,
-  ThreadState,
 } from "@iskios/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient, type Statement } from "effect/sql";
@@ -30,15 +29,11 @@ import { applyDefaultBudget } from "./budgets.ts";
 import { consumptionOf } from "./consumption.ts";
 import { insertJournal } from "./journal.ts";
 import { insertMessage } from "./messaging.ts";
+import { workedOutStateOf } from "./missionStates.ts";
 import { runStateOf, scheduleOf } from "./ritualSchedule.ts";
 import { attachmentsTitle, titleOf } from "./titles.ts";
 import { attachWorkspace, crestOfRow } from "./workspaces.ts";
 
-// Ordered from most to least urgent (mission-tracking specification). Done and
-// Stopped add no urgency; Idle is the provisional fallback until it is settled.
-const urgency: ReadonlyArray<ThreadState> = ["Attention", "Failed", "Running", "Waiting", "Idle"];
-const workedOutStateOf = (states: ReadonlyArray<string>): ThreadState =>
-  urgency.find((state) => states.includes(state)) ?? "Idle";
 /** States that put a mission first on the dashboard (provisional: CHG-0045, work-in-progress Batch 9). */
 
 /**

@@ -9,6 +9,7 @@ export * from "./harnesses.ts";
 export * from "./ids.ts";
 export * from "./journal.ts";
 export * from "./lore.ts";
+export * from "./mentions.ts";
 export * from "./questions.ts";
 export * from "./records.ts";
 export * from "./requests.ts";

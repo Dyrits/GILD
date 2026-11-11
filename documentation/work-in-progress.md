@@ -1,5 +1,12 @@
 # Work in progress
 
+## Mentions with @ · 2026-11-11 · built and checked, owner review pending
+
+Agreed in CHG-0181, built in CHG-0182. Starting commit `5fbfc4c`; nothing committed.
+Built: in every message box a bare `@` lists Quests, Realms, and Files & Directories (the last only with a linked folder); a quest, side-quest (`Quest › Side-quest`), or realm becomes a chip, written as `@quest:<id>`, `@side-quest:<thread id>`, or `@realm:<id>`; the service appends what each names, with ids, to the message the harness reads; for that turn the receiving thread may read a mentioned quest's journal and message its top thread or the mentioned side-quest, and the quest written to may answer. Archived quests are never offered and open nothing.
+Checks: typecheck, Biome, 9 service and 9 app tests added, app suite passes, full suite with two failures that also fail without the change; driven in a throwaway Electron window on the fake harness, light and dark ([proof](verification/2026-11-11-mentions.md)).
+Open, awaiting the owner: the look of the menu and chips; the token form and the reply rule (my choices in CHG-0181); whether a realm mention should open anything (today context only). Not checked: a real harness choosing to use a mention; the phone build beyond typecheck (no chips in the box, Backspace erases the `@`); long lists (no scrolling, capped at 12 and 5 per category). Not built: Iskios's event lines for messages between quests.
+
 ## Iskios, the assistant · 2026-11-11 · built, checked, and reviewed; owner review pending
 
 Agreed in CHG-0173, CHG-0174, and CHG-0176; delivered in CHG-0175, CHG-0177, CHG-0178, CHG-0179, and CHG-0180 (review and refactor). Starting commit `f492434`. The Guildmaster is Iskios: it proposes quests as a card (realm and Companion by tier), makes and renames realms on the owner's quoted words, and the Guild Hall has no side panel. Run with Claude Code in a throwaway window ([verification](verification/2026-11-11-iskios-live.md)).

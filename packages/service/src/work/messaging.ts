@@ -4,6 +4,7 @@ import { SqlClient } from "effect/sql";
 import { notFound, touchMission } from "../core/index.ts";
 import { attachToMessage, readStoredAttachments, type StoredAttachment } from "./attachments.ts";
 import { resetOwnerChatter, resetResultChatter } from "./chatter.ts";
+import { mentionNoteOf } from "./mentions.ts";
 import { listSkills, withSkillInstructions } from "./skills.ts";
 import { readThreadWorkspace } from "./workspaces.ts";
 
@@ -100,16 +101,20 @@ export const listPending = (threadId: string, isSteering: boolean) =>
       ? yield* listSkills((yield* readThreadWorkspace(threadId))?.path ?? null)
       : [];
     const attachments = yield* readStoredAttachments(rows.map((row) => row.id));
-    return rows.map(
-      (row): PendingMessage => ({
-        attachments: attachments.get(row.id) ?? [],
-        id: row.id,
-        text: deliveredTextOf({
-          ...row,
-          isResult: row.isResult === 1,
-          realm: row.realmPath === null ? null : { name: row.realmName ?? row.realmPath, path: row.realmPath },
-          text: row.fromThreadId === null ? withSkillInstructions(row.text, skills) : row.text,
-        }),
+    return yield* Effect.forEach(rows, (row) =>
+      Effect.gen(function* () {
+        // The owner's `@` mentions of quests, side-quests, and realms are resolved as they are delivered (CHG-0181).
+        const note = row.fromThreadId === null ? yield* mentionNoteOf(row.text) : "";
+        return {
+          attachments: attachments.get(row.id) ?? [],
+          id: row.id,
+          text: deliveredTextOf({
+            ...row,
+            isResult: row.isResult === 1,
+            realm: row.realmPath === null ? null : { name: row.realmName ?? row.realmPath, path: row.realmPath },
+            text: row.fromThreadId === null ? `${withSkillInstructions(row.text, skills)}${note}` : row.text,
+          }),
+        } satisfies PendingMessage;
       }),
     );
   });

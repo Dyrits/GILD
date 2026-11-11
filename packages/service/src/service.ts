@@ -69,6 +69,7 @@ import { changeThreadRunner } from "./work/handover.ts";
 import { type JournalOutcome, readJournalView, updateJournal } from "./work/journal.ts";
 import { markThreadDone } from "./work/lifecycle.ts";
 import { toolServerLayer } from "./work/mcp.ts";
+import { listMentionables } from "./work/mentions.ts";
 import { insertUserMessage } from "./work/messaging.ts";
 import { readMission } from "./work/missionDetail.ts";
 import { insertMission, insertQuest } from "./work/missions.ts";
@@ -302,6 +303,7 @@ const make = Effect.gen(function* () {
             Effect.provideService(AccountsRoot, accountsRoot),
           ),
         ListIntel: (list) => readLoreView(list.scope, list.state, list.threadId, list.workspaceId ?? null),
+        ListMentionables: () => listMentionables,
         ListMissions: (filters) => listMissions(filters),
         ListModelEfforts: (list) =>
           listModelEfforts(list.harness, list.accountId, list.model).pipe(

@@ -70,7 +70,7 @@ The additional search and management operations still need design, implementatio
 
 ### References between quests
 
-- A thread, or the user writing in it, can message any thread or quest it references with `@`, for example `@Read my emails › Triage`. A reference to a quest reaches its top thread. The message goes straight to it and the reply comes straight back, without Guildmaster (see [thread-messaging](../thread-messaging/specifications.md#who-can-message-whom)).
+- The owner references a quest, side-quest, or realm with `@` from any message box, Iskios's included, as [thread-messaging](../thread-messaging/specifications.md#mentions-with-) describes (CHG-0181, built in CHG-0182). For the turn it reaches, the receiving thread may read the mentioned quest's journal and message its top thread, or the mentioned side-quest; the message goes straight to it and the reply comes straight back, without Iskios. A mention is context: the thread decides from the owner's words whether to use it. A thread's own `@` in a message opens nothing.
 - Without a reference, a thread, or the user writing in a quest's thread, can write to `@Guildmaster`. Guildmaster finds the quest that fits with `find_missions` and forwards the message there, or answers that none fits.
 - Every message between quests shows in both threads as a normal message labelled with the sender's quest. Guildmaster shows it as a compact event line, not a chat bubble, for example "Release notes › Draft → Read my emails › Triage", and it stays out of Guildmaster's context.
 - The [chatter guard](../thread-messaging/specifications.md#chatter-guard) applies to each pair of threads, across quests too.
@@ -93,7 +93,7 @@ The additional search and management operations still need design, implementatio
 
 ## External contract
 
-Guildmaster uses these thread tools in addition to `find_missions`, `suggest_mission`, `send_thread_message`, the intel tools, and `read_journal`, which for Guildmaster takes the quest to read (see [0005](../../architecture-decision-record/0005-thread-tools-over-mcp.md)):
+Guildmaster uses these thread tools in addition to `find_missions`, `suggest_mission`, `send_thread_message`, the intel tools, and `read_journal`, which for Guildmaster takes the quest to read (another thread may pass a quest only when the owner mentioned it in the current turn, CHG-0181) (see [0005](../../architecture-decision-record/0005-thread-tools-over-mcp.md)):
 
 | Tool | Purpose | Arguments | Answer |
 | --- | --- | --- | --- |
@@ -159,4 +159,4 @@ The additional search and management tools for CHG-0132 need a contract and serv
 - **A quest reports once its turn has ended**, so its closing reply travels with the report; a quest that stands in the same report is not told twice, and one that leaves it is told again later.
 - **Hiding Guild Hall** removes its rail entry and opens the window on the quests; the screen is still where a realm page's message goes.
 - **Tiers** are optional Companions; a tier not set, or no tier, starts on the Settings default, never on Guildmaster's own cheap Companion. Guildmaster's own Companion starts on Claude Code's cheapest model (Haiku) when the default harness is Claude Code, and on the harness's own default otherwise.
-- **Not built**: the 20-message window with older messages summarized (the harness session carries the conversation); messages between quests by `@` reference with their event lines in Guildmaster; Guildmaster's spending on the quests' dashboard (it shows on its own screen).
+- **Not built**: the 20-message window with older messages summarized (the harness session carries the conversation); the event lines in Guildmaster for messages between quests (the `@` references themselves are built, CHG-0182); Guildmaster's spending on the quests' dashboard (it shows on its own screen).

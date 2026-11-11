@@ -1,12 +1,15 @@
-import { type MentionToken, mentionTokensOf, type Skill, skillTokensOf, type WorkspaceEntry } from "@iskios/contracts";
+import { mentionTokensOf, referenceOf, type Skill, type WorkspaceEntry } from "@iskios/contracts";
 import { type ReactNode, useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
 import type { ServiceClient } from "../foundation/client";
 import { styles } from "../foundation/styles";
 import { colors } from "../foundation/theme";
+import { useMentionables } from "../foundation/useMentionables";
+import { chipsOf } from "./chipPlaces";
 
-// A chosen skill or workspace path drawn as a small chip with an icon, in the conversation and in the suggestion list.
+// A chosen skill, workspace path, quest, side-quest, or realm drawn as a small chip with an icon, in the conversation and
+// in the suggestion list.
 
 const ICON_SIZE = 12;
 
@@ -14,13 +17,17 @@ const ICON_SIZE = 12;
 export const iconPaths = {
   file: ["M3.5 1.5 H9.5 L12.5 4.5 V14.5 H3.5 Z", "M9.5 1.5 V4.5 H12.5"],
   folder: ["M1.5 3.5 H6 L7.5 5 H14.5 V13 H1.5 Z"],
+  // A pennant on its pole, for a quest or side-quest.
+  quest: ["M4 14.5 V1.5", "M4 2.5 H12.5 L10.5 5.5 L12.5 8.5 H4"],
+  // A keep with its battlements, for a realm.
+  realm: ["M2.5 14.5 V5.5 H4.5 V7 H6.5 V5.5 H9.5 V7 H11.5 V5.5 H13.5 V14.5 Z", "M7 14.5 V11.5 H9 V14.5"],
   skill: ["M2.5 5.5 H6 a1.5 1.5 0 0 1 3 0 H11.5 V8 a1.5 1.5 0 0 1 0 3 V13.5 H2.5 Z"],
 } as const;
 
 /** The kinds of thing a chip can stand for. */
 export type ChipKind = keyof typeof iconPaths;
 
-/** A small outline icon: a file, a folder, or a puzzle piece for a skill. */
+/** A small outline icon: a file, a folder, a puzzle piece for a skill, a pennant for a quest, or a keep for a realm. */
 export function ChipIcon({ kind }: { kind: ChipKind }) {
   return (
     <Svg
@@ -79,23 +86,7 @@ export function useMentionKinds(
   return found;
 }
 
-/** The chosen names and paths in a text, in order, each with the icon it draws: known skills, and paths found in the workspace. */
-export const chipsOf = (
-  text: string,
-  skills: ReadonlyArray<Skill>,
-  mentions: ReadonlyMap<string, WorkspaceEntry["kind"]>,
-): ReadonlyArray<{ readonly end: number; readonly kind: ChipKind; readonly start: number }> =>
-  [
-    ...skillTokensOf(text)
-      .filter((token) => skills.some((skill) => skill.name === token.name))
-      .map((token) => ({ end: token.end, kind: "skill" as const, start: token.start })),
-    ...mentionTokensOf(text).flatMap((token: MentionToken) => {
-      const kind = mentions.get(token.path);
-      return kind === undefined ? [] : [{ end: token.end, kind, start: token.start }];
-    }),
-  ].sort((first, second) => first.start - second.start);
-
-/** A message's text with each chosen skill or workspace path as a chip with its icon. */
+/** A message's text with each chosen skill, workspace path, quest, side-quest, or realm as a chip with its icon. */
 export function ChipText({
   client,
   skills,
@@ -107,12 +98,17 @@ export function ChipText({
   text: string;
   workspacePath: string | null;
 }) {
+  const tokens = mentionTokensOf(text);
   const mentions = useMentionKinds(
     client,
     workspacePath,
-    mentionTokensOf(text).map((token) => token.path),
+    tokens.filter((token) => referenceOf(token.path) === null).map((token) => token.path),
   );
-  const chips = chipsOf(text, skills, mentions);
+  const mentionables = useMentionables(
+    client,
+    tokens.some((token) => referenceOf(token.path) !== null),
+  );
+  const chips = chipsOf(text, skills, mentions, mentionables);
   if (chips.length === 0) return <Text style={styles.body}>{text}</Text>;
   const parts: ReactNode[] = [];
   let at = 0;
@@ -121,7 +117,7 @@ export function ChipText({
     parts.push(
       <View key={chip.start} style={styles.mentionChip}>
         <ChipIcon kind={chip.kind} />
-        <Text style={styles.mentionChipText}>{text.slice(chip.start + 1, chip.end)}</Text>
+        <Text style={styles.mentionChipText}>{chip.label}</Text>
       </View>,
     );
     at = chip.end;
