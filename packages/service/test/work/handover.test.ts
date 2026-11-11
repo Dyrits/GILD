@@ -1,4 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
+import type { ThreadId } from "@iskios/contracts";
 import { Effect } from "effect";
 import { afterEach } from "vitest";
 import { call, fixture, read, send, settle, start } from "../fixtures/service.ts";
@@ -133,24 +134,47 @@ describe("handover: changing a thread's harness, account, model, or effort mid-t
     ),
   );
 
-  it.live("leaves a line in the conversation naming the new harness and model", () =>
+  const change = (
+    threadId: ThreadId,
+    harness: "claude" | "codex" | "opencode",
+    model = "default",
+    effort = "default",
+  ) => call({ _tag: "ChangeThreadRunner", accountId: null, effort, harness, model, threadId });
+
+  it.live("a change leaves no line until a message runs on it, then one line for the runner that runs", () =>
     withService(
       Effect.gen(function* () {
         const started = yield* start("Hello");
         const first = yield* settle(started.missionId, idle);
         expect(first.handovers).toEqual([]);
-        yield* call({
-          _tag: "ChangeThreadRunner",
-          accountId: null,
-          effort: "default",
-          harness: "opencode",
-          model: "default",
-          threadId: first.thread.id,
-        });
-        const after = yield* read(started.missionId);
+        // Several changes of the pickers leave nothing in the conversation.
+        yield* change(first.thread.id, "opencode");
+        yield* change(first.thread.id, "codex");
+        yield* change(first.thread.id, "codex", "gpt-5");
+        expect((yield* read(started.missionId)).handovers).toEqual([]);
+        yield* send(first.thread.id, "runner");
+        const after = yield* settle(started.missionId, (d) => d.messages.length === 4 && idle(d));
         expect(after.handovers.map((handover) => handover.text)).toEqual([
-          "Handed over to OpenCode · default model · default effort",
+          "Handed over to Codex · gpt-5 · default effort",
         ]);
+        // A later turn on the same runner adds none.
+        yield* send(first.thread.id, "again");
+        const later = yield* settle(started.missionId, (d) => d.messages.length === 6 && idle(d));
+        expect(later.handovers).toHaveLength(1);
+      }),
+    ),
+  );
+
+  it.live("changing the runner and back before a message leaves no line", () =>
+    withService(
+      Effect.gen(function* () {
+        const started = yield* start("Hello");
+        const first = yield* settle(started.missionId, idle);
+        yield* change(first.thread.id, "codex");
+        yield* change(first.thread.id, "claude");
+        yield* send(first.thread.id, "again");
+        const after = yield* settle(started.missionId, (d) => d.messages.length === 4 && idle(d));
+        expect(after.handovers).toEqual([]);
       }),
     ),
   );
@@ -253,9 +277,13 @@ describe("handover: changing a thread's harness, account, model, or effort mid-t
         yield* Effect.sleep("150 millis");
         const changed = yield* read(started.missionId);
         expect(changed.thread).toMatchObject({ harness: "codex", state: "Failed", waitingCount: 1 });
+        expect(changed.handovers).toEqual([]);
         yield* call({ _tag: "RetryThread", threadId: failed.thread.id });
         const after = yield* settle(started.missionId, (d) => d.thread.state === "Idle");
         expect(lastReplyOf(after)).toContain("codex");
+        expect(after.handovers.map((handover) => handover.text)).toEqual([
+          "Handed over to Codex · default model · default effort",
+        ]);
       }),
     ),
   );
@@ -273,6 +301,8 @@ describe("handover: changing a thread's harness, account, model, or effort mid-t
           model: "default",
           threadId: first.thread.id,
         });
+        yield* send(first.thread.id, "runner");
+        yield* settle(started.missionId, (d) => d.handovers.length === 1 && idle(d));
         const preview = yield* call({ _tag: "PreviewDeletion", threadId: first.thread.id });
         yield* call({ _tag: "DeleteThread", confirmation: preview.confirmation, threadId: first.thread.id });
         expect((yield* Effect.flip(read(started.missionId))).kind).toBe("NotFound");

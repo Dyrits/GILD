@@ -1,4 +1,4 @@
-import type { HarnessName, ModelChoice } from "@iskios/contracts";
+import type { EffortChoice, HarnessName, ModelChoice } from "@iskios/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, notFound, tokensOf } from "../core/index.ts";
@@ -28,7 +28,7 @@ const handoverTextOf = (runner: Runner, accountLabel: string | null, fellBackAft
 /**
  * Changes the thread's runner. Refused while the thread is in a turn. A change of harness or account forgets the
  * harness session, so the thread's next turn starts a new one with the conversation so far. The owner's change starts
- * no turn: a message waiting after a failed turn runs on the new runner when the owner retries or writes again. A
+ * no turn and leaves no line until one does (`recordPendingHandover`): a message waiting after a failed turn runs on the new runner when the owner retries or writes again. A
  * fallback (backups, rituals) passes the failure that caused it, which the line then gives after the new runner, and
  * runs the waiting messages at once.
  */
@@ -53,17 +53,61 @@ export const changeThreadRunner = (threadId: string, runner: Runner, fellBackAft
     const isNewSession = runner.harness !== thread.harness || runner.accountId !== thread.accountId;
     if (!isNewSession && runner.model === thread.model && runner.effort === thread.effort) return unchanged(null);
     const now = yield* Clock.currentTimeMillis;
+    // The owner's change leaves no line yet: the runner it leaves is kept (the first one, across several changes), and
+    // the line is written when a turn starts on the runner then chosen (`recordPendingHandover`). A fallback runs at
+    // once, so its line is written now, and nothing is left pending.
+    const from = JSON.stringify([thread.harness, thread.accountId, thread.model, thread.effort]);
     yield* sql`UPDATE threads SET harness = ${runner.harness}, account_id = ${runner.accountId}, model = ${runner.model},
-      effort = ${runner.effort}${isNewSession ? sql`, session_id = NULL` : sql``} WHERE id = ${threadId}`;
+      effort = ${runner.effort}${isNewSession ? sql`, session_id = NULL` : sql``},
+      handover_from = ${fellBackAfter === null ? sql`COALESCE(handover_from, ${from})` : sql`NULL`} WHERE id = ${threadId}`;
+    if (fellBackAfter !== null) yield* insertHandover(threadId, runner, fellBackAfter, now);
+    // The owner's change waits for the owner: their next message, or Retry after a failed turn, runs on it. A
+    // fallback after a failure runs the waiting messages on the new runner at once.
+    return fellBackAfter === null ? changed(null) : changed(null, { threadsToWake: [threadId] });
+  });
+
+/** Writes one handover line for a runner, at the given time. */
+const insertHandover = (threadId: string, runner: Runner, fellBackAfter: string | null, at: number) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
     const [account] =
       runner.accountId === null
         ? []
         : yield* sql<{ label: string }>`SELECT label FROM accounts WHERE id = ${runner.accountId}`;
     yield* sql`INSERT INTO handovers (id, thread_id, text, at)
-      VALUES (${crypto.randomUUID()}, ${threadId}, ${handoverTextOf(runner, account?.label ?? null, fellBackAfter)}, ${now})`;
-    // The owner's change waits for the owner: their next message, or Retry after a failed turn, runs on it. A
-    // fallback after a failure runs the waiting messages on the new runner at once.
-    return fellBackAfter === null ? changed(null) : changed(null, { threadsToWake: [threadId] });
+      VALUES (${crypto.randomUUID()}, ${threadId}, ${handoverTextOf(runner, account?.label ?? null, fellBackAfter)}, ${at})`;
+  });
+
+/**
+ * Called as a turn starts on the thread's current runner: when the owner changed the runner since the last turn,
+ * writes one handover line for the runner that now runs, none when it is the one the thread last ran on, and
+ * forgets the change. The line belongs to a run, not to each change of a picker.
+ */
+export const recordPendingHandover = (threadId: string, at: number) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const [thread] = yield* sql<{
+      accountId: string | null;
+      effort: string;
+      handoverFrom: string | null;
+      harness: HarnessName;
+      model: ModelChoice;
+    }>`SELECT harness, account_id AS accountId, model, effort, handover_from AS handoverFrom FROM threads WHERE id = ${threadId}`;
+    if (thread === undefined || thread.handoverFrom === null) return;
+    yield* sql`UPDATE threads SET handover_from = NULL WHERE id = ${threadId}`;
+    const current = JSON.stringify([thread.harness, thread.accountId, thread.model, thread.effort]);
+    if (current === thread.handoverFrom) return;
+    yield* insertHandover(
+      threadId,
+      {
+        accountId: thread.accountId,
+        effort: thread.effort as EffortChoice,
+        harness: thread.harness,
+        model: thread.model,
+      },
+      null,
+      at,
+    );
   });
 
 /** The thread's handover lines, oldest first. */

@@ -52,12 +52,15 @@ const listedEffortsOf = (harness: HarnessInfo | undefined, model: ModelChoice) =
 
 /**
  * The effort levels of the chosen model: from the harness's model list, or, when the list does not say (OpenCode),
- * asked of the service when a model is picked, which has read them ahead since the model list was read. Empty while unknown or without a client to ask.
+ * asked of the service when a model is picked, which has read them ahead since the model list was read. While the
+ * answer for a newly picked model is awaited, the previous model's levels of the same harness and account stay, so the
+ * effort picker does not vanish and return; empty before the first answer or without a client to ask.
  */
 function useModelEfforts(client: ServiceClient | undefined, harness: HarnessInfo | undefined, value: Runner) {
   const listed = listedEffortsOf(harness, value.model);
-  const [asked, setAsked] = useState<{ key: string; levels: ReadonlyArray<EffortChoice> } | null>(null);
-  const key = `${value.harness}:${value.accountId ?? ""}:${value.model}`;
+  const [asked, setAsked] = useState<{ key: string; levels: ReadonlyArray<EffortChoice>; scope: string } | null>(null);
+  const scope = `${value.harness}:${value.accountId ?? ""}`;
+  const key = `${scope}:${value.model}`;
   const shouldAsk = client !== undefined && harness !== undefined && listed === undefined;
   useEffect(() => {
     if (!shouldAsk) return;
@@ -66,17 +69,17 @@ function useModelEfforts(client: ServiceClient | undefined, harness: HarnessInfo
       .request({ _tag: "ListModelEfforts", accountId: value.accountId, harness: value.harness, model: value.model })
       .then(
         (levels) => {
-          if (isCurrent) setAsked({ key, levels });
+          if (isCurrent) setAsked({ key, levels, scope });
         },
         () => {
-          if (isCurrent) setAsked({ key, levels: [] });
+          if (isCurrent) setAsked({ key, levels: [], scope });
         },
       );
     return () => {
       isCurrent = false;
     };
-  }, [client, key, shouldAsk, value.accountId, value.harness, value.model]);
-  return listed ?? (asked?.key === key ? asked.levels : []);
+  }, [client, key, scope, shouldAsk, value.accountId, value.harness, value.model]);
+  return listed ?? (asked?.key === key || asked?.scope === scope ? asked.levels : []);
 }
 
 /**

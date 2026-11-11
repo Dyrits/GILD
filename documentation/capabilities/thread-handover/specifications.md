@@ -16,7 +16,7 @@ A quest runs on one harness and model for its whole life. When a limit is reache
 - **Long conversations**: the oldest messages are left out, with a line saying how many, when the conversation would take over half the new model's context window (provisional: summarizing the oldest part, as ADR 0006 says, is staged).
 - **Another harness's defaults**: choosing another harness takes its own sign-in and default model unless chosen, as when starting a quest.
 - **Replies keep their author**: each reply keeps the harness and model that wrote it, with its provider's mark and name, after a handover.
-- **The line**: each handover leaves a line in the conversation, for example "Handed over to Codex · gpt-5 · default effort · 14:02". A change that changes nothing leaves none.
+- **The line** (CHG-0168): a handover leaves its line in the conversation, for example "Handed over to Codex · gpt-5 · default effort · 14:02", only when a turn starts on the new runner: the owner's next message, or Retry after a failed turn. Changing the pickers leaves nothing; changing them several times leaves one line, for the runner that runs, and changing them back to the runner the thread last ran on leaves none. A change that changes nothing leaves none. A backup's or a Ritual's fallback runs at once, so its "Fell back to …" line is written when it happens.
 - **Nothing runs on the change itself** (CHG-0157): a message waiting after a failed turn runs on the new runner when the owner presses Retry on the failure notice or sends another message; a Stopped thread's messages wait until Resume. A backup's or a Ritual's fallback after a failure still retries at once.
 - **Budget**: the thread keeps drawing on its quest's budget.
 - **Account**: an account that does not exist or belongs to another harness is refused with the reason.
@@ -32,7 +32,8 @@ A quest runs on one harness and model for its whole life. When a limit is reache
 
 ## Acceptance
 
-- A failed thread handed over stays Failed until Retry, which runs its message on the new runner (`handover.test.ts`).
+- A failed thread handed over stays Failed until Retry, which runs its message on the new runner and leaves the line then (`handover.test.ts`).
+- A change leaves no line until a message runs on it; then one line for the final runner; none when changed back (`handover.test.ts`).
 - A model and effort change keeps the harness session; a harness change starts a new session with the history; a thread's first turn has no history (`handover.test.ts`).
 - Replies keep the harness and model that wrote them (`handover.test.ts`, `companionLabel.test.ts`).
 - Real Claude Code and Codex adapters on stand-ins: a thread handed over from Claude Code to Codex starts a new Codex thread whose first turn input holds the conversation (`harnesses.test.ts`).

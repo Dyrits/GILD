@@ -4,6 +4,7 @@ import { SqlClient } from "effect/sql";
 import { Changes, PriceTable, type TurnOutcome, touchMission } from "../core/index.ts";
 import type { StoredAttachment } from "./attachments.ts";
 import { enforceBudgets, holdIfReached } from "./budgets.ts";
+import { recordPendingHandover } from "./handover.ts";
 import { endTurn, failTurn, holdThread, startRunning } from "./lifecycle.ts";
 import { deliverMessages, insertReply, listPending } from "./messaging.ts";
 import { finishRitualRun } from "./rituals.ts";
@@ -93,6 +94,8 @@ export const admitTurn = (threadId: string) =>
           yield* sql.afterCommit(changes.publish);
           return null;
         }
+        // The owner's change of runner since the last turn leaves its line now that a turn runs on it.
+        yield* recordPendingHandover(threadId, now);
         const turnId = crypto.randomUUID();
         yield* sql`INSERT INTO turns (id, thread_id, status, started_at) VALUES (${turnId}, ${threadId}, 'running', ${now})`;
         yield* deliverMessages(

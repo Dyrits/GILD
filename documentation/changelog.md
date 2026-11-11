@@ -2282,7 +2282,7 @@ Scope: Mission tracking, Lore scopes, Interface
 Summary: CHG-0161 and CHG-0163 built. Service: migration `0039_realms_and_borderlands` makes `workspaces.path` nullable, drops `free_realms` and `missions.free_realm_id` without migrating them ([0015](architecture-decision-record/0015-realms-tied-or-not-and-one-borderlands.md)); `CreateRealm` takes a null path for a realm tied to no folder; `StartEmptyQuest` takes `realmId` (null for the Borderlands) instead of a path or Free Realm; `CreateFreeRealm`, `ListFreeRealms`, `FreeRealm`, `FreeRealmId`, and `MissionSummary.freeRealmId` are gone; `WorkspaceChoice.path` is nullable; a realm without a folder gives its threads no workspace (scratch folder, terminal in the home folder) and still shares realm lore; `ThreadSummary` gains `harness`, `model`, and `lastActivityAt` for the full list. App: one "New realm" menu with an optional folder; the sidebar as agreed in CHG-0163 (`shell/sidebar.tsx`, `shell/questTree.ts`, `foundation/inputModality.ts`, `shell/railStorage.ts`); the full list nests side-quests (`shell/questListPage.tsx`); realm cards and panels say "Tied to no folder". Fixed on the way: the Guild Hall matched a no-path choice to a realm tied to no folder. Quest moves were not built: no move code existed to adapt.
 Validation: typecheck (four workspaces) and Biome pass. New or updated tests pass: the migration on existing data (`test/core/store.test.ts`), realms with no folder, empty quests in a realm or the Borderlands, shared realm lore without a folder and none in the Borderlands (`lore.test.ts`), thread metadata, and the app's placements, scroll cue, folds, hover rule, input modality, full-list rows, and rail clamp. Full suite: 764 passed, 3 failed, 10 skipped; the failures are outside this change: `harnesses.test.ts` "added account's own folder" (the session's environment leaks in, as recorded in CHG-0162), `prices.test.ts` (passes alone), and a `loreOverTime.test.ts` timeout (the lore fading and proposal tests time out on the starting commit too, checked in a worktree of `10684a9`). Driven in the web export on the fake harness, dark and light ([evidence](verification/2026-11-11-realms-and-borderlands.md)). Not seen: the Electron window; moving quests; the Guildmaster placing a quest in a realm tied to no folder (not offered).
 
-## CHG-0165 · 2026-11-11 · Guild Hall keeps its name; the Iskios logo tried above the sidebar
+## CHG-0165 · 2026-11-11 · Guild Hall keeps its name; the Iskios logo tried above the sidebar, then removed
 
 Type: Code
 Event: Delivery
@@ -2290,3 +2290,31 @@ Scope: Interface
 
 Summary: The owner first asked to rename Guild Hall to Iskios with a supplied logo (a hooded figure in a silver frame) as its icon, then asked for the label "Iskios: Guild Hall", and finally to keep Guild Hall with its former icon and to try the logo large at the top of the sidebar. The result: the entry reads Guild Hall as before with its own icon; the logo, kept at 512 px as `apps/app/assets/iskios-logo.png`, is shown at 96 px, centred, above the entries (`sidebar.tsx`), in both looks. It replaces no icon. The name, glossary, and specifications are unchanged. Whether the logo stays, its size, and whether it also serves as the app icon await the owner's judgment of the look.
 Validation: typecheck passes; not driven in the window, so the look in the dark and light themes, and its effect on the sidebar's height, were not seen. The logo is a 3D render, not a vector.
+Outcome: after seeing it, the owner asked to remove the logo. The sidebar no longer shows it (`Image`, its style, and the comment are gone from `sidebar.tsx`); the file `apps/app/assets/iskios-logo.png` stays, unused, for a later use such as the app icon. The `Validation` above describes the trial only.
+
+## CHG-0166 · 2026-11-11 · OpenCode effort picker no longer flickers on a model change
+
+Type: Code
+Event: Delivery
+Scope: Interface
+
+Summary: At the owner's report, changing the model of an OpenCode runner made the effort picker vanish and come back. Until the service answered for the new model, the picker had no levels and was hidden. `useModelEfforts` (`editors/runners.tsx`) now keeps the previous model's levels of the same harness and account while the answer is awaited, then shows the new model's (the picker still goes away when the new model has none). The chosen effort is unchanged by this: a model change still resets it to default.
+Validation: typecheck and Biome pass; the app tests pass. No test drives the hook (the app has no React renderer), and the change was not seen in the running app.
+
+## CHG-0167 · 2026-11-11 · Realm names indented from the Realms title
+
+Type: Code
+Event: Delivery
+Scope: Interface
+
+Summary: At the owner's request the names of the Realms no longer line up with the "Realms" title above them: each Realm block (crest, name, quests, "Show all", empty note) is indented 20 px (`realmIndent` in `sidebar.tsx`), so the title reads as their parent. Of three readings of the request (aligned, indented, or only the quests moved) the owner chose the indent.
+Validation: typecheck and Biome pass; not driven in the window, so the look and the effect on the narrowest sidebar (the Realm name shrinks first) were not seen.
+
+## CHG-0168 · 2026-11-11 · The handover line appears when a turn runs, not at each change
+
+Type: Code
+Event: Delivery
+Scope: Service, Specification
+
+Summary: At the owner's report (twelve "Handed over to …" lines, one per picker change), a handover line is now written only when a turn starts on the new runner: the owner's next message, or Retry after a failed turn. `changeThreadRunner` still changes the thread's runner at once (session handling is unchanged) but keeps the runner it left in the new `threads.handover_from` column (migration 0040, the first one across several changes); `admitTurn` calls `recordPendingHandover`, which writes one line for the runner that runs, none when it is the runner the thread last ran on, and clears the column. A backup's or a Ritual's fallback still writes its "Fell back to …" line when it happens, as it runs at once. The thread-handover specification's "The line" rule and acceptance were updated.
+Validation: typecheck and Biome pass; `handover.test.ts` has new cases (several changes then one message: one line for the final runner and none on the next turn; change and change back: none; Retry after a failure: the line then) and the others pass, as do backups, rituals, and account budgets. The full run showed timeouts in lore and Codex tests under a machine load of 25 to 55; the lore file then passed 15 of 15 twice with this change. The added account's own folder test fails with and without it. Existing conversations' past lines are kept. Not seen in the running app.

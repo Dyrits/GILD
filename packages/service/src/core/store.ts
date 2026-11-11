@@ -598,6 +598,12 @@ export const migrations = {
     yield* sql`DROP TABLE free_realms`;
     yield* sql`ALTER TABLE missions DROP COLUMN free_realm_id`;
   }),
+  // The runner a thread last ran on, kept from the owner's first change of runner until a turn starts: the handover
+  // line is written then, for the runner that runs, and not at all when it is the same one (thread-handover, The line).
+  "0040_handover_pending": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE threads ADD COLUMN handover_from TEXT`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

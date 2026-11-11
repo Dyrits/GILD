@@ -124,6 +124,7 @@ The expanded left sidebar uses this order:
 The separate Workshop for MCP servers, connectors, and skills (position 8 of CHG-0134) is withdrawn for now; the owner will ask for a dedicated menu for them later.
 
 - The Realms, Borderlands, and The Keep headings fold and unfold their contents the same way: pressing the heading or its fold arrow; each realm can expand or collapse its quests; each quest and side-quest can expand or collapse its children at every supported depth (CHG-0163).
+- Under the Realms heading, each Realm (crest and name) and its quests stand 20 px in from the heading, so the names of the Realms do not line up with the title (the owner's choice, CHG-0167).
 - The Borderlands section is the former Realmless section renamed, with the Borderlands mountain icon and the same new-quest button; it has no intermediate grouping.
 - A realm tied to a folder shows a small scroll (a rolled parchment) after its name, with the folder's full path on hover; a realm tied to no folder shows none (CHG-0163).
 - Hover marks (CHG-0163, after the Delta app): the fold arrow of the group headings, realm rows, quests, and side-quests, and the action buttons (realm overview, new quest, new realm) show only while the pointer is anywhere over the whole row, or while a keyboard focus (as `:focus-visible` would show it) is inside the row; the focus a mouse click leaves does not keep them. They keep their place while unseen, so nothing moves or truncates when they appear. Always shown: titles, icons and crests, the scroll, quest counts, and state dots.

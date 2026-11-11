@@ -1,6 +1,6 @@
 import type { Crest, MissionId, MissionSummary, ThreadId, WorkspaceId } from "@iskios/contracts";
 import { type ReactNode, useEffect, useState } from "react";
-import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { CrestBadge } from "../crest/crest";
 import { ReserveRows } from "../editors/budgets";
@@ -44,6 +44,8 @@ export type Place =
 /** How far each level of side-quests steps in, and the width of the chevron's place at the start of a row. */
 const indentStep = 14;
 const chevronWidth = 16;
+/** A realm and its quests stand this far in from the "Realms" title above, so the title reads as their parent. */
+const realmIndent = 20;
 /** How many quests the sidebar lists under the Borderlands, and under each realm; the quest list page lists them all. */
 const borderlandsShown = 3;
 const realmShown = 3;
@@ -129,11 +131,11 @@ function ScrollCue({ path }: { path: string | null }) {
         viewBox="0 0 24 24"
         width={15}
       >
-        {/* A rolled parchment: its upper roll curled at the left, the sheet, and its lower roll curled at the right. */}
-        <Path d="M6 6V5a2 2 0 1 0-4 0v1h4Zm0 0v12" />
-        <Path d="M4 3h12a2 2 0 0 1 2 2v12" />
-        <Path d="M6 18a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1H10v1a2 2 0 0 1-4 0Z" />
-        <Path d="M9.5 8h5M9.5 12h5" />
+        {/* A closed scroll seen from the side: the rolled parchment, its spiral end at the left, and a band around it. */}
+        <Path d="M6 7.5h12a4.5 4.5 0 0 1 0 9H6" />
+        <Path d="M6 7.5a4.5 4.5 0 1 0 0 9a4.5 4.5 0 1 0 0-9Z" />
+        <Path d="M6 10.2a1.8 1.8 0 1 1-1.8 1.8" />
+        <Path d="M13 7.5v9M15 7.5v9" />
       </Svg>
     </View>
   );
@@ -159,7 +161,14 @@ const useRowActions = () => {
     actionsStyle: [local.actions, !isShown && local.actionsHidden],
     focusProps,
     isShown,
-    rowProps: { ...focusProps, onHoverIn: () => setIsHovered(true), onHoverOut: () => setIsHovered(false) },
+    // Pointer enter and leave, not Pressable's hover: React Native Web ends a Pressable's hover as soon as the pointer
+    // reaches a Pressable inside it (a hidden button, the fold arrow), so the marks vanished exactly where they appear.
+    // Enter and leave fire only when the pointer crosses the row's own edge, so the whole row box counts.
+    rowProps: {
+      ...focusProps,
+      onPointerEnter: () => setIsHovered(true),
+      onPointerLeave: () => setIsHovered(false),
+    },
   };
 };
 
@@ -247,6 +256,7 @@ function ShowAll({ count, onPress, subject }: { count: number; onPress: () => vo
 /** One row of the sidebar: a label, and at its end a mark such as a state dot or a count. */
 function Row({
   accessory,
+  hoverAccessory,
   icon,
   indent = 0,
   isMain = false,
@@ -257,6 +267,8 @@ function Row({
   textStyle,
 }: {
   accessory?: ReactNode;
+  /** What stands at the end only with the row's marks, on hover or focus, given whether they show. */
+  hoverAccessory?: (isShown: boolean) => ReactNode;
   /** The destination's icon, standing after an empty place for a chevron so it lines up with the headings'. */
   icon?: NavIconName;
   indent?: number;
@@ -298,6 +310,7 @@ function Row({
         {label}
       </Text>
       {accessory}
+      {hoverAccessory?.(isShown)}
     </Pressable>
   );
 }
@@ -307,9 +320,9 @@ function StateDot({ state }: { state: keyof typeof stateTones }) {
   return <View style={[local.dot, { backgroundColor: stateTones[state].color }]} />;
 }
 
-/** The number at the end of a row, such as the archived quests. */
-function Count({ value }: { value: number }) {
-  return value > 0 ? <Text style={local.count}>{value}</Text> : null;
+/** The number at the end of a row, such as a realm's or the archive's quests: shown, like the row's marks, on hover or focus. */
+function Count({ isShown, value }: { isShown: boolean; value: number }) {
+  return value > 0 ? <Text style={[local.count, !isShown && local.actionsHidden]}>{value}</Text> : null;
 }
 
 /**
@@ -419,11 +432,6 @@ function Divider() {
       <View style={local.dividerLine} />
     </View>
   );
-}
-
-/** The space between two groups of quests. */
-function Gap() {
-  return <View style={local.gap} />;
 }
 
 /** A quest's side-quests, nested beneath it with their branch guides; each can collapse its own side-quests. */
@@ -589,7 +597,7 @@ function RealmHeader({
       <ScrollCue path={path} />
       <Chevron focusProps={focusProps} isOpen={isOpen} isShown={isShown} label={name} onPress={onToggle} />
       <View style={local.realmTextEnd} />
-      <Count value={questCount} />
+      <Count isShown={isShown} value={questCount} />
       <View style={actionsStyle}>
         <OverviewButton focusProps={focusProps} label={name} onPress={onOverview} />
         <Pressable
@@ -622,7 +630,7 @@ const useToggles = () => {
 };
 
 /**
- * The left sidebar, in the agreed order: the logo, Guild Hall, the Realms with their quests, the Borderlands' quests, Rituals,
+ * The left sidebar, in the agreed order: Guild Hall, the Realms with their quests, the Borderlands' quests, Rituals,
  * Craft, The Keep, Reserves, and the Workshop (the settings). Quests nest their side-quests at every depth,
  * and the sidebar opens the path to the thread that is open.
  */
@@ -722,7 +730,7 @@ export function Sidebar({
   }) => {
     const isClosed = closedRealms.set.has(realm.id);
     return (
-      <View key={realm.id}>
+      <View key={realm.id} style={{ paddingLeft: realmIndent }}>
         <RealmHeader
           crest={realm.crest}
           id={realm.id}
@@ -754,12 +762,6 @@ export function Sidebar({
   return (
     <View style={[local.sidebar, { width }]}>
       <ScrollView contentContainerStyle={local.group} style={local.flex}>
-        <Image
-          accessibilityLabel="Iskios"
-          resizeMode="contain"
-          source={require("../../assets/iskios-logo.png")}
-          style={local.logo}
-        />
         {hasGuildHall && (
           <>
             <Row
@@ -791,7 +793,6 @@ export function Sidebar({
             realmRow({ crest: workspace.crest, id: workspace.id, name: workspace.name, path: workspace.path, quests }),
           )}
 
-        <Gap />
         <Heading
           icon="borderlands"
           isOpen={!foldedSections.set.has("Borderlands")}
@@ -834,7 +835,9 @@ export function Sidebar({
         {!foldedSections.set.has("Keep") &&
           keepRooms.map((room) => (
             <Row
-              accessory={room.place === "Archived" ? <ArchiveCount client={client} /> : undefined}
+              hoverAccessory={
+                room.place === "Archived" ? (isShown) => <ArchiveCount client={client} isShown={isShown} /> : undefined
+              }
               icon={room.icon}
               indent={chevronWidth}
               isSelected={isHere(room.place)}
@@ -883,11 +886,11 @@ export function Sidebar({
   );
 }
 
-/** The number of archived quests, at the end of the Archive row. */
-function ArchiveCount({ client }: { client: ServiceClient }) {
+/** The number of archived quests, at the end of the Archive row, shown with the row's marks. */
+function ArchiveCount({ client, isShown }: { client: ServiceClient; isShown: boolean }) {
   const request = { _tag: "ListMissions", isArchived: true, search: null, state: null, workspaceId: null } as const;
   const { data } = useServiceQuery(client, request, `missions:${JSON.stringify(request)}`);
-  return <Count value={data?.missions.length ?? 0} />;
+  return <Count isShown={isShown} value={data?.missions.length ?? 0} />;
 }
 
 /** The compact usage summary under Reserves: the global budget's meters, or what is used, and the plans' limits. */
@@ -948,8 +951,8 @@ const local = StyleSheet.create({
     paddingVertical: 4,
   },
   flex: { flex: 1 },
-  footer: { paddingBottom: 8, paddingLeft: 8, paddingRight: 16 },
-  gap: { height: 12 },
+  // The same 1 px between rows as in the scrolling part, so a block's categories are evenly spaced everywhere.
+  footer: { gap: 1, paddingBottom: 8, paddingLeft: 8, paddingRight: 16 },
   group: { gap: 1, paddingBottom: 12, paddingLeft: 8, paddingRight: 16, paddingTop: 8 },
   guide: { backgroundColor: colors.border, bottom: 0, position: "absolute", top: 0, width: 1 },
   heading: {
@@ -968,8 +971,6 @@ const local = StyleSheet.create({
   headingTitle: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.lg, fontWeight: "700" },
   iconColumn: { gap: 4, padding: 8 },
   iconRow: { alignItems: "center", borderRadius: radii.md, height: 36, justifyContent: "center" },
-  // The owner's logo, tried large above the entries (CHG-0165); it replaces no icon.
-  logo: { alignSelf: "center", height: 96, marginBottom: 4, marginTop: 4, width: 96 },
   more: {
     alignItems: "center",
     borderRadius: radii.md,
