@@ -1,5 +1,13 @@
 # Work in progress
 
+## Iskios, simple art direction, and the left sidebar · 2026-11-11 · built and checked, owner review pending
+
+The owner asked to rename the app Iskios, simplify the art direction a lot, and organize the sidebar like the supplied Guild Hall image; CHG-0143 records it. Starting revision `37e8c0a`; uncommitted.
+Built: the rename as in CHG-0072 with the data move from a `Gild` profile; one flat dark navy theme in place of the guild board; the sidebar in the agreed order with nested, collapsible quests and side-quests (`shell/sidebar.tsx`, `shell/questTree.ts`), which is now the quest's one tree on a wide window.
+Checks: typecheck, Biome, and the full suite pass (731 passed, 10 skipped); the sidebar was driven in the web export on the fake harness ([proof](verification/2026-11-11-iskios-sidebar.md)).
+Awaiting the owner: the look in the running window; the unbuilt pages (Craft, Library, Workshop, Reserves detail); Free Realms showing empty until Free Realms exist; whether the "+" buttons, the Iskios logo, and the Guild Hall page's own redesign come next.
+Still to build from the specification: Free Realm placement, direct creation, and confirmed quest moves; the quest lifecycle without Done and Mark as done (CHG-0135, CHG-0136); the Reserves usage page; Library, Workshop, and Craft. The Guild Hall page, quest board, and Charter keep their earlier layouts in the new theme.
+
 ## Left navigation structure · 2026-11-11 · specified, not implemented
 
 The owner explicitly requested specification only, with no application update.
@@ -19,7 +27,7 @@ Documentation whitespace validation passes; no data reset was performed.
 The owner wants a release that installs and runs; this batch starts at `4724ebc` alongside unrelated account-budget changes.
 The packaged-app check fails on the blocked executable and passes on a byte-identical fresh copy and the repaired installation; it exercises the rendered Guildmaster screen, service bridge, and native terminal on isolated fake-harness data.
 The installed app was replaced with the passing copy, preserving its new file identity; its Finder registration was corrected after a temporary test bundle claimed the normal profile.
-The normal app now runs from `/Applications/Gild.app` and owns its ordinary profile; the owner's final acceptance remains pending.
+The normal app now runs from `/Applications/Iskios.app` and owns its ordinary profile; the owner's final acceptance remains pending.
 The exact macOS DMG launch gate passes against the untouched GitHub download and runs before release artifact upload; this proves packaged startup on the build runner, not Gatekeeper acceptance on other Macs.
 Evidence: [DMG launch recovery](verification/2026-11-10-dmg-launch.md).
 Developer ID signing and notarization require the owner's membership and credentials; no Developer ID Application identity is currently available in this Mac's keychain.
@@ -65,7 +73,7 @@ Sidebar follow-up (2026-11-10): the rail no longer lists finished (Done) quests 
 
 The owner selected [the Guild direction](art-direction/2026-11-08-guild-board.html) and requested its naming through iterate.
 Starting revision: `63bc425d28bb4ee054e4d0e91c77bdc3c85551a8`.
-Scope: Gild keeps its brand and logo, adopts leather, timber, parchment, gold controls, bundled Cinzel/Alegreya, guild display vocabulary (refined in CHG-0074), a collapsible Post a quest form, and a docked conversation from 1280px.
+Scope: Iskios keeps its brand and logo, adopts leather, timber, parchment, gold controls, bundled Cinzel/Alegreya, guild display vocabulary (refined in CHG-0074), a collapsible Post a quest form, and a docked conversation from 1280px.
 Existing resting quests retain their own column; no subscription data, Rituals, Waystones, Spoils, or Chronicle features are fabricated.
 Contracts, persisted identifiers, capability paths, harness tools, user-authored content, and service-generated historical text retain their existing terms.
 Checks: typecheck and lint pass; full tests passed 413 with one stale label expectation, corrected and verified by all 20 label tests; desktop build passes.
@@ -109,7 +117,7 @@ Delivered in CHG-0026 (commit 649e232). Provisional behavior still in place unti
 
 ## Batch 2: delivered
 
-Delivered in CHG-0030 (commits ddb888d to d62a904). Provisional behavior still in place until decided: a failed turn's messages become undelivered and are retried with the next message; the live check runs only with `GILD_LIVE_CLAUDE=1`; a missing `claude` executable is covered by the stand-in checks only.
+Delivered in CHG-0030 (commits ddb888d to d62a904). Provisional behavior still in place until decided: a failed turn's messages become undelivered and are retried with the next message; the live check runs only with `ISKIOS_LIVE_CLAUDE=1`; a missing `claude` executable is covered by the stand-in checks only.
 
 ## Batch 3: delivered
 
@@ -119,7 +127,7 @@ Delivered in CHG-0033; the owner skipped the run-through and the desktop notific
 
 - **Approval level** in Settings: **Risky actions only** (default) or **Also commands and edits**.
 - **Default level**: Claude Code runs sandboxed with in-workspace edits and sandboxed commands unasked. The thread's instructions list the risky actions (action-approval, Asking); the thread calls `request_approval` before one.
-- **Harness prompts** reach Gild through `--permission-prompt-tool` on the local MCP server. A prompt matching the action just allowed in that thread runs once without a question; one matching a standing permission's pattern runs unasked; any other prompt becomes a question. At **Also commands and edits**, every prompt is a question.
+- **Harness prompts** reach Iskios through `--permission-prompt-tool` on the local MCP server. A prompt matching the action just allowed in that thread runs once without a question; one matching a standing permission's pattern runs unasked; any other prompt becomes a question. At **Also commands and edits**, every prompt is a question.
 - **No sandbox** (native Windows; Linux or WSL2 without bubblewrap and socat): the default level asks for every prompt, and Settings says why.
 - **The question**: one sentence (what and why); **Show details** with the exact command or target and the proposed pattern; **Allow**, **Always allow**, **Deny**, **Deny with a message**, **Discard**. Thread in Attention until answered, no time limit. Deny carries on with the refusal; Discard answers as Deny without a message.
 - **Named in the owner's message**: `request_approval` cites the owner's words; when they appear verbatim in the owner's latest message in that thread, the answer is Allowed without a question, recorded as "Allowed by your message". Thread or harness text never counts.
@@ -143,7 +151,7 @@ Delivered in CHG-0033; the owner skipped the run-through and the desktop notific
 
 - Live probe: done, see above.
 - Automated with the fake harness: done, 42 checks.
-- Live check behind `GILD_LIVE_CLAUDE=1`: done, 44 of 44 pass with Haiku.
+- Live check behind `ISKIOS_LIVE_CLAUDE=1`: done, 44 of 44 pass with Haiku.
 - `bun run test`, `bun run typecheck`, `bun run check`: pass. Driven in the Electron window: done, see Drive findings.
 - User run-through: pending. In a mission's scratch folder, allow a push to a local bare remote, choose Always allow, see a second push run unasked, remove the permission on the Permissions page; confirm the desktop notification.
 
@@ -161,9 +169,9 @@ Fixed during the drive, each with a check written first:
 
 Open, for the owner:
 
-- Settled in CHG-0032: the sandbox protects `.git` (its write settings cannot lift a protected path, per Claude Code's settings reference), so Gild answers prompts for local git itself at the default level when the sandbox runs. Verified in the window: a mission created a repository, committed, and branched with no question.
+- Settled in CHG-0032: the sandbox protects `.git` (its write settings cannot lift a protected path, per Claude Code's settings reference), so Iskios answers prompts for local git itself at the default level when the sandbox runs. Verified in the window: a mission created a repository, committed, and branched with no question.
 - The desktop notification was not observed by an agent.
-- The service passes its whole environment to Claude Code except `GILD_` variables. Launched from an agent's shell, that leaked the agent's `CLAUDE_*` and `GIT_CONFIG_*` variables; a normal launch is not affected. Not changed.
+- The service passes its whole environment to Claude Code except `ISKIOS_` variables. Launched from an agent's shell, that leaked the agent's `CLAUDE_*` and `GIT_CONFIG_*` variables; a normal launch is not affected. Not changed.
 
 ## Batch 4: delivered
 
@@ -608,7 +616,7 @@ The warning before a thread starts with too large a starting context (thread-tre
 
 ## Batch 18: built, awaiting the owner
 
-Harnesses and provider accounts ([provider-accounts](capabilities/provider-accounts/specifications.md)), chosen by an agent under the owner's instruction of 2026-11-07 to make Gild usable to build Gild with Claude Code (several accounts), Codex, and OpenCode, without questions. Starts from `ab85b66`. Built with stand-in checks first, then probed and driven live: [proof](verification/2026-11-07-harnesses-and-accounts.md). Recorded in CHG-0059.
+Harnesses and provider accounts ([provider-accounts](capabilities/provider-accounts/specifications.md)), chosen by an agent under the owner's instruction of 2026-11-07 to make Iskios usable to build Iskios with Claude Code (several accounts), Codex, and OpenCode, without questions. Starts from `ab85b66`. Built with stand-in checks first, then probed and driven live: [proof](verification/2026-11-07-harnesses-and-accounts.md). Recorded in CHG-0059.
 
 ### Behavior
 
@@ -620,7 +628,7 @@ Harnesses and provider accounts ([provider-accounts](capabilities/provider-accou
 ### Provisional, until the owner decides
 
 - Codex runs `workspace-write` with `on-request` approvals at the default level and `untrusted` at "Also commands and edits"; its escalations go to `answer_prompt` as a Bash prompt, file changes as Edit, sandbox widenings as "Permissions".
-- OpenCode asks for every shell command (no sandbox) and, at the stricter level, every edit; its subagents are denied. Its starting context is written to `$TMPDIR/gild-opencode/<thread>.md` and given as `instructions`.
+- OpenCode asks for every shell command (no sandbox) and, at the stricter level, every edit; its subagents are denied. Its starting context is written to `$TMPDIR/iskios-opencode/<thread>.md` and given as `instructions`.
 - The owner's own Codex and OpenCode settings (their MCP servers, skills, agents) still load in threads; Claude Code's stay off as before.
 - Codex threads are not ephemeral: they appear in the owner's Codex history; OpenCode sessions in OpenCode's.
 - OpenCode takes no effort; a steered message waits for its next turn.
@@ -632,7 +640,7 @@ Harnesses and provider accounts ([provider-accounts](capabilities/provider-accou
 
 ### Checks
 
-- Automated: 21 checks in `harnesses.test.ts` on stand-ins; 3 opt-in live checks in `liveHarnesses.test.ts` (`GILD_LIVE_HARNESSES=1`, `GILD_LIVE_OPENCODE_MODEL`).
+- Automated: 21 checks in `harnesses.test.ts` on stand-ins; 3 opt-in live checks in `liveHarnesses.test.ts` (`ISKIOS_LIVE_HARNESSES=1`, `ISKIOS_LIVE_OPENCODE_MODEL`).
 - `bun run test` (332 passed, 8 skipped), `bun run typecheck`, `bun run check`, `git diff --check`, desktop build, Metro web export; 12 of 12 mutations caught in a separate copy.
 - Driven in the window with the real harnesses: see the proof.
 - Not run: signing in an added account; live Codex escalation and steering; live OpenCode permission prompts.
@@ -654,7 +662,7 @@ Started at HEAD `26bbb1d`, with the empty tree as the fixed point. Ran Standards
   - **High**: commands wrapped in a shell `-c` script, `eval`, `env`, variable assignments, or a launcher (`time`, `nohup`, `exec`, `nice`…) now meet the sensitive list. Still to probe live: the exact command format Codex sends.
   - **Medium**: one-time allowances end with their turn (`Approvals.endTurn`).
 - Done in CHG-0064, awaiting the owner ([proof](verification/2026-11-08-edits-and-pattern-kinds.md)):
-  - **Medium**: OpenCode asks Gild for every edit; at the default level an edit inside the thread's folder (after `..` and links) runs unasked, any other asks. Proven live on OpenCode 2.2.0.
+  - **Medium**: OpenCode asks Iskios for every edit; at the default level an edit inside the thread's folder (after `..` and links) runs unasked, any other asks. Proven live on OpenCode 2.2.0.
   - **Medium**: a standing permission covers only actions of its own kind (`kindOfPermission`), and the question shows the pattern Always allow will save.
   - **High, found live**: Codex escalates as `/bin/zsh -lc '…'`, which asked the owner twice for one push and escaped standing patterns; `targetOf` now unwraps one whole shell `-c` script. This also closes CHG-0063's open probe of the Codex command format.
 - Done in CHG-0065, awaiting the owner ([proof](verification/2026-11-08-opencode-refusals.md)):
@@ -721,7 +729,7 @@ Starting commit `ca173da`; branch `ritual-delete`. Delete added to the Ritual ca
 ## Conversation terminal · 2026-11-10 · owner review pending
 
 Authorized by the owner's request for Delta's `!` interaction, default shell, home folder without a realm, realm root with one, and shell output included in context.
-Implementation and verification are on branch `bang-terminal`, based on `e770774`, in `/private/tmp/gild-bang-terminal`.
+Implementation and verification are on branch `bang-terminal`, based on `e770774`, in `/private/tmp/iskios-bang-terminal`.
 The terminal appears as an interactive owner-message bubble in the conversation and renders as a frozen terminal block when sent.
 The same serialized output travels through the existing SendMessage and harness context paths.
 The progress-display side-quest fix is included: completed approvals no longer masquerade as current work.

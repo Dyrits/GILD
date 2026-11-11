@@ -13,14 +13,14 @@ const here = dirname(fileURLToPath(import.meta.url));
 /** The app's icon, beside `dist` in the desktop app's own `assets`. */
 const iconPath = join(here, "..", "assets", "icon.png");
 /** The installed app carries its screens and loads them from its own scheme; a development run loads the dev server. */
-const appScheme = "gild-app";
-const appUrl = app.isPackaged ? `${appScheme}://app/` : (process.env.GILD_APP_URL ?? "http://localhost:8081");
+const appScheme = "iskios-app";
+const appUrl = app.isPackaged ? `${appScheme}://app/` : (process.env.ISKIOS_APP_URL ?? "http://localhost:8081");
 // Lets checks run against a throwaway folder instead of the owner's data.
-const dataDirectory = () => process.env.GILD_DATA_DIR ?? app.getPath("userData");
-// Only the installed app is plain "Gild" on the default profile and data folder; dev and checks run as "Gild Dev".
+const dataDirectory = () => process.env.ISKIOS_DATA_DIR ?? app.getPath("userData");
+// Only the installed app is plain "Iskios" on the default profile and data folder; dev and checks run as "Iskios Dev".
 const instance = instanceOf({
   appData: app.getPath("appData"),
-  dataDirectory: process.env.GILD_DATA_DIR,
+  dataDirectory: process.env.ISKIOS_DATA_DIR,
   hasProfileSwitch: app.commandLine.hasSwitch("user-data-dir"),
   isPackaged: app.isPackaged,
 });
@@ -38,7 +38,7 @@ for (const signal of ["SIGINT", "SIGTERM"] as const) process.on(signal, () => ap
 
 // Runs before Electron creates the new user-data folder at ready, so an install from before the rename keeps its data.
 const formerDataMoved = Promise.resolve().then(() => {
-  if (!isFirstInstance || !app.isPackaged || process.env.GILD_DATA_DIR !== undefined) return;
+  if (!isFirstInstance || !app.isPackaged || process.env.ISKIOS_DATA_DIR !== undefined) return;
   const claudeFolder = process.env.CLAUDE_CONFIG_DIR ?? join(homedir(), ".claude");
   moveFormerData(app.getPath("appData"), app.getPath("userData"), claudeFolder);
 });
@@ -48,10 +48,10 @@ const startService = (token: string) => {
   const service = utilityProcess.fork(join(here, "service.js"), [], {
     env: {
       ...process.env,
-      GILD_DATA_DIR: dataDirectory(),
-      GILD_TOKEN: token,
+      ISKIOS_DATA_DIR: dataDirectory(),
+      ISKIOS_TOKEN: token,
     },
-    serviceName: "Gild service",
+    serviceName: "Iskios service",
     stdio: "inherit",
   });
   app.on("will-quit", () => service.kill());
@@ -85,7 +85,7 @@ const load = async (window: BrowserWindow) => {
 
 /** Startup failures end here: the owner sees why, and the app quits instead of leaving an empty window. */
 const quitWith = (reason: string) => {
-  dialog.showErrorBox("Gild could not start", reason);
+  dialog.showErrorBox("Iskios could not start", reason);
   app.quit();
 };
 
@@ -116,7 +116,7 @@ app
     }
     const token = randomBytes(32).toString("base64url");
     const endpoint = await startService(token);
-    ipcMain.handle("gild:endpoint", () => endpoint);
+    ipcMain.handle("iskios:endpoint", () => endpoint);
 
     // macOS shows the dock icon of the running app; the packaged build carries its own icon file.
     app.dock?.setIcon(iconPath);
@@ -132,10 +132,10 @@ app
     mainWindow = window;
     const terminals = new Terminals(
       (id, data, sequence) => {
-        if (!window.isDestroyed()) window.webContents.send("gild:terminalData", id, data, sequence);
+        if (!window.isDestroyed()) window.webContents.send("iskios:terminalData", id, data, sequence);
       },
       (id) => {
-        if (!window.isDestroyed()) window.webContents.send("gild:terminalExit", id);
+        if (!window.isDestroyed()) window.webContents.send("iskios:terminalExit", id);
       },
     );
     // Terminal execution is a desktop capability; embedded frames cannot call it.
@@ -145,27 +145,27 @@ app
         event.senderFrame !== window.webContents.mainFrame ||
         new URL(event.senderFrame.url).origin !== new URL(appUrl).origin
       )
-        throw new Error("Terminal access is only available in Gild's desktop window.");
+        throw new Error("Terminal access is only available in Iskios's desktop window.");
     };
-    ipcMain.handle("gild:terminalOpen", (event, id: string, cwd: string | null) => {
+    ipcMain.handle("iskios:terminalOpen", (event, id: string, cwd: string | null) => {
       checkTerminalSender(event);
       return terminals.open(id, cwd);
     });
-    ipcMain.handle("gild:terminalWrite", (event, id: string, data: string) => {
+    ipcMain.handle("iskios:terminalWrite", (event, id: string, data: string) => {
       checkTerminalSender(event);
       terminals.write(id, data);
     });
-    ipcMain.handle("gild:terminalResize", (event, id: string, cols: number, rows: number) => {
+    ipcMain.handle("iskios:terminalResize", (event, id: string, cols: number, rows: number) => {
       checkTerminalSender(event);
       terminals.resize(id, cols, rows);
     });
-    ipcMain.handle("gild:terminalClose", (event, id: string) => {
+    ipcMain.handle("iskios:terminalClose", (event, id: string) => {
       checkTerminalSender(event);
       terminals.close(id);
     });
     window.on("closed", () => terminals.dispose());
     // Choose folder… opens the system's own dialog, Finder or Explorer (CHG-0035); null when cancelled.
-    ipcMain.handle("gild:chooseFolder", async () => {
+    ipcMain.handle("iskios:chooseFolder", async () => {
       const chosen = await dialog.showOpenDialog(window, {
         buttonLabel: "Use this folder",
         properties: ["openDirectory", "createDirectory"],

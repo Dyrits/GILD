@@ -1,4 +1,4 @@
-import type { AccountBudget, BudgetLimits, BudgetPeriod, HarnessName } from "@gild/contracts";
+import type { AccountBudget, BudgetLimits, BudgetPeriod, HarnessName } from "@iskios/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import {
@@ -23,7 +23,7 @@ import { type ConsumptionRow, consumptionOf } from "./consumption.ts";
 import { PlanLimits } from "./planLimits.ts";
 
 // The owner's limits and credits on provider accounts (budget-control, Account budgets and credits). An account budget
-// counts only what Gild's own turns used on the account, and says so.
+// counts only what Iskios's own turns used on the account, and says so.
 
 /** Refuses an account that does not exist or belongs to another harness. */
 const checkRef = (ref: AccountRef) =>

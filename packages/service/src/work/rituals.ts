@@ -4,7 +4,7 @@ import {
   type RitualCompanion,
   RitualCompanion as RitualCompanionSchema,
   type RitualSchedule,
-} from "@gild/contracts";
+} from "@iskios/contracts";
 import { Clock, Effect, Exit, Layer, PubSub, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { Changes, invalid, notFound } from "../core/index.ts";

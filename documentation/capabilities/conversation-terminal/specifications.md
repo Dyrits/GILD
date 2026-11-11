@@ -26,7 +26,7 @@ The Free Realm fallback was agreed on 2026-11-10 (CHG-0131); implementation and 
 One terminal per conversation and starting folder, with at most 32 retained sessions in a desktop window.
 The replay buffer holds at most 200,000 characters; the emulator holds 3,000 scrollback lines and a sent snapshot includes at most the latest 20,000 rendered characters, with an omission marker when trimmed.
 Snapshots show visible output rather than hidden password keystrokes or a complete shell audit log.
-Sessions do not survive quitting Gild; sent snapshots remain in the conversation.
+Sessions do not survive quitting Iskios; sent snapshots remain in the conversation.
 Multiple terminal blocks, background-terminal selection, and Delta's shell-code prefill are outside this increment.
 
 ## Verification

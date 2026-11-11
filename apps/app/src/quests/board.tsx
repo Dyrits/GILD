@@ -1,6 +1,6 @@
-import type { MissionId, MissionSummary } from "@gild/contracts";
+import type { MissionId, MissionSummary } from "@iskios/contracts";
 import { useState } from "react";
-import { Platform, Pressable, StyleSheet, Text, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { CrestBadge } from "../crest/crest";
 import { BudgetMeters } from "../editors/budgets";
 import {
@@ -13,19 +13,11 @@ import {
 } from "../foundation/boardColumns";
 import type { ServiceClient } from "../foundation/client";
 import { costTextOf, tokenCountOf, totalTokensOf } from "../foundation/labels";
-import { colors, cut, fonts, ink, lift, stateLabels } from "../foundation/theme";
-import { Banner } from "../ui/banner";
+import { colors, fontSizes, fonts, outline, round, stateLabels, stateTones } from "../foundation/theme";
 import { StateBadge } from "../ui/controls";
 import { MissionEndingActions } from "./missionActions";
 
-/** A card's slight, steady tilt (between -1.8 and 1.8 degrees), taken from its id so it does not change between renders. */
-const tiltOf = (id: string) => {
-  let hash = 0;
-  for (const char of id) hash = (hash * 31 + char.charCodeAt(0)) % 997;
-  return Math.round(((hash % 37) / 36 - 0.5) * 3.6 * 10) / 10;
-};
-
-/** One mission as a card: its title, where and how much, its budget, and its ending actions. Cards on the board tilt slightly; those outside it (the archives) lie straight. */
+/** One mission as a card: its title, where and how much, its budget, and its ending actions. */
 export function MissionCard({
   client,
   column,
@@ -60,15 +52,8 @@ export function MissionCard({
         isCircled && local.cardAttention,
         isHovered && local.cardHovered,
         isSelected && local.cardSelected,
-        {
-          transform: [
-            { rotate: isHovered || column === null ? "0deg" : `${tiltOf(mission.id)}deg` },
-            { scale: isHovered ? 1.02 : 1 },
-          ],
-        },
       ]}
     >
-      <View pointerEvents="none" style={local.inner} />
       {mission.state === "Done" && column === null && (
         <View pointerEvents="none" style={local.ribbon}>
           <Text style={local.ribbonText}>{stateLabels.Done}</Text>
@@ -110,10 +95,13 @@ export function MissionCard({
   );
 }
 
-/** A column's banner, its cloth the color of what the column means. */
+/** A column's heading, in the color of what the column means. */
 function ColumnHeading({ column }: { column: BoardColumn }) {
-  const cloth = column === "Attention" ? "red" : column === "Done" ? "green" : column === "Idle" ? "violet" : "blue";
-  return <Banner cloth={cloth} title={stateLabels[column]} />;
+  return (
+    <Text accessibilityRole="header" style={[local.columnHeading, { color: stateTones[column].color }]}>
+      {stateLabels[column]}
+    </Text>
+  );
 }
 
 /**
@@ -203,35 +191,27 @@ export function MissionBoard({
 
 const local = StyleSheet.create({
   card: {
-    ...ink,
-    ...cut,
-    ...lift,
+    ...outline,
+    ...round,
     backgroundColor: colors.canvas,
-    borderColor: "#9b7544",
-    borderWidth: 2,
+    borderColor: colors.edge,
+    borderWidth: 1,
     gap: 10,
     marginBottom: 22,
     padding: 16,
     paddingTop: 22,
-    shadowOffset: { height: 4, width: 2 },
-    shadowOpacity: 0.5,
-    shadowRadius: 7,
-    // Web only: the tilt eases away and back instead of snapping.
-    ...(Platform.OS === "web" ? ({ transitionDuration: "140ms", transitionProperty: "transform" } as object) : {}),
   },
-  cardAttention: { borderColor: colors.danger, borderWidth: 2.5 },
+  cardAttention: { borderColor: colors.danger },
   cardDone: { opacity: 0.8 },
-  cardHovered: { borderColor: colors.goldHi, opacity: 1 },
+  cardHovered: { borderColor: colors.highlight, opacity: 1 },
   cardMain: { gap: 4 },
-  cardSelected: { borderColor: colors.goldHi, borderWidth: 3 },
+  cardSelected: { borderColor: colors.accent },
   cardTitle: {
     color: colors.text,
-    fontFamily: fonts.hand,
+    fontFamily: fonts.sans,
     fontSize: 19,
     fontWeight: "700",
-    letterSpacing: 0.3,
     lineHeight: 24,
-    textTransform: "uppercase",
   },
   circle: {
     alignItems: "center",
@@ -245,15 +225,16 @@ const local = StyleSheet.create({
     width: 30,
     zIndex: 1,
   },
-  coin: { backgroundColor: colors.gold, borderRadius: 8, height: 15, width: 15 },
+  coin: { backgroundColor: colors.edge, borderRadius: 8, height: 15, width: 15 },
   column: {
-    borderRightColor: "rgba(184,134,43,0.22)",
+    borderRightColor: colors.border,
     borderRightWidth: 1,
     flexBasis: 220,
     flexGrow: 1,
     minWidth: 0,
     paddingRight: 16,
   },
+  columnHeading: { fontFamily: fonts.sans, fontSize: fontSizes.base, fontWeight: "700", marginBottom: 12 },
   // The columns wrap when the board is narrow, as beside the quest panel, so a card never gets too thin to read.
   columns: { alignItems: "stretch", flexDirection: "row", flexWrap: "wrap", gap: 16 },
   cost: { color: colors.text, fontFamily: fonts.mono, fontSize: 15 },
@@ -267,22 +248,11 @@ const local = StyleSheet.create({
     paddingTop: 8,
   },
   earlier: { alignItems: "center", gap: 2, marginBottom: 12, paddingVertical: 6 },
-  earlierRule: { color: colors.gold, fontFamily: fonts.sans, fontSize: 13, opacity: 0.8 },
-  earlierText: { color: colors.goldHi, fontFamily: fonts.sans, fontSize: 16, fontStyle: "italic" },
+  earlierRule: { color: colors.edge, fontFamily: fonts.sans, fontSize: 13, opacity: 0.8 },
+  earlierText: { color: colors.highlight, fontFamily: fonts.sans, fontSize: 16, fontStyle: "italic" },
   // An empty column shows a lone gilt ornament, not a sentence.
-  empty: { color: colors.gold, fontSize: 22, marginBottom: 12, opacity: 0.6, textAlign: "center" },
+  empty: { color: colors.edge, fontSize: 22, marginBottom: 12, opacity: 0.6, textAlign: "center" },
   highlighted: { backgroundColor: colors.marker },
-  inner: {
-    borderColor: colors.border,
-    borderRadius: 2,
-    borderWidth: 1,
-    bottom: 3,
-    left: 3,
-    opacity: 0.7,
-    position: "absolute",
-    right: 3,
-    top: 3,
-  },
   ribbon: {
     backgroundColor: colors.success,
     borderBottomLeftRadius: 4,
@@ -294,14 +264,12 @@ const local = StyleSheet.create({
     zIndex: 1,
   },
   ribbonText: {
-    color: colors.onWood,
-    fontFamily: fonts.hand,
+    color: colors.onGround,
+    fontFamily: fonts.sans,
     fontSize: 10,
     fontWeight: "700",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
   },
-  seal: { color: colors.canvas, fontFamily: fonts.hand, fontSize: 18 },
+  seal: { color: colors.canvas, fontFamily: fonts.sans, fontSize: 18 },
   stacked: { gap: 8 },
   tick: { color: colors.success },
   titleRow: { alignItems: "center", flexDirection: "row", gap: 8 },

@@ -7,7 +7,7 @@ import type {
   LoreScope,
   MissionId,
   ModelChoice,
-} from "@gild/contracts";
+} from "@iskios/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { notFound, readSettings, tokensOf } from "../core/index.ts";
@@ -246,7 +246,7 @@ export const readGauge = (threadId: string) =>
 /** How a thread keeps lore; part of its system prompt, the same every turn (scoped-intel). */
 export const loreInstructions = [
   "# Lore",
-  "Lore is what Gild keeps between threads: rules, preferences, decisions, facts, and temporary notes, each at the scope where it applies. Each of your turns starts with the lore in your scope.",
+  "Lore is what Iskios keeps between threads: rules, preferences, decisions, facts, and temporary notes, each at the scope where it applies. Each of your turns starts with the lore in your scope.",
   `Before saving, check there is something worth keeping: saving nothing is better than a vague or forced lore entry. When you learn something later work should know, save it with save_intel: one fact per lore entry, at most ${loreLimit} tokens. Choose the narrowest scope that fits: thread (you and the threads beneath you), mission (every thread of this mission), workspace (every thread working in this folder, in any mission), or global (everywhere; it waits for the owner's approval).`,
   "Choose its kind: rule (never fades), preference, decision, fact, or temporary (fades in days). Lore nobody uses fades, so search_intel for what you need: reading a lore entry there keeps it alive. When a lore entry from your context shaped what you did, say so with relied_on_intel and its ids; that keeps it alive too.",
   "A save that says the same as a lore entry in its scope or a wider one, or a newer version of it, replaces it: the lore entry keeps its id and takes the new text. When the lore entry rests on a journal entry, give its number as journalEntry; otherwise the message you are answering is recorded as its origin.",

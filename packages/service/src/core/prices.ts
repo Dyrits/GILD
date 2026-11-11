@@ -1,11 +1,11 @@
-import type { PriceStatus, TokenUsage } from "@gild/contracts";
+import type { PriceStatus, TokenUsage } from "@iskios/contracts";
 import { Clock, Context, Effect, Layer, Ref, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { snapshotAt, snapshotPrices } from "./priceSnapshot.ts";
 import { readSettings } from "./settings.ts";
 
 // The model price table behind estimated costs (budget-control, The price table; decision record 0014): read from the
-// public table, kept in the service's database, with a snapshot shipped with Gild as the fallback.
+// public table, kept in the service's database, with a snapshot shipped with Iskios as the fallback.
 
 /** A model's price in dollars per million tokens, by token kind; a null cache price is billed as input. */
 export interface PriceRow {
@@ -26,7 +26,7 @@ export class PriceReadFailed extends Schema.TaggedError<PriceReadFailed>()("Pric
 export class PriceSource extends Context.Service<
   PriceSource,
   { readonly read: Effect.Effect<ReadonlyArray<PriceRow>, PriceReadFailed> }
->()("gild/PriceSource") {}
+>()("iskios/PriceSource") {}
 
 /** What a turn was estimated to cost, with when the table it was priced from was read. */
 export interface Estimate {
@@ -95,7 +95,7 @@ export class PriceTable extends Context.Service<
     readonly refresh: Effect.Effect<PriceStatus, PriceReadFailed>;
     readonly status: Effect.Effect<PriceStatus>;
   }
->()("gild/PriceTable") {}
+>()("iskios/PriceTable") {}
 
 interface StoredRow {
   readonly cacheRead: number | null;

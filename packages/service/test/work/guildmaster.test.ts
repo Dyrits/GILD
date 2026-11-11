@@ -1,7 +1,7 @@
 import { mkdirSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
-import type { MissionDetail, MissionId, Suggestion, SuggestionAnswer, ThreadId } from "@gild/contracts";
+import type { MissionDetail, MissionId, Suggestion, SuggestionAnswer, ThreadId } from "@iskios/contracts";
 import { Effect } from "effect";
 import { afterEach } from "vitest";
 import { call, fixture, read, send, settle, start, tool } from "../fixtures/service.ts";
@@ -583,7 +583,7 @@ describe("tiers, the Guildmaster's own Companion, and its budget", () => {
     });
   });
 
-  it.live("starts on the cheapest model Gild knows and with no budget of the quests' default", () =>
+  it.live("starts on the cheapest model Iskios knows and with no budget of the quests' default", () =>
     Effect.gen(function* () {
       const settings = yield* call({ _tag: "ReadSettings" });
       yield* call({

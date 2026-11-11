@@ -56,11 +56,11 @@ export const Consumption = Schema.Struct({
 });
 export type Consumption = typeof Consumption.Type;
 
-/** Where the model price table in use came from: the public table, or the snapshot shipped with Gild. */
+/** Where the model price table in use came from: the public table, or the snapshot shipped with Iskios. */
 export const PriceStatus = Schema.Struct({
   /** When the table was read (or the snapshot made), in milliseconds. */
   at: Schema.Number,
-  /** Whether Gild reads the public table at all (the Charter switch). */
+  /** Whether Iskios reads the public table at all (the Charter switch). */
   isFetching: Schema.Boolean,
   /** How many models carry a price. */
   models: Schema.Number,

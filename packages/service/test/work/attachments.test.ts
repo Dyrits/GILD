@@ -2,7 +2,7 @@ import { existsSync, readdirSync } from "node:fs";
 import { join } from "node:path";
 import { deflateSync } from "node:zlib";
 import { describe, expect, it } from "@effect/vitest";
-import type { AttachmentId, ThreadId } from "@gild/contracts";
+import type { AttachmentId, ThreadId } from "@iskios/contracts";
 import { Effect, Layer } from "effect";
 import { afterEach } from "vitest";
 import { fakeHarnessLayer, fakeHarnessToolsLayer, HarnessTools, serviceLayer } from "../../src/index.ts";

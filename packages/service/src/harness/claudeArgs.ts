@@ -17,7 +17,7 @@ export interface AccessOptions {
 }
 
 // Tools behind approval (CHG-0031): built-in tools only, none of the owner's MCP
-// servers, skills, or settings; every permission prompt goes to Gild.
+// servers, skills, or settings; every permission prompt goes to Iskios.
 /** The arguments every Claude Code process starts with, the thread tools it runs without asking being those the thread's access names. */
 export const baseArgsOf = (unaskedTools: ReadonlyArray<string>) => [
   "-p",

@@ -1,11 +1,11 @@
-import type { AccountId, AccountStatus, HarnessInfo, HarnessList, HarnessName } from "@gild/contracts";
+import type { AccountId, AccountStatus, HarnessInfo, HarnessList, HarnessName } from "@iskios/contracts";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { messageOf, type ServiceClient } from "../foundation/client";
 import { harnessLabels } from "../foundation/formatting";
 import { styles } from "../foundation/styles";
 import { colors, fontSizes, fonts } from "../foundation/theme";
-import { GoldButton } from "../ui/parchment";
+import { Button } from "../ui/button";
 import { ProviderMark } from "../ui/providerMarks";
 import { SettingsCard, SettingsRule } from "./settingsParts";
 
@@ -125,7 +125,7 @@ function HarnessAccounts({
             style={[styles.input, styles.flex, local.addInput]}
             value={label}
           />
-          <GoldButton label="Add account" onPress={add} />
+          <Button label="Add account" onPress={add} />
         </View>
       </View>
     </View>
@@ -149,14 +149,14 @@ function HarnessState({
     return (
       <>
         <Text style={[styles.error, styles.flex]}>{harness.problem}</Text>
-        <GoldButton isDisabled={isBusy} label="Install" onPress={onUpdate} />
+        <Button isDisabled={isBusy} label="Install" onPress={onUpdate} />
       </>
     );
   if (harness.update === null) return <Text style={styles.muted}>Ready</Text>;
   return (
     <>
       <Text style={styles.muted}>Ready · {harness.update} is available</Text>
-      <GoldButton isDisabled={isBusy} label="Update" onPress={onUpdate} />
+      <Button isDisabled={isBusy} label="Update" onPress={onUpdate} />
     </>
   );
 }
@@ -230,7 +230,7 @@ export function HarnessesCard({
 
 /**
  * Each harness's accounts: the computer's own sign-in and those added here, each signed in through the
- * harness's own sign-in in a Terminal window; Gild never sees the credentials (provider-accounts).
+ * harness's own sign-in in a Terminal window; Iskios never sees the credentials (provider-accounts).
  */
 export function AccountsCard({
   client,
@@ -271,10 +271,8 @@ const local = StyleSheet.create({
   name: { alignItems: "center", flexDirection: "row", gap: 14, minWidth: 220 },
   nameText: {
     color: colors.text,
-    fontFamily: fonts.hand,
+    fontFamily: fonts.sans,
     fontSize: fontSizes.lg,
     fontWeight: "700",
-    letterSpacing: 0.6,
-    textTransform: "uppercase",
   },
 });

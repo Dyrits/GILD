@@ -3,7 +3,7 @@ import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
-import type { MissionDetail, MissionId, Request, RequestTag, ResultOf } from "@gild/contracts";
+import type { MissionDetail, MissionId, Request, RequestTag, ResultOf } from "@iskios/contracts";
 import { Effect } from "effect";
 import { afterEach } from "vitest";
 import { isInsideFolder } from "../../src/core/index.ts";
@@ -16,7 +16,7 @@ afterEach(() => {
 
 /** A service with folders to choose as workspaces, and its data beside them. */
 const setUp = () => {
-  const base = realpathSync(mkdtempSync(join(tmpdir(), "gild-workspaces-")));
+  const base = realpathSync(mkdtempSync(join(tmpdir(), "iskios-workspaces-")));
   directories.push(base);
   const home = join(base, "home");
   const outside = join(base, "outside");
@@ -24,7 +24,7 @@ const setUp = () => {
     mkdirSync(folder, { recursive: true });
   }
   const layer = serviceLayer({
-    filename: join(base, "gild.sqlite"),
+    filename: join(base, "iskios.sqlite"),
     harness: fakeHarnessLayer("10 millis"),
     homeFolder: home,
     scratchRoot: join(base, "data", "missions"),
@@ -609,6 +609,65 @@ describe("naming files and folders of a workspace with @", () => {
         workspacePath: join(home, "file.txt"),
       });
       expect(JSON.stringify(refusal)).toContain("No folder");
+    }).pipe(Effect.provide(layer));
+  });
+});
+
+describe("free realms", () => {
+  const crest = {
+    band: "None",
+    bandWidth: 1,
+    colors: {
+      band: "#d9ad4f",
+      edge: "#3b0f0c",
+      emblem: "#f2d98a",
+      field: "#8b1e1a",
+      secondField: "#5e1210",
+      trim: "#d9ad4f",
+    },
+    division: "Plain",
+    edge: 0.35,
+    emblem: { _tag: "Charge", id: "lion" },
+    emblemScale: 1,
+    finish: "Flat",
+    plate: "Shield",
+    trim: "None",
+  } as const;
+
+  it.live("makes a free realm with a name and no folder, and lists it with its crest", () => {
+    const { layer } = setUp();
+    return Effect.gen(function* () {
+      expect(yield* call({ _tag: "ListFreeRealms" })).toEqual([]);
+      yield* call({ _tag: "CreateFreeRealm", crest, name: "  Game Design " });
+      yield* call({ _tag: "CreateFreeRealm", crest: null, name: "Archive of ideas" });
+      const listed = yield* call({ _tag: "ListFreeRealms" });
+      expect(listed.map((each) => each.name)).toEqual(["Archive of ideas", "Game Design"]);
+      expect(listed.find((each) => each.name === "Game Design")?.crest).toEqual(crest);
+      expect(listed[0]?.crest).toBeNull();
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("keeps free realms apart from the realms tied to a folder", () => {
+    const { layer } = setUp();
+    return Effect.gen(function* () {
+      yield* call({ _tag: "CreateFreeRealm", crest: null, name: "Game Design" });
+      const missions = yield* call({
+        _tag: "ListMissions",
+        isArchived: false,
+        search: null,
+        state: null,
+        workspaceId: null,
+      });
+      expect(missions.workspaces).toEqual([]);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("refuses a blank name", () => {
+    const { layer } = setUp();
+    return Effect.gen(function* () {
+      const failure = yield* failureOf({ _tag: "CreateFreeRealm", crest: null, name: "   " });
+      expect(JSON.stringify(failure)).toContain("needs a name");
+      expect(yield* call({ _tag: "ListFreeRealms" })).toEqual([]);
     }).pipe(Effect.provide(layer));
   });
 });

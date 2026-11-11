@@ -1,7 +1,7 @@
 import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
-import type { BudgetLimits, MissionDetail, MissionId, Settings, ThreadId } from "@gild/contracts";
+import type { BudgetLimits, MissionDetail, MissionId, Settings, ThreadId } from "@iskios/contracts";
 import { Effect } from "effect";
 import { TestClock } from "effect/testing";
 import { afterEach } from "vitest";
@@ -258,7 +258,7 @@ describe("telling threads their budget", () => {
       yield* send(started.threadId, "context");
       const detail = yield* settle(started.missionId, (d) => isIdle(d) && lastAgentText(d).includes("Budget:"));
       expect(lastAgentText(detail)).toContain("Budget: 200 of 1,000 tokens used (20%)");
-      expect(lastAgentText(detail)).toContain("At a limit, Gild stops the work under it and asks the owner.");
+      expect(lastAgentText(detail)).toContain("At a limit, Iskios stops the work under it and asks the owner.");
     }).pipe(Effect.provide(setup().layer)),
   );
 });

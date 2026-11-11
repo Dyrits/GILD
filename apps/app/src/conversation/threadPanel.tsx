@@ -1,4 +1,4 @@
-import type { BackupCompanion, ContextGauge, ContextPartKind, MissionDetail, ThreadId } from "@gild/contracts";
+import type { BackupCompanion, ContextGauge, ContextPartKind, MissionDetail, ThreadId } from "@iskios/contracts";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { BackupsEditor } from "../editors/backupsEditor";
@@ -18,15 +18,15 @@ import { colors, fontSizes, fonts, radii } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
 import { useSkills } from "../foundation/useSkills";
 import { QuestSidebar, Row } from "../quests/questPanel";
-import { GoldButton } from "../ui/parchment";
+import { Button } from "../ui/button";
 
 /** The colors the gauge's parts are drawn in, from the part filling the bar first. */
 const partColors = {
-  Instructions: colors.wood,
+  Instructions: colors.ground,
   Journal: colors.violet,
   Lore: colors.accent,
   Messages: colors.success,
-  ToolsAndResults: colors.gold,
+  ToolsAndResults: colors.edge,
 } as const satisfies Record<ContextPartKind, string>;
 
 const levelColors = { normal: colors.success, reached: colors.danger, warning: colors.warning } as const;
@@ -98,7 +98,7 @@ function SideQuestDone({ client, state, threadId }: { client: ServiceClient; sta
   const [error, setError] = useState<string | null>(null);
   return (
     <View style={local.done}>
-      <GoldButton
+      <Button
         isDisabled={state === "Done"}
         label={state === "Done" ? "Done" : "Mark as done"}
         onPress={() =>

@@ -1,4 +1,4 @@
-import type { Request, ResultOf } from "@gild/contracts";
+import type { Request, ResultOf } from "@iskios/contracts";
 import { useEffect, useState } from "react";
 import type { ServiceClient } from "./client";
 

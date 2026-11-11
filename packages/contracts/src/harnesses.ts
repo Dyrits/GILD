@@ -21,7 +21,7 @@ export const SignInState = Schema.Literals(["SignedIn", "SignedOut", "Unknown"])
 export type SignInState = typeof SignInState.Type;
 
 /**
- * One account a harness can sign in with: the computer's own sign-in (id null), or one added in Gild,
+ * One account a harness can sign in with: the computer's own sign-in (id null), or one added in Iskios,
  * which keeps its own folder for the harness's sign-in and sessions.
  */
 export const AccountStatus = Schema.Struct({

@@ -1,5 +1,5 @@
 import { tmpdir } from "node:os";
-import type { HarnessName, ModelOption } from "@gild/contracts";
+import type { HarnessName, ModelOption } from "@iskios/contracts";
 import { type Duration, Effect, Queue, type Scope } from "effect";
 import { fieldOf, type HarnessAdapter, routeHarnesses, textFieldOf } from "../core/index.ts";
 import { makeClaudeHarness } from "./claude.ts";
@@ -10,7 +10,7 @@ import { harnessEnvironmentOf, runHarnessCommand, startRpcProcess } from "./line
 import { makeOpenCodeHarness } from "./opencode.ts";
 
 // The harness registry (provider-accounts): each harness defined once, by its facts, its turn adapter, and
-// what Gild asks its own tool about sign-in and models. Adding a harness adds one entry here.
+// what Iskios asks its own tool about sign-in and models. Adding a harness adds one entry here.
 
 /** What every harness's turn adapter is started with in the app. */
 export interface AdapterOptions {
@@ -49,7 +49,7 @@ const listCodexModels = (command: string, configDirectory: string | null) =>
     const listed = yield* Effect.gen(function* () {
       yield* rpc.request("initialize", {
         capabilities: { experimentalApi: true, requestAttestation: false },
-        clientInfo: { name: "gild", title: "Gild", version: "0.0.0" },
+        clientInfo: { name: "iskios", title: "Iskios", version: "0.0.0" },
       });
       rpc.notify("initialized", {});
       return yield* rpc.request("model/list", {});

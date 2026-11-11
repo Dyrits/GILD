@@ -1,4 +1,4 @@
-import type { Answer, Question, QuestionOutcome, QuestionSource } from "@gild/contracts";
+import type { Answer, Question, QuestionOutcome, QuestionSource } from "@iskios/contracts";
 import { Clock, Context, Effect, Layer } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
 import { Changes, invalid, isInsideFolder, notFound, readSettings, type ServiceFailure } from "../core/index.ts";
@@ -62,7 +62,7 @@ export class Approvals extends Context.Service<
     readonly endTurn: (threadId: string) => Effect.Effect<void>;
     readonly withdraw: (threadId: string) => Effect.Effect<void>;
   }
->()("gild/Approvals") {}
+>()("iskios/Approvals") {}
 
 const outcomeOfAnswer = {
   Allow: "Allowed",

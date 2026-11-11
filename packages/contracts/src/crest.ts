@@ -2,7 +2,7 @@ import { Schema } from "effect";
 
 // A realm's crest: the drawn sign its quests wear. The system follows Crest's Studio (github.com/pauljoda/Crest,
 // MPL-2.0): a plate, a field that may be divided, a band across it, an edge, a trim around the plate, and an emblem,
-// each with its own color. The vocabulary is Gild's own; the drawing is the app's (crest.tsx).
+// each with its own color. The vocabulary is Iskios's own; the drawing is the app's (crest.tsx).
 
 /** The outline the crest is cut to; None leaves the emblem alone. */
 export const crestPlates = [

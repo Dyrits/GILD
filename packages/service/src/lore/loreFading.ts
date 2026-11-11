@@ -1,4 +1,4 @@
-import type { LoreKind, LoreState, Settings } from "@gild/contracts";
+import type { LoreKind, LoreState, Settings } from "@iskios/contracts";
 import { Clock, Effect } from "effect";
 import { dayMillis, readSettings } from "../core/index.ts";
 

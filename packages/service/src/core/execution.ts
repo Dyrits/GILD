@@ -7,7 +7,7 @@ import type {
   HarnessName,
   ModelChoice,
   TokenUsage,
-} from "@gild/contracts";
+} from "@iskios/contracts";
 import { Context, Effect, Schema } from "effect";
 
 /** What a harness reports while a turn runs. */
@@ -49,7 +49,7 @@ export interface ThreadAccess {
   readonly mcpUrl: string;
   /** The sentences of the standing permissions that apply to the thread. */
   readonly permissions: ReadonlyArray<string>;
-  /** The thread tools the thread uses without asking, named as Claude Code lists them (`mcp__gild__…`). */
+  /** The thread tools the thread uses without asking, named as Claude Code lists them (`mcp__iskios__…`). */
   readonly unaskedTools: ReadonlyArray<string>;
 }
 
@@ -65,7 +65,7 @@ export interface PromptAnswer {
   readonly text: string;
 }
 
-/** Everything one turn of a thread needs from Gild. */
+/** Everything one turn of a thread needs from Iskios. */
 export interface TurnRequest {
   readonly access: ThreadAccess;
   /**
@@ -172,7 +172,7 @@ export interface HarnessAdapter {
 }
 
 /** The harness seam: runs one turn of a thread, reports its events, and lets it be steered and interrupted. */
-export class Harness extends Context.Service<Harness, HarnessAdapter>()("gild/Harness") {}
+export class Harness extends Context.Service<Harness, HarnessAdapter>()("iskios/Harness") {}
 
 /**
  * Sends each turn to the adapter of its thread's harness, and steering and interrupts to the adapter running

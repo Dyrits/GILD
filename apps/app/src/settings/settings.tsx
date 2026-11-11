@@ -3,7 +3,7 @@ import {
   MessageDelivery as MessageDeliveries,
   type MessageDelivery,
   type Settings,
-} from "@gild/contracts";
+} from "@iskios/contracts";
 import { type ReactNode, useRef, useState } from "react";
 import {
   type NativeScrollEvent,
@@ -25,7 +25,7 @@ import { useHasSidebar, useQuestPanel } from "../foundation/shellContext";
 import { styles } from "../foundation/styles";
 import { colors, fontSizes, fonts } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
-import { GoldButton } from "../ui/parchment";
+import { Button } from "../ui/button";
 import { Choice } from "../ui/pickers";
 import { AccountBudgetsCard } from "./accountBudgetsCard";
 import { AccountsCard, HarnessesCard } from "./accounts";
@@ -66,7 +66,7 @@ function NumberField({
         style={[styles.input, local.number]}
         value={draft ?? String(value)}
       />
-      <GoldButton
+      <Button
         label="Save"
         onPress={() => {
           const parsed = Number(draft ?? value);
@@ -113,7 +113,7 @@ function Section({
   );
 }
 
-/** The Charter (Settings), where the owner chooses how Gild runs their threads. */
+/** The Charter (Settings), where the owner chooses how Iskios runs their threads. */
 export function SettingsScreen({
   client,
   onBack,
@@ -166,7 +166,7 @@ export function SettingsScreen({
       >
         {!hasSidebar && (
           <Pressable onPress={onBack}>
-            <Text style={[styles.link, local.back]}>← Quests</Text>
+            <Text style={[styles.link, local.back]}>← Back</Text>
           </Pressable>
         )}
         <SettingsHeading />
@@ -241,11 +241,6 @@ export function SettingsScreen({
                   label="Open an off-topic message as a new quest without asking when no other quest fits"
                   onChange={(shouldOpenOffTopicMissions) => save({ shouldOpenOffTopicMissions })}
                   value={settings.shouldOpenOffTopicMissions}
-                />
-                <ToggleRow
-                  label="Show finished quests in the sidebar"
-                  onChange={(shouldShowFinishedQuests) => save({ shouldShowFinishedQuests })}
-                  value={settings.shouldShowFinishedQuests}
                 />
                 <ToggleRow
                   label="Show replies as they're written"
@@ -374,12 +369,12 @@ export function SettingsScreen({
 }
 
 const local = StyleSheet.create({
-  back: { color: colors.goldHi },
+  back: { color: colors.highlight },
   content: { gap: 18, paddingHorizontal: 28, paddingVertical: 20 },
-  error: { color: colors.goldHi, fontFamily: fonts.sans, fontSize: fontSizes.md },
+  error: { color: colors.highlight, fontFamily: fonts.sans, fontSize: fontSizes.md },
   menuColumn: { paddingLeft: 20, paddingTop: 20 },
   number: { textAlign: "center", width: 96 },
-  page: { backgroundColor: colors.wood, flex: 1 },
+  page: { backgroundColor: colors.page, flex: 1 },
   pageWide: { flexDirection: "row" },
   section: { gap: 14 },
   settingLabel: { minWidth: 200 },

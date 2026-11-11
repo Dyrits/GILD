@@ -1,4 +1,4 @@
-import type { LoreActor, LoreHistoryKind, LoreKind, LoreOrigin, LoreScope } from "@gild/contracts";
+import type { LoreActor, LoreHistoryKind, LoreKind, LoreOrigin, LoreScope } from "@iskios/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { type Fading, fadingStepsOf } from "./loreFading.ts";

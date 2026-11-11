@@ -2,7 +2,7 @@
 
 ## Current state
 
-[Specifications](specifications.md) records the answers to Q1 through Q15, including the user's correction to Q3: names and descriptions at the start, full instructions when used, supporting files as needed. Q7 settled Gild-managed global and workspace MCP configuration in version 1. Q13 requires a user choice for conflicting MCP names.
+[Specifications](specifications.md) records the answers to Q1 through Q15, including the user's correction to Q3: names and descriptions at the start, full instructions when used, supporting files as needed. Q7 settled Iskios-managed global and workspace MCP configuration in version 1. Q13 requires a user choice for conflicting MCP names.
 
 ## Resolution
 

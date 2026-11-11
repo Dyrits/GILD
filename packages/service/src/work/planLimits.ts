@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import type { PlanLimitReading } from "@gild/contracts";
+import type { PlanLimitReading } from "@iskios/contracts";
 import { Clock, Context, Effect, Layer, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { Changes, Harness } from "../core/index.ts";
@@ -30,7 +30,7 @@ export class PlanLimits extends Context.Service<
      */
     readonly latest: (account: AccountRef) => Effect.Effect<PlanLimitReading | null>;
   }
->()("gild/PlanLimits") {}
+>()("iskios/PlanLimits") {}
 
 const decodeWindows = Schema.decodeUnknownSync(
   Schema.Array(

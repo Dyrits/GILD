@@ -16,13 +16,13 @@ const parentPort = (process as unknown as { parentPort?: ParentPort }).parentPor
 // A missing variable fails the program through Config instead of throwing at import.
 const liveLayer = Layer.unwrap(
   Effect.gen(function* () {
-    const dataDirectory = yield* Config.NonEmptyString("GILD_DATA_DIR");
-    // GILD_HARNESS=fake selects the echo harness for checks.
-    const harnessName = yield* Config.String("GILD_HARNESS").pipe(Config.withDefault("claude"));
+    const dataDirectory = yield* Config.NonEmptyString("ISKIOS_DATA_DIR");
+    // ISKIOS_HARNESS=fake selects the echo harness for checks.
+    const harnessName = yield* Config.String("ISKIOS_HARNESS").pipe(Config.withDefault("claude"));
     const commands = {
-      claude: yield* Config.String("GILD_CLAUDE_PATH").pipe(Config.withDefault("claude")),
-      codex: yield* Config.String("GILD_CODEX_PATH").pipe(Config.withDefault("codex")),
-      opencode: yield* Config.String("GILD_OPENCODE_PATH").pipe(Config.withDefault("opencode")),
+      claude: yield* Config.String("ISKIOS_CLAUDE_PATH").pipe(Config.withDefault("claude")),
+      codex: yield* Config.String("ISKIOS_CODEX_PATH").pipe(Config.withDefault("codex")),
+      opencode: yield* Config.String("ISKIOS_OPENCODE_PATH").pipe(Config.withDefault("opencode")),
     };
     const problem = yield* sandboxProblem;
     const idleTimeout = "10 minutes";
@@ -34,7 +34,7 @@ const liveLayer = Layer.unwrap(
     return Layer.fresh(
       serviceLayer({
         accountsRoot: join(dataDirectory, "accounts"),
-        filename: join(dataDirectory, "gild.sqlite"),
+        filename: join(dataDirectory, "iskios.sqlite"),
         harness,
         harnessTools: harnessName === "fake" ? fakeHarnessToolsLayer() : liveHarnessToolsLayer(commands),
         homeFolder: homedir(),
@@ -46,7 +46,7 @@ const liveLayer = Layer.unwrap(
 );
 
 const program = Effect.gen(function* () {
-  const token = yield* Config.NonEmptyString("GILD_TOKEN");
+  const token = yield* Config.NonEmptyString("ISKIOS_TOKEN");
   const { port } = yield* serveLoopback({ port: 0, token });
   parentPort?.postMessage({ port, type: "ready" });
   return yield* Effect.never;
@@ -54,6 +54,6 @@ const program = Effect.gen(function* () {
 
 Effect.runFork(program).addObserver((exit) => {
   // The cause in full, so a startup failure says why in the desktop app's log.
-  console.error("Gild service stopped", Exit.isFailure(exit) ? Cause.pretty(exit.cause) : exit);
+  console.error("Iskios service stopped", Exit.isFailure(exit) ? Cause.pretty(exit.cause) : exit);
   process.exit(1);
 });

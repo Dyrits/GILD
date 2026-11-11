@@ -20,7 +20,7 @@ import type {
   StartingContextParts,
   SuggestionOutcome,
   ThreadPanel,
-} from "@gild/contracts";
+} from "@iskios/contracts";
 
 /** A count with its noun, in the singular for one and the plural otherwise, for example "1 step" or "3 steps". */
 export const countedOf = (count: number, noun: string) => `${count} ${count === 1 ? noun : `${noun}s`}`;
@@ -144,8 +144,8 @@ export const totalTokensOf = (consumption: Pick<Consumption, "tokens">) =>
   consumption.tokens.cacheCreation;
 
 /**
- * An account's budget in one line, for example "$12.50 of $50.00 · $37.50 left · counted by Gild"; what is left of a cost
- * is marked with ≈ when some of the spending was estimated, and the line says Gild only counts its own turns.
+ * An account's budget in one line, for example "$12.50 of $50.00 · $37.50 left · counted by Iskios"; what is left of a cost
+ * is marked with ≈ when some of the spending was estimated, and the line says Iskios only counts its own turns.
  */
 export const accountBudgetTextOf = (
   budget: Pick<AccountBudget, "consumption" | "limits" | "period" | "remaining" | "spent">,
@@ -164,7 +164,7 @@ export const accountBudgetTextOf = (
           `${budgetUseTextOf("tokens", budget.spent.tokens, budget.limits.tokens)} · ${Math.round((budget.remaining.tokens / budget.limits.tokens) * 100)}% left${when}`,
         ]),
   ];
-  return `${parts.length === 0 ? "No budget" : parts.join(" · ")} · counted by Gild`;
+  return `${parts.length === 0 ? "No budget" : parts.join(" · ")} · counted by Iskios`;
 };
 
 const clockTextOf = (at: number) => new Date(at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });

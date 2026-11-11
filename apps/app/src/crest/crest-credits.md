@@ -1,8 +1,8 @@
 # Heraldic artwork credits
 
 The crest figures are icons from [game-icons.net](https://game-icons.net), licensed under
-[Creative Commons Attribution 3.0](https://creativecommons.org/licenses/by/3.0/). They reach Gild through Crest Studio
-(github.com/pauljoda/Crest, MPL-2.0), which removed their backgrounds so they can be drawn in any color. Gild draws
+[Creative Commons Attribution 3.0](https://creativecommons.org/licenses/by/3.0/). They reach Iskios through Crest Studio
+(github.com/pauljoda/Crest, MPL-2.0), which removed their backgrounds so they can be drawn in any color. Iskios draws
 them the same way.
 
 - Anchor (anchor) by Lorc: <https://game-icons.net/1x1/lorc/anchor.html>

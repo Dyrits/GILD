@@ -1,4 +1,4 @@
-import type { LoreProposal, LoreProposalId, ProposedLoreEntry } from "@gild/contracts";
+import type { LoreProposal, LoreProposalId, ProposedLoreEntry } from "@iskios/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { dayMillis, invalid } from "../core/index.ts";

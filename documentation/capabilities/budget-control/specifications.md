@@ -4,7 +4,7 @@
 
 Threads open threads on their own, many at once, on the user's own provider accounts. Without limits, one mission can spend far more than the user meant. Budgets on each mission, on Guildmaster, on each provider account, and on all spending over a period stop new spending at a limit the user chose, and show at a glance how close each one is, so the user pays for the work knowingly.
 
-The user also sees what every turn used, whatever the provider: its tokens, and an estimated cost for every model Gild has a price for, so subscription and API-key work can be compared. Each subscription's own limits are shown where its harness reports them.
+The user also sees what every turn used, whatever the provider: its tokens, and an estimated cost for every model Iskios has a price for, so subscription and API-key work can be compared. Each subscription's own limits are shown where its harness reports them.
 
 Status: the budgets, their stops, and their records were agreed earlier. The billing kind, estimated cost, price table, account budgets, credits, per-answer lines, and plan limits were agreed by the owner on 2026-11-10 (CHG-0126). Two parts stay provisional until a live probe is in: the per-answer lines and the plan limits of Claude Code and OpenCode (marked below). The owner accepted the billing kind rule for API-key turns without a reported cost with "I guess" and may reopen it.
 
@@ -39,7 +39,7 @@ Version 1 serves the installation's owner. In future hosted missions, guest-trig
 
 ### The price table
 
-- Prices come from [models.dev](https://models.dev) (`api.json`: per million tokens, input, output, cache read, cache write), read at startup and then daily, kept on the computer, with a snapshot shipped with Gild as the fallback when the computer is offline or the read fails. A failed read leaves the kept table as it was.
+- Prices come from [models.dev](https://models.dev) (`api.json`: per million tokens, input, output, cache read, cache write), read at startup and then daily, kept on the computer, with a snapshot shipped with Iskios as the fallback when the computer is offline or the read fails. A failed read leaves the kept table as it was.
 - The request carries nothing about missions, workspaces, accounts, or the owner. It is the same kind of public read as the check for a harness's newest version.
 - The Charter has a **Fetch prices** switch, on by default, a **Refresh now** button, and one line such as "Prices from models.dev · fetched 10 Nov". With the switch off, only the shipped snapshot is used, and the line says "Prices from the snapshot of 3 Nov".
 - Only US dollars.
@@ -53,9 +53,9 @@ Version 1 serves the installation's owner. In future hosted missions, guest-trig
 ### Account budgets and credits
 
 - Each provider account (the computer's own and each added one) can carry an **account budget**: a cost limit, a token limit, or both, over a period (**Day**, **Week**, **Month**) or over no period. It is set from the account's row in the Charter. Empty at first.
-- It counts only what Gild's own turns used on that account, by billing kind as every budget does, across all missions and Guildmaster. It cannot see what other tools use on the same account, and the row says so ("Counted by Gild").
-- **Credits** are an account budget with no period: the user enters the amount and the day it was bought ("$50 bought on 10 Nov"), and the row shows what is left ("$31 left", or "≈ $31 left" when some of the spending was estimated). Gild counts the account's spending since that day. **Add credit** raises it; a new amount and day start a new count.
-- Gild cannot read a provider's own balance and does not try: it holds no provider credentials (requirements, Comply with provider terms).
+- It counts only what Iskios's own turns used on that account, by billing kind as every budget does, across all missions and Guildmaster. It cannot see what other tools use on the same account, and the row says so ("Counted by Iskios").
+- **Credits** are an account budget with no period: the user enters the amount and the day it was bought ("$50 bought on 10 Nov"), and the row shows what is left ("$31 left", or "≈ $31 left" when some of the spending was estimated). Iskios counts the account's spending since that day. **Add credit** raises it; a new amount and day start a new count.
+- Iskios cannot read a provider's own balance and does not try: it holds no provider credentials (requirements, Comply with provider terms).
 - Removing an account removes its budget.
 
 ### Seeing budget use and consumption
@@ -78,7 +78,7 @@ The owner deferred further screen specification until work on Reserves begins; t
 - Reported and estimated costs remain distinguishable; unavailable usage or limits are identified rather than guessed.
 - On 2026-11-11 the owner supplied the text of OpenBot's Usage page and requested similar detail (CHG-0135).
   The following content is adopted from that supplied example, independently of OpenBot's code or exact visual layout.
-- The page defaults to all Gild usage, Cost, and the last 30 days (CHG-0136).
+- The page defaults to all Iskios usage, Cost, and the last 30 days (CHG-0136).
   The metric selector offers Cost and Tokens; the period selector offers 7 days, 30 days, and a custom date range.
 - Selecting a breakdown row filters the graph and totals and exposes the corresponding turn records.
   Active filters stay visible and are easy to clear.
@@ -86,7 +86,7 @@ The owner deferred further screen specification until work on Reserves begins; t
 - The summary shows the selected period's cost in USD, separate quest, thread, and turn counts instead of an ambiguous Sessions count, and whether the amounts are API estimates, reported costs, or a mixture.
 - Date ranges use local calendar days, including today in the 7-day and 30-day presets and both selected dates in a custom range (CHG-0137).
 - Harness summaries show known cost, share of known cost, and tokens.
-  Breakdowns use Gild's terms: Quest/side-quest, Harness, Account, Companion, Day, and Skill, with Guildmaster separately identifiable.
+  Breakdowns use Iskios's terms: Quest/side-quest, Harness, Account, Companion, Day, and Skill, with Guildmaster separately identifiable.
 - Skill costs appear only when usage can be reliably attributed to that skill.
   Other usage is unattributed; loading or invoking a skill alone does not establish its share of a turn's cost, and the whole turn is never charged to every skill it loaded.
 - Token totals distinguish tokens without cache reads from processed tokens including cache reads.
@@ -118,7 +118,7 @@ Recorded Reserves acceptance direction, to refine when the screen is specified f
 ### Plan limits
 
 - For each account on a subscription, the owner sees each **plan limit** its harness reports (for example a 5-hour and a weekly window): how much is used and when it resets, with the time of the reading ("as of 14:02"). It shows on the account's row in the Charter, in the rail beside the reserves, and in the thread panel's Companion row. Orange from 80%, red at 100%, no message.
-- The figures are the harness's own. **Codex** reports them through its app server, read at most one at a time, a reading standing for four minutes, and after a failed read the next waits 5 minutes, then 10, 20, and 40, up to an hour; the last reading stays shown meanwhile. **Claude Code** and **OpenCode** show what they report in their own streams once a live probe shows they do; until then they show "Limits not reported". Gild never reads a harness's token or credentials to ask a provider's usage endpoint (requirements, Comply with provider terms). Provisional for Claude Code and OpenCode until their probe is in.
+- The figures are the harness's own. **Codex** reports them through its app server, read at most one at a time, a reading standing for four minutes, and after a failed read the next waits 5 minutes, then 10, 20, and 40, up to an hour; the last reading stays shown meanwhile. **Claude Code** and **OpenCode** show what they report in their own streams once a live probe shows they do; until then they show "Limits not reported". Iskios never reads a harness's token or credentials to ask a provider's usage endpoint (requirements, Comply with provider terms). Provisional for Claude Code and OpenCode until their probe is in.
 - A limit never reported is never guessed. A reading goes stale when no turn runs, and the row says when it was read.
 - Plan limits are shown only: the provider enforces them. A turn that fails at a provider's usage limit is handled as any failed turn, by the thread's backup Companions ([thread-panel](../thread-panel/specifications.md#backup-companions)).
 
@@ -191,7 +191,7 @@ No thread tool: threads read their budget use from their context and cannot chan
 - One limit per harness or per model.
 - A thread raising a budget, or asking for a raise through a tool.
 - An estimated cost counting toward a limit, apart from the API-key case above.
-- Enforcing a subscription's own limits: the provider does. Gild shows them.
+- Enforcing a subscription's own limits: the provider does. Iskios shows them.
 - Reading a provider's own balance, or any call to a provider's usage or billing endpoint with the user's credentials.
 - Currencies other than US dollars.
 - Pricing turns recorded before the feature, and re-pricing any turn.

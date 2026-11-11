@@ -1,4 +1,4 @@
-import type { MissionDetail, ThreadSummary } from "@gild/contracts";
+import type { MissionDetail, ThreadSummary } from "@iskios/contracts";
 import { describe, expect, it } from "vitest";
 import { entriesOf, workingLabelOf } from "../../src/conversation/entries";
 

@@ -1,4 +1,4 @@
-import type { BillingKind, EffortChoice, HarnessName, ModelChoice, TokenUsage } from "@gild/contracts";
+import type { BillingKind, EffortChoice, HarnessName, ModelChoice, TokenUsage } from "@iskios/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { Changes, PriceTable, type TurnOutcome, touchMission } from "../core/index.ts";

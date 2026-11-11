@@ -1,7 +1,7 @@
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
-import type { LoreEntryId, LoreProposal, ThreadId } from "@gild/contracts";
+import type { LoreEntryId, LoreProposal, ThreadId } from "@iskios/contracts";
 import { Effect } from "effect";
 import { TestClock } from "effect/testing";
 import { afterEach } from "vitest";

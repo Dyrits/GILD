@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { describe, expect, it } from "vitest";
 import { appFileOf } from "../src/appFiles.ts";
 
-const root = mkdtempSync(join(tmpdir(), "gild-app-files-"));
+const root = mkdtempSync(join(tmpdir(), "iskios-app-files-"));
 mkdirSync(join(root, "_expo"));
 writeFileSync(join(root, "index.html"), "<html></html>");
 writeFileSync(join(root, "_expo", "app.js"), "");

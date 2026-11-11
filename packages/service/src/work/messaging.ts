@@ -1,4 +1,4 @@
-import { type HarnessName, MessageId, type SendMessageResult } from "@gild/contracts";
+import { type HarnessName, MessageId, type SendMessageResult } from "@iskios/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { notFound, touchMission } from "../core/index.ts";

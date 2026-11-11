@@ -1,4 +1,4 @@
-import type { AccountId, BudgetEvent, BudgetPart, BudgetStop, BudgetWindow, HarnessName } from "@gild/contracts";
+import type { AccountId, BudgetEvent, BudgetPart, BudgetStop, BudgetWindow, HarnessName } from "@iskios/contracts";
 import { Effect } from "effect";
 import { SqlClient, type Statement } from "effect/sql";
 import {

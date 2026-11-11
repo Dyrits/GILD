@@ -1,5 +1,5 @@
 {
-  "name": "@gild/service",
+  "name": "@iskios/service",
   "private": true,
   "type": "module",
   "exports": {
@@ -11,7 +11,7 @@
   },
   "dependencies": {
     "@effect/sql-sqlite-node": "4.1.2",
-    "@gild/contracts": "workspace:*",
+    "@iskios/contracts": "workspace:*",
     "effect": "4.1.2",
     "ws": "8.22.1"
   },

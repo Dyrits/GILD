@@ -1,6 +1,6 @@
 import { mkdirSync, rmSync } from "node:fs";
 import { join } from "node:path";
-import type { AccountId, AccountStatus, HarnessInfo, HarnessList, HarnessName } from "@gild/contracts";
+import type { AccountId, AccountStatus, HarnessInfo, HarnessList, HarnessName } from "@iskios/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, notFound } from "../core/index.ts";

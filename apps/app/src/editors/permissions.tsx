@@ -3,7 +3,7 @@ import {
   ApprovalLevel as ApprovalLevels,
   type MissionId,
   type StandingPermission,
-} from "@gild/contracts";
+} from "@iskios/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { messageOf, type ServiceClient } from "../foundation/client";
@@ -54,7 +54,7 @@ export function PermissionsScreen({ client, onBack }: { client: ServiceClient; o
     <ScrollView contentContainerStyle={styles.screen}>
       <View style={styles.header}>
         <Pressable onPress={onBack}>
-          <Text style={styles.link}>← Charter</Text>
+          <Text style={styles.link}>← Workshop</Text>
         </Pressable>
         <Text style={styles.heading}>Permissions</Text>
       </View>

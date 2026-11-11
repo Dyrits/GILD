@@ -3,7 +3,7 @@
   "configVersion": 1,
   "workspaces": {
     "": {
-      "name": "gild",
+      "name": "iskios",
       "devDependencies": {
         "@biomejs/biome": "2.6.5",
         "@effect/vitest": "4.1.2",
@@ -18,7 +18,7 @@
       "dependencies": {
         "@expo-google-fonts/caveat": "^0.4.2",
         "@expo/metro-runtime": "~58.0.17",
-        "@gild/contracts": "workspace:*",
+        "@iskios/contracts": "workspace:*",
         "@xterm/addon-fit": "^0.11.0",
         "@xterm/xterm": "^6.0.0",
         "effect": "4.1.2",
@@ -51,16 +51,16 @@
       },
     },
     "packages/contracts": {
-      "name": "@gild/contracts",
+      "name": "@iskios/contracts",
       "dependencies": {
         "effect": "4.1.2",
       },
     },
     "packages/service": {
-      "name": "@gild/service",
+      "name": "@iskios/service",
       "dependencies": {
         "@effect/sql-sqlite-node": "4.1.2",
-        "@gild/contracts": "workspace:*",
+        "@iskios/contracts": "workspace:*",
         "effect": "4.1.2",
         "ws": "8.22.1",
       },
@@ -325,9 +325,9 @@
 
     "@expo/xcpretty": ["@expo/xcpretty@4.4.7", "", { "dependencies": { "@babel/code-frame": "^7.20.0", "chalk": "^4.1.0", "js-yaml": "^4.1.0" }, "bin": { "excpretty": "build/cli.js" } }, "sha512-EbxYllZ7/ozONVZd425cm4XnolfW+AmSFT5aP7Jdno6oc3WrYQcHz2CO20z/2rwWwYgztmV2PXvYH+BQ8YFjqg=="],
 
-    "@gild/contracts": ["@gild/contracts@workspace:packages/contracts"],
+    "@iskios/contracts": ["@iskios/contracts@workspace:packages/contracts"],
 
-    "@gild/service": ["@gild/service@workspace:packages/service"],
+    "@iskios/service": ["@iskios/service@workspace:packages/service"],
 
     "@isaacs/fs-minipass": ["@isaacs/fs-minipass@4.0.1", "", { "dependencies": { "minipass": "^7.0.4" } }, "sha512-wgm9Ehl2jpeqP3zw/7mo3kRHFp5MEDhqAdwy1fTGkHAwnkGOVsgpvQhL8B5n1qlb01jV3n/bI0ZfZp5lWA1k4w=="],
 

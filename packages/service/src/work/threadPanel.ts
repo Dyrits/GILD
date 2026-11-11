@@ -1,4 +1,4 @@
-import { BackupCompanion, type ContextGauge, type ContextPart, type ThreadPanel } from "@gild/contracts";
+import { BackupCompanion, type ContextGauge, type ContextPart, type ThreadPanel } from "@iskios/contracts";
 import { Effect, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { missionLimitsOf, missionSpendingOf, notFound, spendingColumns } from "../core/index.ts";

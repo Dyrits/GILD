@@ -15,13 +15,13 @@ import { colors, fontSizes, fonts, radii } from "../foundation/theme";
 import { linkTargetOf, listMarkerOf } from "./markdownRules";
 
 const styles = StyleSheet.create({
-  blockquote: { borderLeftColor: colors.gold, borderLeftWidth: 3, gap: 6, paddingLeft: 10 },
+  blockquote: { borderLeftColor: colors.edge, borderLeftWidth: 3, gap: 6, paddingLeft: 10 },
   bold: { fontWeight: "700" },
   codeBlock: { backgroundColor: colors.surface, borderRadius: radii.md, padding: 10 },
   codeBlockText: { color: colors.text, fontFamily: fonts.mono, fontSize: fontSizes.md, lineHeight: 18 },
   codeSpan: { backgroundColor: colors.surface, fontFamily: fonts.mono, fontSize: fontSizes.md },
   deleted: { textDecorationLine: "line-through" },
-  heading: { color: colors.text, fontFamily: fonts.hand, fontWeight: "700" },
+  heading: { color: colors.text, fontFamily: fonts.sans, fontWeight: "700" },
   italic: { fontStyle: "italic" },
   itemBody: { flex: 1, gap: 4 },
   itemRow: { flexDirection: "row", gap: 6 },

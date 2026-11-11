@@ -1,4 +1,4 @@
-import type { MissionId, WorkspaceId } from "@gild/contracts";
+import type { MissionId, WorkspaceId } from "@iskios/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { GuildmasterHandoff } from "../conversation/guildmaster";
@@ -14,7 +14,7 @@ import { JournalScreen } from "../lore/journal";
 import { LoreScreen } from "../lore/lore";
 import { MissionBoard, MissionCard } from "../quests/board";
 import { MissionPromptCard } from "../quests/missionActions";
-import { QuestOverview, QuestPreview, RealmPanel } from "../quests/questPanel";
+import { QuestPreview, RealmPanel } from "../quests/questPanel";
 import { QuestionCard } from "../ui/questions";
 
 /** The panel width from which the board's columns stand side by side. */
@@ -72,7 +72,6 @@ export function Dashboard({
   // The questions cover every mission on the dashboard, whatever the filters show.
   const { data: all } = useServiceQuery(client, allMissions.request, allMissions.key);
   const asking = isArchived ? [] : (all?.missions.filter((mission) => mission.prompt !== null) ?? []);
-  const workspaceNames = new Map((data?.workspaces ?? []).map((w) => [w.id, w.name]));
   // The realm whose board shows, and whether its crest studio is open.
   const realm = (data?.workspaces ?? []).find((w) => w.id === workspaceId) ?? null;
   // The realm whose crest studio or lore is open; showing another realm closes them.
@@ -97,7 +96,7 @@ export function Dashboard({
         onOpenJournal={() => setPreview({ missionId: selectedId, screen: "Journal" })}
         onOpenQuest={() => onOpen(selectedId)}
       />
-    ) : isArchived ? null : realm !== null ? (
+    ) : isArchived || realm === null ? null : (
       <RealmPanel
         key={realm.id}
         missions={realmMissions}
@@ -106,12 +105,6 @@ export function Dashboard({
         onRename={(name) => client.request({ _tag: "RenameRealm", name, workspaceId: realm.id })}
         onSelect={onSelect}
         realm={realm}
-      />
-    ) : (
-      <QuestOverview
-        missions={data?.missions ?? []}
-        onSelect={onSelect}
-        realm={workspaceId === null ? null : (workspaceNames.get(workspaceId) ?? null)}
       />
     );
   useQuestPanel(hasSidebar && panel);
@@ -177,7 +170,7 @@ export function Dashboard({
         <View style={styles.header}>
           {isArchived && !hasSidebar && (
             <Pressable onPress={onBack}>
-              <Text style={[styles.link, { color: colors.goldHi }]}>← Quests</Text>
+              <Text style={[styles.link, { color: colors.highlight }]}>← Back</Text>
             </Pressable>
           )}
           {/* The title is in the top bar and the panel, so the header only holds what sits at its right. */}
@@ -185,17 +178,17 @@ export function Dashboard({
           {global !== null && <BudgetMeters onPress={() => setIsGlobalBudgetOpen(true)} use={global} />}
           {!isArchived && !hasSidebar && (
             <Pressable onPress={onArchived}>
-              <Text style={[styles.link, { color: colors.goldHi }]}>Archived</Text>
+              <Text style={[styles.link, { color: colors.highlight }]}>Archived</Text>
             </Pressable>
           )}
           {!isArchived && !hasSidebar && (
             <Pressable onPress={onLore}>
-              <Text style={[styles.link, { color: colors.goldHi }]}>Lore</Text>
+              <Text style={[styles.link, { color: colors.highlight }]}>Lore</Text>
             </Pressable>
           )}
           {!hasSidebar && (
             <Pressable onPress={onSettings}>
-              <Text style={[styles.link, { color: colors.goldHi }]}>Charter</Text>
+              <Text style={[styles.link, { color: colors.highlight }]}>Workshop</Text>
             </Pressable>
           )}
         </View>
@@ -204,7 +197,7 @@ export function Dashboard({
         )}
         {!isArchived && questions !== null && questions.length > 0 && (
           <View style={styles.section}>
-            <Text style={[styles.label, { color: colors.onWood }]}>Waiting for your answer</Text>
+            <Text style={[styles.label, { color: colors.onGround }]}>Waiting for your answer</Text>
             {questions.map((question) => (
               <QuestionCard
                 client={client}
@@ -217,7 +210,7 @@ export function Dashboard({
         )}
         {asking.length > 0 && (
           <View style={styles.section}>
-            <Text style={[styles.label, { color: colors.onWood }]}>Quests to settle</Text>
+            <Text style={[styles.label, { color: colors.onGround }]}>Quests to settle</Text>
             {asking.map((mission) => (
               <MissionPromptCard
                 client={client}
@@ -243,7 +236,7 @@ export function Dashboard({
         {data !== null &&
           (isArchived ? (
             data.missions.length === 0 ? (
-              <Text style={[styles.muted, { color: colors.onWood }]}>No archived quests.</Text>
+              <Text style={[styles.muted, { color: colors.onGround }]}>No archived quests.</Text>
             ) : (
               <View style={local.archive}>
                 {data.missions.map((mission) => (
@@ -289,20 +282,18 @@ const local = StyleSheet.create({
   content: { gap: 14, paddingHorizontal: 28, paddingVertical: 20 },
   crumb: { alignItems: "center", flexDirection: "row", gap: 2, zIndex: 3 },
   footer: { paddingBottom: 18, paddingHorizontal: 28, paddingTop: 6, zIndex: 2 },
-  scroll: { backgroundColor: colors.wood, flex: 1 },
+  scroll: { backgroundColor: colors.page, flex: 1 },
   stage: { flex: 1, gap: 0, justifyContent: "flex-end" },
   stageCenter: { alignItems: "center", flex: 1, justifyContent: "center", paddingBottom: 40 },
   title: {
-    color: colors.onWood,
-    fontFamily: fonts.hand,
+    color: colors.onGround,
+    fontFamily: fonts.sans,
     fontSize: 46,
     fontWeight: "700",
-    letterSpacing: 2,
     lineHeight: 56,
     marginTop: 4,
     textShadowColor: "#000",
     textShadowOffset: { height: 2, width: 0 },
     textShadowRadius: 6,
-    textTransform: "uppercase",
   },
 });

@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
-import type { LoreEntryId, LoreHistoryEntry, ThreadId } from "@gild/contracts";
+import type { LoreEntryId, LoreHistoryEntry, ThreadId } from "@iskios/contracts";
 import { Effect } from "effect";
 import { TestClock } from "effect/testing";
 import { afterEach } from "vitest";

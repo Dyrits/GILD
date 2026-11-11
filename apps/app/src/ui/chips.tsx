@@ -1,4 +1,4 @@
-import { type MentionToken, mentionTokensOf, type Skill, skillTokensOf, type WorkspaceEntry } from "@gild/contracts";
+import { type MentionToken, mentionTokensOf, type Skill, skillTokensOf, type WorkspaceEntry } from "@iskios/contracts";
 import { type ReactNode, useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";

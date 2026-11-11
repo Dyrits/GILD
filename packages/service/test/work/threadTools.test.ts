@@ -24,10 +24,10 @@ describe("listing the thread tools", () => {
   });
 
   it("runs every tool unasked except the approval tools themselves", () => {
-    const names = unaskedToolNamesOf("gild");
-    expect(names).toContain("mcp__gild__open_thread");
-    expect(names).not.toContain("mcp__gild__request_approval");
-    expect(names).not.toContain("mcp__gild__answer_prompt");
+    const names = unaskedToolNamesOf("iskios");
+    expect(names).toContain("mcp__iskios__open_thread");
+    expect(names).not.toContain("mcp__iskios__request_approval");
+    expect(names).not.toContain("mcp__iskios__answer_prompt");
     expect(names).toHaveLength(Object.keys(threadTools).length - 2);
   });
 

@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
-import type { MissionDetail, MissionId, Question, Request, RequestTag, ResultOf } from "@gild/contracts";
+import type { MissionDetail, MissionId, Question, Request, RequestTag, ResultOf } from "@iskios/contracts";
 import { Effect, Fiber, Layer, Option } from "effect";
 import { afterEach } from "vitest";
 import { fakeHarnessLayer, Service, serviceLayer } from "../../src/index.ts";
@@ -18,9 +18,9 @@ import { Approvals } from "../../src/work/approvals.ts";
 
 const directories: string[] = [];
 const databaseFile = () => {
-  const directory = mkdtempSync(join(tmpdir(), "gild-approvals-"));
+  const directory = mkdtempSync(join(tmpdir(), "iskios-approvals-"));
   directories.push(directory);
-  return join(directory, "gild.sqlite");
+  return join(directory, "iskios.sqlite");
 };
 afterEach(() => {
   for (const directory of directories.splice(0)) rmSync(directory, { force: true, recursive: true });

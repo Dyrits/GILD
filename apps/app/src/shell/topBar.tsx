@@ -1,4 +1,4 @@
-import type { MissionId, MissionSummary, Ritual, WorkspaceId } from "@gild/contracts";
+import type { MissionId, MissionSummary, Ritual, WorkspaceId } from "@iskios/contracts";
 import type { ReactNode } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { ServiceClient } from "../foundation/client";
@@ -11,7 +11,7 @@ import type { Place } from "./sidebar";
 // holds the quest panel.
 
 /** Whether the desktop window has no system title bar, so the top bar takes its place. */
-export const hasOwnTitleBar = typeof window !== "undefined" && window.gild?.hasOwnTitleBar === true;
+export const hasOwnTitleBar = typeof window !== "undefined" && window.iskios?.hasOwnTitleBar === true;
 
 // Electron drags the window by a region marked this way; react-native-web passes the property to the page.
 /** Marks a region that drags the window. */
@@ -100,8 +100,8 @@ export function TopBar({
 }
 
 /**
- * The path to where the owner is, for the top bar, following the rail: a place on its own; a realm under Realms; a quest
- * under its realm, or under Quests when it has none; Lore and Archives under The Keep. Each step before the last leads
+ * The path to where the owner is, for the top bar, following the rail: a place on its own; a realm; a quest
+ * under its realm, or alone when it has none; Library, Lore, and Archive on their own. Each step before the last leads
  * back to its place.
  */
 export const crumbsOf = ({
@@ -135,21 +135,21 @@ export const crumbsOf = ({
     const ritual = rituals.find((each) => each.missionId === openMission);
     if (ritual !== undefined) return [to("Rituals", "Rituals"), here(ritual.title)];
     const mission = missions.find((each) => each.id === openMission);
-    if (mission === undefined && isLoaded) return [to("The Keep", "Keep"), to("Archives", "Archived"), here("Quest")];
+    if (mission === undefined && isLoaded) return [to("Archive", "Archived"), here("Quest")];
     const own = workspaces.find((each) => each.id === mission?.workspaceId);
     const current = here(mission?.title ?? "Quest");
-    if (own === undefined) return [to("Quests", "Quests"), current];
-    return [to("Realms", "Realms"), { label: own.name, onPress: () => onWorkspace(own.id) }, current];
+    if (own === undefined) return [current];
+    return [{ label: own.name, onPress: () => onWorkspace(own.id) }, current];
   }
-  if (place === "Lore") return [to("The Keep", "Keep"), here("Lore")];
-  if (place === "Archived") return [to("The Keep", "Keep"), here("Archives", "▤")];
-  if (place === "Keep") return [here("The Keep")];
-  if (place === "Settings") return [here("Charter")];
-  if (place === "Realms") return [here("Realms")];
+  if (place === "Library") return [here("Library")];
+  if (place === "Lore") return [here("Lore")];
+  if (place === "Archived") return [here("Archive")];
+  if (place === "Craft") return [here("Craft")];
+  if (place === "Reserves") return [here("Reserves")];
+  if (place === "Settings") return [here("Workshop")];
   if (place === "Rituals") return [here("Rituals")];
-  if (place === "Quests" && realm !== null) return [to("Realms", "Realms"), here(realm.name)];
-  if (place === "Quests") return [here("Quests")];
-  return [here("Guildmaster")];
+  if (place === "Quests" && realm !== null) return [here(realm.name)];
+  return [here("Guild Hall")];
 };
 
 /** The spending of the global budget's period as one line; nothing while it is unread. */
@@ -198,17 +198,17 @@ export function QuestColumn({
 
 const local = StyleSheet.create({
   crumb: { alignItems: "center", flexDirection: "row", flexShrink: 0, gap: 8 },
-  crumbCurrent: { color: colors.onWood },
-  crumbGlyph: { color: colors.onWood, fontSize: fontSizes.md },
+  crumbCurrent: { color: colors.onGround },
+  crumbGlyph: { color: colors.onGround, fontSize: fontSizes.md },
   crumbLast: { flexShrink: 1 },
-  crumbLink: { color: colors.goldHi },
+  crumbLink: { color: colors.highlight },
   crumbPinned: { paddingLeft: 6 },
   crumbPressed: { opacity: 0.7 },
-  crumbSeparator: { color: colors.gold, fontFamily: fonts.sans, fontSize: fontSizes.lg },
+  crumbSeparator: { color: colors.edge, fontFamily: fonts.sans, fontSize: fontSizes.lg },
   crumbs: { alignItems: "center", flex: 1, flexDirection: "row", gap: 8, overflow: "hidden" },
-  crumbText: { fontFamily: fonts.hand, fontSize: fontSizes.lg },
+  crumbText: { fontFamily: fonts.sans, fontSize: fontSizes.lg },
   panelIcon: {
-    borderColor: colors.onWood,
+    borderColor: colors.onGround,
     borderRadius: 3,
     borderWidth: 1.5,
     flexDirection: "row",
@@ -216,17 +216,17 @@ const local = StyleSheet.create({
     overflow: "hidden",
     width: 16,
   },
-  panelIconEnd: { borderColor: colors.onWood, borderLeftWidth: 1.5, marginLeft: "auto", width: 5 },
-  panelIconLeft: { borderColor: colors.onWood, borderRightWidth: 1.5, width: 5 },
+  panelIconEnd: { borderColor: colors.onGround, borderLeftWidth: 1.5, marginLeft: "auto", width: 5 },
+  panelIconLeft: { borderColor: colors.onGround, borderRightWidth: 1.5, width: 5 },
   panelIconRight: { justifyContent: "flex-end" },
-  questBody: { backgroundColor: colors.paper, flex: 1 },
-  questClose: { color: colors.goldHi, fontSize: fontSizes.base, paddingHorizontal: 4 },
-  questColumn: { borderColor: colors.gold, borderLeftWidth: 1, width: 360 },
+  questBody: { backgroundColor: colors.page, flex: 1 },
+  questClose: { color: colors.highlight, fontSize: fontSizes.base, paddingHorizontal: 4 },
+  questColumn: { borderColor: colors.edge, borderLeftWidth: 1, width: 360 },
   questColumnNarrow: { flex: 1 },
   topBar: {
     alignItems: "center",
-    backgroundColor: colors.leather,
-    borderBottomColor: colors.gold,
+    backgroundColor: colors.sidebar,
+    borderBottomColor: colors.edge,
     borderBottomWidth: 1,
     flexDirection: "row",
     gap: 10,
@@ -235,6 +235,6 @@ const local = StyleSheet.create({
   },
   topBarTitle: { paddingLeft: 82 },
   topIcon: { alignItems: "center", borderRadius: radii.sm, height: 28, justifyContent: "center", width: 28 },
-  topIconActive: { backgroundColor: colors.wood },
-  topSpending: { color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.sm },
+  topIconActive: { backgroundColor: colors.ground },
+  topSpending: { color: colors.onGround, fontFamily: fonts.sans, fontSize: fontSizes.sm },
 });

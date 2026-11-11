@@ -2,7 +2,7 @@ import { writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { modelsDevUrl, rowsOfModelsDev } from "../src/core/priceSources.ts";
 
-// Rewrites the snapshot of the model price table shipped with Gild (decision record 0014): run before a release with
+// Rewrites the snapshot of the model price table shipped with Iskios (decision record 0014): run before a release with
 // `bun run prices:snapshot`, then `bun run format`. The snapshot is the fallback when the public table cannot be read.
 
 const response = await fetch(modelsDevUrl, { headers: { accept: "application/json" } });

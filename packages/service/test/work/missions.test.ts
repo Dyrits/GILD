@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
-import type { MissionId, Request, RequestTag, ResultOf } from "@gild/contracts";
+import type { MissionId, Request, RequestTag, ResultOf } from "@iskios/contracts";
 import { Effect, Layer } from "effect";
 import { TestClock } from "effect/testing";
 import { afterEach } from "vitest";
@@ -12,9 +12,9 @@ const REPLY_DELAY = "2 seconds";
 
 const directories: string[] = [];
 const databaseFile = () => {
-  const directory = mkdtempSync(join(tmpdir(), "gild-test-"));
+  const directory = mkdtempSync(join(tmpdir(), "iskios-test-"));
   directories.push(directory);
-  return join(directory, "gild.sqlite");
+  return join(directory, "iskios.sqlite");
 };
 afterEach(() => {
   for (const directory of directories.splice(0)) rmSync(directory, { force: true, recursive: true });

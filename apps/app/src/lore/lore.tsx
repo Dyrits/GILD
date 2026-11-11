@@ -8,7 +8,7 @@ import type {
   LoreStateFilter,
   ThreadId,
   WorkspaceId,
-} from "@gild/contracts";
+} from "@iskios/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { messageOf, type ServiceClient } from "../foundation/client";

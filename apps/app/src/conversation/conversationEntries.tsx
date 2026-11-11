@@ -1,4 +1,4 @@
-import type { HarnessName, Message, MissionId, ReplyUsage, Skill, ThreadId } from "@gild/contracts";
+import type { HarnessName, Message, MissionId, ReplyUsage, Skill, ThreadId } from "@iskios/contracts";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { MessageImages } from "../attachments/attachmentViews";
@@ -42,7 +42,7 @@ function QuestButton({
       onPress={() => onOpenMission(link.missionId)}
       style={({ pressed }) => [styles.cardCornerButton, pressed && styles.questButtonPressed]}
     >
-      <Emblem name="sword" tint={colors.goldHi} />
+      <Emblem name="sword" tint={colors.highlight} />
     </Pressable>
   );
 }

@@ -6,7 +6,7 @@ import {
   type HarnessList,
   type HarnessName,
   type ModelChoice,
-} from "@gild/contracts";
+} from "@iskios/contracts";
 import { useCallback, useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { messageOf, type ServiceClient } from "../foundation/client";

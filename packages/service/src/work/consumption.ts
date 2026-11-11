@@ -1,4 +1,4 @@
-import type { Consumption } from "@gild/contracts";
+import type { Consumption } from "@iskios/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { consumptionColumns } from "../core/index.ts";

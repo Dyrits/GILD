@@ -1,4 +1,4 @@
-import type { Message, MissionDetail, ThreadSummary } from "@gild/contracts";
+import type { Message, MissionDetail, ThreadSummary } from "@iskios/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { notFound } from "../core/index.ts";

@@ -1,4 +1,4 @@
-import { Settings, StartChoices, startingModel } from "@gild/contracts";
+import { Settings, StartChoices, startingModel } from "@iskios/contracts";
 import { Effect, Exit, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid } from "./errors.ts";

@@ -1,4 +1,4 @@
-// Exercises a packaged desktop app on isolated data: bun apps/desktop/scripts/check-package.ts /path/to/Gild.app.
+// Exercises a packaged desktop app on isolated data: bun apps/desktop/scripts/check-package.ts /path/to/Iskios.app.
 import { spawn } from "node:child_process";
 import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -46,10 +46,10 @@ const evaluate = (url: string, expression: string) =>
 
 // The endpoint itself contains an owner token, so only the success verdict leaves the renderer.
 const expression = `(async () => {
-  if (!document.body.innerText.includes("Guildmaster") || typeof window.gild?.endpoint !== "function") return "waiting";
-  await window.gild.endpoint();
-  const session = await window.gild.terminalOpen("package-check", null);
-  await window.gild.terminalClose("package-check");
+  if (!document.body.innerText.includes("Guildmaster") || typeof window.iskios?.endpoint !== "function") return "waiting";
+  await window.iskios.endpoint();
+  const session = await window.iskios.terminalOpen("package-check", null);
+  await window.iskios.terminalClose("package-check");
   return session.isRunning ? "ready" : "terminal-failed";
 })()`;
 
@@ -57,10 +57,10 @@ const check = async () => {
   const argument = process.argv[2];
   if (argument === undefined) throw new Error("Pass the packaged app bundle or executable path.");
   const target = resolve(argument);
-  const executable = target.endsWith(".app") ? join(target, "Contents", "MacOS", "Gild") : target;
-  const folder = await mkdtemp(join(tmpdir(), "gild-package-check-"));
+  const executable = target.endsWith(".app") ? join(target, "Contents", "MacOS", "Iskios") : target;
+  const folder = await mkdtemp(join(tmpdir(), "iskios-package-check-"));
   const child = spawn(executable, ["--remote-debugging-port=0"], {
-    env: { ...process.env, GILD_DATA_DIR: folder, GILD_HARNESS: "fake" },
+    env: { ...process.env, ISKIOS_DATA_DIR: folder, ISKIOS_HARNESS: "fake" },
     stdio: "ignore",
   });
   let failure: Error | null = null;
@@ -81,7 +81,7 @@ const check = async () => {
         const pages: unknown = response?.ok ? await response.json() : null;
         if (Array.isArray(pages)) {
           for (const page of pages) {
-            if (!isRecord(page) || page.url !== "gild-app://app/" || typeof page.webSocketDebuggerUrl !== "string")
+            if (!isRecord(page) || page.url !== "iskios-app://app/" || typeof page.webSocketDebuggerUrl !== "string")
               continue;
             const result = await evaluate(page.webSocketDebuggerUrl, expression);
             if (result === "ready") {

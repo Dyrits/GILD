@@ -1,11 +1,11 @@
-import type { MissionEnding, MissionSummary } from "@gild/contracts";
+import type { MissionEnding, MissionSummary } from "@iskios/contracts";
 import { useState } from "react";
 import { Pressable, type StyleProp, Text, TextInput, type TextStyle, View } from "react-native";
 import { messageOf, type ServiceClient } from "../foundation/client";
 import { promptQuestionOf } from "../foundation/labels";
 import { styles } from "../foundation/styles";
 import { useEnding } from "../foundation/useEnding";
-import { GoldButton } from "../ui/parchment";
+import { Button } from "../ui/button";
 
 const endingLabels = { Archived: "Archive", Done: "Mark as done" } as const satisfies Record<MissionEnding, string>;
 
@@ -64,7 +64,7 @@ export function MissionEndingActions({
         )}
         {actions.map(({ isPrimary, label, onPress }) =>
           isButtons ? (
-            <GoldButton isDisabled={ending.isBusy} isPrimary={isPrimary} key={label} label={label} onPress={onPress} />
+            <Button isDisabled={ending.isBusy} isPrimary={isPrimary} key={label} label={label} onPress={onPress} />
           ) : (
             <Pressable disabled={ending.isBusy && label !== "Reopen"} key={label} onPress={onPress}>
               <Text style={styles.link}>{label}</Text>

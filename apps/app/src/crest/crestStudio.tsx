@@ -9,11 +9,11 @@ import {
   crestFinishes,
   crestPlates,
   crestTrims,
-} from "@gild/contracts";
+} from "@iskios/contracts";
 import { useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { emblemPaths } from "../foundation/emblems";
-import { colors, fontSizes, fonts, ink, radii } from "../foundation/theme";
+import { colors, fontSizes, fonts, outline, radii } from "../foundation/theme";
 import { CrestView } from "./crest";
 import { crestCharges } from "./crestCharges";
 import { crestOf, shuffledCrest } from "./crestShapes";
@@ -399,7 +399,13 @@ export function CrestStudio({
 }
 
 const local = StyleSheet.create({
-  action: { ...ink, backgroundColor: colors.canvas, borderRadius: radii.sm, paddingHorizontal: 12, paddingVertical: 7 },
+  action: {
+    ...outline,
+    backgroundColor: colors.canvas,
+    borderRadius: radii.sm,
+    paddingHorizontal: 12,
+    paddingVertical: 7,
+  },
   actionOff: { opacity: 0.4 },
   actions: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   actionText: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.base, fontWeight: "600" },
@@ -414,20 +420,17 @@ const local = StyleSheet.create({
   bodyScroll: { flexGrow: 0, maxHeight: 330 },
   choiceLabel: {
     color: colors.textMuted,
-    fontFamily: fonts.hand,
+    fontFamily: fonts.sans,
     fontSize: 12,
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
   },
   choices: { alignItems: "center", flexDirection: "row", gap: 12 },
   close: { color: colors.textMuted, fontSize: fontSizes.lg, paddingHorizontal: 6 },
-  done: { backgroundColor: colors.gold, borderRadius: radii.sm, paddingHorizontal: 22, paddingVertical: 8 },
+  done: { backgroundColor: colors.edge, borderRadius: radii.sm, paddingHorizontal: 22, paddingVertical: 8 },
   doneText: {
     color: colors.text,
-    fontFamily: fonts.hand,
+    fontFamily: fonts.sans,
     fontSize: fontSizes.base,
     fontWeight: "700",
-    letterSpacing: 1,
   },
   dye: { borderColor: "rgba(43,29,18,0.35)", borderRadius: radii.pill, borderWidth: 1, height: 26, width: 26 },
   dyeOn: { borderColor: colors.text, borderWidth: 3 },
@@ -443,7 +446,7 @@ const local = StyleSheet.create({
     paddingTop: 14,
   },
   input: {
-    ...ink,
+    ...outline,
     backgroundColor: colors.canvas,
     borderRadius: radii.sm,
     color: colors.text,
@@ -454,24 +457,28 @@ const local = StyleSheet.create({
     width: 120,
   },
   layer: { gap: 6 },
-  pill: { ...ink, backgroundColor: colors.canvas, borderRadius: radii.pill, paddingHorizontal: 12, paddingVertical: 4 },
-  pillOn: { backgroundColor: colors.gold },
+  pill: {
+    ...outline,
+    backgroundColor: colors.canvas,
+    borderRadius: radii.pill,
+    paddingHorizontal: 12,
+    paddingVertical: 4,
+  },
+  pillOn: { backgroundColor: colors.edge },
   pills: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   pillText: { color: colors.textSecondary, fontFamily: fonts.sans, fontSize: fontSizes.base },
   pillTextOn: { color: colors.text, fontWeight: "700" },
   preview: {
     alignItems: "center",
-    backgroundColor: colors.leather,
+    backgroundColor: colors.sidebar,
     borderRadius: radii.lg,
     justifyContent: "center",
     padding: 18,
   },
   section: {
     color: colors.textMuted,
-    fontFamily: fonts.hand,
+    fontFamily: fonts.sans,
     fontSize: 12,
-    letterSpacing: 1.4,
-    textTransform: "uppercase",
   },
   stage: { flexDirection: "row", gap: 18, padding: 16 },
   stageHint: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.base },
@@ -487,11 +494,9 @@ const local = StyleSheet.create({
   stepOn: { borderBottomColor: colors.danger },
   stepText: {
     color: colors.textMuted,
-    fontFamily: fonts.hand,
+    fontFamily: fonts.sans,
     fontSize: fontSizes.sm,
     fontWeight: "700",
-    letterSpacing: 1,
-    textTransform: "uppercase",
   },
   stepTextOn: { color: colors.text },
   tile: {
@@ -506,10 +511,10 @@ const local = StyleSheet.create({
   },
   tileLabel: { color: colors.textSecondary, fontFamily: fonts.sans, fontSize: fontSizes.sm },
   tileOn: { borderColor: colors.accent },
-  title: { color: colors.text, fontFamily: fonts.hand, fontSize: fontSizes.xl, fontWeight: "700", letterSpacing: 0.6 },
+  title: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.xl, fontWeight: "700" },
   window: {
-    ...ink,
-    backgroundColor: colors.paper,
+    ...outline,
+    backgroundColor: colors.page,
     borderRadius: radii.xl,
     maxWidth: 640,
     overflow: "hidden",

@@ -1,4 +1,4 @@
-import type { HarnessName, OpenThreadResult, ThreadId } from "@gild/contracts";
+import type { HarnessName, OpenThreadResult, ThreadId } from "@iskios/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, notFound } from "../core/index.ts";

@@ -5,7 +5,7 @@ import {
   type RitualRunState,
   type RitualSchedule,
   startingModel,
-} from "@gild/contracts";
+} from "@iskios/contracts";
 import { type ReactNode, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { type Runner, RunnerPickers, useHarnesses } from "../editors/runners";
@@ -14,12 +14,12 @@ import { Emblem } from "../foundation/emblems";
 import { harnessLabels, modelLabelOf } from "../foundation/formatting";
 import { allMissions } from "../foundation/queries";
 import { styles } from "../foundation/styles";
-import { colors, cut, fontSizes, fonts, ink, lift } from "../foundation/theme";
+import { colors, fontSizes, fonts, outline, round } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
 import { RealmChooser } from "../realms/workspaces";
+import { EmptyBoard } from "../ui/brand";
 import { Toggle } from "../ui/controls";
 import { Menu } from "../ui/pickers";
-import { EmptyBoard } from "../ui/sketches";
 import {
   isTimeValid,
   nextRunLabelOf,
@@ -423,7 +423,7 @@ function RitualCard({
     <View style={[local.card, !ritual.isOn && local.cardOff]}>
       <Pressable accessibilityRole="button" onPress={onOpen} style={local.cardTop}>
         <View style={local.seal}>
-          <Emblem name="moon" size={26} tint={colors.goldHi} />
+          <Emblem name="moon" size={26} tint={colors.highlight} />
         </View>
         <View style={local.cardText}>
           <Text numberOfLines={2} style={local.cardTitle}>
@@ -579,9 +579,8 @@ export function RitualControls({ client, missionId }: { client: ServiceClient; m
 const local = StyleSheet.create({
   actions: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 12 },
   card: {
-    ...ink,
-    ...cut,
-    ...lift,
+    ...outline,
+    ...round,
     backgroundColor: colors.canvas,
     borderColor: colors.violet,
     borderStyle: "dashed",
@@ -594,15 +593,13 @@ const local = StyleSheet.create({
     width: 380,
   },
   cardOff: { opacity: 0.6 },
-  cardSchedule: { color: colors.violet, fontFamily: fonts.hand, fontSize: 14, fontWeight: "700", letterSpacing: 0.6 },
+  cardSchedule: { color: colors.violet, fontFamily: fonts.sans, fontSize: 14, fontWeight: "700" },
   cardText: { flex: 1, gap: 2 },
   cardTitle: {
     color: colors.text,
-    fontFamily: fonts.hand,
+    fontFamily: fonts.sans,
     fontSize: 19,
     fontWeight: "700",
-    letterSpacing: 0.3,
-    textTransform: "uppercase",
   },
   cardTop: { alignItems: "center", flexDirection: "row", gap: 12 },
   content: { gap: 18, paddingHorizontal: 28, paddingVertical: 20 },
@@ -610,9 +607,8 @@ const local = StyleSheet.create({
   fact: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.lg },
   facts: { gap: 2 },
   form: {
-    ...ink,
-    ...cut,
-    ...lift,
+    ...outline,
+    ...round,
     alignSelf: "stretch",
     backgroundColor: colors.canvas,
     gap: 16,
@@ -620,7 +616,7 @@ const local = StyleSheet.create({
     padding: 22,
   },
   formHeading: { alignItems: "center", flexDirection: "row", gap: 10 },
-  formTitle: { color: colors.text, fontFamily: fonts.hand, fontSize: 24, fontWeight: "700", letterSpacing: 0.5 },
+  formTitle: { color: colors.text, fontFamily: fonts.sans, fontSize: 24, fontWeight: "700" },
   grid: { alignItems: "flex-start", flexDirection: "row", flexWrap: "wrap", gap: 18 },
   header: {
     alignItems: "flex-start",
@@ -631,29 +627,27 @@ const local = StyleSheet.create({
   },
   headerText: { flexShrink: 1, gap: 4 },
   heading: {
-    color: colors.onWood,
-    fontFamily: fonts.hand,
+    color: colors.onGround,
+    fontFamily: fonts.sans,
     fontSize: 40,
     fontWeight: "700",
-    letterSpacing: 2,
     lineHeight: 48,
     textShadowColor: "#000",
     textShadowOffset: { height: 2, width: 0 },
     textShadowRadius: 6,
-    textTransform: "uppercase",
   },
   instruction: { minHeight: 90, textAlignVertical: "top" },
   invalid: { borderColor: colors.danger },
-  page: { backgroundColor: colors.wood, flex: 1 },
+  page: { backgroundColor: colors.page, flex: 1 },
   part: { borderTopColor: colors.border, borderTopWidth: 1, gap: 8, paddingTop: 10 },
-  partName: { color: colors.textSecondary, fontFamily: fonts.hand, fontSize: 14, letterSpacing: 0.6 },
+  partName: { color: colors.textSecondary, fontFamily: fonts.sans, fontSize: 14 },
   remove: { color: colors.dangerText, fontFamily: fonts.sans, fontSize: fontSizes.md, fontWeight: "500" },
-  runButton: { ...ink, ...cut, backgroundColor: colors.gold, paddingHorizontal: 14, paddingVertical: 6 },
+  runButton: { ...outline, ...round, backgroundColor: colors.edge, paddingHorizontal: 14, paddingVertical: 6 },
   runButtonText: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.md, fontWeight: "700" },
   runNow: { alignItems: "flex-start", gap: 4 },
   seal: {
     alignItems: "center",
-    backgroundColor: colors.leather,
+    backgroundColor: colors.sidebar,
     borderRadius: 999,
     height: 48,
     justifyContent: "center",
@@ -662,7 +656,7 @@ const local = StyleSheet.create({
   sentence: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 10 },
   small: { textAlign: "center", width: 76 },
   subheading: {
-    color: colors.onWood,
+    color: colors.onGround,
     fontFamily: fonts.sans,
     fontSize: fontSizes.lg,
     fontStyle: "italic",

@@ -1,8 +1,8 @@
 import { existsSync, readdirSync, renameSync, statSync } from "node:fs";
 import { join } from "node:path";
 
-/** The names the app had before Gild (CHG-0061, CHG-0072), newest first: each named its user-data folder and database. */
-const formerNames = ["Canopy", "OpenMission"] as const;
+/** The names the app had before Iskios (CHG-0061, CHG-0072, CHG-0143), newest first: each named its user-data folder and database. */
+const formerNames = ["Gild", "Canopy", "OpenMission"] as const;
 
 /** Claude Code's folder name for a working folder's sessions: every character but letters and digits becomes `-`. */
 const claudeProjectNameOf = (folder: string) => folder.replace(/[^a-zA-Z0-9]/g, "-");
@@ -12,7 +12,7 @@ const renameDatabase = (folder: string, formerName: string) => {
   const formerDatabase = `${formerName.toLowerCase()}.sqlite`;
   for (const suffix of ["", "-wal", "-shm"]) {
     const former = join(folder, `${formerDatabase}${suffix}`);
-    if (existsSync(former)) renameSync(former, join(folder, `gild.sqlite${suffix}`));
+    if (existsSync(former)) renameSync(former, join(folder, `iskios.sqlite${suffix}`));
   }
 };
 
@@ -52,10 +52,10 @@ const renameClaudeSessions = (formerFolder: string, folder: string, claudeFolder
 
 /**
  * Moves an install's data from the newest former user-data folder into `folder` once, when it holds no
- * database yet, so missions, threads, accounts, and their harness sessions carry over to Gild.
+ * database yet, so missions, threads, accounts, and their harness sessions carry over to Iskios.
  */
 export const moveFormerData = (applicationData: string, folder: string, claudeFolder: string) => {
-  if (existsSync(join(folder, "gild.sqlite"))) return;
+  if (existsSync(join(folder, "iskios.sqlite"))) return;
   for (const formerName of formerNames) {
     const formerFolder = join(applicationData, formerName);
     if (!existsSync(formerFolder)) continue;

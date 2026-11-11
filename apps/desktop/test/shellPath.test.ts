@@ -5,13 +5,13 @@ const home = "/Users/owner";
 
 describe("pathFromShellOutput", () => {
   it("reads the path between the marks and ignores what the start-up files print around it", () => {
-    const output = "Welcome back\n__GILD_PATH_START__/usr/bin:/Users/owner/.local/bin\n__GILD_PATH_END__\nbye\n";
+    const output = "Welcome back\n__ISKIOS_PATH_START__/usr/bin:/Users/owner/.local/bin\n__ISKIOS_PATH_END__\nbye\n";
     expect(pathFromShellOutput(output)).toBe("/usr/bin:/Users/owner/.local/bin");
   });
 
   it("finds no path when the shell printed none", () => {
     expect(pathFromShellOutput("")).toBeNull();
-    expect(pathFromShellOutput("__GILD_PATH_START__\n__GILD_PATH_END__")).toBeNull();
+    expect(pathFromShellOutput("__ISKIOS_PATH_START__\n__ISKIOS_PATH_END__")).toBeNull();
   });
 });
 

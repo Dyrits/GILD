@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 import { Crest } from "./crest.ts";
-import { WorkspaceId } from "./ids.ts";
+import { FreeRealmId, WorkspaceId } from "./ids.ts";
 
 // Workspaces and the folder browser (workspace-attachment).
 
@@ -36,3 +36,11 @@ export const WorkspaceChoice = Schema.Struct({
   path: Schema.String,
 });
 export type WorkspaceChoice = typeof WorkspaceChoice.Type;
+
+/** A Free Realm: a name and a crest, and no folder. */
+export const FreeRealm = Schema.Struct({
+  crest: Schema.NullOr(Crest),
+  id: FreeRealmId,
+  name: Schema.String,
+});
+export type FreeRealm = typeof FreeRealm.Type;

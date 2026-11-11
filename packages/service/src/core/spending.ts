@@ -1,4 +1,4 @@
-import type { BudgetLimits, BudgetPeriod, Spending } from "@gild/contracts";
+import type { BudgetLimits, BudgetPeriod, Spending } from "@iskios/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { readSettings } from "./settings.ts";

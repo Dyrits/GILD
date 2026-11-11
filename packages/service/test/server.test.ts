@@ -2,7 +2,7 @@ import { mkdtempSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
-import { ServerFrameJson } from "@gild/contracts";
+import { ServerFrameJson } from "@iskios/contracts";
 import { Effect, Schema } from "effect";
 import { afterEach } from "vitest";
 import { fakeHarnessLayer, serveLoopback, serviceLayer } from "../src/index.ts";
@@ -19,10 +19,10 @@ const running = serveLoopback({ port: 0, token: TOKEN }).pipe(Effect.map(({ port
 
 /** A service over its own database, kept open for the whole test. */
 const fresh = () => {
-  const directory = mkdtempSync(join(tmpdir(), "gild-test-"));
+  const directory = mkdtempSync(join(tmpdir(), "iskios-test-"));
   directories.push(directory);
   return serviceLayer({
-    filename: join(directory, "gild.sqlite"),
+    filename: join(directory, "iskios.sqlite"),
     harness: fakeHarnessLayer("10 millis"),
     homeFolder: directory,
     scratchRoot: join(directory, "missions"),

@@ -12,10 +12,10 @@
     "ios": {
       "supportsTablet": true
     },
-    "name": "Gild",
+    "name": "Iskios",
     "orientation": "portrait",
     "plugins": ["expo-font"],
-    "slug": "gild",
+    "slug": "iskios",
     "splash": {
       "backgroundColor": "#000216",
       "image": "./assets/splash-icon.png",

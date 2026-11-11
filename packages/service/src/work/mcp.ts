@@ -1,5 +1,5 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import type { HarnessName } from "@gild/contracts";
+import type { HarnessName } from "@iskios/contracts";
 import { Effect, Exit, Layer, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { Endpoints } from "../core/index.ts";

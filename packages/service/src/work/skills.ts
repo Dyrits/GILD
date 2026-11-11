@@ -1,7 +1,7 @@
 import { existsSync, readdirSync, readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import { type Skill, skillTokensOf } from "@gild/contracts";
+import { type Skill, skillTokensOf } from "@iskios/contracts";
 import { Effect } from "effect";
 
 // The skills a message can name with a slash, found in the existing skill folders (tool-and-skill-loading).

@@ -1,4 +1,4 @@
-import type { EffortChoice, HarnessName, ModelChoice } from "@gild/contracts";
+import type { EffortChoice, HarnessName, ModelChoice } from "@iskios/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid } from "../core/index.ts";

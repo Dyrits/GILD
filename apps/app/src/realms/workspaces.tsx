@@ -1,29 +1,13 @@
-import type { Crest, MissionSummary, ThreadId, WorkspaceChoice } from "@gild/contracts";
+import type { MissionSummary, ThreadId, WorkspaceChoice } from "@iskios/contracts";
 import { type ReactNode, useState } from "react";
-import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, StyleSheet, Text, View } from "react-native";
 import { CrestBadge } from "../crest/crest";
-import { CrestStudio } from "../crest/crestStudio";
 import { messageOf, type ServiceClient } from "../foundation/client";
 import { samePath } from "../foundation/paths";
 import { styles } from "../foundation/styles";
-import { colors, fontSizes, fonts, ink, radii } from "../foundation/theme";
+import { colors, fontSizes, fonts, radii } from "../foundation/theme";
+import { chooseFolder, folderNameOf, type NewRealm, NewRealmModal } from "./newRealmModal";
 import { AddRealmCard, NoRealmButton, RealmCard } from "./realmCard";
-
-/** Opens the system's folder dialog through the desktop shell; null when cancelled. */
-const chooseFolder = () =>
-  window.gild === undefined
-    ? Promise.reject(new Error("Choosing a folder needs the desktop app."))
-    : window.gild.chooseFolder();
-
-/** A folder being imported as a realm: named and given a crest. */
-export type NewRealm = { crest: Crest | null; name: string; path: string };
-
-/** The folder's name, as the last part of its path. */
-export const folderNameOf = (path: string) =>
-  path
-    .split(/[\\/]/)
-    .filter((part) => part !== "")
-    .pop() ?? path;
 
 /**
  * Chooses a mission's realm before it starts: the realms that exist, each under its own crest, then no realm for the
@@ -53,7 +37,6 @@ export function RealmChooser({
   const [chooseError, setChooseError] = useState<string | null>(null);
   // The folder being named in the menu that opens when one is chosen; null while the menu is closed.
   const [editing, setEditing] = useState<NewRealm | null>(null);
-  const [isStudioOpen, setIsStudioOpen] = useState(false);
   const choose = () =>
     chooseFolder().then(
       (path) => {
@@ -120,69 +103,7 @@ export function RealmChooser({
           </>
         )}
       </View>
-      {editing !== null && (
-        <Modal animationType="fade" onRequestClose={() => setEditing(null)} transparent visible>
-          <View style={local.backdrop}>
-            <Pressable accessibilityLabel="Close" onPress={() => setEditing(null)} style={StyleSheet.absoluteFill} />
-            <View style={local.menu}>
-              <Text style={local.menuTitle}>A new realm</Text>
-              <Text numberOfLines={2} style={local.menuPath}>
-                {editing.path}
-              </Text>
-              <View style={local.namingRow}>
-                <CrestBadge crest={editing.crest} id={editing.path} size={72} />
-                <View style={local.menuFields}>
-                  <Text style={local.menuLabel}>Name</Text>
-                  <TextInput
-                    accessibilityLabel="Realm name"
-                    autoFocus
-                    maxLength={80}
-                    onChangeText={(name) => setEditing({ ...editing, name })}
-                    placeholder="Name the realm"
-                    placeholderTextColor={colors.placeholder}
-                    style={local.nameInput}
-                    value={editing.name}
-                  />
-                  <Pressable accessibilityRole="button" onPress={() => setIsStudioOpen(true)} style={local.menuButton}>
-                    <Text style={local.menuButtonText}>Customize the crest</Text>
-                  </Pressable>
-                </View>
-              </View>
-              <View style={local.menuFooter}>
-                <Pressable accessibilityRole="button" onPress={() => setEditing(null)} style={local.menuButton}>
-                  <Text style={local.menuButtonText}>Cancel</Text>
-                </Pressable>
-                <Pressable
-                  accessibilityRole="button"
-                  disabled={editing.name.trim() === ""}
-                  onPress={() =>
-                    onCreate({ ...editing, name: editing.name.trim() }).then(
-                      () => setEditing(null),
-                      (reason) => setChooseError(messageOf(reason)),
-                    )
-                  }
-                  style={[local.menuDone, editing.name.trim() === "" && local.menuDoneOff]}
-                >
-                  <Text style={local.menuDoneText}>Import the realm</Text>
-                </Pressable>
-              </View>
-            </View>
-          </View>
-          {isStudioOpen && (
-            <CrestStudio
-              id={editing.path}
-              initial={editing.crest}
-              name={editing.name.trim() || folderNameOf(editing.path)}
-              onCancel={() => setIsStudioOpen(false)}
-              onDone={(crest) => {
-                setEditing({ ...editing, crest });
-                setIsStudioOpen(false);
-                return Promise.resolve();
-              }}
-            />
-          )}
-        </Modal>
-      )}
+      {editing !== null && <NewRealmModal initial={editing} onCancel={() => setEditing(null)} onCreate={onCreate} />}
       {chooseError !== null && <Text style={styles.error}>{chooseError}</Text>}
     </View>
   );
@@ -249,17 +170,10 @@ export function MissingFolderNotice({
 }
 
 const local = StyleSheet.create({
-  backdrop: {
-    alignItems: "center",
-    backgroundColor: "rgba(20,10,6,0.6)",
-    flex: 1,
-    justifyContent: "center",
-    padding: 20,
-  },
   chip: {
     alignItems: "center",
-    backgroundColor: "rgba(248,237,210,0.08)",
-    borderColor: colors.gold,
+    backgroundColor: colors.control,
+    borderColor: colors.edge,
     borderRadius: radii.pill,
     borderWidth: 1,
     flexDirection: "row",
@@ -267,7 +181,7 @@ const local = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  // The large tiles have no outline: a tile is a dim card, and the chosen one is parchment.
+  // The large tiles have no outline: a tile is a quiet card, and the chosen one a lighter step.
   chipBig: {
     borderRadius: radii.xl,
     borderWidth: 0,
@@ -277,74 +191,17 @@ const local = StyleSheet.create({
     paddingVertical: 20,
     width: 176,
   },
-  chipHovered: { backgroundColor: "rgba(248,237,210,0.18)" },
-  chipNew: { color: colors.goldHi, fontFamily: fonts.sans, fontSize: fontSizes.sm, fontStyle: "italic" },
-  chipPlus: { color: colors.goldHi, fontFamily: fonts.sans, fontSize: 18, lineHeight: 20 },
+  chipHovered: { backgroundColor: colors.controlHover },
+  chipNew: { color: colors.highlight, fontFamily: fonts.sans, fontSize: fontSizes.sm, fontStyle: "italic" },
+  chipPlus: { color: colors.highlight, fontFamily: fonts.sans, fontSize: 18, lineHeight: 20 },
   chipPlusBig: { fontSize: 44, lineHeight: 56 },
-  chipSelected: { backgroundColor: "#efdcae", borderColor: colors.goldHi },
+  chipSelected: { backgroundColor: colors.controlActive, borderColor: colors.highlight },
   chips: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8 },
   chipsBig: { gap: 16, justifyContent: "center" },
-  chipText: { color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.base },
+  chipText: { color: colors.onGround, fontFamily: fonts.sans, fontSize: fontSizes.base },
   chipTextBig: { fontSize: fontSizes.lg, textAlign: "center" },
   chipTextSelected: { color: colors.text, fontWeight: "700" },
-  label: { color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.md, marginRight: 4, opacity: 0.8 },
-  menu: {
-    ...ink,
-    backgroundColor: colors.paper,
-    borderRadius: radii.xl,
-    gap: 12,
-    maxWidth: 480,
-    padding: 20,
-    width: "100%",
-  },
-  menuButton: {
-    ...ink,
-    alignSelf: "flex-start",
-    backgroundColor: colors.canvas,
-    borderRadius: radii.sm,
-    paddingHorizontal: 12,
-    paddingVertical: 7,
-  },
-  menuButtonText: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.base, fontWeight: "600" },
-  menuDone: { backgroundColor: colors.gold, borderRadius: radii.sm, paddingHorizontal: 18, paddingVertical: 8 },
-  menuDoneOff: { opacity: 0.4 },
-  menuDoneText: {
-    color: colors.text,
-    fontFamily: fonts.hand,
-    fontSize: fontSizes.base,
-    fontWeight: "700",
-    letterSpacing: 1,
-  },
-  menuFields: { flex: 1, gap: 8 },
-  menuFooter: { flexDirection: "row", gap: 10, justifyContent: "flex-end" },
-  menuLabel: {
-    color: colors.textMuted,
-    fontFamily: fonts.hand,
-    fontSize: 12,
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
-  },
-  menuPath: { color: colors.textMuted, fontFamily: fonts.mono, fontSize: fontSizes.sm },
-  menuTitle: {
-    color: colors.text,
-    fontFamily: fonts.hand,
-    fontSize: fontSizes.xl,
-    fontWeight: "700",
-    letterSpacing: 0.6,
-  },
-  nameInput: {
-    ...ink,
-    backgroundColor: colors.canvas,
-    borderRadius: radii.sm,
-    color: colors.text,
-    flex: 1,
-    fontFamily: fonts.sans,
-    fontSize: fontSizes.base,
-    minWidth: 160,
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-  },
-  namingRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 10 },
+  label: { color: colors.onGround, fontFamily: fonts.sans, fontSize: fontSizes.md, marginRight: 4, opacity: 0.8 },
   // The large cards: two to a row while they fit, one when they do not, the add card and the no-realm sign beneath.
   stack: { gap: 16, maxWidth: 820, width: "100%" },
   stackCards: { flexDirection: "row", flexWrap: "wrap", gap: 16 },

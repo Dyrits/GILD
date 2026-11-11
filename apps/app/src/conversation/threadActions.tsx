@@ -1,4 +1,4 @@
-import type { ChatterNotice, DeletionPreview, ThreadId } from "@gild/contracts";
+import type { ChatterNotice, DeletionPreview, ThreadId } from "@iskios/contracts";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { messageOf, type ServiceClient } from "../foundation/client";

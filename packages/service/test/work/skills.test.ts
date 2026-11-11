@@ -2,7 +2,7 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
-import { mentionTokensOf, skillTokensOf } from "@gild/contracts";
+import { mentionTokensOf, skillTokensOf } from "@iskios/contracts";
 import { Effect } from "effect";
 import { afterEach } from "vitest";
 import { listSkills, withSkillInstructions } from "../../src/work/skills.ts";
@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 const folderWith = (skills: Record<string, string>) => {
-  const root = mkdtempSync(join(tmpdir(), "gild-skills-"));
+  const root = mkdtempSync(join(tmpdir(), "iskios-skills-"));
   directories.push(root);
   for (const [path, text] of Object.entries(skills)) {
     mkdirSync(join(root, path, ".."), { recursive: true });

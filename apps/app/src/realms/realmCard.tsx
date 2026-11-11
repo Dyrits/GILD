@@ -1,9 +1,9 @@
-import type { MissionSummary, WorkspaceChoice } from "@gild/contracts";
+import type { MissionSummary, WorkspaceChoice } from "@iskios/contracts";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { CrestBadge } from "../crest/crest";
 import { threadCountOf } from "../foundation/labels";
-import { colors, cut, fontSizes, fonts, ink, lift } from "../foundation/theme";
+import { colors, fontSizes, fonts, outline, round } from "../foundation/theme";
 
 const hovered = (state: { pressed: boolean }) => state.pressed || (state as { hovered?: boolean }).hovered === true;
 
@@ -62,7 +62,7 @@ export function RealmCard({
  * and pressing it unchooses the chosen one.
  */
 export function NoRealmButton({ isSelected, onPress }: { isSelected: boolean; onPress: () => void }) {
-  const color = isSelected ? colors.text : colors.goldHi;
+  const color = isSelected ? colors.text : colors.highlight;
   return (
     <Pressable
       accessibilityLabel="No realm"
@@ -104,9 +104,8 @@ export function AddRealmCard({
 const local = StyleSheet.create({
   add: { opacity: 0.85 },
   card: {
-    ...ink,
-    ...cut,
-    ...lift,
+    ...outline,
+    ...round,
     alignItems: "center",
     backgroundColor: colors.canvas,
     flexDirection: "row",
@@ -115,22 +114,22 @@ const local = StyleSheet.create({
     padding: 16,
     width: 380,
   },
-  cardHovered: { borderColor: colors.goldHi, transform: [{ translateY: -2 }] },
-  cardSelected: { backgroundColor: "#efdcae", borderColor: colors.goldHi, borderWidth: 3 },
+  cardHovered: { borderColor: colors.highlight, transform: [{ translateY: -2 }] },
+  cardSelected: { backgroundColor: colors.controlActive, borderColor: colors.highlight, borderWidth: 3 },
   fluid: { flexBasis: 300, flexGrow: 1, minWidth: 0, width: "auto" },
   meta: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.md },
   none: {
     alignItems: "center",
-    borderColor: colors.gold,
+    borderColor: colors.edge,
     borderRadius: 999,
     borderWidth: 1.5,
     height: 56,
     justifyContent: "center",
     width: 56,
   },
-  noneOn: { backgroundColor: "#efdcae", borderColor: colors.goldHi, borderWidth: 3 },
+  noneOn: { backgroundColor: colors.controlActive, borderColor: colors.highlight, borderWidth: 3 },
   path: { color: colors.textMuted, fontFamily: fonts.mono, fontSize: fontSizes.xs },
-  plus: { color: colors.gold, fontFamily: fonts.sans, fontSize: 40, lineHeight: 48, textAlign: "center", width: 56 },
+  plus: { color: colors.edge, fontFamily: fonts.sans, fontSize: 40, lineHeight: 48, textAlign: "center", width: 56 },
   text: { flex: 1, gap: 2 },
-  title: { color: colors.text, fontFamily: fonts.hand, fontSize: fontSizes.lg, fontWeight: "700" },
+  title: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.lg, fontWeight: "700" },
 });

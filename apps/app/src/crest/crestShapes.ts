@@ -2,8 +2,8 @@
 // (github.com/pauljoda/Crest, MPL-2.0): a plate cut to a shape, a field with a second color where a division puts it,
 // a band across the field, an edge, a trim around the plate, and an emblem. Everything is drawn on a 100 by 100 grid.
 
-import type { Crest, CrestEmblem } from "@gild/contracts";
-import { crestChargeIds } from "@gild/contracts";
+import type { Crest, CrestEmblem } from "@iskios/contracts";
+import { crestChargeIds } from "@iskios/contracts";
 
 /** A box on the grid. */
 export type Box = { height: number; width: number; x: number; y: number };

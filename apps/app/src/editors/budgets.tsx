@@ -5,7 +5,7 @@ import {
   type BudgetStop,
   type BudgetUse,
   type MissionId,
-} from "@gild/contracts";
+} from "@iskios/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { messageOf, type ServiceClient } from "../foundation/client";
@@ -65,13 +65,13 @@ export function BudgetMeters({ use, onPress }: { use: BudgetUse; onPress?: () =>
 
 /** What each limit is called in the rail, and the color of its full bar: tokens are Mana, cost is Gold. */
 const reserveKinds = {
-  cost: { color: colors.goldHi, emblem: "gem", name: "Gold" },
-  tokens: { color: "#5b8fd6", emblem: "flask", name: "Mana" },
+  cost: { color: colors.warning, emblem: "gem", name: "Gold" },
+  tokens: { color: colors.accent, emblem: "flask", name: "Mana" },
 } as const satisfies Record<string, { color: string; emblem: EmblemName; name: string }>;
 
 /**
  * The rail's reserves: one row per set limit, its name and what is left above a bar that drains as the budget is
- * spent, turning orange from 80% spent and red when spent. Only what Gild counts is shown, not the harnesses' plans.
+ * spent, turning orange from 80% spent and red when spent. Only what Iskios counts is shown, not the harnesses' plans.
  */
 export function ReserveRows({ use }: { use: BudgetUse }) {
   return (
@@ -92,15 +92,15 @@ export function ReserveRows({ use }: { use: BudgetUse }) {
             <Emblem name={reserveKinds[unit].emblem} size={22} tint={reserveKinds[unit].color} />
             <View style={{ flex: 1, gap: 3 }}>
               <View style={{ flexDirection: "row", justifyContent: "space-between" }}>
-                <Text style={{ color: colors.onWood, fontFamily: fonts.sans, fontSize: 16 }}>
+                <Text style={{ color: colors.onGround, fontFamily: fonts.sans, fontSize: 16 }}>
                   {reserveKinds[unit].name}
                 </Text>
-                <Text style={{ color: "#d0ac78", fontFamily: fonts.sans, fontSize: 15 }}>{text}</Text>
+                <Text style={{ color: colors.onGround, fontFamily: fonts.sans, fontSize: 15 }}>{text}</Text>
               </View>
               <View
                 style={{
-                  backgroundColor: "#1f120c",
-                  borderColor: colors.gold,
+                  backgroundColor: colors.ground,
+                  borderColor: colors.edge,
                   borderRadius: radii.pill,
                   borderWidth: 1,
                   height: 10,
@@ -322,7 +322,7 @@ export function BudgetScreen({
     missionId !== null
       ? client.request({ _tag: "SetMissionBudget", limits, missionId })
       : settings === null
-        ? Promise.reject(new Error("The Charter is still loading."))
+        ? Promise.reject(new Error("The Workshop is still loading."))
         : client.request({ _tag: "UpdateSettings", settings: { ...settings, globalBudget: limits } });
   const savePeriod = (period: BudgetPeriod) =>
     settings === null

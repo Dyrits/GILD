@@ -1,4 +1,4 @@
-import type { AttachmentId, GuildmasterPlace, MissionId } from "@gild/contracts";
+import type { AttachmentId, GuildmasterPlace, MissionId } from "@iskios/contracts";
 import { useState } from "react";
 import { FlatList, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { imageRefusalOf } from "../attachments/attachmentRules";
@@ -310,15 +310,15 @@ const local = StyleSheet.create({
     maxWidth: 520,
     textAlign: "center",
   },
-  emptyTitle: { color: colors.onWood, fontFamily: fonts.hand, fontSize: fontSizes.lg, fontWeight: "700" },
+  emptyTitle: { color: colors.onGround, fontFamily: fonts.sans, fontSize: fontSizes.lg, fontWeight: "700" },
   handoff: { gap: 6 },
-  link: { color: colors.goldHi, fontFamily: fonts.sans, fontSize: fontSizes.md },
+  link: { color: colors.highlight, fontFamily: fonts.sans, fontSize: fontSizes.md },
   note: { alignItems: "center", flexDirection: "row", gap: 8 },
-  noteClear: { color: colors.goldHi, fontFamily: fonts.sans, fontSize: fontSizes.lg, paddingHorizontal: 4 },
-  noteName: { color: colors.goldHi, fontFamily: fonts.sans, fontWeight: "700" },
-  noteText: { color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.md },
-  page: { backgroundColor: colors.wood, flex: 1, gap: 8, paddingBottom: 18, paddingHorizontal: 28, paddingTop: 20 },
+  noteClear: { color: colors.highlight, fontFamily: fonts.sans, fontSize: fontSizes.lg, paddingHorizontal: 4 },
+  noteName: { color: colors.highlight, fontFamily: fonts.sans, fontWeight: "700" },
+  noteText: { color: colors.onGround, fontFamily: fonts.sans, fontSize: fontSizes.md },
+  page: { backgroundColor: colors.page, flex: 1, gap: 8, paddingBottom: 18, paddingHorizontal: 28, paddingTop: 20 },
   panel: { gap: 12, padding: 16 },
-  sub: { color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.md, opacity: 0.8 },
-  title: { color: colors.onWood, fontFamily: fonts.hand, fontSize: fontSizes.lg, fontWeight: "700" },
+  sub: { color: colors.onGround, fontFamily: fonts.sans, fontSize: fontSizes.md, opacity: 0.8 },
+  title: { color: colors.onGround, fontFamily: fonts.sans, fontSize: fontSizes.lg, fontWeight: "700" },
 });

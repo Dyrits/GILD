@@ -1,4 +1,4 @@
-import { EffortChoice, HarnessName, ModelChoice, RitualSchedule, TierName } from "@gild/contracts";
+import { EffortChoice, HarnessName, ModelChoice, RitualSchedule, TierName } from "@iskios/contracts";
 import { Effect, Exit, Schema } from "effect";
 import type { ToolAnswer } from "../core/index.ts";
 import { latestEntryCount, nothingToRecord } from "./journal.ts";
@@ -46,7 +46,7 @@ const scopeHelp =
 export const threadTools = {
   act_on_mission: definitionOf({
     description:
-      "Only the Guildmaster uses it, and only because the owner asked in their latest message: stop a quest's threads, mark it Done, archive it, or rename it. Pass the owner's exact words asking for it as quote; Gild checks them. When threads are still running, marking Done or archiving first answers with the question to put to the owner; when they agree in their next message, call again with the same arguments, the snapshot you were given, and their words as quote.",
+      "Only the Guildmaster uses it, and only because the owner asked in their latest message: stop a quest's threads, mark it Done, archive it, or rename it. Pass the owner's exact words asking for it as quote; Iskios checks them. When threads are still running, marking Done or archiving first answers with the question to put to the owner; when they agree in their next message, call again with the same arguments, the snapshot you were given, and their words as quote.",
     invalid: invalid("Invalid arguments: give mission, action (Stop, Done, Archive, or Rename), and quote."),
     isUnasked: true,
     schema: Schema.Struct({

@@ -4,7 +4,7 @@
 
 Agents work on files: a repository to fix, a folder of documents to sort.
 Each thread has to know which folder it works in, what intel, permissions, skills, and instructions go with that folder, and must not wander into folders the user never offered.
-Attaching each thread to one workspace from folders the user allowed or from a repository Gild clones gives every thread the right place and context, from the computer or the phone.
+Attaching each thread to one workspace from folders the user allowed or from a repository Iskios clones gives every thread the right place and context, from the computer or the phone.
 The owner can correct a wrong workspace by moving a whole quest when none of its threads is running.
 
 ## Agreed behavior
@@ -15,7 +15,7 @@ The owner can correct a wrong workspace by moving a whole quest when none of its
   A new thread copies its opener's workspace unless the opener chooses another or none (see [thread-tree](../thread-tree/specifications.md#opening-a-thread)).
   Moving the whole quest can change these attachments later as specified below.
 - On the desktop, **Choose folder…** opens the system's own folder dialog (Finder on macOS, Explorer on Windows), with its New Folder and hidden-file controls; any folder the user can open may be chosen (CHG-0035).
-- The phone browses the computer's folders in Gild's own browser, limited to the **browsable roots** in Settings. These start with the user's home folder; **Add root** adds others, for example `/Volumes/Drive/Code`. The browser has **New folder**. The browser, with **Show hidden**, and the roots are built and kept for phone browsing; the desktop does not show them.
+- The phone browses the computer's folders in Iskios's own browser, limited to the **browsable roots** in Settings. These start with the user's home folder; **Add root** adds others, for example `/Volumes/Drive/Code`. The browser has **New folder**. The browser, with **Show hidden**, and the roots are built and kept for phone browsing; the desktop does not show them.
 - A folder becomes a workspace the first time it is chosen; there is no separate setup. Workspaces are listed on the **Workspaces** page in Settings, where the user can rename them.
 - A thread works in the workspace chosen for it.
   A workspace inside another stays part of the outer folder for the outer workspace's threads, but its standing permissions apply only to threads attached to it.
@@ -24,7 +24,7 @@ The owner can correct a wrong workspace by moving a whole quest when none of its
 
 - Settings hold a **clone location**, `~/Code` by default. A repository given as a link is cloned there, into a folder named after the repository, and becomes a workspace.
 - When the user gives Control a repository link, for example "let's work on this repo: https://github.com/…", Control clones it and opens the mission in it.
-- A repository already cloned by Gild is reused as the same workspace, never cloned twice.
+- A repository already cloned by Iskios is reused as the same workspace, never cloned twice.
 - Cloning uses the git sign-in already set up on the computer. A clone that fails (no access, no network) is refused with git's reason shown in the thread.
 
 ### Threads choosing workspaces
@@ -33,7 +33,7 @@ The owner can correct a wrong workspace by moving a whole quest when none of its
 
 ### No workspace
 
-- A thread with no workspace runs in its mission's **scratch folder**, `~/.gild/missions/<mission>/`, shared by all the mission's threads with no workspace, never in the user's home folder.
+- A thread with no workspace runs in its mission's **scratch folder**, `~/.iskios/missions/<mission>/`, shared by all the mission's threads with no workspace, never in the user's home folder.
 - Archiving the mission keeps its scratch folder; deleting the mission deletes it.
 - Standing permissions for a thread with no workspace apply to its mission (see [action-approval](../action-approval/specifications.md#standing-permissions)).
 
@@ -45,15 +45,15 @@ The owner can correct a wrong workspace by moving a whole quest when none of its
 
 ### What a workspace gives its threads
 
-- Its instructions, from the folder's own `AGENTS.md` and `CLAUDE.md`, and its skills from `.agents`, `.claude`, and equivalent supported harness folders. Workspace MCP servers are configured in Gild. A harness that does not read the selected instructions itself gets them in its starting context. See [tool-and-skill-loading](../tool-and-skill-loading/specifications.md).
-- Its standing permissions (see [action-approval](../action-approval/specifications.md)), kept in Gild's own data, never written into the folder, so they survive a relocation or a new clone.
+- Its instructions, from the folder's own `AGENTS.md` and `CLAUDE.md`, and its skills from `.agents`, `.claude`, and equivalent supported harness folders. Workspace MCP servers are configured in Iskios. A harness that does not read the selected instructions itself gets them in its starting context. See [tool-and-skill-loading](../tool-and-skill-loading/specifications.md).
+- Its standing permissions (see [action-approval](../action-approval/specifications.md)), kept in Iskios's own data, never written into the folder, so they survive a relocation or a new clone.
 - Lore access follows [lore scopes](../scoped-intel/specifications.md#scopes), independently of the thread's working folder.
 - Editing inside it without asking; editing outside it asks.
 - Each thread's starting context names its workspace and path, or says it has none.
 
 ### Own copy
 
-- Opening a thread in a git workspace offers **Own copy**, off by default. The thread then works in its own git worktree at `~/.gild/worktrees/<workspace>/<thread>/`, on a new branch `mission/<mission-title>-<short id>` started from the workspace's current branch.
+- Opening a thread in a git workspace offers **Own copy**, off by default. The thread then works in its own git worktree at `~/.iskios/worktrees/<workspace>/<thread>/`, on a new branch `mission/<mission-title>-<short id>` started from the workspace's current branch.
 - Threads opened beneath it share its copy, unless they ask for their own.
 - When the thread is Done, it reports its branch, and the thread shows **Merge into `<branch>`**. Merging is one button. On conflicts, the thread first merges the workspace's branch into its own copy and resolves them there, then merges. A merge that still cannot happen, for example because the workspace has uncommitted changes, is refused with the reason.
 - Merging into the workspace's branch is local and asks no approval; pushing still does.
@@ -67,7 +67,7 @@ A started thread's workspace can change through a [whole-quest move](../mission-
 ### Missing folder
 
 - When a workspace's folder no longer exists, its threads and the Workspaces page say so.
-- A thread about to start a turn in a missing workspace goes to Attention with **Retry**, **Relocate** (choose the folder's new location), and, for a workspace Gild cloned, **Clone again**, which warns that changes never pushed are lost.
+- A thread about to start a turn in a missing workspace goes to Attention with **Retry**, **Relocate** (choose the folder's new location), and, for a workspace Iskios cloned, **Clone again**, which warns that changes never pushed are lost.
 - Relocating keeps the workspace's missions, intel, and standing permissions.
 
 ### Hiding and deleting a workspace
@@ -106,7 +106,7 @@ Threads use these thread tools in addition to `open_thread` and `open_mission`, 
 
 ## Requirements
 
-- [Local data](../../requirements.md): workspace settings and realm lore stay in Gild's data on the computer; browsing from the phone travels only over the encrypted connection.
+- [Local data](../../requirements.md): workspace settings and realm lore stay in Iskios's data on the computer; browsing from the phone travels only over the encrypted connection.
 - [Approval per action](../../requirements.md): a standing permission applies in its workspace, or in its mission with no workspace.
 
 ## Dependencies
@@ -123,7 +123,7 @@ Threads use these thread tools in addition to `open_thread` and `open_mission`, 
 
 - Changing only one existing thread's workspace independently of a whole-quest move, except relocating its workspace.
 - Several workspaces for one thread.
-- A `.gild` folder inside workspaces.
+- A `.iskios` folder inside workspaces.
 - Folders outside the browsable roots, when browsing from the phone or opened by a thread.
 - A terminal; possibly later as a developer option.
 

@@ -1,4 +1,4 @@
-import type { BudgetLimits, BudgetPeriod, HarnessName, Spending } from "@gild/contracts";
+import type { BudgetLimits, BudgetPeriod, HarnessName, Spending } from "@iskios/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import {
@@ -242,7 +242,7 @@ export const budgetLineOf = (missionId: string, account: AccountRef | null = nul
           );
     const accountName =
       accountParts.length === 0 || account === null ? "" : (yield* accountLabelOf(account)).split(" · ")[1];
-    return `Budget: ${mission}${globalParts.length === 0 ? "" : `; global: ${globalParts.join(", ")}`}${accountParts.length === 0 ? "" : `; account ${accountName}: ${accountParts.join(", ")}`}. At a limit, Gild stops the work under it and asks the owner.`;
+    return `Budget: ${mission}${globalParts.length === 0 ? "" : `; global: ${globalParts.join(", ")}`}${accountParts.length === 0 ? "" : `; account ${accountName}: ${accountParts.join(", ")}`}. At a limit, Iskios stops the work under it and asks the owner.`;
   });
 
 /** The words for an account budget's limits, for the account's row. */

@@ -1,4 +1,4 @@
-import { ThreadSummary } from "@gild/contracts";
+import { ThreadSummary } from "@iskios/contracts";
 import { Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { foldThreads } from "../../src/conversation/folding";

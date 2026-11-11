@@ -1,4 +1,4 @@
-import type { JournalEntry, JournalView, MissionId } from "@gild/contracts";
+import type { JournalEntry, JournalView, MissionId } from "@iskios/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { notFound, readSettings, tokensOf, touchMission } from "../core/index.ts";

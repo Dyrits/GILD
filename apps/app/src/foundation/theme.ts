@@ -1,76 +1,78 @@
-import type { MissionState, ThreadState } from "@gild/contracts";
+import type { MissionState, ThreadState } from "@iskios/contracts";
+import { Platform } from "react-native";
 
-/** The guild board palette: parchment, leather, gilt, and state colors. */
+/**
+ * The palette: one dark navy, flat surfaces told apart by a slightly lighter or darker step, thin borders, and a single
+ * blue accent. State colors are the only others.
+ */
 export const colors = {
-  accent: "#3a68b8",
-  accentSoft: "#dfe6f1",
-  accentText: "#295494",
-  border: "#c9b07a",
-  borderStrong: "#2b1d12",
-  canvas: "#f8edd2",
-  control: "#f8edd2",
-  controlActive: "#e2cf9f",
-  controlHover: "#e9d8ae",
-  danger: "#9e2a22",
-  dangerSoft: "#f6e0da",
-  dangerText: "#9c3424",
-  frame: "#e9d8ae",
-  gold: "#b8862b",
-  goldHi: "#e2b85a",
-  leather: "#3b1f1a",
-  /** The highlighter stroke behind Attention. */
-  marker: "#f0c7b4",
-  onAccent: "#f8edd2",
-  onWood: "#ead8b0",
+  accent: "#4f86e8",
+  accentSoft: "#1f3350",
+  accentText: "#8db3ff",
+  /** A hairline between surfaces. */
+  border: "#2a3a4f",
+  borderStrong: "#3b4e68",
+  /** A reply in a conversation: a step lighter than the page. */
+  bubble: "#1d2b3d",
+  /** The owner's message in a conversation: a step bluer than a reply. */
+  bubbleUser: "#24384f",
+  /** Fields, menus, and tips: the step above the page. */
+  canvas: "#1a2635",
+  control: "#1c2a3b",
+  controlActive: "#2b3d55",
+  controlHover: "#243449",
+  danger: "#e5604f",
+  dangerSoft: "#3a2224",
+  dangerText: "#f08b7d",
+  /** The outline of a control or card. */
+  edge: "#34465e",
+  frame: "#1c2a3b",
+  /** The window behind the sidebar and the page. */
+  ground: "#0f1722",
+  /** Headings and icons that stand out from the plain text. */
+  highlight: "#c3cddb",
+  /** The stroke behind Attention. */
+  marker: "#3d3524",
+  onAccent: "#ffffff",
+  /** Text and icons on the sidebar. */
+  onGround: "#aebbcc",
   /** The page behind panels and cards. */
-  paper: "#f1e3c2",
-  placeholder: "#887354",
-  success: "#4b7a3a",
-  successSoft: "#e2eee3",
-  successText: "#356846",
-  surface: "#ead9b1",
-  text: "#2b1d12",
-  textDim: "#887354",
-  textMuted: "#756047",
-  textSecondary: "#58442d",
-  violet: "#6a4a9c",
-  violetSoft: "#e9e5f4",
-  warning: "#b8862b",
-  warningSoft: "#fff8dc",
-  warningText: "#8a5a00",
-  wood: "#3a2819",
+  page: "#172230",
+  placeholder: "#66758a",
+  sidebar: "#111a26",
+  success: "#4fb872",
+  successSoft: "#1d3a2b",
+  successText: "#7fd49a",
+  surface: "#1c2a3b",
+  /** A terminal snapshot in a message. */
+  terminal: "#2a4562",
+  text: "#e8edf4",
+  textDim: "#66758a",
+  textMuted: "#8796ab",
+  textSecondary: "#b4c0d0",
+  violet: "#9a82e0",
+  violetSoft: "#2c2745",
+  warning: "#e0a537",
+  warningSoft: "#3a3220",
+  warningText: "#ecc063",
 } as const;
 
 /** Corner radii, from small controls to the main panel. */
-export const radii = { lg: 8, md: 4, pill: 999, sm: 3, xl: 10 } as const;
+export const radii = { lg: 8, md: 6, pill: 999, sm: 4, xl: 12 } as const;
 
-/** A hand-cut corner: four slightly different radii, so a box looks cut with scissors rather than drawn by a machine. */
-export const cut = {
-  borderBottomLeftRadius: 7,
-  borderBottomRightRadius: 4,
-  borderTopLeftRadius: 3,
-  borderTopRightRadius: 9,
-} as const;
+/** The rounded corner of boxes, cards, and buttons. */
+export const round = { borderRadius: radii.md } as const;
 
-/** A flat offset shadow, as a sheet of paper lying on another: no blur. */
-export const lift = {
-  shadowColor: colors.text,
-  shadowOffset: { height: 2, width: 2 },
-  shadowOpacity: 0.3,
-  shadowRadius: 4,
-} as const;
-
-/** The ink line around cards, fields, and buttons. */
-export const ink = { borderColor: colors.gold, borderWidth: 1.5 } as const;
+/** The thin line around cards, fields, and buttons. */
+export const outline = { borderColor: colors.edge, borderWidth: 1 } as const;
 
 /** Type sizes; the base is a desktop app's 14 points. */
 export const fontSizes = { base: 14, lg: 16, md: 13, sm: 12, title: 20, xl: 18, xs: 11 } as const;
 
-/** Bundled guild typefaces, available offline on every platform. */
+/** The system typeface on every platform. */
 export const fonts = {
-  hand: "Cinzel",
   mono: "ui-monospace, SFMono-Regular, Menlo, monospace",
-  sans: "Alegreya",
+  sans: Platform.OS === "web" ? 'system-ui, -apple-system, "Segoe UI", Roboto, sans-serif' : "System",
 } as const;
 
 /** Display names preserve the service's stable state values. */

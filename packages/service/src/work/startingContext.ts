@@ -1,5 +1,5 @@
 import { join } from "node:path";
-import type { HarnessName, ModelChoice, ModelOption, StartingContext } from "@gild/contracts";
+import type { HarnessName, ModelChoice, ModelOption, StartingContext } from "@iskios/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { notFound, readSettings, sandboxProblem, tokensOf } from "../core/index.ts";
@@ -230,7 +230,7 @@ export const startingContextRefusalOf = (context: StartingContext) =>
     : null;
 
 /**
- * The tokens of what Gild sends a thread each turn, by the parts of the context gauge (thread-panel): the
+ * The tokens of what Iskios sends a thread each turn, by the parts of the context gauge (thread-panel): the
  * instructions with the working folder, approval rules, and position; the lore; the journal; and the opener's
  * messages. Counted from the text, so they are estimates. Nothing is made on disk.
  */

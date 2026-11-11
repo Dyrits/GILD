@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import { Crest, type Workspace, type WorkspaceId } from "@gild/contracts";
+import { Crest, type FreeRealm, type FreeRealmId, type Workspace, type WorkspaceId } from "@iskios/contracts";
 import { Clock, Context, Effect, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, realFolderOf } from "../core/index.ts";
@@ -20,6 +20,27 @@ export const crestOfRow = (text: string | null): Crest | null => {
 /** Imports a folder as a realm with the given name and crest; an existing realm for the folder is left as it is. */
 export const createRealm = (path: string, name: string, crest: Crest | null) =>
   attachWorkspace(path, { crest, name }).pipe(Effect.as(null));
+
+/** Makes a Free Realm: a name and a crest, and no folder; refused for a blank name. */
+export const createFreeRealm = (name: string, crest: Crest | null) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const trimmed = name.trim();
+    if (trimmed === "") return yield* invalid("A realm needs a name.");
+    const now = yield* Clock.currentTimeMillis;
+    const text = crest === null ? null : JSON.stringify(Schema.encodeSync(Crest)(crest));
+    yield* sql`INSERT INTO free_realms (id, name, crest, created_at)
+      VALUES (${crypto.randomUUID()}, ${trimmed}, ${text}, ${now})`;
+    return null;
+  });
+
+/** Every Free Realm, by name. */
+export const listFreeRealms = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+  const rows = yield* sql<{ crest: string | null; id: string; name: string }>`
+    SELECT id, name, crest FROM free_realms ORDER BY name COLLATE NOCASE, created_at`;
+  return rows.map(({ crest, id, name }): FreeRealm => ({ crest: crestOfRow(crest), id: id as FreeRealmId, name }));
+});
 
 /** Renames a realm; refused for an unknown realm or a blank name. */
 export const renameRealm = (workspaceId: WorkspaceId, name: string) =>
@@ -45,7 +66,7 @@ export const setRealmCrest = (workspaceId: WorkspaceId, crest: Crest | null) =>
   });
 
 /** Where each mission's threads with no workspace run, one scratch folder per mission. */
-export class ScratchRoot extends Context.Service<ScratchRoot, string>()("gild/ScratchRoot") {}
+export class ScratchRoot extends Context.Service<ScratchRoot, string>()("iskios/ScratchRoot") {}
 
 /** The existing folder at the path, with links resolved; refused otherwise. */
 const requireFolder = (path: string) =>

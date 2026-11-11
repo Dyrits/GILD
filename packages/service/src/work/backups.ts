@@ -1,4 +1,4 @@
-import { BackupCompanion } from "@gild/contracts";
+import { BackupCompanion } from "@iskios/contracts";
 import { Effect, Exit, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, notFound } from "../core/index.ts";

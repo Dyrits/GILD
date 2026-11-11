@@ -53,7 +53,7 @@ import {
 } from "./rituals.ts";
 import { Skill } from "./skills.ts";
 import { WorkspaceEntry } from "./workspaceEntries.ts";
-import { Folder, FolderListing } from "./workspaces.ts";
+import { Folder, FolderListing, FreeRealm } from "./workspaces.ts";
 
 // Requests
 
@@ -290,6 +290,13 @@ export const CreateRealm = Schema.TaggedStruct("CreateRealm", {
   name: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(80)),
   path: Schema.String,
 });
+/** The owner makes a Free Realm: a name and a crest, and no folder. */
+export const CreateFreeRealm = Schema.TaggedStruct("CreateFreeRealm", {
+  crest: Schema.NullOr(Crest),
+  name: Schema.String.check(Schema.isMaxLength(80)),
+});
+/** Every Free Realm, by name. */
+export const ListFreeRealms = Schema.TaggedStruct("ListFreeRealms", {});
 /** The owner renames a realm; refused when the name is blank. */
 export const RenameRealm = Schema.TaggedStruct("RenameRealm", {
   name: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(80)),
@@ -385,7 +392,7 @@ const AccountLabel = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLeng
 /** Adds a provider account to a harness, with its own folder; it is signed out until the owner signs in. */
 export const AddAccount = Schema.TaggedStruct("AddAccount", { harness: HarnessName, label: AccountLabel });
 
-/** Renames a provider account added in Gild. */
+/** Renames a provider account added in Iskios. */
 export const RenameAccount = Schema.TaggedStruct("RenameAccount", { accountId: AccountId, label: AccountLabel });
 
 /** Updates a harness to its latest version through the harness's own update command, then lists the harnesses again. */
@@ -398,7 +405,7 @@ export const InstallHarness = Schema.TaggedStruct("InstallHarness", { harness: H
 export const RemoveAccount = Schema.TaggedStruct("RemoveAccount", { accountId: AccountId });
 
 /**
- * Opens the harness's own sign-in for an account in a terminal window on this computer; Gild never
+ * Opens the harness's own sign-in for an account in a terminal window on this computer; Iskios never
  * sees the credentials (requirements, Comply with provider terms). Null signs in the computer's own account.
  */
 export const SignInAccount = Schema.TaggedStruct("SignInAccount", {
@@ -455,6 +462,8 @@ export const Request = Schema.Union([
   ReadBudget,
   StopAtBudget,
   ListOpenQuestions,
+  CreateFreeRealm,
+  ListFreeRealms,
   StopThread,
   RetryThread,
   ChangeThreadRunner,
@@ -512,6 +521,7 @@ export const Results = {
   BrowseFolders: FolderListing,
   ChangeThreadRunner: Schema.Null,
   CreateFolder: Folder,
+  CreateFreeRealm: Schema.Null,
   CreateRealm: Schema.Null,
   CreateRitual: CreateRitualResult,
   DeleteIntel: Schema.Null,
@@ -523,6 +533,7 @@ export const Results = {
   EndMission: Schema.Null,
   InstallHarness: HarnessList,
   InterruptThread: Schema.Null,
+  ListFreeRealms: Schema.Array(FreeRealm),
   ListHarnesses: HarnessList,
   ListIntel: LoreView,
   ListMissions: MissionList,

@@ -1,4 +1,4 @@
-import type { AttachmentCard } from "@gild/contracts";
+import type { AttachmentCard } from "@iskios/contracts";
 import { useEffect, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import type { ServiceClient } from "../foundation/client";
@@ -106,7 +106,7 @@ const local = StyleSheet.create({
   image: { borderRadius: radii.md, height: thumbnail, width: thumbnail },
   remove: {
     alignItems: "center",
-    backgroundColor: colors.leather,
+    backgroundColor: colors.sidebar,
     borderRadius: radii.pill,
     height: 18,
     justifyContent: "center",
@@ -115,7 +115,7 @@ const local = StyleSheet.create({
     top: -5,
     width: 18,
   },
-  removeMark: { color: colors.onWood, fontFamily: fonts.sans, fontSize: 13, lineHeight: 16 },
+  removeMark: { color: colors.onGround, fontFamily: fonts.sans, fontSize: 13, lineHeight: 16 },
   sent: {
     backgroundColor: colors.surface,
     borderRadius: radii.md,

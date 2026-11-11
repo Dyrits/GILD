@@ -1,9 +1,9 @@
-import type { MissionDetail, MissionId, MissionSummary, WorkspaceChoice } from "@gild/contracts";
+import type { MissionDetail, MissionId, MissionSummary, WorkspaceChoice } from "@iskios/contracts";
 import { type ReactNode, useRef, useState } from "react";
-import { Image, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { CrestBadge } from "../crest/crest";
 import { BudgetMeters } from "../editors/budgets";
-import { boardOf, columnOf } from "../foundation/boardColumns";
+import { boardOf } from "../foundation/boardColumns";
 import type { ServiceClient } from "../foundation/client";
 import { timeOf, usageDetail } from "../foundation/formatting";
 import {
@@ -15,17 +15,11 @@ import {
   usedTextOf,
 } from "../foundation/labels";
 import { styles } from "../foundation/styles";
-import { colors, fontSizes, fonts, ink, radii, stateLabels, stateTones } from "../foundation/theme";
+import { colors, fontSizes, fonts, outline, radii, stateLabels, stateTones } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
 import { RitualControls } from "../rituals/rituals";
-import { ParchmentFrame } from "../ui/parchment";
 import { RowChevron, RowIcon, type RowIconName } from "../ui/rowIcons";
 import { MissionEndingActions, MissionTitle } from "./missionActions";
-
-const bookmarkByColumn = { Attention: "red", Done: "green", Idle: "violet", Running: "blue" } as const;
-
-/** The bookmark cloth of a state: the color of its column's banner. */
-const bookmarkOf = (state: MissionDetail["mission"]["state"]) => bookmarkByColumn[columnOf(state)];
 
 /** A labelled group of rows in a rounded card, as in the quest's side panel; the rows are set apart by thin rules. */
 export function Group({ children, label }: { children: ReactNode; label: string }) {
@@ -97,7 +91,7 @@ export type ThreadSections = {
 };
 
 /**
- * The quest's side panel shows parchment with a bookmark, the quest's emblem and name (press to rename), how it stands, and the open thread's Companions, Knows, and Does groups.
+ * The quest's side panel shows the quest's emblem and name (press to rename), how it stands, and the open thread's Companions, Knows, and Does groups.
  * It leaves the thread's own conversation alone.
  */
 export function QuestSidebar({
@@ -199,7 +193,6 @@ export function QuestSidebar({
           )}
         </View>
       </ScrollView>
-      <ParchmentFrame bookmark={bookmarkOf(mission.state)} hasFrame={false} />
     </View>
   );
 }
@@ -233,18 +226,6 @@ export function QuestPreview({
       onOpenBudget={onOpenBudget}
       onOpenJournal={onOpenJournal}
       onOpenQuest={onOpenQuest}
-    />
-  );
-}
-
-/** The compass the council panel shows while no quest is chosen: the owner's painting, its background cut away. */
-function Compass() {
-  return (
-    <Image
-      accessibilityLabel="A compass"
-      resizeMode="contain"
-      source={require("../../assets/compass.png")}
-      style={local.compass}
     />
   );
 }
@@ -317,44 +298,6 @@ function QuestLedger({
           ),
       )}
     </>
-  );
-}
-
-/**
- * What the board's side panel shows while no quest is chosen: a compass and an invitation to choose one, the ledger of
- * how many quests stand in each column, and what needs the owner and what is underway, each a press away from its panel.
- */
-export function QuestOverview({
-  missions,
-  onSelect,
-  realm,
-}: {
-  missions: ReadonlyArray<MissionSummary>;
-  onSelect: (id: MissionId) => void;
-  /** The realm whose quests the board shows, or null for every realm. */
-  realm: string | null;
-}) {
-  return (
-    <View style={local.panel}>
-      <ScrollView contentContainerStyle={local.content} style={styles.flex}>
-        <View style={local.hero}>
-          <Text style={local.kicker}>The Guild Hall</Text>
-          <Text style={local.heroName}>The Council Awaits</Text>
-          <Text style={local.meta}>{realm === null ? "All realms" : `The realm of ${realm}`}</Text>
-        </View>
-        <View style={local.overviewRule} />
-        <View style={local.invitation}>
-          <Compass />
-          <Text style={local.invitationTitle}>No quest before the council</Text>
-          <Text style={local.invitationText}>
-            Choose a quest from the board to see how it stands, what it has learned, and what it spends.
-          </Text>
-        </View>
-        <View style={local.overviewRule} />
-        <QuestLedger missions={missions} onSelect={onSelect} />
-        <Text style={local.quote}>“Every great tale begins with a quest.”</Text>
-      </ScrollView>
-    </View>
   );
 }
 
@@ -467,7 +410,7 @@ export function RealmPanel({
 
 const local = StyleSheet.create({
   card: {
-    backgroundColor: "rgba(255,250,236,0.85)",
+    backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,
@@ -475,7 +418,6 @@ const local = StyleSheet.create({
   },
   // Each row draws a rule above it; the first row's is pushed out of the clipped card.
   cardRows: { marginTop: -1 },
-  compass: { height: 150, width: 150 },
   content: { gap: 18, paddingHorizontal: 28, paddingVertical: 26 },
   does: { borderTopColor: colors.border, borderTopWidth: 1, padding: 12 },
   group: { gap: 6 },
@@ -483,44 +425,24 @@ const local = StyleSheet.create({
   hero: { gap: 10 },
   heroName: {
     color: colors.text,
-    fontFamily: fonts.hand,
+    fontFamily: fonts.sans,
     fontSize: 22,
     fontWeight: "700",
-    letterSpacing: 0.4,
     lineHeight: 27,
-    textTransform: "uppercase",
   },
   heroRow: { alignItems: "center", flexDirection: "row", gap: 12, paddingRight: 34 },
-  invitation: { alignItems: "center", gap: 8, paddingVertical: 8 },
-  invitationText: {
-    color: colors.textMuted,
-    fontFamily: fonts.sans,
-    fontSize: fontSizes.base,
-    lineHeight: 20,
-    textAlign: "center",
-  },
-  invitationTitle: {
-    color: colors.text,
-    fontFamily: fonts.hand,
-    fontSize: fontSizes.lg,
-    fontWeight: "700",
-    letterSpacing: 0.4,
-    marginTop: 6,
-  },
   kicker: {
-    color: colors.gold,
-    fontFamily: fonts.hand,
+    color: colors.edge,
+    fontFamily: fonts.sans,
     fontSize: 12,
     fontWeight: "700",
-    letterSpacing: 2,
-    textTransform: "uppercase",
   },
   ledger: { flexDirection: "row", gap: 8 },
-  ledgerCount: { fontFamily: fonts.hand, fontSize: 24, fontWeight: "700" },
+  ledgerCount: { fontFamily: fonts.sans, fontSize: 24, fontWeight: "700" },
   ledgerLabel: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.sm },
   ledgerTile: {
     alignItems: "center",
-    backgroundColor: "rgba(214,183,132,0.4)",
+    backgroundColor: colors.control,
     borderRadius: radii.md,
     flex: 1,
     gap: 2,
@@ -531,8 +453,8 @@ const local = StyleSheet.create({
   // The field may not outgrow the panel: a web input is as wide as its text unless told otherwise.
   nameField: { flex: 1, minWidth: 0 },
   nameInput: {
-    backgroundColor: "rgba(255,248,229,0.7)",
-    borderColor: colors.gold,
+    backgroundColor: colors.canvas,
+    borderColor: colors.edge,
     borderRadius: radii.sm,
     borderWidth: 1.5,
     fontSize: 18,
@@ -542,37 +464,26 @@ const local = StyleSheet.create({
     width: "100%",
   },
   open: {
-    ...ink,
+    ...outline,
     alignItems: "center",
-    backgroundColor: colors.gold,
+    backgroundColor: colors.edge,
     borderRadius: radii.sm,
     paddingVertical: 10,
   },
-  openPressed: { backgroundColor: colors.goldHi },
+  openPressed: { backgroundColor: colors.highlight },
   openText: {
     color: colors.text,
-    fontFamily: fonts.hand,
+    fontFamily: fonts.sans,
     fontSize: fontSizes.md,
     fontWeight: "700",
-    letterSpacing: 1.2,
-    textTransform: "uppercase",
   },
   overviewDot: { borderRadius: radii.pill, height: 8, width: 8 },
   overviewMore: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.sm, padding: 10 },
   overviewRow: { alignItems: "center", flexDirection: "row", gap: 8, minHeight: 38, paddingHorizontal: 12 },
   overviewRowMeta: { color: colors.textMuted, flexShrink: 1, fontFamily: fonts.sans, fontSize: fontSizes.sm },
   overviewRowText: { color: colors.text, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.md },
-  overviewRule: { backgroundColor: colors.border, height: 1 },
-  panel: { backgroundColor: colors.paper, flex: 1 },
+  panel: { backgroundColor: colors.page, flex: 1 },
   pressed: { backgroundColor: colors.controlActive },
-  quote: {
-    color: colors.textMuted,
-    fontFamily: fonts.sans,
-    fontSize: fontSizes.base,
-    fontStyle: "italic",
-    paddingBottom: 6,
-    textAlign: "center",
-  },
   row: {
     alignItems: "center",
     borderTopColor: colors.border,

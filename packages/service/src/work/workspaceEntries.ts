@@ -1,7 +1,7 @@
 import { execFileSync } from "node:child_process";
 import { readdirSync } from "node:fs";
 import { join } from "node:path";
-import type { WorkspaceEntry } from "@gild/contracts";
+import type { WorkspaceEntry } from "@iskios/contracts";
 import { Effect } from "effect";
 import { invalid, realFolderOf } from "../core/index.ts";
 

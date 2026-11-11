@@ -1,6 +1,6 @@
-import type { HarnessName, ModelOption } from "@gild/contracts";
+import type { HarnessName, ModelOption } from "@iskios/contracts";
 
-// What Gild knows of each harness without running it (provider-accounts). The registry (harnesses.ts)
+// What Iskios knows of each harness without running it (provider-accounts). The registry (harnesses.ts)
 // adds how each one runs; these facts stay apart so the modules a harness's adapter needs can read them.
 
 /**
@@ -14,10 +14,10 @@ export const claudeModels: ReadonlyArray<ModelOption> = [
   { id: "claude-haiku-5-5", label: "Haiku 5.5" },
 ];
 
-/** The cheapest model Gild knows for Claude Code, where the Guildmaster, which only routes, starts. */
+/** The cheapest model Iskios knows for Claude Code, where the Guildmaster, which only routes, starts. */
 export const claudeCheapestModel = "claude-haiku-5-5";
 
-/** What Gild knows of one harness without running it. */
+/** What Iskios knows of one harness without running it. */
 export interface HarnessFacts {
   /** What a command approved through `request_approval` needs on this harness, appended to that rule. */
   readonly approvedCommandAdvice: string;
@@ -86,5 +86,5 @@ export const harnessNames: ReadonlyArray<HarnessName> = ["claude", "codex", "ope
 export const accountEnvironmentOf = (harness: HarnessName, configDirectory: string | null): Record<string, string> =>
   configDirectory === null ? {} : { [harnessFacts[harness].configVariable]: configDirectory };
 
-/** The label of a harness's own sign-in on this computer, outside Gild. */
+/** The label of a harness's own sign-in on this computer, outside Iskios. */
 export const ownAccountLabel = "This computer";

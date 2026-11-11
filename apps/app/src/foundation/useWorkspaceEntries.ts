@@ -1,4 +1,4 @@
-import type { WorkspaceEntry } from "@gild/contracts";
+import type { WorkspaceEntry } from "@iskios/contracts";
 import { useEffect, useState } from "react";
 import type { ServiceClient } from "./client";
 

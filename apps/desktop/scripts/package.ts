@@ -1,4 +1,4 @@
-// Builds the installed app and its host-platform installer in apps/desktop/release without starting or stopping Gild.
+// Builds the installed app and its host-platform installer in apps/desktop/release without starting or stopping Iskios.
 import { spawnSync } from "node:child_process";
 import { rmSync } from "node:fs";
 import { join } from "node:path";

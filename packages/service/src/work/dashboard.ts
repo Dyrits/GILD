@@ -1,4 +1,4 @@
-import type { MissionList, MissionState, WorkspaceId } from "@gild/contracts";
+import type { MissionList, MissionState, WorkspaceId } from "@iskios/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { listViewSummaries } from "./missions.ts";

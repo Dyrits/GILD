@@ -7,7 +7,7 @@ import {
   type ServerFrame,
   ServerFrameJson,
   type ThreadId,
-} from "@gild/contracts";
+} from "@iskios/contracts";
 import { Effect, Exit, PubSub, Schema } from "effect";
 import { WebSocket, WebSocketServer } from "ws";
 import { Changes } from "./core/index.ts";

@@ -1,4 +1,4 @@
-import type { EndingPreview, MissionEnding, MissionPrompt } from "@gild/contracts";
+import type { EndingPreview, MissionEnding, MissionPrompt } from "@iskios/contracts";
 import { Clock, Effect, Layer, Schedule } from "effect";
 import { SqlClient } from "effect/sql";
 import { dayMillis, invalid, notFound, readSettings, ServiceFailure } from "../core/index.ts";

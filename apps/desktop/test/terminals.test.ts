@@ -7,7 +7,7 @@ import { Terminals, unpackedPathOf } from "../src/terminals.ts";
 const folders: string[] = [];
 const managers: Terminals[] = [];
 const folder = () => {
-  const path = mkdtempSync(join(tmpdir(), "gild-terminal-"));
+  const path = mkdtempSync(join(tmpdir(), "iskios-terminal-"));
   folders.push(path);
   return path;
 };
@@ -30,10 +30,10 @@ describe("using interactive terminals", () => {
     const home = folder();
     const terminals = manager(home);
     terminals.open("quest", null);
-    terminals.write("quest", "printf 'ROOT=%s\\n' \"$PWD\"; export GILD_TERMINAL_TEST=kept\r");
+    terminals.write("quest", "printf 'ROOT=%s\\n' \"$PWD\"; export ISKIOS_TERMINAL_TEST=kept\r");
     await expect.poll(() => terminals.open("quest", null).output).toContain(`ROOT=${home}`);
     terminals.open("quest", null);
-    terminals.write("quest", "printf 'STATE=%s\\n' \"$GILD_TERMINAL_TEST\"\r");
+    terminals.write("quest", "printf 'STATE=%s\\n' \"$ISKIOS_TERMINAL_TEST\"\r");
     await expect.poll(() => terminals.open("quest", null).output).toContain("STATE=kept");
   });
 
@@ -62,7 +62,7 @@ describe("using interactive terminals", () => {
 
   it("rejects invalid sizes and missing realm folders with an actionable error", () => {
     const terminals = manager(folder());
-    expect(() => terminals.open("quest", "/no-such-gild-terminal-folder")).toThrow();
+    expect(() => terminals.open("quest", "/no-such-iskios-terminal-folder")).toThrow();
     terminals.open("quest", null);
     expect(() => terminals.resize("quest", -1, 24)).toThrow();
   });
@@ -70,8 +70,8 @@ describe("using interactive terminals", () => {
 
 describe("unpackedPathOf", () => {
   it("points a path inside the packaged archive at its unpacked copy on disk", () => {
-    expect(unpackedPathOf("/Applications/Gild.app/Contents/Resources/app.asar/node_modules/node-pty")).toBe(
-      "/Applications/Gild.app/Contents/Resources/app.asar.unpacked/node_modules/node-pty",
+    expect(unpackedPathOf("/Applications/Iskios.app/Contents/Resources/app.asar/node_modules/node-pty")).toBe(
+      "/Applications/Iskios.app/Contents/Resources/app.asar.unpacked/node_modules/node-pty",
     );
   });
 

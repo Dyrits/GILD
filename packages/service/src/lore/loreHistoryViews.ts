@@ -1,4 +1,10 @@
-import type { DeletedLoreEntry, LoreEntryId, LoreHistory, LoreHistoryEntry, LoreHistoryEntryId } from "@gild/contracts";
+import type {
+  DeletedLoreEntry,
+  LoreEntryId,
+  LoreHistory,
+  LoreHistoryEntry,
+  LoreHistoryEntryId,
+} from "@iskios/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { notFound } from "../core/index.ts";

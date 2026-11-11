@@ -1,6 +1,6 @@
-# The installed Gild, built for the host platform by `bun run package` (see ADR 0013).
-appId: app.gild.desktop
-productName: Gild
+# The installed Iskios, built for the host platform by `bun run package` (see ADR 0013).
+appId: app.iskios.desktop
+productName: Iskios
 artifactName: "${productName}-${version}-${os}-${arch}.${ext}"
 # Reuses the Electron the repository already installed, so packaging downloads no second copy.
 electronDist: node_modules/electron/dist
@@ -26,7 +26,7 @@ mac:
   target:
     - dmg
 dmg:
-  title: Gild
+  title: Iskios
 win:
   icon: assets/icon.png
   target:

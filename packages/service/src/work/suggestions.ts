@@ -1,4 +1,4 @@
-import type { Suggestion, SuggestionAnswer, SuggestionOutcome } from "@gild/contracts";
+import type { Suggestion, SuggestionAnswer, SuggestionOutcome } from "@iskios/contracts";
 import { Clock, Context, Effect, Layer, Match } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
 import { Changes, invalid, notFound, readSettings, type ServiceFailure } from "../core/index.ts";
@@ -56,7 +56,7 @@ export class Suggestions extends Context.Service<
     ) => Effect.Effect<WithFollowUps<Suggested>>;
     readonly withdraw: (threadId: string) => Effect.Effect<void>;
   }
->()("gild/Suggestions") {}
+>()("iskios/Suggestions") {}
 
 /** Owns off-topic suggestions; a restart withdraws those left open. */
 export const suggestionsLayer = Layer.effect(

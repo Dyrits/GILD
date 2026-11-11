@@ -112,7 +112,7 @@ export const Settings = Schema.Struct({
   intelWarningPercent: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1), Schema.isLessThanOrEqualTo(100)),
   /** Whether Done missions are archived automatically, off by default (mission-tracking, Ending a mission). */
   shouldAutoArchive: Schema.Boolean,
-  /** Whether Gild reads the public model price table; off leaves the snapshot shipped with it (budget-control, The price table). */
+  /** Whether Iskios reads the public model price table; off leaves the snapshot shipped with it (budget-control, The price table). */
   shouldFetchPrices: Schema.Boolean,
   /** Whether an off-topic request opens a new mission without asking when no mission matches (thread-tree). */
   shouldOpenOffTopicMissions: Schema.Boolean,

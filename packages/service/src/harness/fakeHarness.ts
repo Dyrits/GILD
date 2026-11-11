@@ -1,4 +1,4 @@
-import type { BillingKind, TokenUsage } from "@gild/contracts";
+import type { BillingKind, TokenUsage } from "@iskios/contracts";
 import { Deferred, type Duration, Effect, Layer } from "effect";
 import { fieldOf, Harness, HarnessFailure, type ImageAttachment, type TurnRequest } from "../core/index.ts";
 

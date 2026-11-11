@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
-import type { MissionEnding, MissionId, MissionList, Settings } from "@gild/contracts";
+import type { MissionEnding, MissionId, MissionList, Settings } from "@iskios/contracts";
 import { Effect, PubSub } from "effect";
 import { TestClock } from "effect/testing";
 import { afterEach } from "vitest";

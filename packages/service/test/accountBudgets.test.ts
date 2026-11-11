@@ -6,7 +6,7 @@ import {
   type BudgetLimits,
   type MissionDetail,
   type MissionId,
-} from "@gild/contracts";
+} from "@iskios/contracts";
 import { Effect, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { afterEach } from "vitest";

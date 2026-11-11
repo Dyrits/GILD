@@ -4,7 +4,7 @@ Status: built in batch 18 (CHG-0059) by an agent under the owner's instruction o
 
 ## Problem and outcome
 
-The owner works with several harnesses and, for some, several subscriptions: two Claude accounts, a ChatGPT plan for Codex, providers behind OpenCode. Each thread must run on the harness and account chosen for it, with its own sign-in and conversations, so Gild can build Gild with whichever harness and account fits each part of the work.
+The owner works with several harnesses and, for some, several subscriptions: two Claude accounts, a ChatGPT plan for Codex, providers behind OpenCode. Each thread must run on the harness and account chosen for it, with its own sign-in and conversations, so Iskios can build Iskios with whichever harness and account fits each part of the work.
 
 ## Agreed behavior
 
@@ -18,9 +18,9 @@ The owner works with several harnesses and, for some, several subscriptions: two
 
 ### Accounts
 
-- Every harness has the **computer's own sign-in** ("This computer"): what the harness uses outside Gild.
+- Every harness has the **computer's own sign-in** ("This computer"): what the harness uses outside Iskios.
 - The owner adds more accounts in Settings, **Harnesses and accounts**, by name (for example "Work"). Each added account has its own folder, where the harness keeps that account's sign-in and conversations: `CLAUDE_CONFIG_DIR` for Claude Code, `CODEX_HOME` for Codex, `XDG_DATA_HOME` for OpenCode.
-- **Sign in** opens the harness's own sign-in (`claude auth login`, `codex login`, `opencode auth login`) in a Terminal window, pointed at the account's folder. Gild never sees, reads, or stores the credentials (requirements, Comply with provider terms). **Refresh** reads each account's state again.
+- **Sign in** opens the harness's own sign-in (`claude auth login`, `codex login`, `opencode auth login`) in a Terminal window, pointed at the account's folder. Iskios never sees, reads, or stores the credentials (requirements, Comply with provider terms). **Refresh** reads each account's state again.
 - The Charter's Harnesses card offers **Update** beside a harness whose newest release (the `latest` tag of its npm package: `@anthropic-ai/claude-code`, `@openai/codex`, `opencode-ai`) is higher than the installed version, saying "Ready · 2.1.322 is available". Update runs the harness's own command (`claude update`, `codex update`, `opencode upgrade`), which updates it the way it was installed, then lists the harnesses again; a failure shows its last lines. A newest release that cannot be read (offline) offers nothing; one lower than the installed version is ignored. Threads already running keep the version they started on until they restart.
 - Settings shows each account's state as the harness's own status command reports it: Signed in (with who, such as an email and plan), Signed out, or unknown.
 - An account's row also carries its **account budget** and **credits**, and a subscription's **plan limits** where its harness reports them, agreed in [budget-control](../budget-control/specifications.md#account-budgets-and-credits) (CHG-0126). Each turn records the **billing kind** of the sign-in it ran with.
@@ -31,8 +31,8 @@ The owner works with several harnesses and, for some, several subscriptions: two
 ### Approvals on every harness
 
 - The approval level applies to every harness (action-approval). Claude Code keeps its own sandbox (CHG-0031).
-- **Codex** runs in its workspace-write sandbox. At **Risky actions only** it asks only to leave the sandbox, and Gild answers that as a Claude Code prompt: unasked unless sensitive. At **Also commands and edits** every command Codex does not trust asks.
-- **OpenCode** has no sandbox here: every shell command asks Gild, which runs it unasked unless it is sensitive. Edits ask only at **Also commands and edits**.
+- **Codex** runs in its workspace-write sandbox. At **Risky actions only** it asks only to leave the sandbox, and Iskios answers that as a Claude Code prompt: unasked unless sensitive. At **Also commands and edits** every command Codex does not trust asks.
+- **OpenCode** has no sandbox here: every shell command asks Iskios, which runs it unasked unless it is sensitive. Edits ask only at **Also commands and edits**.
 - Native subagents stay off on every harness; threads open threads with `open_thread` (ADR 0007).
 
 ### Steering
@@ -50,4 +50,4 @@ The owner works with several harnesses and, for some, several subscriptions: two
 
 - Choosing an account for Control, routines, and workflows when those are built.
 - Whether removing an account should also remove the Claude Code sign-in kept in the system keychain.
-- Whether the owner's own Codex and OpenCode settings (their MCP servers, skills, and agents) should load in Gild's threads, as they do now, or be switched off as they are for Claude Code.
+- Whether the owner's own Codex and OpenCode settings (their MCP servers, skills, and agents) should load in Iskios's threads, as they do now, or be switched off as they are for Claude Code.

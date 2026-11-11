@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
-import type { HarnessName } from "@gild/contracts";
+import type { HarnessName } from "@iskios/contracts";
 import { Effect } from "effect";
 import { installHarnessPackage } from "../../src/harness/harnessInstallation.ts";
 import type { runHarnessCommand } from "../../src/harness/lineProcess.ts";

@@ -1,4 +1,4 @@
-import type { BackupCompanion, HarnessList } from "@gild/contracts";
+import type { BackupCompanion, HarnessList } from "@iskios/contracts";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { styles } from "../foundation/styles";
 import { colors, fontSizes, fonts, radii } from "../foundation/theme";
@@ -103,7 +103,7 @@ export function BackupsEditor({
 const local = StyleSheet.create({
   add: { color: colors.accentText, fontFamily: fonts.sans, fontSize: fontSizes.md, fontWeight: "500" },
   card: {
-    backgroundColor: "rgba(255,250,236,0.85)",
+    backgroundColor: colors.surface,
     borderColor: colors.border,
     borderRadius: radii.md,
     borderWidth: 1,

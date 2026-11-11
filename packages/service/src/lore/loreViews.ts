@@ -1,4 +1,4 @@
-import type { LoreChange, LoreScope, LoreStateFilter, LoreView } from "@gild/contracts";
+import type { LoreChange, LoreScope, LoreStateFilter, LoreView } from "@iskios/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { wordsOf } from "../core/index.ts";

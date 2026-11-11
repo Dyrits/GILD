@@ -14,7 +14,7 @@ export function useTerminal(id: string, cwd: string | null) {
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const panel = useRef<TerminalPanelHandle>(null);
-  const isAvailable = typeof window !== "undefined" && window.gild !== undefined;
+  const isAvailable = typeof window !== "undefined" && window.iskios !== undefined;
   const sessionId = `${id}:${cwd ?? "home"}`;
   const open = () => {
     setHasTerminal(true);
@@ -22,7 +22,7 @@ export function useTerminal(id: string, cwd: string | null) {
     requestAnimationFrame(() => panel.current?.focus());
   };
   const close = () => {
-    void window.gild
+    void window.iskios
       ?.terminalClose(sessionId)
       .then(() => {
         setHasTerminal(false);

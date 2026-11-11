@@ -1,4 +1,4 @@
-import type { JournalView, MissionId } from "@gild/contracts";
+import type { JournalView, MissionId } from "@iskios/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, TextInput, View } from "react-native";
 import { messageOf, newRequestId, type ServiceClient } from "../foundation/client";

@@ -3,7 +3,7 @@
 ## Problem and outcome
 
 A user who is new to agents does not know which harness, model, or quest fits a request, and loses track of what is running.
-In the Guild Hall, the user talks with Guildmaster to find information, manage Gild, and coordinate quests.
+In the Guild Hall, the user talks with Guildmaster to find information, manage Iskios, and coordinate quests.
 
 ## Agreed behavior
 
@@ -23,7 +23,7 @@ In the Guild Hall, the user talks with Guildmaster to find information, manage G
 
 ### What Guildmaster does itself
 
-- Guildmaster can access all information and resources managed by Gild: Realms, Free Realms, realmless quests, side-quests, conversations, journals, lore, Rituals, and app configuration, including retained archived information.
+- Guildmaster can access all information and resources managed by Iskios: Realms, Free Realms, realmless quests, side-quests, conversations, journals, lore, Rituals, and app configuration, including retained archived information.
 - It answers information requests and manages the app directly in the Guild Hall.
 - It manages resources at the owner's request, including moving quests, changing their state, renaming them, and managing lore, Rituals, settings, and budgets.
   Each operation keeps its existing rules and confirmations.
@@ -47,7 +47,7 @@ The additional search and management operations still need design, implementatio
 
 - Guildmaster first looks for quests that fit the request with `find_missions`, which searches each quest's title, briefing, and opening request, and weighs an exact ticket key or link above plain words, so two requests about one ticket meet and offers **Continue in** for up to 3 matches, as the [off-topic suggestion](../thread-tree/specifications.md#off-topic-requests) does. When nothing matches, it opens a new quest directly.
 - Settings hold a default model and up to three optional tiers (Light, Balanced, Heavy), each a harness, model, and effort. Guildmaster picks a tier from how complex the request is, or the default when no tiers are set.
-- Guildmaster picks the workspace the request implies, for example "fix the login bug in Gild" picks the Gild workspace, or none. Given a repository link, it clones the repository with `clone_repository`, or reuses its earlier clone, and opens the quest there (see [workspace-attachment](../workspace-attachment/specifications.md#cloning-a-repository)).
+- Guildmaster picks the workspace the request implies, for example "fix the login bug in Iskios" picks the Iskios workspace, or none. Given a repository link, it clones the repository with `clone_repository`, or reuses its earlier clone, and opens the quest there (see [workspace-attachment](../workspace-attachment/specifications.md#cloning-a-repository)).
 - Its reply links to the quest and names the tier, harness, model, effort, and workspace it chose, for example "Opened on Balanced: Codex, GPT-5, medium".
   The user can change the harness, agent, model, and effort afterwards through a handover, or change the workspace through a [whole-quest move](../mission-tracking/specifications.md#quest-placement-and-moves).
 - The new quest's top thread starts as **Open as new quest** does: with the request, global skills and intel, and nothing from another quest.

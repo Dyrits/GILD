@@ -6,7 +6,7 @@ import type {
   ModelChoice,
   Settings,
   TierName,
-} from "@gild/contracts";
+} from "@iskios/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, readSettings, type ToolAnswer } from "../core/index.ts";
@@ -31,7 +31,7 @@ export const guildmasterTitle = "Guildmaster";
 const maxListedQuests = 60;
 
 /**
- * The cheapest model Gild knows for a harness, which the Guildmaster starts on: it only routes. Codex and OpenCode list
+ * The cheapest model Iskios knows for a harness, which the Guildmaster starts on: it only routes. Codex and OpenCode list
  * their models only by running, so they start on their own default; the owner can hand it over at any time.
  */
 const cheapestModelOf = (harness: HarnessName): ModelChoice => (harness === "claude" ? claudeCheapestModel : "default");

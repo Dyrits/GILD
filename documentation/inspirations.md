@@ -1,6 +1,6 @@
 # Inspirations
 
-Products Gild follows for ideas. For each: what it does well, what Gild took or may take, and what to check on at the next review. Ideas are written independently and follow [Respect upstream licenses](requirements.md); code is reused only where a decision record allows it.
+Products Iskios follows for ideas. For each: what it does well, what Iskios took or may take, and what to check on at the next review. Ideas are written independently and follow [Respect upstream licenses](requirements.md); code is reused only where a decision record allows it.
 
 Review this list when starting a capability, and every few weeks: read each product's changelog, releases, or documentation, and add what is new below with its date. Record a taken idea in the capability's specifications and the changelog; put a candidate in the [backlog](backlog.md).
 
@@ -12,7 +12,7 @@ Review this list when starting a capability, and every few weeks: read each prod
 - **Taken**: harness installs and updates ([architecture](architecture.md)); the thread panel idea ([backlog](backlog.md)); built-in safe git (CHG-0032 in the [changelog](changelog.md)); (2026-11-07) the window's look: a sidebar on a grey frame beside a raised panel, a neutral palette with one blue accent, tinted state pills, and a composer with its pickers inside (CHG-0056).
 - **Attachments** (2026-11-10, from its source `nightly-labs/openbot`): a file added to a message is first written to a managed drafts folder; sending moves it to a transfers folder with a manifest (name, type, size, sha256), and the message carries cards that survive the file's deletion ("file not found"); limits of 10 files, 100 MB each, 250 MB in all; Codex-style `localImage` items turned into base64 `image` blocks for ACP; Claude Code receives only a text list of local files; image or plain file is told by extension, so HEIC and TIFF are never sent as images. Taken: upload first then reference, and cards that outlive the file (CHG-0102).
 - **License**: PolyForm Noncommercial 1.0.0. Ideas only, no code ([0001](architecture-decision-record/0001-new-codebase-not-a-fork.md)).
-- **Check on**: its memory, routine, and approval features, as the closest product to Gild.
+- **Check on**: its memory, routine, and approval features, as the closest product to Iskios.
 
 ### MausBot
 
@@ -20,7 +20,7 @@ Review this list when starting a capability, and every few weeks: read each prod
 - **Taken**: these modules may be cherry-picked under Apache 2.0 with their notices ([0001](architecture-decision-record/0001-new-codebase-not-a-fork.md)).
 - **Attachments** (2026-11-10, from `milind-soni/OpenMausBot`): paste, drop, and a picker; Electron's native `clipboard.readImage()` keeps the Paste item enabled for images; uploaded over HTTP, the message carries `<attached-image path>` tags; Claude Code gets a base64 block, Codex an `image` item with a data URL (its box could not see paths), ACP an `image` block only when `promptCapabilities.image` is true, with a clear error otherwise; 10 MB per image, 10 per turn.
 - **License**: Apache 2.0, except its `enterprise/` folder, which is not used. Its brand is not reused.
-- **Check on**: new versions of the drivers Gild takes code from.
+- **Check on**: new versions of the drivers Iskios takes code from.
 
 ### Paseo
 
@@ -35,7 +35,7 @@ Review this list when starting a capability, and every few weeks: read each prod
 - **Good ideas**: a handover that replays the full history to the new harness; version control for agent edits and conversations (DeltaDB).
 - **Taken**: full-history handover ([0006](architecture-decision-record/0006-handover-replays-full-history.md)).
 - **License**: Delta is closed, so ideas only. DeltaDB is not open source as of 2026-11-04.
-- **Check on**: whether DeltaDB is published as open source; it could replace Gild's own copies ([backlog](backlog.md)).
+- **Check on**: whether DeltaDB is published as open source; it could replace Iskios's own copies ([backlog](backlog.md)).
 
 ### intentic ([intentic.dev](https://intentic.dev), [source](https://github.com/intentic/intentic))
 
@@ -48,10 +48,10 @@ Review this list when starting a capability, and every few weeks: read each prod
   - an integrations catalogue grouped by purpose, with connected services checked;
   - automations started by a git push, Sentry, Stripe, email, Slack, Discord, or cron, with an optional filter command deciding whether to wake an agent;
   - secrets injected only into turns that may use them, never written to disk.
-- **Taken**: none yet. Several ideas are already planned for Gild; compare before adding to the [backlog](backlog.md).
+- **Taken**: none yet. Several ideas are already planned for Iskios; compare before adding to the [backlog](backlog.md).
 - **Attachments** (2026-11-10): paste, drop, and a paperclip all call one `attach()`; chips with thumbnails and upload progress; files uploaded at once to the workspace and the message carries paths; Claude Code reads them through a path note, Codex takes `localImage`, ACP an `image` block only when `promptCapabilities.image` is true; abandoned uploads leave files on disk. Taken: one step for paste, drop, and picker (CHG-0102).
 - **License**: MIT (sandbox, CLI, workspace, platform). Code may be reused with its notice where a decision record allows it.
-- **Check on**: its [changelog](https://intentic.dev/changelog/), [releases](https://github.com/intentic/intentic/releases), and [docs](https://intentic.dev/docs/), especially UI changes and whether it adds nested agents or threads. Its name is close to "Intent", a candidate for Gild's mission term.
+- **Check on**: its [changelog](https://intentic.dev/changelog/), [releases](https://github.com/intentic/intentic/releases), and [docs](https://intentic.dev/docs/), especially UI changes and whether it adds nested agents or threads. Its name is close to "Intent", a candidate for Iskios's mission term.
 
 ### Rakazo ([rakazo.com](https://rakazo.com), [source](https://github.com/elie222/rakazo))
 
@@ -65,7 +65,7 @@ Review this list when starting a capability, and every few weeks: read each prod
   - a different model per bot;
   - reachable from Slack, and when self-hosted from iMessage or SMS, WhatsApp, and Telegram;
   - a summary per run (archived, replied, drafted, flagged) and a mobile inbox showing which rows wait on the user.
-- **Taken**: none yet. Its approvals, a model per agent, and delegation are already in Gild. Learning by demonstration, event triggers, and the held pile of drafts are candidates; compare them before adding to the [backlog](backlog.md).
+- **Taken**: none yet. Its approvals, a model per agent, and delegation are already in Iskios. Learning by demonstration, event triggers, and the held pile of drafts are candidates; compare them before adding to the [backlog](backlog.md).
 - **Attachments** (2026-11-10): paste only when `clipboardData.files` is not empty, so text paste is untouched; 10 MB and 4 files per message; jpeg and png shrunk to 1600 px at quality 0.7 on web and mobile; the server refuses an image for a model without vision, and the client offers to send it as a file. Taken: the paste check and the refusal for a model without vision (CHG-0102).
 - **License**: Apache 2.0 according to its site; not checked in the repository. Ideas only until it is checked.
 - **Check on**: its [docs](https://rakazo.com/docs/), [releases](https://github.com/elie222/rakazo/releases), and [integrations](https://rakazo.com/integrations/), especially how skills learned by demonstration are stored and how approvals are configured.
@@ -83,7 +83,7 @@ Review this list when starting a capability, and every few weeks: read each prod
   - drafts reviewed before sending: "Nothing goes out until you send it";
   - connected apps (Gmail, Slack, Granola, Google Calendar, WhatsApp) read on a schedule the user chooses, with updates shared across Agents;
   - Agents, chats, and memory kept on the Mac "in a folder you can open".
-- **Taken**: none yet. Results coming back to the opener's chat, a model per agent, and local data are already in Gild. A model switch keeping context is close to the staged thread-handover ([0006](architecture-decision-record/0006-handover-replays-full-history.md)); a setup agent, plain-language schedules, and scheduled context sync are candidates; compare them before adding to the [backlog](backlog.md).
+- **Taken**: none yet. Results coming back to the opener's chat, a model per agent, and local data are already in Iskios. A model switch keeping context is close to the staged thread-handover ([0006](architecture-decision-record/0006-handover-replays-full-history.md)); a setup agent, plain-language schedules, and scheduled context sync are candidates; compare them before adding to the [backlog](backlog.md).
 - **License**: closed, as far as its site shows: no source or license is published. Ideas only.
 - **Check on**: its [changelog](https://myturnstone.ai/changelog), [how-to](https://myturnstone.ai/howto) and [academy](https://myturnstone.ai/academy) pages, especially how a model switch carries context and how the Chief of Staff sets up Agents; and whether Cloud ships.
 
@@ -99,10 +99,10 @@ Review this list when starting a capability, and every few weeks: read each prod
   - named teammates with a role, memory, and skills, scheduled routines, and teammates called from Slack or Feishu;
   - usage controls and cost attribution for teams;
   - an honest local-first statement: "Local-first does not mean no data ever leaves your device", naming what leaves (model requests, sync, remote access, plugins).
-- **Taken**: none yet. Separate harness and model choice, a thread per worker on its own runner, approvals answered from the phone, and budgets are already in Gild. A planning, workers, and review split as a mission template, checkpoints, and its local-first statement are candidates; compare them before adding to the [backlog](backlog.md).
+- **Taken**: none yet. Separate harness and model choice, a thread per worker on its own runner, approvals answered from the phone, and budgets are already in Iskios. A planning, workers, and review split as a mission template, checkpoints, and its local-first statement are candidates; compare them before adding to the [backlog](backlog.md).
 - **Attachments** (2026-11-10): a pasted bitmap is written to disk as `clipboard-<time>.png`; Claude Code gets a base64 block after a magic-byte check and a resize to 1568 px (webp, 85), under 5 MB encoded, else an `@path` mention; Codex a `localImage`; its vision-bridge design records that a model such as GLM drops images silently, so only an up-front check catches it. Taken: the 1568 px reduction and the signature check (CHG-0102).
 - **License**: Apache 2.0 according to its site; not checked in the repository. Code may be reused with its notice where a decision record allows it, once checked.
-- **Check on**: its [docs](https://github.com/makecindy/cindy/tree/main/docs) and [releases](https://github.com/makecindy/cindy/releases), especially its Pi harness, how it moves a task between devices, and how the review step is wired; as the open-source product closest to Gild's multi-harness tree.
+- **Check on**: its [docs](https://github.com/makecindy/cindy/tree/main/docs) and [releases](https://github.com/makecindy/cindy/releases), especially its Pi harness, how it moves a task between devices, and how the review step is wired; as the open-source product closest to Iskios's multi-harness tree.
 
 ## Interface and design
 
@@ -114,7 +114,7 @@ Review this list when starting a capability, and every few weeks: read each prod
   - every part of the crest has its own color, named by what it paints;
   - emblems from heraldic artwork, emoji, monograms, or a searchable symbol picker;
   - an Appearance page with presets, live preview, and per-setting reset.
-- **Taken** (2026-11-09): the crest system for realms and Crest Studio: a plate cut to a shape, a field with a second color, a band, an edge, a trim, and an emblem, drawn on a 100 by 100 grid ([`crestShapes.ts`](../apps/app/src/crest/crestShapes.ts)); the heraldic emblems, which reach Gild through Crest Studio and are credited in [`crest-credits.md`](../apps/app/src/crest-credits.md) (game-icons.net, CC BY 3.0). The idea of giving each context a visible identity matches Gild's realms.
+- **Taken** (2026-11-09): the crest system for realms and Crest Studio: a plate cut to a shape, a field with a second color, a band, an edge, a trim, and an emblem, drawn on a 100 by 100 grid ([`crestShapes.ts`](../apps/app/src/crest/crestShapes.ts)); the heraldic emblems, which reach Iskios through Crest Studio and are credited in [`crest-credits.md`](../apps/app/src/crest-credits.md) (game-icons.net, CC BY 3.0). The idea of giving each context a visible identity matches Iskios's realms.
 - **License**: MPL-2.0. Ideas are written independently; the crest figures carry their own CC BY 3.0 credits. Check the license's file-level terms before copying any of its files.
 - **Check on**: its [releases](https://github.com/pauljoda/Crest/releases) and [guides](https://crestbrowser.com/guides/), especially new Crest Studio steps or emblem sources, and whether Sub-Spaces (shared sign-ins across a group) suggest grouping realms.
 
@@ -156,5 +156,5 @@ Review this list when starting a capability, and every few weeks: read each prod
 
 Delta's [terminal documentation](https://delta.dev/docs/agents/terminals) describes `!` on an empty composer line opening a shell, ordinary exclamation marks staying text, and sending a frozen terminal snapshot while its process continues.
 The owner's screenshot shows that snapshot as a terminal block inside the owner's message, with accompanying text beneath it.
-Gild takes that interaction independently, using the owner's home folder without a realm and the realm root with one, as the owner requested.
+Iskios takes that interaction independently, using the owner's home folder without a realm and the realm root with one, as the owner requested.
 No Delta code was copied.

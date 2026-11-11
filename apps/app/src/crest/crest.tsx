@@ -1,6 +1,6 @@
 // Draws a crest (see crestShapes.ts for its parts); the system follows Crest Studio (github.com/pauljoda/Crest, MPL-2.0).
 
-import type { Crest, MissionState } from "@gild/contracts";
+import type { Crest, MissionState } from "@iskios/contracts";
 import { Match } from "effect";
 import { type ReactNode, useId } from "react";
 import { StyleSheet, View } from "react-native";
@@ -21,8 +21,13 @@ import {
   scaledBox,
 } from "./crestShapes";
 
-/** The dot of a quest in the rail: the dye of its column's banner, brightened to read on leather. */
-const dotColors = { Attention: "#d0483d", Done: "#4ea26a", Idle: "#9a6fd6", Running: "#4f86d8" } as const;
+/** The dot of a quest in the rail: the color of its state. */
+const dotColors = {
+  Attention: colors.warning,
+  Done: colors.success,
+  Idle: colors.violet,
+  Running: colors.accent,
+} as const;
 
 /** The emblem's share of the plate at scale 1. */
 const emblemFraction = 0.62;
@@ -210,9 +215,9 @@ export function CrestBadge({
           <Svg height={size * 0.7} viewBox="0 0 24 24" width={size * 0.7}>
             <Path
               d="M12 2 L21 12 L12 22 L3 12 Z"
-              fill={colors.gold}
+              fill={colors.edge}
               fillOpacity={0.35}
-              stroke={colors.gold}
+              stroke={colors.edge}
               strokeLinejoin="round"
               strokeWidth={2}
             />
@@ -222,7 +227,7 @@ export function CrestBadge({
         <CrestView crest={crestOf(crest, id)} size={size} />
       )}
       {state !== undefined && (
-        <View style={[local.dot, { backgroundColor: dotColors[columnOf(state)], borderColor: colors.leather }]} />
+        <View style={[local.dot, { backgroundColor: dotColors[columnOf(state)], borderColor: colors.sidebar }]} />
       )}
     </View>
   );

@@ -1,6 +1,6 @@
-# Gild
+# Iskios
 
-People who work with several AI agents lose goals, context, and spending across separate chats and tools. Gild gives a single user one place where every piece of work is a mission carried out in a tree of threads: the user or any thread opens further threads on whichever harness, agent, model, and effort fits, hands a thread over to another harness without losing its history, and threads talk to each other in both directions. Success is a mission finished through delegated work the user can see, steer, and pay for knowingly, from the computer or a paired phone.
+People who work with several AI agents lose goals, context, and spending across separate chats and tools. Iskios gives a single user one place where every piece of work is a mission carried out in a tree of threads: the user or any thread opens further threads on whichever harness, agent, model, and effort fits, hands a thread over to another harness without losing its history, and threads talk to each other in both directions. Success is a mission finished through delegated work the user can see, steer, and pay for knowingly, from the computer or a paired phone.
 
 ## Actors
 
@@ -16,11 +16,11 @@ The first build serves one user. The [architecture](architecture.md#future-multi
 ## Capabilities
 
 - **[mission-tracking](capabilities/mission-tracking/specifications.md)**: creating quests directly in realms or through Guildmaster, keeping them in realms or realmless, moving whole quest trees with confirmation, and following their state, threads, and spending.
-- **[mission-coordination](capabilities/mission-coordination/specifications.md)**: talking with Guildmaster in the Guild Hall to find information across Gild, manage the app, and coordinate quests and their messages.
+- **[mission-coordination](capabilities/mission-coordination/specifications.md)**: talking with Guildmaster in the Guild Hall to find information across Iskios, manage the app, and coordinate quests and their messages.
 - **[mission-journal](capabilities/mission-journal/specifications.md)**: keeping each mission's briefing and change log, read by every thread in the mission and updated as it works.
 - **[thread-tree](capabilities/thread-tree/specifications.md)**: opening threads beneath a thread, by the user or by a thread, each with its own harness, agent, model, and effort; every subagent a harness starts shows up as a thread beneath the one that started it, so the user can follow it.
 - **[thread-messaging](capabilities/thread-messaging/specifications.md)**: thread messages in both directions along the tree, with replies and interruptions; the user can write in any open thread, including a subagent's.
-- **[message-attachments](capabilities/message-attachments/specifications.md)**: attaching images to the owner's messages by pasting, dropping, or choosing files, stored by Gild and read by the thread's harness.
+- **[message-attachments](capabilities/message-attachments/specifications.md)**: attaching images to the owner's messages by pasting, dropping, or choosing files, stored by Iskios and read by the thread's harness.
 - **[conversation-terminal](capabilities/conversation-terminal/specifications.md)**: opening the owner's shell inside a desktop message with `!` and sending its visible output as context.
 - **thread-handover**: changing a thread's harness, agent, model, or effort mid-thread, with the full history given to the new one.
 - **[workspace-attachment](capabilities/workspace-attachment/specifications.md)**: attaching threads to one workspace browsed under the allowed roots or cloned from a repository, or to none; with an optional own copy of a git workspace, and changing the workspace of a whole quest tree when moving it while no thread is running.
@@ -31,6 +31,6 @@ The first build serves one user. The [architecture](architecture.md#future-multi
 - **[scoped-intel](capabilities/scoped-intel/specifications.md)**: gathering and recalling lore at thread, realm (including free realm), or global scope.
 - **[action-approval](capabilities/action-approval/specifications.md)**: asking the user in plain language before a risky action, one approval per action and thread, with standing permissions for what the user always allows.
 - **[budget-control](capabilities/budget-control/specifications.md)**: budgets on each mission, on Guildmaster, and on all spending over a period, stopping new spending at the limit and shown as rings that fill as they are used.
-- **device-pairing**: pairing a phone with one pairing code and using Gild from it on any network.
+- **device-pairing**: pairing a phone with one pairing code and using Iskios from it on any network.
 
 See also the [requirements](requirements.md) and the [glossary](glossary.md).

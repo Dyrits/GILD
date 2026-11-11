@@ -1,5 +1,5 @@
 import { dirname, join } from "node:path";
-import type { Request } from "@gild/contracts";
+import type { Request } from "@iskios/contracts";
 import { Context, Effect, Layer, Match, Semaphore } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
 import {
@@ -91,7 +91,14 @@ import { renameMission } from "./work/titles.ts";
 import { openThreadByOwner } from "./work/tree.ts";
 import { imageRefusalOf, readThreadRunner } from "./work/vision.ts";
 import { listWorkspaceEntries } from "./work/workspaceEntries.ts";
-import { createRealm, renameRealm, ScratchRoot, setRealmCrest } from "./work/workspaces.ts";
+import {
+  createFreeRealm,
+  createRealm,
+  listFreeRealms,
+  renameRealm,
+  ScratchRoot,
+  setRealmCrest,
+} from "./work/workspaces.ts";
 
 // Stored and wire names keep `intel` so existing data and agents still work: request tags (`"ListIntel"`, ...).
 
@@ -99,7 +106,7 @@ import { createRealm, renameRealm, ScratchRoot, setRealmCrest } from "./work/wor
 export class Service extends Context.Service<
   Service,
   { readonly handle: (request: Request) => Effect.Effect<unknown, ServiceFailure> }
->()("gild/Service") {}
+>()("iskios/Service") {}
 
 const storageFailure = (error: SqlError.SqlError) =>
   new ServiceFailure({ kind: "ExecutionFailure", message: `Storage failed: ${error.message}` });
@@ -251,6 +258,7 @@ const make = Effect.gen(function* () {
             );
           }),
         CreateFolder: (create) => createFolder(create.parent, create.name),
+        CreateFreeRealm: (create) => change(createFreeRealm(create.name, create.crest)),
         CreateRealm: (create) => change(createRealm(create.path, create.name, create.crest)),
         CreateRitual: (create) =>
           commands.run(
@@ -294,6 +302,7 @@ const make = Effect.gen(function* () {
                 isInterrupted ? Effect.succeed(null) : invalid("This thread is not running."),
               ),
             ),
+        ListFreeRealms: () => listFreeRealms,
         ListHarnesses: () =>
           listHarnesses.pipe(
             Effect.provideService(HarnessTools, harnessTools),
@@ -527,7 +536,7 @@ const make = Effect.gen(function* () {
 
 /** Where the service keeps its data and how it reaches the harnesses. */
 export interface ServiceOptions {
-  /** Where provider accounts added in Gild keep their folders; beside the database when left out. */
+  /** Where provider accounts added in Iskios keep their folders; beside the database when left out. */
   readonly accountsRoot?: string;
   /** Where attached files are kept; beside the database when left out (message-attachments). */
   readonly attachmentsRoot?: string;

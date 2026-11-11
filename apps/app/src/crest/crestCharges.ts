@@ -2,7 +2,7 @@
 // licensed CC BY 3.0 (https://creativecommons.org/licenses/by/3.0/); credits in `crest-credits.md`. Each figure is one
 // filled path on a 512 by 512 grid, drawn in the emblem color.
 
-import type { CrestChargeId } from "@gild/contracts";
+import type { CrestChargeId } from "@iskios/contracts";
 
 /** The bundled heraldic figures: their names and the outline of each on a 512 by 512 grid. */
 export const crestCharges = {

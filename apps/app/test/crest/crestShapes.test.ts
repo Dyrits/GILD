@@ -1,4 +1,4 @@
-import { Crest, crestBands, crestChargeIds, crestDivisions, crestPlates } from "@gild/contracts";
+import { Crest, crestBands, crestChargeIds, crestDivisions, crestPlates } from "@iskios/contracts";
 import { Schema } from "effect";
 import { describe, expect, it } from "vitest";
 import { crestCharges } from "../../src/crest/crestCharges";

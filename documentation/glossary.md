@@ -1,6 +1,6 @@
-# Gild
+# Iskios
 
-Gild organizes a person's work with AI agents as missions carried out in trees of threads, where any thread can open further threads on any harness, model, and effort, and threads talk to each other in both directions.
+Iskios organizes a person's work with AI agents as missions carried out in trees of threads, where any thread can open further threads on any harness, model, and effort, and threads talk to each other in both directions.
 
 ## Guild interface vocabulary
 
@@ -58,7 +58,7 @@ A message one thread sends another, in either direction along the tree, or to an
 _Avoid_: Ping, notification
 
 **Attachment**:
-A file the owner adds to a message, kept by Gild and given to the thread's harness with the message's text. Only images are supported so far.
+A file the owner adds to a message, kept by Iskios and given to the thread's harness with the message's text. Only images are supported so far.
 _Avoid_: Upload, media, file (alone)
 
 **Steer**:
@@ -81,7 +81,7 @@ _Avoid_: Mission dashboard, index, mission list, board, kanban
 The place where the user talks with Guildmaster, containing the one permanent thread outside every quest.
 
 **Guildmaster**:
-The app-wide assistant the user talks with in the Guild Hall to find information, manage Gild, and coordinate quests.
+The app-wide assistant the user talks with in the Guild Hall to find information, manage Iskios, and coordinate quests.
 _Avoid_: Coordinator, dispatcher, orchestrator, main thread, Mission control
 
 **The Keep**:
@@ -99,7 +99,7 @@ Charter retains application settings, accounts, permissions, and defaults.
 The usage summary and destination for detailed consumption, budgets, remaining allowances, and reported plan limits.
 
 **Workspace**:
-A folder or repository on the user's computer, chosen by the user or cloned by Gild, where a thread works.
+A folder or repository on the user's computer, chosen by the user or cloned by Iskios, where a thread works.
 _Avoid_: Project, repo, directory
 
 **Realm**:
@@ -116,7 +116,7 @@ A folder set in the Charter (Settings) under which the user and threads can brow
 _Avoid_: Allowed folder, sandbox
 
 **Scratch folder**:
-The folder Gild keeps for each mission, where its threads with no workspace work.
+The folder Iskios keeps for each mission, where its threads with no workspace work.
 _Avoid_: Temp folder, default workspace
 
 **Own copy**:
@@ -145,7 +145,7 @@ The account that bills model use, such as an Anthropic subscription or an OpenAI
 _Avoid_: Vendor
 
 **Provider account**:
-One sign-in a harness runs with: the computer's own, or one added in Gild with its own folder, such as a second Claude account named "Work".
+One sign-in a harness runs with: the computer's own, or one added in Iskios with its own folder, such as a second Claude account named "Work".
 _Avoid_: Profile, login, credential
 
 **Handover**:
@@ -173,7 +173,7 @@ The budget on all spending, across every mission and Control, over a day, week, 
 _Avoid_: Total budget, monthly cap
 
 **Account budget**:
-A limit, or a credit, on one provider account, counted from Gild's own turns on it, over a day, week, month, or no period.
+A limit, or a credit, on one provider account, counted from Iskios's own turns on it, over a day, week, month, or no period.
 _Avoid_: Credit limit, account cap
 
 **Billing kind**:
@@ -181,11 +181,11 @@ Whether a turn ran on a subscription, on an API key, or on an unknown sign-in; i
 _Avoid_: Billing type, plan type
 
 **Estimated cost**:
-A turn's cost in dollars worked out by Gild from its tokens and the price table, shown with `≈`, never counting toward a limit except for an API-key turn the harness reported no cost for.
+A turn's cost in dollars worked out by Iskios from its tokens and the price table, shown with `≈`, never counting toward a limit except for an API-key turn the harness reported no cost for.
 _Avoid_: Price, bill, fake cost
 
 **Plan limit**:
-A limit a harness reports for a subscription, such as a 5-hour or weekly window, shown and never enforced by Gild.
+A limit a harness reports for a subscription, such as a 5-hour or weekly window, shown and never enforced by Iskios.
 _Avoid_: Quota, rate limit
 
 ## Automation
@@ -240,7 +240,7 @@ Stored records, request tags, and thread tool names keep the earlier word `intel
 ## Devices
 
 **Paired device**:
-A phone connected to the user's Gild by scanning a pairing code.
+A phone connected to the user's Iskios by scanning a pairing code.
 _Avoid_: Remote, client
 
 **Pairing code**:

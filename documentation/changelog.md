@@ -2033,6 +2033,33 @@ References: [specifications](capabilities/budget-control/specifications.md), [bl
 Validation: typecheck and Biome pass; the full suite passes apart from two to five timing tests that time out under parallel load and pass alone; every claim's checks were shown able to fail by mutation (10, 9, and 10 mutations, all caught after one test was strengthened); the screens were driven in the web build on throwaway data. Codex's `account/read` and `account/rateLimits/read` were probed live without a model call.
 Not done: live probes of Claude Code's `apiKeySource` and `rate_limit_event`, its `total_cost_usd` as a running total, OpenCode's sign-in and usage, and usage per model call on any harness (each needs a paid model call); Claude Code's and OpenCode's plan limits show "Limits not reported". The owner's look at every new screen. Decision record 0014 and the provisional API-key rule await the owner's acceptance.
 
+## CHG-0143 · 2026-11-11 · Renamed to Iskios, simpler art direction, and the left sidebar built
+
+Type: Code and documentation
+Event: Delivery
+Scope: Whole product, interface
+
+Summary: Gild is now Iskios. The Guild board look (leather, timber, parchment, gilt, Cinzel and Alegreya, painted banners, frames, hand-cut corners) gives way to one flat dark navy theme with thin borders, small radii, a single blue accent, and the system typeface. The left sidebar follows the agreed structure of CHG-0134 to CHG-0137 and the owner's supplied Guild Hall image for its organization.
+- Rename, as in CHG-0072: the app, window, sidebar, packages (`iskios`, `@iskios/contracts`, `@iskios/service`), environment variables (`ISKIOS_*`), the desktop bridge (`window.iskios`, `iskios:*` channels), the app scheme, the database file (`iskios.sqlite`), and the thread tools' MCP server name (`mcp__iskios__…`). The first launch moves the newest former user-data folder (`Gild`, else `Canopy`, else `OpenMission`) into the new profile folder, renames the database, and renames Claude Code's scratch-folder sessions. Dated records keep the name they were written with. The GitHub remote was already `Dyrits/ISKIOS`.
+- Theme: `colors` keeps its keys where they still make sense and renames the guild ones (`leather` to `sidebar`, `wood` to `ground`, `paper` to `page`, `gold` to `edge`, `goldHi` to `highlight`, `onWood` to `onGround`); `cut`, `lift`, and `ink` become `round` and `outline`, with no shadows, tilts, uppercase labels, or letter spacing. The bundled fonts, painted banners, desk, compass, castle and parchment frame are removed; `GoldButton` is `Button`.
+- Sidebar order: Guild Hall; Realms with each realm's quests; Free Realms; Realmless; Rituals; Craft; The Keep (Library, Lore, Archive); Workshop; Reserves with its compact summary; Charter. Realms, quests, and side-quests expand and collapse at every depth with branch guides and a state dot; the open quest expands and the path to the open side-quest opens. The sidebar is the quest's one tree: the conversation's own tree stays only in a window too narrow for the sidebar. Collapsed to icons, the sidebar keeps the destinations.
+- Choices made without asking, for the owner to redirect: Craft, Library, Workshop, and the detailed Reserves page open a one-line "not built yet" page; Free Realms shows "No free realm yet" because no Free Realm exists in the service; the "+" buttons of the supplied image are left out until direct quest creation exists; Realmless leads to the all-quests board; the old recent-quests cutoff, "+ N more", the finished-quest toggle in the Charter, and the Rituals list in the sidebar are gone; the default sidebar width is 250px.
+- Not changed: the Done state, Mark as done, and the Summons lifecycle of CHG-0135 and CHG-0136; Free Realm placement and quest moves; the logo (the gold G of CHG-0072 and the owner's app icon of CHG-0142 stay until an Iskios mark is supplied); the `shouldShowFinishedQuests` setting remains in the contract, unused.
+References: [mission tracking](capabilities/mission-tracking/specifications.md#left-navigation-structure), [verification](verification/2026-11-11-iskios-sidebar.md), `apps/app/src/shell/sidebar.tsx`, `apps/app/src/shell/questTree.ts`, `apps/app/src/foundation/theme.ts`, `apps/desktop/src/formerData.ts`
+Validation: typecheck and Biome pass; the full test suite passes (731 passed, 10 skipped); the sidebar was driven in the web export on the fake harness at 1440 px. Not verified: the Electron window, the packaged installer, the real data move from a `Gild` profile, native phone builds, and the owner's judgment of the look.
+Evidence: The owner's instruction of 2026-11-11: "We want to rebrand the app again, to name it Iskios. And the art direction must be a lot simpler," with the supplied Guild Hall image as the example for the sidebar's organization.
+
+## CHG-0144 · 2026-11-11 · Sidebar headings, diamond dividers, and the New realm button
+
+Type: Code
+Event: Delivery
+Scope: Interface
+
+Summary: At the owner's request after seeing CHG-0143: the header with the Iskios name and mark is gone from the sidebar; groups are told apart by a line with a diamond at its middle (after Guild Hall, between Realms, Free Realms, and Realmless, after Realmless, and before Charter); the group headings show a larger title with an italic note; and Realms has a "+" button that opens the New realm menu directly, with a folder button, a name, a crest, and Create the realm. The same menu now serves the realm chooser of the Guild Hall and Rituals, opening there with its folder already chosen. The default sidebar width is 272px.
+- Choices made without asking: only Realms has a "+" (Free Realms and quests outside any realm cannot be created yet); the dividers go where the owner's image put one, and a few more between the remaining groups; the folder is chosen inside the menu through the system dialog, so the "+" works on the desktop only.
+References: `apps/app/src/shell/sidebar.tsx`, `apps/app/src/realms/newRealmModal.tsx`, [verification](verification/2026-11-11-iskios-sidebar.md)
+Validation: typecheck and Biome pass; driven in the web export on the fake harness with a stubbed folder dialog: the menu opened empty, a folder was chosen, and the realm appeared in the sidebar ([sidebar](verification/2026-11-11-iskios-sidebar/20-sidebar.png), [menu](verification/2026-11-11-iskios-sidebar/21-modal-empty.png)). Not verified: the real system folder dialog in Electron.
+
 ## CHG-0147 · 2026-11-11 · Install missing harnesses from Charter
 
 Type: Code
@@ -2052,3 +2079,123 @@ Scope: Provider accounts
 Summary: Harness titles show only the name and version: `Claude Code · 2.1.302`, `Codex · 0.160.1`, and `OpenCode · v2.2.0`. CLI prefixes and repeated names are removed from the displayed version; an existing `v` is preserved.
 References: `apps/app/src/settings/accounts.tsx`.
 Validation: Owner's explicit label examples; workspace typecheck and Biome pass.
+
+## CHG-0145 · 2026-11-11 · The all-quests board removed
+
+Type: Code
+Event: Delivery
+Scope: Interface
+
+Summary: At the owner's request, the page that listed every quest in columns beside "The Council Awaits" no longer exists. Realmless is a group heading that folds, not a link; the collapsed sidebar has no Quests icon; the overview panel (`QuestOverview`) is gone; the window opens on Realms when the Guild Hall is hidden; the narrow-window links read "← Back".
+- Kept: a realm's own page (its quests in columns with the realm panel), reached from the Realms page or a realm's row, since the realm panel holds its crest, lore, and rename. Say if that page should go too.
+- Consequence: a window too narrow for the sidebar has no list of quests; it reaches them through the Guild Hall's links, the Realms page, or the Archive until a narrow layout is agreed.
+References: `apps/app/src/shell/sidebar.tsx`, `apps/app/src/shell/dashboard.tsx`, `apps/app/src/quests/questPanel.tsx`, [realm page](verification/2026-11-11-iskios-sidebar/30-realm.png)
+Validation: typecheck and Biome pass; driven in the web export on the fake harness: Realmless folds, a realm opens its page, and the collapsed sidebar lists Guild Hall, Realms, and Craft with no Quests icon.
+
+## CHG-0146 · 2026-11-11 · Navigation icons, and the Charter renamed Workshop
+
+Type: Code and documentation
+Event: Agreement and delivery
+Scope: Interface
+
+Summary: The owner's thirteen navigation icons (`guildmaster_13_navigation_icons`) stand in front of each sidebar destination: Guild Hall, Realms, Free Realms, Realmless, Rituals, Craft, The Keep with Library, Lore and Archive, Reserves, and the settings; the collapsed sidebar shows the same icons. The icon marked Workshop is the settings entry, and the settings are now called Workshop (the former Charter) in the sidebar, the top bar, the page heading, and the messages that named the Charter. The separate Workshop for MCP servers, connectors, and skills is withdrawn from the sidebar until the owner asks for its dedicated menu; the Charter icon is unused.
+- The icons are cropped to their drawing and resized to 96 px in `apps/app/assets/nav/`; the originals stay with the owner.
+- The sidebar now has nine entries (Guild Hall, Realms, Free Realms, Realmless, Rituals, Craft, The Keep, Reserves, Workshop); the specification table is updated.
+- Not changed: the glossary and older documents still say Charter; the section "Charter" inside code comments; the quest and realm rows carry no icon.
+References: `apps/app/src/shell/navIcons.tsx`, `apps/app/src/shell/sidebar.tsx`, [sidebar](verification/2026-11-11-iskios-sidebar/40-icons.png), [collapsed](verification/2026-11-11-iskios-sidebar/42-collapsed-icons.png)
+Validation: typecheck and Biome pass; the sidebar was driven in the web export on the fake harness, expanded and collapsed, and the Workshop entry opens the settings.
+Evidence: The owner's instruction of 2026-11-11: add the icons in front of each category; make Workshop the settings instead of Charter; a dedicated menu for connectors will come later.
+
+## CHG-0147 · 2026-11-11 · Sidebar groups no longer fold
+
+Type: Code
+Event: Delivery
+Scope: Interface
+
+Summary: At the owner's request the arrow in front of Realms, Free Realms, Realmless, and The Keep is gone, and so is folding those groups; they are always open. The arrow stays on each realm (to fold its quests) and on quests and side-quests. The remembered folded groups and their test are removed.
+Validation: typecheck, Biome, and the suite pass; driven in the web export on the fake harness ([sidebar](verification/2026-11-11-iskios-sidebar/40-icons.png)).
+
+## CHG-0148 · 2026-11-11 · Main destinations set like the group headings
+
+Type: Code
+Event: Delivery
+Scope: Interface
+
+Summary: At the owner's request, Guild Hall, Rituals, Craft, Reserves, and Workshop show their icon at the size of the Realms icon (28 px) and their name in bold, as the group headings do; they are main destinations, not submenus. Library, Lore, and Archive under The Keep keep the smaller icon and plain name.
+Validation: typecheck and Biome pass; driven in the web export on the fake harness ([sidebar](verification/2026-11-11-iskios-sidebar/40-icons.png)).
+
+## CHG-0149 · 2026-11-11 · Free Realms can be created; realm rows lead with the crest
+
+Type: Code
+Event: Delivery
+Scope: Free Realms, interface
+
+Summary: At the owner's request, Free Realms has a "+" button that opens the same menu as Realms without the folder step: a name and a crest, then "Create the realm". The service stores Free Realms in their own table (`free_realms`, migration 0037) and answers two new requests, `CreateFreeRealm` (a blank name is refused) and `ListFreeRealms` (by name); they are kept apart from the realms tied to a folder, which the realm chooser and the board still list alone. In the sidebar a realm row now starts with its crest, and its count and fold arrow come after its name; the arrow shows only when the realm has quests.
+- Built only the creation and the list. Not built: putting quests in a Free Realm (direct creation and moves, CHG-0130 to CHG-0133), renaming or deleting one, a page for one, and the lore a Free Realm owns. Until then a Free Realm in the sidebar stays empty and does nothing when pressed.
+- Choice made without asking: Free Realms are a separate record from workspaces, since a workspace is its folder; quests will reference a Free Realm when placement is built.
+References: `packages/service/src/work/workspaces.ts`, `packages/service/test/work/workspaces.test.ts` (3 tests), `apps/app/src/realms/newRealmModal.tsx`, [menu](verification/2026-11-11-iskios-sidebar/50-free-modal.png), [sidebar](verification/2026-11-11-iskios-sidebar/51-free-created.png)
+Validation: typecheck, Biome, and the suite pass; driven in the web export on the fake harness: the menu opened with no folder button and "Game Design" appeared under Free Realms.
+
+## CHG-0150 · 2026-11-11 · The Realms page removed; group headings fold
+
+Type: Code
+Event: Delivery
+Scope: Interface
+
+Summary: At the owner's request the Realms page (one card per realm) no longer exists. Pressing Realms, Free Realms, or Realmless folds or unfolds what lies beneath it, with no arrow; the folds are kept while the window is open only. The collapsed sidebar has no Realms icon; a realm's own page is still reached from its row, and its trail in the top bar no longer starts with "Realms". With the Guild Hall hidden in the Workshop, the window opens on Rituals. The Keep still opens its page.
+Validation: typecheck, Biome, and the suite pass; driven in the web export on the fake harness: each heading folds and unfolds its rows and the page stays where it was.
+
+## CHG-0151 · 2026-11-11 · Sidebar separators removed (a trial)
+
+Type: Code
+Event: Delivery
+Scope: Interface
+
+Summary: At the owner's request, as a trial, every diamond divider is gone from the sidebar; a plain 12 px gap sets the groups apart. The divider component and its styles are deleted; the earlier look is in CHG-0144 if the owner wants it back.
+Validation: typecheck and Biome pass; seen in the web export on the fake harness ([sidebar](verification/2026-11-11-iskios-sidebar/40-icons.png)).
+
+## CHG-0152 · 2026-11-11 · The sidebar toggle shows or hides it; no icon-only version
+
+Type: Code
+Event: Delivery
+Scope: Interface
+
+Summary: At the owner's request the toggle (and Command or Control with B) shows or hides the whole sidebar; the icon-only 60 px version, its hover labels, and its code are gone. While hidden, the button sits at the window's left edge; the choice is remembered under a new key (`iskios:sidebar-hidden`), so a sidebar collapsed before is shown again. The button now sits above the resize strip, which had been swallowing clicks on the middle of the button.
+- This supersedes the collapsed sidebar of CHG-0123, CHG-0143, and CHG-0146. With the sidebar hidden the window still counts as having one, so a quest's own tree stays out of the conversation; the owner shows the sidebar to move between side-quests.
+Validation: typecheck and Biome pass; driven in the web export on the fake harness: hide by the button, still hidden after a reload, shown again by Control+B ([hidden](verification/2026-11-11-iskios-sidebar/70-hidden.png)).
+
+## CHG-0153 · 2026-11-11 · Diamond separators back, at five places
+
+Type: Code
+Event: Delivery
+Scope: Interface
+
+Summary: At the owner's request the line with a diamond returns, placed between Guild Hall and Realms, Realmless and Rituals, Craft and The Keep, The Keep and Reserves, and above Workshop. The three quest groups (Realms, Free Realms, Realmless) are set apart by a plain gap only. This ends the trial of CHG-0151.
+Validation: typecheck and Biome pass; seen in the web export on the fake harness ([sidebar](verification/2026-11-11-iskios-sidebar/40-icons.png)).
+
+## CHG-0154 · 2026-11-11 · Reserves and Workshop pinned at the bottom
+
+Type: Code
+Event: Delivery
+Scope: Interface
+
+Summary: At the owner's request Reserves (with its compact usage summary) and Workshop sit at the foot of the sidebar, outside its scrolling, with the diamond separators above each. The quest groups, Rituals, Craft, and The Keep scroll above them.
+Validation: typecheck and Biome pass; seen in the web export on the fake harness at 1000 and 640 px of height, where the upper part scrolls and the foot stays ([sidebar](verification/2026-11-11-iskios-sidebar/40-icons.png)).
+
+## CHG-0155 · 2026-11-11 · The Keep page removed; The Keep folds
+
+Type: Code
+Event: Delivery
+Scope: Interface
+
+Summary: At the owner's request the page of three cards under The Keep no longer exists. Pressing The Keep folds or unfolds Library, Lore, and Archive beneath it. Their top-bar trails no longer start with "The Keep", and the narrow-window back links of Lore and the Archive go to the Guild Hall.
+Validation: typecheck, Biome, and the suite pass; driven in the web export on the fake harness: The Keep folds and unfolds its rows without leaving the page, and Archive and Lore open from them.
+
+## CHG-0156 · 2026-11-11 · Conversation bubbles tinted by author
+
+Type: Code
+Event: Delivery
+Scope: Interface
+
+Summary: At the owner's request, replies and the owner's own messages no longer share the page's navy: a reply is a step lighter (`bubble`, #1d2b3d), the owner's message a step bluer (`bubbleUser`, #24384f), and a terminal snapshot in a message a clear blue (`terminal`, #2a4562), after the owner's supplied example. A trial of the owner's "something this color"; the values are one place in `theme.ts`.
+Validation: typecheck and Biome pass; seen in a conversation on the fake harness ([conversation](verification/2026-11-11-iskios-sidebar/95-bubbles.png)). The terminal snapshot's new color was not seen on screen.

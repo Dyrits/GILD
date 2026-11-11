@@ -1,7 +1,7 @@
 import { mkdirSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
-import type { MissionId, MissionList } from "@gild/contracts";
+import type { MissionId, MissionList } from "@iskios/contracts";
 import { Effect } from "effect";
 import { TestClock } from "effect/testing";
 import { afterEach } from "vitest";

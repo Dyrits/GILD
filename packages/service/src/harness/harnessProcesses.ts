@@ -1,4 +1,4 @@
-import type { BillingKind, TokenUsage } from "@gild/contracts";
+import type { BillingKind, TokenUsage } from "@iskios/contracts";
 import { Deferred, Duration, Effect } from "effect";
 import {
   type HarnessAdapter,

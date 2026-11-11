@@ -1,4 +1,4 @@
-import type { Settings, Tier, TierName } from "@gild/contracts";
+import type { Settings, Tier, TierName } from "@iskios/contracts";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { RunnerPickers, useHarnesses } from "../editors/runners";
 import type { ServiceClient } from "../foundation/client";
@@ -114,7 +114,7 @@ export function GuildmasterSettings({
 const local = StyleSheet.create({
   tier: { gap: 6, paddingVertical: 6 },
   tierHead: { alignItems: "center", flexDirection: "row", gap: 12 },
-  tierName: { color: colors.text, fontFamily: fonts.hand, fontSize: fontSizes.lg, fontWeight: "700" },
+  tierName: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.lg, fontWeight: "700" },
   toggleLabel: { flex: 1 },
   toggleRow: { alignItems: "center", flexDirection: "row", gap: 12 },
 });

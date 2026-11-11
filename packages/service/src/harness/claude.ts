@@ -1,4 +1,4 @@
-import type { BillingKind, TokenUsage } from "@gild/contracts";
+import type { BillingKind, TokenUsage } from "@iskios/contracts";
 import { type Duration, Effect, Layer, Queue } from "effect";
 import {
   fieldOf,

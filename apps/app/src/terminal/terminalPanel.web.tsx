@@ -36,7 +36,7 @@ export function TerminalPanel({ id, cwd, ref, onReady }: TerminalPanelProps) {
   // A new shell deliberately recreates the emulator even when its conversation and folder stay the same.
   // biome-ignore lint/correctness/useExhaustiveDependencies: generation explicitly resets the terminal after its shell exits.
   useEffect(() => {
-    const bridge = window.gild;
+    const bridge = window.iskios;
     const element = container.current;
     if (bridge === undefined || element === null) return;
     let active = true;
@@ -138,7 +138,7 @@ export function TerminalPanel({ id, cwd, ref, onReady }: TerminalPanelProps) {
     };
   }, [id, cwd, generation]);
   const restart = () => {
-    void window.gild
+    void window.iskios
       ?.terminalClose(id)
       .then(() => {
         setError(null);

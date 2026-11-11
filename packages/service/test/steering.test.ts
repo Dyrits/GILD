@@ -10,7 +10,7 @@ import type {
   RequestTag,
   ResultOf,
   ThreadId,
-} from "@gild/contracts";
+} from "@iskios/contracts";
 import { Effect } from "effect";
 import { afterEach } from "vitest";
 import { fakeHarnessLayer, Service, serviceLayer } from "../src/index.ts";
@@ -21,10 +21,10 @@ afterEach(() => {
 });
 
 const live = () => {
-  const directory = mkdtempSync(join(tmpdir(), "gild-steering-"));
+  const directory = mkdtempSync(join(tmpdir(), "iskios-steering-"));
   directories.push(directory);
   return serviceLayer({
-    filename: join(directory, "gild.sqlite"),
+    filename: join(directory, "iskios.sqlite"),
     harness: fakeHarnessLayer("10 millis"),
     homeFolder: directory,
     scratchRoot: join(directory, "missions"),

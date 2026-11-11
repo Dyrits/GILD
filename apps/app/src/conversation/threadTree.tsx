@@ -1,4 +1,4 @@
-import type { AttachmentId, ModelChoice, ThreadId, ThreadSummary, ThreadView } from "@gild/contracts";
+import type { AttachmentId, ModelChoice, ThreadId, ThreadSummary, ThreadView } from "@iskios/contracts";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { imageRefusalOf } from "../attachments/attachmentRules";

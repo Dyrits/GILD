@@ -1,4 +1,4 @@
-import type { MissionId, Suggestion, SuggestionAnswer, ThreadId } from "@gild/contracts";
+import type { MissionId, Suggestion, SuggestionAnswer, ThreadId } from "@iskios/contracts";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { type Runner, RunnerPickers, useHarnesses } from "../editors/runners";

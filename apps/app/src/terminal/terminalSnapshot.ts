@@ -26,7 +26,7 @@ export const messageWithTerminal = (text: string, cwd: string, output: string) =
   return `Terminal snapshot (owner's shell, started in ${cwd}):\n${fence}text\n${output}\n${fence}${text.trim() === "" ? "" : `\n\n${text.trim()}`}`;
 };
 
-/** Recognizes Gild's serialized terminal block while leaving ordinary messages intact. */
+/** Recognizes Iskios's serialized terminal block while leaving ordinary messages intact. */
 export const terminalSnapshotOf = (text: string) => {
   const match =
     /^([\s\S]*?)Terminal snapshot \(owner's shell, started in ([^\n]*)\):\n(`{3,})text\n([\s\S]*?)\n\3(?:\n\n([\s\S]*))?$/.exec(

@@ -1,4 +1,4 @@
-import type { EffortChoice, HarnessName, ModelChoice, ModelOption, TokenUsage } from "@gild/contracts";
+import type { EffortChoice, HarnessName, ModelChoice, ModelOption, TokenUsage } from "@iskios/contracts";
 
 /** Each harness by the name the owner reads. */
 export const harnessLabels = {

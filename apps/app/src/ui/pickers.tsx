@@ -1,7 +1,7 @@
 import { type ComponentRef, useRef, useState } from "react";
 import { Modal, Pressable, ScrollView, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { styles } from "../foundation/styles";
-import { colors, cut, fontSizes, fonts, ink } from "../foundation/theme";
+import { colors, fontSizes, fonts, outline, round } from "../foundation/theme";
 import { type MenuPlacement, menuPlacementOf } from "./menuPlacement";
 
 /** Past this many options, a choice is a drop-down field rather than a segmented control. */
@@ -188,8 +188,8 @@ const local = StyleSheet.create({
     fontWeight: "500",
   },
   field: {
-    ...ink,
-    ...cut,
+    ...outline,
+    ...round,
     alignItems: "center",
     backgroundColor: colors.control,
     flexDirection: "row",
@@ -207,7 +207,7 @@ const local = StyleSheet.create({
   floating: { position: "absolute", top: "auto" },
   itemHovered: { backgroundColor: colors.controlHover },
   knob: {
-    ...ink,
+    ...outline,
     backgroundColor: colors.accent,
     borderRadius: 9,
     height: 18,
@@ -216,8 +216,8 @@ const local = StyleSheet.create({
   },
   segment: { flexShrink: 1, paddingHorizontal: 12, paddingVertical: 6 },
   segmentDivided: { borderColor: colors.borderStrong, borderLeftWidth: 1.5 },
-  segmented: { ...ink, ...cut, alignSelf: "flex-start", flexDirection: "row", overflow: "hidden" },
-  segmentSelected: { backgroundColor: colors.text },
+  segmented: { ...outline, ...round, alignSelf: "flex-start", flexDirection: "row", overflow: "hidden" },
+  segmentSelected: { backgroundColor: colors.accent },
   segmentText: { color: colors.textSecondary, fontFamily: fonts.sans, fontSize: fontSizes.md, fontWeight: "500" },
   segmentTextSelected: { color: colors.onAccent, fontWeight: "600" },
   step: { alignItems: "center", flex: 1, gap: 4 },

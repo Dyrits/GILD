@@ -1,4 +1,4 @@
-import type { SuggestionOutcome } from "@gild/contracts";
+import type { SuggestionOutcome } from "@iskios/contracts";
 import { Effect, Match } from "effect";
 import { SqlClient } from "effect/sql";
 import { HarnessFailure, type HarnessPrompt, type PromptAnswer, type ToolAnswer } from "../core/index.ts";
@@ -56,7 +56,7 @@ export const askOwnerFor =
       Effect.catchDefect((defect) =>
         Effect.fail(
           new HarnessFailure({
-            reason: `Gild could not ask about ${prompt.toolName}: ${defect instanceof Error ? defect.message : String(defect)}`,
+            reason: `Iskios could not ask about ${prompt.toolName}: ${defect instanceof Error ? defect.message : String(defect)}`,
           }),
         ),
       ),
@@ -84,7 +84,7 @@ const suggestedAnswerOf = (suggested: Suggested): ToolAnswer =>
     }),
     OpenedWithoutAsking: ({ resolution }) => ({
       isError: false,
-      text: `No mission fits, so Gild opened it as a new mission "${resolution.targetTitle}" (id ${resolution.targetMissionId}), as the owner's settings ask. ${carryOn}`,
+      text: `No mission fits, so Iskios opened it as a new mission "${resolution.targetTitle}" (id ${resolution.targetMissionId}), as the owner's settings ask. ${carryOn}`,
     }),
     Resolved: ({ resolution }) => ({
       isError: resolution.outcome === "Withdrawn",

@@ -2,7 +2,7 @@
   "name": "desktop",
   "version": "0.1.0-Alpha",
   "private": true,
-  "description": "Gild desktop app",
+  "description": "Iskios desktop app",
   "author": "Dylan J. Gerrits",
   "type": "module",
   "main": "dist/main.js",

@@ -1,4 +1,4 @@
-import type { Skill } from "@gild/contracts";
+import type { Skill } from "@iskios/contracts";
 import type { ServiceClient } from "./client";
 import { useServiceQuery } from "./useServiceQuery";
 

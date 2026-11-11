@@ -1,4 +1,4 @@
-// Gild's own folder browser and the browsable roots, kept for phone browsing
+// Iskios's own folder browser and the browsable roots, kept for phone browsing
 // (workspace-attachment). Not shown on the desktop, which uses the system's folder dialog (CHG-0035).
 
 import { useState } from "react";

@@ -1,4 +1,4 @@
-import type { DeletedLoreEntry, LoreEntryId, LoreHistoryEntry, LoreHistoryEntryId } from "@gild/contracts";
+import type { DeletedLoreEntry, LoreEntryId, LoreHistoryEntry, LoreHistoryEntryId } from "@iskios/contracts";
 import { useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { messageOf, type ServiceClient } from "../foundation/client";

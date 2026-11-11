@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
-import type { ModelChoice, StartingContext, ThreadId } from "@gild/contracts";
+import type { ModelChoice, StartingContext, ThreadId } from "@iskios/contracts";
 import { Effect } from "effect";
 import { afterEach } from "vitest";
 import { sandboxProblem, tokensOf } from "../../src/core/index.ts";
@@ -205,7 +205,7 @@ describe("assembling a thread's starting context", () => {
       expect(context).toContain(
         `# Your working folder\nYou have no workspace. You work in your quest's scratch folder, ${cwd},`,
       );
-      expect(context).toContain(`You are thread ${threadId} in a Gild quest`);
+      expect(context).toContain(`You are thread ${threadId} in a Iskios quest`);
       expect(context).toContain("# Quest journal\n");
       expect(context).toContain("# Lore\n");
       expect(context).not.toContain("Release planning");
@@ -226,7 +226,7 @@ describe("assembling a thread's starting context", () => {
       expect(note).toContain(`thread ${threadId}, which opened you, is "`);
       expect(note).toContain("# Your opener's messages since the latest journal entry\n");
       expect(note).toContain("Owner:\nPlan the release.");
-      expect(note.endsWith("At a limit, Gild stops the work under it and asks the owner.")).toBe(true);
+      expect(note.endsWith("At a limit, Iskios stops the work under it and asks the owner.")).toBe(true);
     }).pipe(Effect.provide(layer));
   });
 

@@ -9,7 +9,7 @@ import type {
   RequestTag,
   ResultOf,
   ThreadId,
-} from "@gild/contracts";
+} from "@iskios/contracts";
 import { Effect, type Layer } from "effect";
 import { Endpoints, type PriceSource } from "../../src/core/index.ts";
 import { callThreadTool } from "../../src/harness/fakeHarness.ts";
@@ -17,7 +17,7 @@ import { fakeHarnessLayer, type HarnessTools, Service, serviceLayer } from "../.
 
 /** An isolated service with the scripted fake harness and real temporary SQLite. */
 export const fixture = (harnessTools?: Layer.Layer<HarnessTools>, priceSource?: Layer.Layer<PriceSource>) => {
-  const directory = mkdtempSync(join(tmpdir(), "gild-service-"));
+  const directory = mkdtempSync(join(tmpdir(), "iskios-service-"));
   return {
     directory,
     layer: serviceLayer({

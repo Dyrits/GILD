@@ -5,7 +5,7 @@ import {
   type ModelChoice,
   maxAttachmentBytes,
   maxAttachmentsPerMessage,
-} from "@gild/contracts";
+} from "@iskios/contracts";
 
 // The pure rules for a file the owner attaches to a message: what it is, whether it fits, and whether the Companion can read it (message-attachments).
 

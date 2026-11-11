@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { styles } from "../foundation/styles";
-import { colors, cut, fontSizes, fonts, ink, lift } from "../foundation/theme";
+import { colors, fontSizes, fonts, outline, radii, round } from "../foundation/theme";
 import { Toggle } from "../ui/controls";
-import { ParchmentFrame } from "../ui/parchment";
 import { SettingsIcon, type SettingsIconName } from "../ui/settingsIcons";
 import { type SettingsSectionId, settingsSections } from "./settingsSections";
 
@@ -32,7 +31,7 @@ export function SettingsCard({
     <View style={local.head}>
       <View style={local.headLeft}>
         <View style={local.chip}>
-          <SettingsIcon name={icon} size={20} tint={colors.goldHi} />
+          <SettingsIcon name={icon} size={20} tint={colors.highlight} />
         </View>
         <Text style={local.title}>{title}</Text>
         {summary !== undefined && <Text style={local.summary}>{summary}</Text>}
@@ -114,7 +113,6 @@ const notes = [
 export function SettingsGuide() {
   return (
     <View style={local.guide}>
-      <ParchmentFrame hasBookmark={false} />
       <ScrollView contentContainerStyle={local.guideContent}>
         <Text style={local.guideText}>
           Control how agents quest, which models and harnesses to use, how accounts connect, and the limits that keep
@@ -139,11 +137,11 @@ export function SettingsHeading() {
   return (
     <View style={local.heading}>
       <View style={local.tab}>
-        <SettingsIcon name="gear" size={30} tint={colors.goldHi} />
+        <SettingsIcon name="gear" size={30} tint={colors.highlight} />
       </View>
       <View style={local.headingText}>
         <Text accessibilityRole="header" style={local.headingTitle}>
-          Charter
+          Workshop
         </Text>
         <Text style={local.headingLine}>Configure your guild's accounts, budgets, and word limits.</Text>
       </View>
@@ -153,14 +151,12 @@ export function SettingsHeading() {
 
 const local = StyleSheet.create({
   body: { gap: 12, paddingBottom: 16, paddingHorizontal: 18 },
-  card: { ...ink, ...cut, ...lift, backgroundColor: colors.canvas },
+  card: { ...outline, ...round, backgroundColor: colors.canvas },
   chevron: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: 22 },
   chip: {
     alignItems: "center",
-    backgroundColor: colors.danger,
-    borderColor: colors.gold,
-    borderRadius: 4,
-    borderWidth: 1.5,
+    backgroundColor: colors.controlActive,
+    borderRadius: radii.md,
     height: 38,
     justifyContent: "center",
     width: 38,
@@ -175,41 +171,37 @@ const local = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 9,
   },
-  entryActive: { backgroundColor: colors.controlActive, borderColor: colors.gold },
+  entryActive: { backgroundColor: colors.controlActive, borderColor: colors.edge },
   entryPressed: { backgroundColor: colors.controlHover },
-  entryText: { color: colors.textSecondary, fontFamily: fonts.hand, fontSize: fontSizes.base, fontWeight: "600" },
+  entryText: { color: colors.textSecondary, fontFamily: fonts.sans, fontSize: fontSizes.base, fontWeight: "600" },
   entryTextActive: { color: colors.text, fontWeight: "700" },
-  guide: { backgroundColor: colors.paper, flex: 1 },
+  guide: { backgroundColor: colors.page, flex: 1 },
   guideContent: { gap: 18, padding: 30 },
   guideText: { color: colors.textSecondary, fontFamily: fonts.sans, fontSize: fontSizes.base, lineHeight: 21 },
   head: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 12, padding: 14 },
   heading: { alignItems: "center", flexDirection: "row", gap: 16 },
-  headingLine: { color: colors.onWood, fontFamily: fonts.sans, fontSize: fontSizes.base, fontStyle: "italic" },
+  headingLine: { color: colors.onGround, fontFamily: fonts.sans, fontSize: fontSizes.base, fontStyle: "italic" },
   headingText: { flex: 1, gap: 2 },
   headingTitle: {
-    color: colors.onWood,
-    fontFamily: fonts.hand,
+    color: colors.onGround,
+    fontFamily: fonts.sans,
     fontSize: 28,
     fontWeight: "700",
-    letterSpacing: 1.5,
-    textTransform: "uppercase",
   },
   headLeft: { alignItems: "center", flexDirection: "row", flexGrow: 1, flexShrink: 1, gap: 12 },
-  menu: { ...ink, ...cut, ...lift, backgroundColor: colors.canvas, gap: 4, padding: 12, width: 210 },
+  menu: { ...outline, ...round, backgroundColor: colors.canvas, gap: 4, padding: 12, width: 210 },
   menuRow: { gap: 6 },
   menuRowScroll: { flexGrow: 0 },
   menuTitle: {
     color: colors.text,
-    fontFamily: fonts.hand,
+    fontFamily: fonts.sans,
     fontSize: fontSizes.lg,
     fontWeight: "700",
-    letterSpacing: 1,
     paddingHorizontal: 6,
     paddingVertical: 4,
-    textTransform: "uppercase",
   },
   note: { flexDirection: "row", gap: 8 },
-  noteBullet: { color: colors.gold, fontSize: 8, lineHeight: 21 },
+  noteBullet: { color: colors.edge, fontSize: 8, lineHeight: 21 },
   notes: {
     backgroundColor: colors.accentSoft,
     borderColor: colors.border,
@@ -220,14 +212,12 @@ const local = StyleSheet.create({
   },
   notesTitle: {
     color: colors.accentText,
-    fontFamily: fonts.hand,
+    fontFamily: fonts.sans,
     fontSize: fontSizes.base,
     fontWeight: "700",
-    letterSpacing: 1,
-    textTransform: "uppercase",
   },
   noteText: { color: colors.textSecondary, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.md, lineHeight: 19 },
-  rule: { backgroundColor: colors.gold, height: 1, opacity: 0.6 },
+  rule: { backgroundColor: colors.edge, height: 1, opacity: 0.6 },
   summary: {
     color: colors.textSecondary,
     flexShrink: 1,
@@ -237,23 +227,18 @@ const local = StyleSheet.create({
   },
   tab: {
     alignItems: "center",
-    backgroundColor: colors.danger,
-    borderBottomLeftRadius: 14,
-    borderBottomRightRadius: 14,
-    borderColor: colors.gold,
-    borderWidth: 2,
-    height: 64,
+    backgroundColor: colors.controlActive,
+    borderRadius: radii.lg,
+    height: 56,
     justifyContent: "center",
-    width: 54,
+    width: 56,
   },
   title: {
     color: colors.text,
     flexShrink: 1,
-    fontFamily: fonts.hand,
+    fontFamily: fonts.sans,
     fontSize: fontSizes.base,
     fontWeight: "700",
-    letterSpacing: 0.8,
-    textTransform: "uppercase",
   },
   trailing: { alignItems: "center", flexDirection: "row", flexShrink: 1, flexWrap: "wrap", gap: 16 },
 });

@@ -5,13 +5,13 @@ import {
   Results,
   ServerFrameJson,
   type ServiceError,
-} from "@gild/contracts";
+} from "@iskios/contracts";
 import { Schema } from "effect";
 import type { DesktopBridge } from "./desktopBridge";
 
 declare global {
   interface Window {
-    gild?: DesktopBridge;
+    iskios?: DesktopBridge;
   }
 }
 
@@ -37,8 +37,8 @@ export class ServiceClient {
   private constructor(private readonly endpoint: string) {}
 
   static async connect(): Promise<ServiceClient> {
-    if (window.gild === undefined) return Promise.reject(new Error("Open Gild through the desktop app."));
-    const client = new ServiceClient(await window.gild.endpoint());
+    if (window.iskios === undefined) return Promise.reject(new Error("Open Iskios through the desktop app."));
+    const client = new ServiceClient(await window.iskios.endpoint());
     await client.open();
     return client;
   }

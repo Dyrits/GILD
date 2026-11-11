@@ -1,4 +1,4 @@
-import type { ThreadActions, ThreadState } from "@gild/contracts";
+import type { ThreadActions, ThreadState } from "@iskios/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, notFound, touchMission } from "../core/index.ts";

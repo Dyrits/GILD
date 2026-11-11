@@ -1,4 +1,4 @@
-import type { StandingPermission } from "@gild/contracts";
+import type { StandingPermission } from "@iskios/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { notFound } from "../core/index.ts";

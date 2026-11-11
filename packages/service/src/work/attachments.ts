@@ -8,7 +8,7 @@ import {
   type AttachmentMediaType,
   maxAttachmentBytes,
   maxAttachmentsPerMessage,
-} from "@gild/contracts";
+} from "@iskios/contracts";
 import { Clock, Context, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, notFound, ServiceFailure } from "../core/index.ts";
@@ -18,7 +18,7 @@ import { invalid, notFound, ServiceFailure } from "../core/index.ts";
 // This module alone writes and erases them; bytes never enter the database or a log line.
 
 /** The folder holding every attached file, drafts and sent ones. */
-export class AttachmentsRoot extends Context.Service<AttachmentsRoot, string>()("gild/AttachmentsRoot") {}
+export class AttachmentsRoot extends Context.Service<AttachmentsRoot, string>()("iskios/AttachmentsRoot") {}
 
 const extensionOf = {
   "image/gif": "gif",

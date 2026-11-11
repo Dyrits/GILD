@@ -1,15 +1,15 @@
-import type { Settings } from "@gild/contracts";
+import type { Settings } from "@iskios/contracts";
 import { useState } from "react";
 import { Text } from "react-native";
 import type { ServiceClient } from "../foundation/client";
 import { priceStatusTextOf } from "../foundation/labels";
 import { styles } from "../foundation/styles";
 import { useServiceQuery } from "../foundation/useServiceQuery";
-import { GoldButton } from "../ui/parchment";
+import { Button } from "../ui/button";
 import { SettingsCard, ToggleRow } from "./settingsParts";
 
 /**
- * The model price table behind estimated costs: whether Gild reads the public table, where the prices in use came
+ * The model price table behind estimated costs: whether Iskios reads the public table, where the prices in use came
  * from, and a button to read it now (budget-control, The price table).
  */
 export function PricesCard({
@@ -37,7 +37,7 @@ export function PricesCard({
       />
       {status !== null && <Text style={styles.muted}>{priceStatusTextOf(status)}</Text>}
       {error !== null && <Text style={styles.error}>{error}</Text>}
-      {settings.shouldFetchPrices && <GoldButton isPrimary={false} label="Refresh now" onPress={refresh} />}
+      {settings.shouldFetchPrices && <Button isPrimary={false} label="Refresh now" onPress={refresh} />}
     </SettingsCard>
   );
 }

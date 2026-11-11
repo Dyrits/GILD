@@ -1,4 +1,4 @@
-import type { AttachmentId, BudgetScope, MessageDelivery, MissionDetail, MissionId, ThreadId } from "@gild/contracts";
+import type { AttachmentId, BudgetScope, MessageDelivery, MissionDetail, MissionId, ThreadId } from "@iskios/contracts";
 import { useEffect, useRef, useState } from "react";
 import {
   FlatList,
@@ -297,10 +297,16 @@ export function Conversation({
   missionId,
   onBack,
   onOpenMission,
+  onSelectThread,
   onSetDetails,
+  selectedThreadId,
 }: {
   client: ServiceClient;
   missionId: MissionId;
+  /** Shows another thread of this quest; the window keeps which one, so the sidebar can show it too. */
+  onSelectThread: (threadId: ThreadId | null) => void;
+  /** The thread shown, or null for the quest's top thread. */
+  selectedThreadId: ThreadId | null;
   /** Opens or closes the quest's side panel. */
   onSetDetails: (isOpen: boolean) => void;
   onBack: () => void;
@@ -310,7 +316,8 @@ export function Conversation({
   const { width } = useWindowDimensions();
   const isCompact = width < 820;
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
-  const [selectedId, setSelectedId] = useState<ThreadId | null>(null);
+  const selectedId = selectedThreadId;
+  const setSelectedId = onSelectThread;
   const [isJournalOpen, setIsJournalOpen] = useState(false);
   const hasTopBar = useHasTopBar();
   const hasSidebar = useHasSidebar();
@@ -371,13 +378,12 @@ export function Conversation({
   }
   return (
     <View style={[styles.questLayout, isCompact && styles.questLayoutCompact]}>
-      {hasSideQuests && (
+      {hasSideQuests && !hasSidebar && (
+        // With the sidebar showing, it is the quest's one tree; this one serves the narrow window, which has none.
         <View style={[styles.questSide, isCompact && styles.questSideCompact]}>
-          {!hasSidebar && (
-            <Pressable onPress={onBack}>
-              <Text style={styles.link}>← Quests</Text>
-            </Pressable>
-          )}
+          <Pressable onPress={onBack}>
+            <Text style={styles.link}>← Back</Text>
+          </Pressable>
           {data && (
             <ThreadTree
               onSelect={setSelectedId}
@@ -391,7 +397,7 @@ export function Conversation({
       <View style={styles.questMain}>
         {!hasSidebar && !hasSideQuests && (
           <Pressable onPress={onBack}>
-            <Text style={styles.link}>← Quests</Text>
+            <Text style={styles.link}>← Back</Text>
           </Pressable>
         )}
         {error !== null && <Text style={styles.error}>{error}</Text>}

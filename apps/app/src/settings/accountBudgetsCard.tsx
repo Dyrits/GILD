@@ -1,4 +1,4 @@
-import type { AccountBudget, BudgetLimits } from "@gild/contracts";
+import type { AccountBudget, BudgetLimits } from "@iskios/contracts";
 import { useState } from "react";
 import { Text, TextInput, View } from "react-native";
 import { BudgetEditor } from "../editors/budgets";
@@ -6,7 +6,7 @@ import { messageOf, type ServiceClient } from "../foundation/client";
 import { accountBudgetTextOf, planLimitsSummaryOf } from "../foundation/labels";
 import { styles } from "../foundation/styles";
 import { useServiceQuery } from "../foundation/useServiceQuery";
-import { GoldButton } from "../ui/parchment";
+import { Button } from "../ui/button";
 import { Choice } from "../ui/pickers";
 import { SettingsCard, SettingsRule } from "./settingsParts";
 
@@ -100,7 +100,7 @@ function AccountBudgetRow({ budget, client }: { budget: AccountBudget; client: S
             style={[styles.input, styles.flex]}
             value={amount}
           />
-          <GoldButton isPrimary={false} label="Add credit" onPress={addCredit} />
+          <Button isPrimary={false} label="Add credit" onPress={addCredit} />
         </View>
       )}
       {error !== null && <Text style={styles.error}>{error}</Text>}
@@ -110,7 +110,7 @@ function AccountBudgetRow({ budget, client }: { budget: AccountBudget; client: S
 
 /**
  * Each provider account's budget and credits (budget-control, Account budgets and credits): a limit over a period, or
- * credits bought on a day. Gild counts only its own turns on the account, and the card says so.
+ * credits bought on a day. Iskios counts only its own turns on the account, and the card says so.
  */
 export function AccountBudgetsCard({ client }: { client: ServiceClient }) {
   const { data: budgets } = useServiceQuery(client, { _tag: "ReadAccountBudgets" }, "account-budgets");
@@ -118,7 +118,7 @@ export function AccountBudgetsCard({ client }: { client: ServiceClient }) {
     <SettingsCard icon="gem" title="Account budgets and credits">
       <Text style={styles.muted}>
         A budget stops the quests running on an account when it is reached. Credits count what you bought, from the day
-        you bought them. Gild cannot see what other tools use on the same account.
+        you bought them. Iskios cannot see what other tools use on the same account.
       </Text>
       {budgets?.map((budget, index) => (
         <View key={`${budget.harness}:${budget.accountId ?? ""}`} style={styles.settings}>

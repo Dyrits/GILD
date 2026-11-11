@@ -1,13 +1,13 @@
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { PanResponder, Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { PanResponder, Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
 import { allMissions } from "../foundation/queries";
 import { QuestPanelSetter, SidebarShown, TopBarShown } from "../foundation/shellContext";
-import { colors, cut, fontSizes, fonts, radii } from "../foundation/theme";
+import { colors, radii } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
 import { useRituals } from "../rituals/rituals";
-import { clampRailWidth, readCollapsed, readRailWidth, rememberCollapsed, rememberRailWidth } from "./railStorage";
-import { collapsedWidth, type RailTip, RailTipSetter, Sidebar } from "./sidebar";
+import { clampRailWidth, readHidden, readRailWidth, rememberHidden, rememberRailWidth } from "./railStorage";
+import { Sidebar } from "./sidebar";
 import { crumbsOf, type DetailsToggle, hasOwnTitleBar, PanelIcon, QuestColumn, TopBar } from "./topBar";
 
 /** The window width from which the sidebar shows beside the content; narrower windows keep the screens' own links. */
@@ -60,13 +60,13 @@ function RailResizer({ onChange, width }: { onChange: (width: number) => void; w
  * a narrow one the content alone.
  */
 export function Shell(
-  props: Omit<Parameters<typeof Sidebar>[0], "isCollapsed" | "width"> & {
+  props: Omit<Parameters<typeof Sidebar>[0], "width"> & {
     children: ReactNode;
     details: DetailsToggle | null;
   },
 ) {
   const { width } = useWindowDimensions();
-  const [isCollapsed, setIsCollapsed] = useState(readCollapsed);
+  const [isHidden, setIsHidden] = useState(readHidden);
   const [railWidth, setRailWidth] = useState(readRailWidth);
   const [questPanel, setQuestPanel] = useState<ReactNode>(null);
   const [panelTitle, setPanelTitle] = useState("Quest");
@@ -76,11 +76,9 @@ export function Shell(
   }, []);
   const { data } = useServiceQuery(props.client, allMissions.request, allMissions.key);
   const hasRail = width >= sidebarBreakpoint;
-  const [tip, setTip] = useState<RailTip | null>(null);
   const toggle = () => {
-    rememberCollapsed(!isCollapsed);
-    setIsCollapsed(!isCollapsed);
-    setTip(null);
+    rememberHidden(!isHidden);
+    setIsHidden(!isHidden);
   };
   // Command or Control with B shows or hides the rail, as in editors; the browser's own handling is kept elsewhere.
   const toggleRef = useRef(toggle);
@@ -135,36 +133,29 @@ export function Shell(
     <QuestPanelSetter.Provider value={setPanel}>
       <SidebarShown.Provider value={true}>
         <TopBarShown.Provider value={true}>
-          <RailTipSetter.Provider value={setTip}>
-            <View style={local.window}>
-              <View style={local.windowMain}>
-                <TopBar client={props.client} crumbs={crumbs} details={details} />
-                <View style={local.frame}>
-                  <Sidebar {...props} isCollapsed={isCollapsed} width={railWidth} />
-                  {!isCollapsed && <RailResizer onChange={setRailWidth} width={railWidth} />}
-                  <Pressable
-                    accessibilityLabel={isCollapsed ? "Expand sidebar (⌘B)" : "Collapse sidebar (⌘B)"}
-                    accessibilityRole="button"
-                    onPress={toggle}
-                    style={({ pressed }) => [
-                      local.handle,
-                      { left: (isCollapsed ? collapsedWidth : railWidth) - handleSize / 2 },
-                      pressed && local.handlePressed,
-                    ]}
-                  >
-                    <PanelIcon />
-                  </Pressable>
-                  <View style={local.panel}>{props.children}</View>
-                </View>
+          <View style={local.window}>
+            <View style={local.windowMain}>
+              <TopBar client={props.client} crumbs={crumbs} details={details} />
+              <View style={local.frame}>
+                {!isHidden && <Sidebar {...props} width={railWidth} />}
+                {!isHidden && <RailResizer onChange={setRailWidth} width={railWidth} />}
+                <Pressable
+                  accessibilityLabel={isHidden ? "Show sidebar (⌘B)" : "Hide sidebar (⌘B)"}
+                  accessibilityRole="button"
+                  onPress={toggle}
+                  style={({ pressed }) => [
+                    local.handle,
+                    { left: isHidden ? 8 : railWidth - handleSize / 2 },
+                    pressed && local.handlePressed,
+                  ]}
+                >
+                  <PanelIcon />
+                </Pressable>
+                <View style={local.panel}>{props.children}</View>
               </View>
-              {panelColumn}
-              {tip !== null && (
-                <View pointerEvents="none" style={[local.tip, { left: tip.x, top: tip.y - 15 }]}>
-                  <Text style={local.tipText}>{tip.label}</Text>
-                </View>
-              )}
             </View>
-          </RailTipSetter.Provider>
+            {panelColumn}
+          </View>
         </TopBarShown.Provider>
       </SidebarShown.Provider>
     </QuestPanelSetter.Provider>
@@ -172,11 +163,11 @@ export function Shell(
 }
 
 const local = StyleSheet.create({
-  frame: { backgroundColor: colors.wood, flex: 1, flexDirection: "row", overflow: "hidden" },
+  frame: { backgroundColor: colors.ground, flex: 1, flexDirection: "row", overflow: "hidden" },
   handle: {
     alignItems: "center",
-    backgroundColor: colors.leather,
-    borderColor: colors.gold,
+    backgroundColor: colors.sidebar,
+    borderColor: colors.edge,
     borderRadius: radii.pill,
     borderWidth: 1,
     height: handleSize,
@@ -185,30 +176,21 @@ const local = StyleSheet.create({
     position: "absolute",
     top: "50%",
     width: handleSize,
+    // Above the strip that resizes the sidebar, which runs beneath the button.
+    zIndex: 4,
   },
-  handlePressed: { backgroundColor: colors.wood },
+  handlePressed: { backgroundColor: colors.ground },
   hidden: { display: "none" },
-  narrow: { backgroundColor: colors.paper, flex: 1 },
+  narrow: { backgroundColor: colors.page, flex: 1 },
   narrowContent: { flex: 1 },
   panel: {
-    backgroundColor: colors.paper,
+    backgroundColor: colors.page,
     borderColor: colors.borderStrong,
     borderLeftWidth: 1.5,
     flex: 1,
     overflow: "hidden",
   },
   resizer: { bottom: 0, position: "absolute", top: 0, width: 8, zIndex: 3 },
-  tip: {
-    ...cut,
-    backgroundColor: colors.canvas,
-    borderColor: colors.gold,
-    borderWidth: 1,
-    paddingHorizontal: 10,
-    paddingVertical: 4,
-    position: "absolute",
-    zIndex: 10,
-  },
-  tipText: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.md },
-  window: { backgroundColor: colors.wood, flex: 1, flexDirection: "row" },
+  window: { backgroundColor: colors.ground, flex: 1, flexDirection: "row" },
   windowMain: { flex: 1 },
 });

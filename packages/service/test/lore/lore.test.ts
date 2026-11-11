@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
-import type { LoreScope, MissionId, ThreadId } from "@gild/contracts";
+import type { LoreScope, MissionId, ThreadId } from "@iskios/contracts";
 import { Effect } from "effect";
 import { afterEach } from "vitest";
 import { call, fixture, open, read, send, settle, start, tool } from "../fixtures/service.ts";

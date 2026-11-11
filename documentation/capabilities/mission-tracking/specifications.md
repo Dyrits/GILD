@@ -32,7 +32,7 @@ Agreed on 2026-11-10 (CHG-0130); implementation and verification remain pending.
 - Lore access follows [lore scopes](../scoped-intel/specifications.md#scopes).
 - The owner can move an existing quest between any of these placements, including correcting a quest started in the wrong workspace.
 - The sidebar supports dragging a quest from its current Realm, Free Realm, or realmless group onto another placement.
-- Before changing placement, Gild asks for confirmation naming the source and destination and explaining that the available realm lore will change.
+- Before changing placement, Iskios asks for confirmation naming the source and destination and explaining that the available realm lore will change.
   Confirm applies the move; Cancel leaves the quest and its tree in their original placement.
   This confirmation applies to every placement-changing move, including making a quest realmless, whichever interface initiates it.
 - A move includes the quest and every side-quest at every depth, including threads explicitly attached to another workspace; no branch stays behind.
@@ -104,7 +104,7 @@ Sidebar drag-and-drop and confirmation were agreed on 2026-11-10 (CHG-0133); imp
 
 ### Left navigation structure
 
-Agreed on 2026-11-11 (CHG-0134), specification only; implementation is not authorized by this agreement.
+Agreed on 2026-11-11 (CHG-0134). The owner then asked for the sidebar to be built (CHG-0143); Free Realm placement, direct creation, quest moves, and the lifecycle changes are still to build.
 This navigation scope is specified; [related capability work](draft.md) is deferred to the relevant capability's implementation preparation.
 
 The expanded left sidebar uses this order:
@@ -118,9 +118,10 @@ The expanded left sidebar uses this order:
 | 5 | Rituals | Routines |
 | 6 | Craft | Workflows |
 | 7 | The Keep | Library, Lore, Archive, in that order |
-| 8 | Workshop | MCP servers, connectors, and skills |
-| 9 | Reserves | Compact usage summary leading to a detailed usage page |
-| 10 | Charter | Application settings, accounts, permissions, and defaults |
+| 8 | Reserves | Compact usage summary leading to a detailed usage page |
+| 9 | Workshop | Application settings, accounts, permissions, and defaults (the former Charter; CHG-0146) |
+
+The separate Workshop for MCP servers, connectors, and skills (position 8 of CHG-0134) is withdrawn for now; the owner will ask for a dedicated menu for them later.
 
 - Each Realm and Free Realm can expand or collapse its quests; each quest and side-quest can expand or collapse its children at every supported depth.
 - Realmless has no intermediate realm grouping.
@@ -139,7 +140,7 @@ The expanded left sidebar uses this order:
 
 Navigation acceptance, once the draft decisions are settled:
 
-- **Agent validation**: check the ten entries and their order; the three Keep destinations; Workshop access to its three resource categories; and Reserves access to the usage page.
+- **Agent validation**: check the nine entries and their order; the three Keep destinations; and Reserves access to the usage page.
 - **Agent validation**: use quests in all three placements with multiple side-quest depths; expand and collapse parents, open descendants, and check that selection reaches the intended conversation.
 - **Human acceptance**: compare the nesting with the supplied reference in the running desktop app and judge readability at the compact sidebar width.
 - Agent validation includes more quests than the former recent-quests cutoff, an idle quest after reporting a result, archive and reopen, long titles, empty groups, and collapsed and narrow-screen navigation.

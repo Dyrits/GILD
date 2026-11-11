@@ -59,7 +59,7 @@ Claude Code is selected, but its concrete protocol mapping remains unverified. B
 
 Where verified mid-turn input exists, deliver Steer and thread messages into the active turn. Otherwise queue them for the next turn and show that outcome. Interrupt ends the current turn and becomes Idle; pending messages may start a subsequent turn. Stop remains the way to prevent further turns until resume.
 
-Prefer full Gild threads through `open_thread`. Native subagents must either be disabled through a verified mechanism or observed as mirrored threads. If neither is possible, that harness configuration cannot claim the thread-tree acceptance checks. Mirrored-thread continuation requires the staged handover design.
+Prefer full Iskios threads through `open_thread`. Native subagents must either be disabled through a verified mechanism or observed as mirrored threads. If neither is possible, that harness configuration cannot claim the thread-tree acceptance checks. Mirrored-thread continuation requires the staged handover design.
 
 ## Dependency gates
 

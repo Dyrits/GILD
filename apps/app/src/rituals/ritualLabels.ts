@@ -1,4 +1,4 @@
-import type { RitualRunState, RitualSchedule } from "@gild/contracts";
+import type { RitualRunState, RitualSchedule } from "@iskios/contracts";
 
 // How Rituals read in the interface: schedules and next runs in words, and the choices a schedule form offers.
 

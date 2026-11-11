@@ -11,16 +11,16 @@ import type {
   ResultOf,
   ThreadId,
   ThreadSummary,
-} from "@gild/contracts";
+} from "@iskios/contracts";
 import { Effect } from "effect";
 import { afterEach } from "vitest";
 import { fakeHarnessLayer, Service, serviceLayer } from "../../src/index.ts";
 
 const directories: string[] = [];
 const databaseFile = () => {
-  const directory = mkdtempSync(join(tmpdir(), "gild-threads-"));
+  const directory = mkdtempSync(join(tmpdir(), "iskios-threads-"));
   directories.push(directory);
-  return join(directory, "gild.sqlite");
+  return join(directory, "iskios.sqlite");
 };
 afterEach(() => {
   for (const directory of directories.splice(0)) rmSync(directory, { force: true, recursive: true });

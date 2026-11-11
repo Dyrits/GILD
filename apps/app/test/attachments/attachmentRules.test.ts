@@ -1,5 +1,5 @@
-import type { HarnessInfo, HarnessList } from "@gild/contracts";
-import { maxAttachmentBytes, maxAttachmentsPerMessage, maxImageSide } from "@gild/contracts";
+import type { HarnessInfo, HarnessList } from "@iskios/contracts";
+import { maxAttachmentBytes, maxAttachmentsPerMessage, maxImageSide } from "@iskios/contracts";
 import { describe, expect, it } from "vitest";
 import {
   canReadImages,

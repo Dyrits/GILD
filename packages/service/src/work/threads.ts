@@ -63,10 +63,10 @@ export class Threads extends Context.Service<
     /** Once threads stopped outside a turn's end, wakes the mission's threads whose messages wait. */
     readonly wakeMission: (missionId: string) => Effect.Effect<void>;
   }
->()("gild/Threads") {}
+>()("iskios/Threads") {}
 
-/** Where each provider account added in Gild keeps its own folder (provider-accounts). */
-export class AccountsRoot extends Context.Service<AccountsRoot, string>()("gild/AccountsRoot") {}
+/** Where each provider account added in Iskios keeps its own folder (provider-accounts). */
+export class AccountsRoot extends Context.Service<AccountsRoot, string>()("iskios/AccountsRoot") {}
 
 /** A turn the harness is running, with the steered messages already written to it. */
 interface ActiveTurn {
