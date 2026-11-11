@@ -2017,3 +2017,18 @@ Summary: Adopted the owner's replacement transparent PNG and cropped its outer m
 Preserved the supplied artwork and alpha channel without regeneration.
 Validation: Visually inspected the cropped app icon and checked output dimensions and transparency; no installer was rebuilt.
 The earlier icon handoff describes the superseded opaque assets; use this entry and the current assets for the latest state.
+
+## CHG-0141 · 2026-11-11 · Consumption and cost built (CHG-0126, steps 1 to 3)
+
+Type: Code
+Event: Delivery
+Scope: Budget control
+
+Summary: Built the agreement of CHG-0126 in three steps, each committed with its proof.
+Step 1 (`4724ebc`): each turn is recorded with a billing kind that chooses the budget unit it counts toward (API key counts cost, Subscription and Unknown count tokens), Claude Code reads it from the init event's `apiKeySource`, every priced turn carries an estimated cost stamped when it ends (price table first, the harness's own figure for a model the table lacks), the table is read from models.dev with a shipped snapshot and a Charter switch, and the card, quest and thread panels, rail, top bar, and budget window show `≈ $x`, split by harness and model.
+Step 2 (`93e7f10`): a budget-scope module (mission, global, account) replaces the "mission or null" convention; account budgets and credits stop the threads on an account across quests, offer the quick raises, Switch to a backup Companion, and Stop, refuse new quests on the account, and record a line in each stopped quest; the Charter lists each account's budget.
+Step 3 (`97e0457`): a line under each agent reply shows its call's tokens and cost, the turn's rest added to its last reply so the lines add up; Codex's billing kind comes from its own `account/read` and its plan limits from a short, paced app-server run, shown in the rail, the Charter, and the thread panel.
+Reason: the owner wanted one comparable view of use and cost across subscriptions and API keys, and each subscription's limits, without Gild holding provider credentials.
+References: [specifications](capabilities/budget-control/specifications.md), [blueprint](capabilities/budget-control/blueprint.md), [decision record 0014](architecture-decision-record/0014-model-prices-from-a-public-table.md) (proposed), proofs [step 1](verification/2026-11-10-consumption-and-cost.md), [step 2](verification/2026-11-11-account-budgets.md), [step 3](verification/2026-11-11-reply-usage-and-plan-limits.md).
+Validation: typecheck and Biome pass; the full suite passes apart from two to five timing tests that time out under parallel load and pass alone; every claim's checks were shown able to fail by mutation (10, 9, and 10 mutations, all caught after one test was strengthened); the screens were driven in the web build on throwaway data. Codex's `account/read` and `account/rateLimits/read` were probed live without a model call.
+Not done: live probes of Claude Code's `apiKeySource` and `rate_limit_event`, its `total_cost_usd` as a running total, OpenCode's sign-in and usage, and usage per model call on any harness (each needs a paid model call); Claude Code's and OpenCode's plan limits show "Limits not reported". The owner's look at every new screen. Decision record 0014 and the provisional API-key rule await the owner's acceptance.
