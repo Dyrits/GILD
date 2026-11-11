@@ -48,7 +48,7 @@ export const styles = StyleSheet.create({
   cardCornerButton: {
     ...round,
     alignItems: "center",
-    backgroundColor: colors.text,
+    backgroundColor: colors.cornerButton,
     height: 34,
     justifyContent: "center",
     position: "absolute",

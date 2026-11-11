@@ -292,7 +292,7 @@ const local = StyleSheet.create({
     fontWeight: "700",
     lineHeight: 56,
     marginTop: 4,
-    textShadowColor: "#000",
+    textShadowColor: colors.shadow,
     textShadowOffset: { height: 2, width: 0 },
     textShadowRadius: 6,
   },

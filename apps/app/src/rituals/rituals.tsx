@@ -632,7 +632,7 @@ const local = StyleSheet.create({
     fontSize: 40,
     fontWeight: "700",
     lineHeight: 48,
-    textShadowColor: "#000",
+    textShadowColor: colors.shadow,
     textShadowOffset: { height: 2, width: 0 },
     textShadowRadius: 6,
   },

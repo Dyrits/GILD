@@ -21,6 +21,8 @@ import { BudgetEditor } from "../editors/budgets";
 import { levelLabels } from "../editors/permissions";
 import { RunnerPickers, useHarnesses } from "../editors/runners";
 import { messageOf, type ServiceClient } from "../foundation/client";
+import { canChooseColorScheme, chooseColorPreference, colorPreference } from "../foundation/colorScheme";
+import { colorSchemePreferences } from "../foundation/colorSchemeRules";
 import { useHasSidebar } from "../foundation/shellContext";
 import { styles } from "../foundation/styles";
 import { colors, fontSizes, fonts } from "../foundation/theme";
@@ -41,6 +43,12 @@ const deliveryLabels = {
   Queue: "Queue for its next turn",
   Steer: "Steer its current turn",
 } as const satisfies Record<MessageDelivery, string>;
+
+/** How each choice of look is named in the Charter. */
+const colorSchemeLabels = { dark: "Dark", light: "Light", system: "System" } as const satisfies Record<
+  (typeof colorSchemePreferences)[number],
+  string
+>;
 
 /** A whole-number field with its own Save, checked against its minimum before saving. */
 function NumberField({
@@ -182,6 +190,21 @@ export function SettingsScreen({
               />
             </Section>
             <Section id="defaults" tops={tops}>
+              {canChooseColorScheme && (
+                <SettingsCard
+                  icon="sliders"
+                  title="Appearance · light, dark, or the system's"
+                  trailing={
+                    <Choice
+                      accessibilityLabel="Appearance"
+                      label={(preference) => colorSchemeLabels[preference]}
+                      onChange={chooseColorPreference}
+                      options={colorSchemePreferences}
+                      value={colorPreference}
+                    />
+                  }
+                />
+              )}
               <SettingsCard icon="sliders" title="Default harness, model, and effort before your first quest">
                 <RunnerPickers
                   harnesses={harnesses.data}

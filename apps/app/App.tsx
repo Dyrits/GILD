@@ -5,6 +5,7 @@ import { Conversation } from "./src/conversation/conversation";
 import { GuildmasterScreen } from "./src/conversation/guildmaster";
 import { PermissionsScreen } from "./src/editors/permissions";
 import { ServiceClient } from "./src/foundation/client";
+import { applyColorScheme, rememberPlace, resumedPlace } from "./src/foundation/colorScheme";
 import { colors, fontSizes, fonts } from "./src/foundation/theme";
 import { LoreScreen } from "./src/lore/lore";
 import { RitualsScreen } from "./src/rituals/rituals";
@@ -17,12 +18,26 @@ import type { RealmListing } from "./src/shell/questTree";
 import { Shell } from "./src/shell/shell";
 import type { Place } from "./src/shell/sidebar";
 
+/** The pages a reload for a change of look returns to: those that need nothing else open to show. */
+const resumablePlaces: readonly Place[] = [
+  "Archived",
+  "Craft",
+  "Guildmaster",
+  "Library",
+  "Lore",
+  "Quests",
+  "Rituals",
+  "Settings",
+];
+
 export default function App() {
   const [client, setClient] = useState<ServiceClient | null>(null);
   const [failure, setFailure] = useState<string | null>(null);
   const [openMission, setOpenMission] = useState<MissionId | null>(null);
   // The place the rail leads to; a quest, when one is open, shows in its stead.
-  const [place, setPlace] = useState<Place>("Guildmaster");
+  const [place, setPlace] = useState<Place>(
+    () => resumablePlaces.find((resumable) => resumable === resumedPlace) ?? "Guildmaster",
+  );
   // The realm or Free Realm whose quests the quest list page shows.
   const [listedRealm, setListedRealm] = useState<RealmListing | null>(null);
   // The quest picked on the board, shown in the side panel without opening it.
@@ -39,6 +54,9 @@ export default function App() {
   const [areDetailsOpen, setAreDetailsOpen] = useState(width >= 1280);
   useAttentionNotice(client);
 
+  useEffect(() => rememberPlace(place), [place]);
+  // The browser's own chrome and the page behind the app follow the look in use.
+  useEffect(() => applyColorScheme(colors.ground), []);
   useEffect(() => {
     ServiceClient.connect().then(setClient, (error: Error) => setFailure(error.message));
   }, []);

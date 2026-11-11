@@ -1,11 +1,12 @@
 import type { MissionState, ThreadState } from "@iskios/contracts";
 import { Platform } from "react-native";
+import { colorScheme } from "./colorScheme";
 
 /**
- * The palette: one dark navy, flat surfaces told apart by a slightly lighter or darker step, thin borders, and a single
- * blue accent. State colors are the only others.
+ * The dark palette, the app's original look: one dark navy, flat surfaces told apart by a slightly lighter or darker
+ * step, thin borders, and a single blue accent. State colors are the only others.
  */
-export const colors = {
+const dark = {
   accent: "#4f86e8",
   accentSoft: "#1f3350",
   accentText: "#8db3ff",
@@ -21,6 +22,8 @@ export const colors = {
   control: "#1c2a3b",
   controlActive: "#2b3d55",
   controlHover: "#243449",
+  /** The small button at a card's corner that opens its quest. */
+  cornerButton: "#e8edf4",
   danger: "#e5604f",
   dangerSoft: "#3a2224",
   dangerText: "#f08b7d",
@@ -39,6 +42,8 @@ export const colors = {
   /** The page behind panels and cards. */
   page: "#172230",
   placeholder: "#66758a",
+  /** The shadow under large titles, which lifts them off the page. */
+  shadow: "#000",
   sidebar: "#111a26",
   success: "#4fb872",
   successSoft: "#1d3a2b",
@@ -56,6 +61,59 @@ export const colors = {
   warningSoft: "#3a3220",
   warningText: "#ecc063",
 } as const;
+
+/** A palette: every color the app uses, under the same names in each look. */
+export type Palette = { readonly [Name in keyof typeof dark]: string };
+
+/**
+ * The light palette: warm parchment surfaces, ink-navy text, and the same blue accent a step deeper so it reads on
+ * light. Surfaces keep the dark palette's order of steps (the cards and fields sit a step above the page).
+ */
+const light: Palette = {
+  accent: "#3f5f94",
+  accentSoft: "#e0e7f2",
+  accentText: "#2f4d80",
+  border: "#e0d6c9",
+  borderStrong: "#cdbfae",
+  bubble: "#fbf8f3",
+  bubbleUser: "#e3eaf4",
+  canvas: "#fbf8f3",
+  control: "#f8f4ee",
+  controlActive: "#e4dacd",
+  controlHover: "#eee6db",
+  cornerButton: "#e4dacd",
+  danger: "#c8402f",
+  dangerSoft: "#f6dcd7",
+  dangerText: "#a8301f",
+  edge: "#d5c9ba",
+  frame: "#f8f4ee",
+  ground: "#ebe3d8",
+  highlight: "#2a3a4f",
+  marker: "#f3e4bd",
+  onAccent: "#ffffff",
+  onGround: "#4d5b6d",
+  page: "#f3ece3",
+  placeholder: "#9a9086",
+  shadow: "rgba(255,255,255,0)",
+  sidebar: "#f7f0e8",
+  success: "#3f9a5f",
+  successSoft: "#d9eddf",
+  successText: "#2a7a47",
+  surface: "#f8f4ee",
+  terminal: "#e1e8f1",
+  text: "#1c2838",
+  textDim: "#9a9086",
+  textMuted: "#6b7686",
+  textSecondary: "#46546a",
+  violet: "#7a5fc7",
+  violetSoft: "#e6dff5",
+  warning: "#c98a14",
+  warningSoft: "#f7ebcb",
+  warningText: "#8f5f0a",
+};
+
+/** The palette in use, fixed for a run by the owner's choice of look (see `colorScheme`). */
+export const colors: Palette = { dark, light }[colorScheme];
 
 /** Corner radii, from small controls to the main panel. */
 export const radii = { lg: 8, md: 6, pill: 999, sm: 4, xl: 12 } as const;
