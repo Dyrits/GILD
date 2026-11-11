@@ -6,6 +6,7 @@ import { QuestPanelSetter, SidebarShown, TopBarShown } from "../foundation/shell
 import { colors, radii } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
 import { useRituals } from "../rituals/rituals";
+import type { RealmListing } from "./questTree";
 import { clampRailWidth, readHidden, readRailWidth, rememberHidden, rememberRailWidth } from "./railStorage";
 import { Sidebar } from "./sidebar";
 import { crumbsOf, type DetailsToggle, hasOwnTitleBar, PanelIcon, QuestColumn, TopBar } from "./topBar";
@@ -63,6 +64,8 @@ export function Shell(
   props: Omit<Parameters<typeof Sidebar>[0], "width"> & {
     children: ReactNode;
     details: DetailsToggle | null;
+    /** The realm or Free Realm whose quest list is open, named in the top bar. */
+    listedRealm: RealmListing | null;
   },
 ) {
   const { width } = useWindowDimensions();
@@ -98,12 +101,11 @@ export function Shell(
   const rituals = useRituals(props.client);
   const crumbs = crumbsOf({
     isLoaded: data !== null && rituals !== null,
+    listedRealmName: props.listedRealm?.name ?? null,
     missions: data?.missions ?? [],
     onPlace: props.onPlace,
-    onWorkspace: props.onWorkspace,
     openMission: props.openMission,
     place: props.place,
-    realm: workspaces.find((workspace) => workspace.id === props.workspaceId) ?? null,
     rituals: rituals ?? [],
     workspaces,
   });
@@ -145,7 +147,7 @@ export function Shell(
                   onPress={toggle}
                   style={({ pressed }) => [
                     local.handle,
-                    { left: isHidden ? 8 : railWidth - handleSize / 2 },
+                    isHidden ? local.handleTab : { left: railWidth - handleSize / 2 },
                     pressed && local.handlePressed,
                   ]}
                 >
@@ -180,6 +182,17 @@ const local = StyleSheet.create({
     zIndex: 4,
   },
   handlePressed: { backgroundColor: colors.ground },
+  // Hidden, the handle is the half of a circle against the window's left edge.
+  handleTab: {
+    borderBottomLeftRadius: 0,
+    borderLeftWidth: 0,
+    borderTopLeftRadius: 0,
+    height: handleSize * 1.5,
+    left: 0,
+    marginTop: -handleSize * 0.75,
+    paddingRight: 3,
+    width: handleSize * 0.75,
+  },
   hidden: { display: "none" },
   narrow: { backgroundColor: colors.page, flex: 1 },
   narrowContent: { flex: 1 },

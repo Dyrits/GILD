@@ -558,6 +558,11 @@ const migrations = {
       created_at INTEGER NOT NULL
     )`;
   }),
+  // Free Realm placement (mission-tracking): the Free Realm a quest is placed in, none for a realm's or a realmless quest.
+  "0038_mission_free_realm": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE missions ADD COLUMN free_realm_id TEXT`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

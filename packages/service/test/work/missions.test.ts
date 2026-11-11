@@ -153,6 +153,70 @@ describe("starting a mission", () => {
   );
 });
 
+describe("starting an empty quest in a realm", () => {
+  it.effect("is called New quest and sits idle in the realm until its first message names it", () =>
+    Effect.gen(function* () {
+      const folder = mkdtempSync(join(tmpdir(), "iskios-realm-"));
+      directories.push(folder);
+      const started = yield* call({ _tag: "StartEmptyQuest", requestId: "e1", workspacePath: folder });
+      const replayed = yield* call({ _tag: "StartEmptyQuest", requestId: "e1", workspacePath: folder });
+      expect(replayed).toEqual(started);
+
+      const listed = () =>
+        call({ _tag: "ListMissions", isArchived: false, search: null, state: null, workspaceId: null });
+      const [empty] = (yield* listed()).missions;
+      expect(empty).toMatchObject({ id: started.missionId, state: "Idle", title: "New quest" });
+      expect(empty?.workspaceId).not.toBeNull();
+      expect((yield* read(started.missionId)).messages).toHaveLength(0);
+
+      yield* call({
+        _tag: "SendMessage",
+        attachmentIds: [],
+        delivery: null,
+        requestId: "e2",
+        text: "Tidy the garden\nplease",
+        threadId: started.threadId,
+      });
+      const [named] = (yield* listed()).missions;
+      expect(named).toMatchObject({ id: started.missionId, title: "Tidy the garden" });
+    }).pipe(Effect.provide(live(databaseFile()))),
+  );
+});
+
+describe("starting an empty quest in a Free Realm or in none", () => {
+  it.effect("places it in the Free Realm, or leaves it realmless, and refuses an unknown Free Realm", () =>
+    Effect.gen(function* () {
+      yield* call({ _tag: "CreateFreeRealm", crest: null, name: "Garden" });
+      const [freeRealm] = yield* call({ _tag: "ListFreeRealms" });
+      const placed = yield* call({
+        _tag: "StartEmptyQuest",
+        freeRealmId: freeRealm?.id ?? null,
+        requestId: "f1",
+        workspacePath: null,
+      });
+      const loose = yield* call({ _tag: "StartEmptyQuest", requestId: "f2", workspacePath: null });
+      const refused = yield* failureOf({
+        _tag: "StartEmptyQuest",
+        freeRealmId: "missing" as never,
+        requestId: "f3",
+        workspacePath: null,
+      });
+      expect(refused).toMatchObject({ kind: "InvalidInput", message: "No such free realm." });
+
+      const { missions } = yield* call({
+        _tag: "ListMissions",
+        isArchived: false,
+        search: null,
+        state: null,
+        workspaceId: null,
+      });
+      const byId = new Map(missions.map((each) => [each.id, each]));
+      expect(byId.get(placed.missionId)).toMatchObject({ freeRealmId: freeRealm?.id, workspaceId: null });
+      expect(byId.get(loose.missionId)).toMatchObject({ freeRealmId: null, workspaceId: null });
+    }).pipe(Effect.provide(live(databaseFile()))),
+  );
+});
+
 describe("follow-up messages", () => {
   it.effect("keep their order and, when queued, are answered together after the running turn", () =>
     Effect.gen(function* () {

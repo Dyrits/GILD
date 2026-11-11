@@ -70,7 +70,7 @@ import { markThreadDone } from "./work/lifecycle.ts";
 import { toolServerLayer } from "./work/mcp.ts";
 import { insertUserMessage } from "./work/messaging.ts";
 import { readMission } from "./work/missionDetail.ts";
-import { insertMission } from "./work/missions.ts";
+import { insertMission, insertQuest } from "./work/missions.ts";
 import { PlanLimits, planLimitsLayer } from "./work/planLimits.ts";
 import { priceRefreshLayer } from "./work/priceRefresh.ts";
 import {
@@ -87,7 +87,7 @@ import { readStartingContext } from "./work/startingContext.ts";
 import { Suggestions, suggestionsLayer } from "./work/suggestions.ts";
 import { readThreadPanel } from "./work/threadPanel.ts";
 import { AccountsRoot, Threads, threadsLayer } from "./work/threads.ts";
-import { renameMission } from "./work/titles.ts";
+import { nameNewQuest, newQuestTitle, renameMission } from "./work/titles.ts";
 import { openThreadByOwner } from "./work/tree.ts";
 import { imageRefusalOf, readThreadRunner } from "./work/vision.ts";
 import { listWorkspaceEntries } from "./work/workspaceEntries.ts";
@@ -437,7 +437,10 @@ const make = Effect.gen(function* () {
                   delivery === "Queue",
                   attachmentIds,
                   send.realmPath ?? null,
-                ).pipe(Effect.map((sent) => changed(sent, { threadsToWake: [send.threadId] }))),
+                ).pipe(
+                  Effect.tap(() => nameNewQuest(send.threadId, text)),
+                  Effect.map((sent) => changed(sent, { threadsToWake: [send.threadId] })),
+                ),
                 () => wakingOnly(send.threadId),
               ),
             );
@@ -459,6 +462,33 @@ const make = Effect.gen(function* () {
             Effect.provideService(HarnessTools, harnessTools),
             Effect.provideService(AccountsRoot, accountsRoot),
             Effect.as(null),
+          ),
+        StartEmptyQuest: (start) =>
+          commands.run(
+            once(
+              start.requestId,
+              start._tag,
+              Effect.gen(function* () {
+                const choices = yield* readStartChoices;
+                const started = yield* insertQuest(
+                  {
+                    firstMessage: null,
+                    freeRealmId: start.freeRealmId ?? null,
+                    realm: null,
+                    shouldRememberChoices: false,
+                    title: newQuestTitle,
+                  },
+                  {
+                    accountId: choices.accountId,
+                    effort: choices.effort,
+                    harness: choices.harness,
+                    model: choices.model,
+                  },
+                  start.workspacePath,
+                );
+                return changed({ missionId: started.missionId, threadId: started.threadId });
+              }),
+            ),
           ),
         StartMission: (start) =>
           Effect.gen(function* () {

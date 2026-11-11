@@ -14,7 +14,7 @@ import {
 } from "./budgets.ts";
 import { Crest } from "./crest.ts";
 import { HarnessName } from "./harnesses.ts";
-import { AccountId, MessageId, MissionId, SuggestionId, ThreadId, WorkspaceId } from "./ids.ts";
+import { AccountId, FreeRealmId, MessageId, MissionId, SuggestionId, ThreadId, WorkspaceId } from "./ids.ts";
 import { LoreChange, LoreGauge } from "./lore.ts";
 import { ApprovalLevel, Question } from "./questions.ts";
 import { RitualCard } from "./ritualSchedules.ts";
@@ -148,6 +148,8 @@ export const MissionSummary = Schema.Struct({
   budget: BudgetUse,
   /** What the mission's turns used, with the estimated cost (budget-control, Estimated cost). */
   consumption: Consumption,
+  /** The Free Realm the quest is placed in, or null for a quest in a realm or in none. */
+  freeRealmId: Schema.NullOr(FreeRealmId),
   /** The top thread's harness and model, for the card. */
   harness: HarnessName,
   id: MissionId,

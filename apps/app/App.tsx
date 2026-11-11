@@ -1,4 +1,4 @@
-import type { MissionId, ThreadId, WorkspaceId } from "@iskios/contracts";
+import type { MissionId, ThreadId } from "@iskios/contracts";
 import { useEffect, useState } from "react";
 import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { Conversation } from "./src/conversation/conversation";
@@ -12,6 +12,8 @@ import { SettingsScreen } from "./src/settings/settings";
 import { Dashboard } from "./src/shell/dashboard";
 import { useAttentionNotice } from "./src/shell/notifications";
 import { UnbuiltScreen } from "./src/shell/places";
+import { QuestListScreen } from "./src/shell/questListPage";
+import type { RealmListing } from "./src/shell/questTree";
 import { Shell } from "./src/shell/shell";
 import type { Place } from "./src/shell/sidebar";
 
@@ -21,6 +23,8 @@ export default function App() {
   const [openMission, setOpenMission] = useState<MissionId | null>(null);
   // The place the rail leads to; a quest, when one is open, shows in its stead.
   const [place, setPlace] = useState<Place>("Guildmaster");
+  // The realm or Free Realm whose quests the quest list page shows.
+  const [listedRealm, setListedRealm] = useState<RealmListing | null>(null);
   // The quest picked on the board, shown in the side panel without opening it.
   const [selectedMission, setSelectedMission] = useState<MissionId | null>(null);
   // The side-quest open in the open quest, chosen in the sidebar or the conversation; null for the quest itself.
@@ -28,8 +32,6 @@ export default function App() {
   const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
   // The realm chosen for the Guildmaster's next message: from its side panel, or from a realm's page.
   const [guildmasterRealm, setGuildmasterRealm] = useState<string | null>(null);
-  // The realm whose quests the Quests place shows, or null for every quest.
-  const [workspaceId, setWorkspaceId] = useState<WorkspaceId | null>(null);
   // Counts openings from the sidebar, so choosing the open mission again goes back to its threads.
   const [openCount, setOpenCount] = useState(0);
   // The quest's side panel starts open on a wide window; the top bar's icon shows or hides it.
@@ -64,12 +66,6 @@ export default function App() {
     setSelectedMission(null);
     setIsPermissionsOpen(false);
     setPlace(next);
-    // Going to a place clears the realm filter, so Quests shows every quest; a realm sets it again right after.
-    setWorkspaceId(null);
-  };
-  const openWorkspace = (id: WorkspaceId) => {
-    goTo("Quests");
-    setWorkspaceId(id);
   };
   const openMissionFromAnywhere = (id: MissionId) => {
     setIsPermissionsOpen(false);
@@ -94,8 +90,6 @@ export default function App() {
   };
   // The quest board always has its panel open, with the overview when no quest is chosen.
   const isBoard = openMission === null && place === "Quests";
-  // The Charter's guide is pinned open like the board's panel; the Permissions screen it leads to has none.
-  const isCharter = openMission === null && place === "Settings" && !isPermissionsOpen;
   // The Guildmaster's realm tiles stand in a pinned panel, as the board's overview does.
   const isGuildmaster = openMission === null && place === "Guildmaster";
   const content =
@@ -127,9 +121,18 @@ export default function App() {
         onRealm={setGuildmasterRealm}
         realmPath={guildmasterRealm}
       />
+    ) : place === "Realmless" ? (
+      <QuestListScreen client={client} listing={null} onOpen={openMissionFromAnywhere} />
+    ) : place === "RealmQuests" ? (
+      <QuestListScreen client={client} listing={listedRealm} onOpen={openMissionFromAnywhere} />
     ) : place === "Rituals" ? (
       <RitualsScreen client={client} onOpen={openMissionFromAnywhere} />
-    ) : place === "Craft" || place === "Library" || place === "Reserves" ? (
+    ) : place === "Charter" ||
+      place === "Craft" ||
+      place === "FreeRealms" ||
+      place === "Library" ||
+      place === "Realms" ||
+      place === "Reserves" ? (
       <UnbuiltScreen place={place} />
     ) : (
       <Dashboard
@@ -147,27 +150,30 @@ export default function App() {
         }}
         onSettings={() => goTo("Settings")}
         selectedId={selectedMission}
-        workspaceId={workspaceId}
+        workspaceId={null}
       />
     );
   return (
     <Shell
       client={client}
       details={
-        isBoard || isCharter || isGuildmaster
+        isBoard || isGuildmaster
           ? { isOpen: true, isPinned: true, onToggle: () => {} }
           : openMission === null && selectedMission === null
             ? null
             : { isOpen: areDetailsOpen, onToggle: () => setAreDetailsOpen(!areDetailsOpen) }
       }
+      listedRealm={listedRealm}
       onOpenMission={openMissionFromAnywhere}
+      onOpenRealmQuests={(listing) => {
+        setListedRealm(listing);
+        goTo("RealmQuests");
+      }}
       onOpenThread={openSideQuest}
       onPlace={goTo}
-      onWorkspace={openWorkspace}
       openMission={openMission}
       openThread={openThread}
       place={place}
-      workspaceId={workspaceId}
     >
       {content}
     </Shell>

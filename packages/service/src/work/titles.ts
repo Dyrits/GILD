@@ -7,6 +7,9 @@ import type { ToolHandlers } from "./threadTools.ts";
 /** The title of a quest or thread whose first message holds only images. */
 export const attachmentsTitle = "Attached images";
 
+/** The title of a quest started without a message, until its first message names it. */
+export const newQuestTitle = "New quest";
+
 /** A title from a text: its first line, trimmed, at most 200 characters. */
 export const titleOf = (text: string) => text.trim().split("\n", 1)[0]?.trim().slice(0, 200) ?? "";
 
@@ -17,6 +20,19 @@ const writeTitle = (missionId: string, title: string, isByUser: boolean) =>
     yield* sql`UPDATE missions SET title = ${title}, is_title_by_user = ${isByUser ? 1 : sql`is_title_by_user`}
       WHERE id = ${missionId}`;
     yield* sql`UPDATE threads SET title = ${title} WHERE id = (SELECT top_thread_id FROM missions WHERE id = ${missionId})`;
+  });
+
+/**
+ * Names a quest still called "New quest" after the first message sent to its top thread, as a quest started with a message
+ * is named. Callers run it in a transaction.
+ */
+export const nameNewQuest = (threadId: string, text: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const [mission] = yield* sql<{ id: string }>`
+      SELECT id FROM missions
+      WHERE top_thread_id = ${threadId} AND title = ${newQuestTitle} AND is_title_by_user = 0 AND is_guildmaster = 0`;
+    if (mission !== undefined) yield* writeTitle(mission.id, titleOf(text) || attachmentsTitle, false);
   });
 
 /** Names a mission with a thread's proposed title, which the top thread may still change. Callers run it in a transaction. */

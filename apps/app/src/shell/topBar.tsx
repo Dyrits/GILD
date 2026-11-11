@@ -106,24 +106,23 @@ export function TopBar({
  */
 export const crumbsOf = ({
   isLoaded,
+  listedRealmName,
   missions,
   onPlace,
-  onWorkspace,
   openMission,
   place,
-  realm,
   rituals,
   workspaces,
 }: {
   /** Whether the quests have been read, so a quest missing from them is known to be archived. */
   isLoaded: boolean;
+  /** The realm or Free Realm whose quest list is open, if any. */
+  listedRealmName: string | null;
   /** The quests that are not archived. */
   missions: readonly MissionSummary[];
   onPlace: (place: Place) => void;
-  onWorkspace: (id: WorkspaceId) => void;
   openMission: MissionId | null;
   place: Place | null;
-  realm: { id: WorkspaceId; name: string } | null;
   /** The Rituals, whose quests are not among `missions`. */
   rituals: readonly Ritual[];
   workspaces: readonly { id: WorkspaceId; name: string }[];
@@ -139,16 +138,20 @@ export const crumbsOf = ({
     const own = workspaces.find((each) => each.id === mission?.workspaceId);
     const current = here(mission?.title ?? "Quest");
     if (own === undefined) return [current];
-    return [{ label: own.name, onPress: () => onWorkspace(own.id) }, current];
+    return [here(own.name), current];
   }
   if (place === "Library") return [here("Library")];
   if (place === "Lore") return [here("Lore")];
   if (place === "Archived") return [here("Archive")];
+  if (place === "Charter") return [here("Charter")];
   if (place === "Craft") return [here("Craft")];
+  if (place === "Realms") return [here("Realms")];
+  if (place === "FreeRealms") return [here("Free Realms")];
+  if (place === "Realmless") return [here("Realmless")];
+  if (place === "RealmQuests") return [here(listedRealmName ?? "Realm")];
   if (place === "Reserves") return [here("Reserves")];
   if (place === "Settings") return [here("Workshop")];
   if (place === "Rituals") return [here("Rituals")];
-  if (place === "Quests" && realm !== null) return [here(realm.name)];
   return [here("Guild Hall")];
 };
 

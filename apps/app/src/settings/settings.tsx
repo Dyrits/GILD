@@ -21,7 +21,7 @@ import { BudgetEditor } from "../editors/budgets";
 import { levelLabels } from "../editors/permissions";
 import { RunnerPickers, useHarnesses } from "../editors/runners";
 import { messageOf, type ServiceClient } from "../foundation/client";
-import { useHasSidebar, useQuestPanel } from "../foundation/shellContext";
+import { useHasSidebar } from "../foundation/shellContext";
 import { styles } from "../foundation/styles";
 import { colors, fontSizes, fonts } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
@@ -31,7 +31,7 @@ import { AccountBudgetsCard } from "./accountBudgetsCard";
 import { AccountsCard, HarnessesCard } from "./accounts";
 import { GuildmasterSettings } from "./guildmasterSettings";
 import { PricesCard } from "./pricesCard";
-import { SettingsCard, SettingsGuide, SettingsHeading, SettingsMenu, SettingsRule, ToggleRow } from "./settingsParts";
+import { SettingsCard, SettingsHeading, SettingsMenu, SettingsRule, ToggleRow } from "./settingsParts";
 import { activeSectionOf, type SettingsSectionId } from "./settingsSections";
 
 // Stored and wire names keep `intel` so existing data and agents still work: settings keys (`intelHalfLives`, `intelWarningPercent`).
@@ -130,8 +130,6 @@ export function SettingsScreen({
   const scroll = useRef<ScrollViewInstance>(null);
   const tops = useRef<Partial<Record<SettingsSectionId, number>>>({});
   const [active, setActive] = useState<SettingsSectionId>("permissions");
-  // The guide goes to the window's frame, where a narrow window has no room for it.
-  useQuestPanel(hasSidebar && <SettingsGuide />, "Settings guide");
   const save = (change: Partial<Settings>) => {
     if (settings === null) return;
     client.request({ _tag: "UpdateSettings", settings: { ...settings, ...change } }).then(

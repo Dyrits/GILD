@@ -1,7 +1,7 @@
-import { type MissionSummary, ThreadSummary, type WorkspaceChoice } from "@iskios/contracts";
+import { type FreeRealm, type MissionSummary, ThreadSummary, type WorkspaceChoice } from "@iskios/contracts";
 import { Schema } from "effect";
 import { describe, expect, it } from "vitest";
-import { ancestorIdsOf, placementsOf, sideQuestRowsOf } from "../../src/shell/questTree";
+import { agoOf, ancestorIdsOf, placementsOf, recencyGroupsOf, sideQuestRowsOf } from "../../src/shell/questTree";
 
 const thread = (id: string, parentId: string | null, depth: number, isOpenedByAgent = false) =>
   Schema.decodeUnknownSync(ThreadSummary)({
@@ -66,18 +66,35 @@ describe("the path to a thread", () => {
   });
 });
 
-const quest = (id: string, workspaceId: string | null, lastActivityAt: number) =>
-  ({ id, lastActivityAt, workspaceId }) as unknown as MissionSummary;
+const quest = (id: string, workspaceId: string | null, lastActivityAt: number, freeRealmId: string | null = null) =>
+  ({ freeRealmId, id, lastActivityAt, workspaceId }) as unknown as MissionSummary;
 const realm = (id: string, name: string) => ({ crest: null, id, name, path: `/${name}` }) as unknown as WorkspaceChoice;
 
 describe("the placements of quests", () => {
   const placements = placementsOf(
-    [quest("q1", "w2", 1), quest("q2", null, 5), quest("q3", "w2", 9), quest("q4", null, 2)],
+    [
+      quest("q1", "w2", 1),
+      quest("q2", null, 5),
+      quest("q3", "w2", 9),
+      quest("q4", null, 2),
+      quest("q5", null, 3, "f1"),
+    ],
     [realm("w2", "Zeta"), realm("w1", "Alpha")],
+    [
+      { crest: null, id: "f1", name: "Free" },
+      { crest: null, id: "f2", name: "Empty" },
+    ] as unknown as FreeRealm[],
   );
 
   it("puts quests outside any realm apart, latest first", () => {
     expect(placements.realmless.map((each) => each.id)).toEqual(["q2", "q4"]);
+  });
+
+  it("places a quest in its Free Realm, keeps a Free Realm with none, and leaves it out of the realmless", () => {
+    expect(placements.freeRealms.map((each) => [each.freeRealm.name, each.quests.map((q) => q.id)])).toEqual([
+      ["Free", ["q5"]],
+      ["Empty", []],
+    ]);
   });
 
   it("lists realms by name with their own quests, latest first, and keeps a realm with none", () => {
@@ -85,5 +102,45 @@ describe("the placements of quests", () => {
       ["Alpha", []],
       ["Zeta", ["q3", "q1"]],
     ]);
+  });
+});
+
+describe("the Realmless page's groups", () => {
+  const now = new Date(2026, 10, 11, 15, 0).getTime();
+  const at = (month: number, day: number, hour = 12) => new Date(2026, month, day, hour).getTime();
+
+  it("groups quests latest first under Today, Yesterday, This week, and the months", () => {
+    const groups = recencyGroupsOf(
+      [
+        quest("old", null, at(9, 3)),
+        quest("today", null, at(10, 11, 9)),
+        quest("week", null, at(10, 7)),
+        quest("yesterday", null, at(10, 10)),
+        quest("earlier", null, at(10, 1)),
+        quest("also-old", null, at(9, 20)),
+      ],
+      now,
+    );
+    expect(groups.map((group) => [group.heading, group.quests.map((each) => each.id)])).toEqual([
+      ["Today", ["today"]],
+      ["Yesterday", ["yesterday"]],
+      ["This week", ["week"]],
+      ["November", ["earlier"]],
+      ["October", ["also-old", "old"]],
+    ]);
+  });
+
+  it("names the year of a month in another year", () => {
+    const groups = recencyGroupsOf([quest("a", null, new Date(2025, 11, 5).getTime())], now);
+    expect(groups.map((group) => group.heading)).toEqual(["December 2025"]);
+  });
+
+  it("says how long ago in the coarsest fitting unit", () => {
+    const minute = 60000;
+    expect(agoOf(now, now)).toBe("just now");
+    expect(agoOf(now - 8 * minute, now)).toBe("8 minutes ago");
+    expect(agoOf(now - 60 * minute, now)).toBe("1 hour ago");
+    expect(agoOf(now - 3 * 24 * 60 * minute, now)).toBe("3 days ago");
+    expect(agoOf(now - 14 * 24 * 60 * minute, now)).toBe("2 weeks ago");
   });
 });

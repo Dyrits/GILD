@@ -7,6 +7,7 @@ import {
   AccountId,
   AttachmentId,
   BudgetStopId,
+  FreeRealmId,
   LoreChangeId,
   LoreEntryId,
   LoreHistoryEntryId,
@@ -98,6 +99,17 @@ export const StartMission = Schema.TaggedStruct("StartMission", {
   requestId: RequestId,
   text: OwnerMessageText,
   /** An existing folder, chosen in the system's folder dialog, or null for the mission's scratch folder. */
+  workspacePath: Schema.NullOr(Schema.String),
+});
+/**
+ * Starts a quest with no message yet, on the choices of the last quest started: in the realm at a folder, in a Free Realm,
+ * or in neither (realmless). It is named "New quest" until its first message names it.
+ */
+export const StartEmptyQuest = Schema.TaggedStruct("StartEmptyQuest", {
+  /** The Free Realm to place it in; absent or null places it by `workspacePath`. */
+  freeRealmId: Schema.optionalKey(Schema.NullOr(FreeRealmId)),
+  requestId: RequestId,
+  /** The folder of the realm to place it in, or null for a Free Realm or realmless quest. */
   workspacePath: Schema.NullOr(Schema.String),
 });
 /** Sends the owner's message to a thread, steered or queued. */
@@ -419,6 +431,7 @@ export const Request = Schema.Union([
   DiscardAttachment,
   ReadAttachment,
   StartMission,
+  StartEmptyQuest,
   PreviewDeletion,
   ResolveChatter,
   DeleteThread,
@@ -502,6 +515,9 @@ export type RequestTag = Request["_tag"];
 /** A started mission's identifiers. */
 export const StartMissionResult = Schema.Struct({ messageId: MessageId, missionId: MissionId, threadId: ThreadId });
 export type StartMissionResult = typeof StartMissionResult.Type;
+/** A quest started without a message: where it and its top thread are. */
+export const StartEmptyQuestResult = Schema.Struct({ missionId: MissionId, threadId: ThreadId });
+export type StartEmptyQuestResult = typeof StartEmptyQuestResult.Type;
 /** A sent message's identifier. */
 export const SendMessageResult = Schema.Struct({ messageId: MessageId });
 export type SendMessageResult = typeof SendMessageResult.Type;
@@ -581,6 +597,7 @@ export const Results = {
   SetRealmCrest: Schema.Null,
   SetThreadBackups: Schema.Null,
   SignInAccount: Schema.Null,
+  StartEmptyQuest: StartEmptyQuestResult,
   StartMission: StartMissionResult,
   StopAtBudget: Schema.Null,
   StopThread: Schema.Null,

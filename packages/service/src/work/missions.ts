@@ -68,6 +68,8 @@ export const insertQuest = (
     /** The files attached to the first message, added beforehand as drafts (message-attachments). */
     readonly attachmentIds?: ReadonlyArray<string>;
     readonly firstMessage: string | null;
+    /** The Free Realm to place the quest in; it must exist, and the quest then has no workspace. */
+    readonly freeRealmId?: string | null;
     readonly isTitleByOwner?: boolean;
     readonly realm: { crest: Crest | null; name: string } | null;
     readonly shouldRememberChoices: boolean;
@@ -94,12 +96,17 @@ export const insertQuest = (
     // A reached account budget refuses a quest started on that account (budget-control, Reaching a limit).
     const accountBudgetRefusal = yield* budgetRefusalOf(null, { accountId, harness }, "Account");
     if (accountBudgetRefusal !== null) return yield* invalid(accountBudgetRefusal);
+    const freeRealmId = quest.freeRealmId ?? null;
+    if (freeRealmId !== null) {
+      const [freeRealm] = yield* sql<{ id: string }>`SELECT id FROM free_realms WHERE id = ${freeRealmId}`;
+      if (freeRealm === undefined) return yield* invalid("No such free realm.");
+    }
     const workspaceId = workspacePath === null ? null : yield* attachWorkspace(workspacePath, realm);
     const now = yield* Clock.currentTimeMillis;
     const missionId = crypto.randomUUID();
     const threadId = crypto.randomUUID();
-    yield* sql`INSERT INTO missions (id, top_thread_id, title, created_at, last_activity_at, is_title_by_user)
-      VALUES (${missionId}, ${threadId}, ${quest.title}, ${now}, ${now}, ${quest.isTitleByOwner === true ? 1 : 0})`;
+    yield* sql`INSERT INTO missions (id, top_thread_id, title, created_at, last_activity_at, is_title_by_user, free_realm_id)
+      VALUES (${missionId}, ${threadId}, ${quest.title}, ${now}, ${now}, ${quest.isTitleByOwner === true ? 1 : 0}, ${freeRealmId})`;
     // The Charter's backup Companions are the new thread's own from the start (thread-panel, Backup companions).
     yield* sql`INSERT INTO threads (id, mission_id, state, harness, account_id, model, effort, workspace_id, title, backups)
       VALUES (${threadId}, ${missionId}, 'Idle', ${harness}, ${accountId}, ${model}, ${effort}, ${workspaceId}, ${quest.title}, ${JSON.stringify(settings.backups)})`;
@@ -150,6 +157,7 @@ type MissionRow = {
   turns: number;
   unpricedTurns: number;
   earlierTurns: number;
+  freeRealmId: string | null;
   workspaceId: string | null;
   workspaceCrest: string | null;
   workspaceName: string | null;
@@ -182,6 +190,7 @@ const summaryOf = (row: MissionRow, now: number, settings: Settings): MissionSum
       spent: { cost: row.spentCost, tokens: row.spentTokens },
     },
     consumption: consumptionOf(row),
+    freeRealmId: row.freeRealmId,
     harness: row.harness,
     id: row.id,
     isTitleByUser: row.isTitleByUser === 1,
@@ -213,7 +222,7 @@ const summaryOf = (row: MissionRow, now: number, settings: Settings): MissionSum
 
 const missionRows = (sql: SqlClient.SqlClient, where: Statement.Fragment) =>
   sql<MissionRow>`
-    SELECT m.id, m.title, m.top_thread_id AS topThreadId, top.harness AS harness, top.model AS model, m.last_activity_at AS lastActivityAt,
+    SELECT m.id, m.title, m.free_realm_id AS freeRealmId, m.top_thread_id AS topThreadId, top.harness AS harness, top.model AS model, m.last_activity_at AS lastActivityAt,
       (SELECT group_concat(t.state) FROM threads t WHERE t.mission_id = m.id) AS states,
       (SELECT COUNT(*) FROM threads t WHERE t.mission_id = m.id) AS threadCount,
       m.ending, m.is_title_by_user AS isTitleByUser, m.is_asking_done AS isAskingDone,

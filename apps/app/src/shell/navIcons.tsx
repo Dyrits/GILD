@@ -3,6 +3,7 @@ import { Image } from "react-native";
 /** The sidebar's own icons, one per destination, cropped to their drawing and sized for a high-density screen. */
 const sources = {
   archive: require("../../assets/nav/archive.png"),
+  charter: require("../../assets/nav/charter.png"),
   craft: require("../../assets/nav/craft.png"),
   "free-realms": require("../../assets/nav/free-realms.png"),
   "guild-hall": require("../../assets/nav/guild-hall.png"),

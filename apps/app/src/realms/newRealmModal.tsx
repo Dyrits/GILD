@@ -57,7 +57,7 @@ export function NewRealmModal({
       <View style={local.backdrop}>
         <Pressable accessibilityLabel="Close" onPress={onCancel} style={StyleSheet.absoluteFill} />
         <View style={local.menu}>
-          <Text style={local.menuTitle}>{hasFolder ? "A new realm" : "A new free realm"}</Text>
+          <Text style={local.menuTitle}>{hasFolder ? "Travel to a new realm" : "Travel to a new free realm"}</Text>
           {hasFolder && (
             <View style={local.folderRow}>
               <Text numberOfLines={2} style={[local.menuPath, editing.path === "" && local.menuPathEmpty]}>

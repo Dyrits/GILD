@@ -101,37 +101,6 @@ export function SettingsMenu({
   );
 }
 
-const notes = [
-  "Permissions limit sensitive actions.",
-  "Defaults set your starting harness, model, and effort.",
-  "Harnesses and accounts manage sign-ins for each tool.",
-  "Messaging decides how quests and side-quests talk to you and to each other.",
-  "Limits keep briefings and lore within the model's context.",
-] as const;
-
-/** The side panel of the Charter: what its sections do, in a few words each. */
-export function SettingsGuide() {
-  return (
-    <View style={local.guide}>
-      <ScrollView contentContainerStyle={local.guideContent}>
-        <Text style={local.guideText}>
-          Control how agents quest, which models and harnesses to use, how accounts connect, and the limits that keep
-          your realm running well.
-        </Text>
-        <View style={local.notes}>
-          <Text style={local.notesTitle}>Quick notes</Text>
-          {notes.map((note) => (
-            <View key={note} style={local.note}>
-              <Text style={local.noteBullet}>◆</Text>
-              <Text style={local.noteText}>{note}</Text>
-            </View>
-          ))}
-        </View>
-      </ScrollView>
-    </View>
-  );
-}
-
 /** The page's heading on the wood: a red tab with the gear, the title, and what the page is for. */
 export function SettingsHeading() {
   return (
@@ -175,9 +144,6 @@ const local = StyleSheet.create({
   entryPressed: { backgroundColor: colors.controlHover },
   entryText: { color: colors.textSecondary, fontFamily: fonts.sans, fontSize: fontSizes.base, fontWeight: "600" },
   entryTextActive: { color: colors.text, fontWeight: "700" },
-  guide: { backgroundColor: colors.page, flex: 1 },
-  guideContent: { gap: 18, padding: 30 },
-  guideText: { color: colors.textSecondary, fontFamily: fonts.sans, fontSize: fontSizes.base, lineHeight: 21 },
   head: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 12, padding: 14 },
   heading: { alignItems: "center", flexDirection: "row", gap: 16 },
   headingLine: { color: colors.onGround, fontFamily: fonts.sans, fontSize: fontSizes.base, fontStyle: "italic" },
@@ -200,23 +166,6 @@ const local = StyleSheet.create({
     paddingHorizontal: 6,
     paddingVertical: 4,
   },
-  note: { flexDirection: "row", gap: 8 },
-  noteBullet: { color: colors.edge, fontSize: 8, lineHeight: 21 },
-  notes: {
-    backgroundColor: colors.accentSoft,
-    borderColor: colors.border,
-    borderRadius: 4,
-    borderWidth: 1,
-    gap: 8,
-    padding: 16,
-  },
-  notesTitle: {
-    color: colors.accentText,
-    fontFamily: fonts.sans,
-    fontSize: fontSizes.base,
-    fontWeight: "700",
-  },
-  noteText: { color: colors.textSecondary, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.md, lineHeight: 19 },
   rule: { backgroundColor: colors.edge, height: 1, opacity: 0.6 },
   summary: {
     color: colors.textSecondary,
