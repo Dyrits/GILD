@@ -12,6 +12,7 @@ directories:
 files:
   - dist/**
   - assets/icon.png
+  - assets/icon-gild.png
   - package.json
 # node-pty's native binary and its spawn helper must run from disk, not from inside the archive.
 asarUnpack:

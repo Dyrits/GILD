@@ -8,6 +8,7 @@ contextBridge.exposeInMainWorld("iskios", {
   endpoint: (): Promise<string> => ipcRenderer.invoke("iskios:endpoint"),
   /** Whether the window has no system title bar on macOS, so the app draws its own beside the traffic lights. */
   hasOwnTitleBar: process.platform === "darwin",
+  setTheme: (theme: "gild" | "iskios"): Promise<void> => ipcRenderer.invoke("iskios:setTheme", theme),
   terminalClose: (id: string): Promise<void> => ipcRenderer.invoke("iskios:terminalClose", id),
   terminalListen: (data: (id: string, text: string, sequence: number) => void, exit: (id: string) => void) => {
     const onData = (_event: Electron.IpcRendererEvent, id: string, text: string, sequence: number) =>

@@ -1,7 +1,9 @@
 import { Appearance, Platform } from "react-native";
 import { type ColorScheme, type ColorSchemePreference, preferenceOf, schemeOf } from "./colorSchemeRules";
+import { type Theme, themeOf } from "./themeRules";
 
 const storageKey = "iskios.colorScheme";
+const themeKey = "iskios.theme";
 
 /** The preference is kept in the browser's storage, so only the web build can keep one until native builds exist. */
 export const canChooseColorScheme = Platform.OS === "web" && typeof localStorage !== "undefined";
@@ -19,6 +21,9 @@ export const colorPreference: ColorSchemePreference = canChooseColorScheme
  * change takes effect by reloading.
  */
 export const colorScheme: ColorScheme = schemeOf(colorPreference, systemSchemeOf());
+
+/** The owner's theme, read once at load; Iskios until another is chosen. */
+export const theme: Theme = canChooseColorScheme ? themeOf(localStorage.getItem(themeKey)) : "iskios";
 
 const placeKey = "iskios.place";
 const resumeKey = "iskios.resume";
@@ -48,6 +53,13 @@ function reloadForColorScheme(): void {
 export function chooseColorPreference(preference: ColorSchemePreference): void {
   if (!canChooseColorScheme) return;
   localStorage.setItem(storageKey, preference);
+  reloadForColorScheme();
+}
+
+/** Keeps the owner's theme and reloads the window to draw it. */
+export function chooseTheme(chosen: Theme): void {
+  if (!canChooseColorScheme) return;
+  localStorage.setItem(themeKey, chosen);
   reloadForColorScheme();
 }
 

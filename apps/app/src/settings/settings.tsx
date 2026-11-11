@@ -21,11 +21,18 @@ import { BudgetEditor } from "../editors/budgets";
 import { levelLabels } from "../editors/permissions";
 import { RunnerPickers, useHarnesses } from "../editors/runners";
 import { messageOf, type ServiceClient } from "../foundation/client";
-import { canChooseColorScheme, chooseColorPreference, colorPreference } from "../foundation/colorScheme";
+import {
+  canChooseColorScheme,
+  chooseColorPreference,
+  chooseTheme,
+  colorPreference,
+  theme,
+} from "../foundation/colorScheme";
 import { colorSchemePreferences } from "../foundation/colorSchemeRules";
 import { useHasSidebar } from "../foundation/shellContext";
 import { styles } from "../foundation/styles";
 import { colors, fontSizes, fonts } from "../foundation/theme";
+import { themes } from "../foundation/themeRules";
 import { useServiceQuery } from "../foundation/useServiceQuery";
 import { Button } from "../ui/button";
 import { Choice } from "../ui/pickers";
@@ -45,6 +52,8 @@ const deliveryLabels = {
 } as const satisfies Record<MessageDelivery, string>;
 
 /** How each choice of look is named in the Charter. */
+const themeLabels = { gild: "Gild", iskios: "Iskios" } as const;
+
 const colorSchemeLabels = { dark: "Dark", light: "Light", system: "System" } as const satisfies Record<
   (typeof colorSchemePreferences)[number],
   string
@@ -190,6 +199,21 @@ export function SettingsScreen({
               />
             </Section>
             <Section id="defaults" tops={tops}>
+              {canChooseColorScheme && (
+                <SettingsCard
+                  icon="sliders"
+                  title="Theme · Iskios or Gild"
+                  trailing={
+                    <Choice
+                      accessibilityLabel="Theme"
+                      label={(name) => themeLabels[name]}
+                      onChange={chooseTheme}
+                      options={themes}
+                      value={theme}
+                    />
+                  }
+                />
+              )}
               {canChooseColorScheme && (
                 <SettingsCard
                   icon="sliders"

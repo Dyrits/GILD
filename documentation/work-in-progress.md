@@ -7,6 +7,11 @@ Built: in every message box a bare `@` lists Quests, Realms, and Files & Directo
 Checks: typecheck, Biome, 9 service and 9 app tests added, app suite passes, full suite with two failures that also fail without the change; driven in a throwaway Electron window on the fake harness, light and dark ([proof](verification/2026-11-11-mentions.md)).
 Open, awaiting the owner: the look of the menu and chips; the token form and the reply rule (my choices in CHG-0181); whether a realm mention should open anything (today context only). Not checked: a real harness choosing to use a mention; the phone build beyond typecheck (no chips in the box, Backspace erases the `@`); long lists (no scrolling, capped at 12 and 5 per category). Not built: Iskios's event lines for messages between quests.
 
+## Gild theme · 2026-11-11 · built and checked, owner review pending
+
+CHG-0183: Iskios and Gild themes, each dark and light; Gild's colors come from the owner's Guild Hall image (dark) and the former parchment board (light); gilt and bronze sidebar icons are temporary recolorings; the Dock and window icon follow the theme. Starting commit `5fbfc4c`, worktree branch `worktree/gild-theme`, uncommitted. [Screens](verification/2026-11-11-gild-theme/).
+Open: the owner's look at the colors; the cream cards of the image are not reproduced; real Gild icons to replace the recolorings; the Dock icon was not seen; other screens in Gild were not opened.
+
 ## Iskios, the assistant · 2026-11-11 · built, checked, and reviewed; owner review pending
 
 Agreed in CHG-0173, CHG-0174, and CHG-0176; delivered in CHG-0175, CHG-0177, CHG-0178, CHG-0179, and CHG-0180 (review and refactor). Starting commit `f492434`. The Guildmaster is Iskios: it proposes quests as a card (realm and Companion by tier), makes and renames realms on the owner's quoted words, and the Guild Hall has no side panel. Run with Claude Code in a throwaway window ([verification](verification/2026-11-11-iskios-live.md)).

@@ -11,6 +11,8 @@ export interface DesktopBridge {
   chooseFolder(): Promise<string | null>;
   endpoint(): Promise<string>;
   readonly hasOwnTitleBar: boolean;
+  /** Gives the Dock and the window the icon of the theme in use. */
+  setTheme(theme: "gild" | "iskios"): Promise<void>;
   terminalClose(id: string): Promise<void>;
   terminalListen(data: (id: string, text: string, sequence: number) => void, exit: (id: string) => void): () => void;
   terminalOpen(id: string, cwd: string | null): Promise<TerminalSession>;

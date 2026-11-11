@@ -4,14 +4,16 @@ import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import { app, BrowserWindow, dialog, ipcMain, net, protocol, utilityProcess } from "electron";
 import { appFileOf } from "./appFiles.ts";
+import { iconFileOf } from "./appIcon.ts";
 import { moveFormerData } from "./formerData.ts";
 import { instanceOf } from "./instance.ts";
 import { mergedPathOf, readLoginPath } from "./shellPath.ts";
 import { Terminals } from "./terminals.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
-/** The app's icon, beside `dist` in the desktop app's own `assets`. */
-const iconPath = join(here, "..", "assets", "icon.png");
+/** The app's icons, beside `dist` in the desktop app's own `assets`: Iskios's, and Gild's hooded figure. */
+const iconPathOf = (theme: unknown) => join(here, "..", "assets", iconFileOf(theme));
+const iconPath = iconPathOf("iskios");
 /** The installed app carries its screens and loads them from its own scheme; a development run loads the dev server. */
 const appScheme = "iskios-app";
 const appUrl = app.isPackaged ? `${appScheme}://app/` : (process.env.ISKIOS_APP_URL ?? "http://localhost:8081");
@@ -164,6 +166,16 @@ app
       terminals.close(id);
     });
     window.on("closed", () => terminals.dispose());
+    // The theme chosen in the app sets the Dock's and the window's icon; the installed file's own icon stays Iskios's.
+    ipcMain.handle("iskios:setTheme", (event, theme: unknown) => {
+      if (
+        event.sender !== window.webContents ||
+        new URL(event.senderFrame?.url ?? "").origin !== new URL(appUrl).origin
+      )
+        throw new Error("The theme is only set from Iskios's desktop window.");
+      app.dock?.setIcon(iconPathOf(theme));
+      window.setIcon(iconPathOf(theme));
+    });
     // Choose folder… opens the system's own dialog, Finder or Explorer (CHG-0035); null when cancelled.
     ipcMain.handle("iskios:chooseFolder", async () => {
       const chosen = await dialog.showOpenDialog(window, {
