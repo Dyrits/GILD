@@ -47,7 +47,7 @@ When adding a handoff, keep only the three newest current handoffs linked below;
 
 Latest handoffs:
 
-- To resume Realms and Borderlands, the sidebar hover marks, widths, and the nested quest list (seen in the web export, not by the owner), read the [current handoff](.agents/handoffs/2026-11-11-1640-realms-and-borderlands.md). Handoffs are shared and committed.
+- To resume the Realms and Borderlands sidebar and its polish (hover marks, folder icon, spacing; seen in the web export, whole-row hover not yet proven in the Electron window), read the [current handoff](.agents/handoffs/2026-11-11-1700-sidebar-polish-and-hover.md). Handoffs are shared and committed.
 
 - To resume the light mode and the sidebar icon sets (not yet seen by the owner in the running app), read the [current handoff](.agents/handoffs/2026-11-11-1523-light-mode.md). Handoffs are shared and committed.
 
