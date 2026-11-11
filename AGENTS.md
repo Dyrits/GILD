@@ -47,7 +47,7 @@ When adding a handoff, keep only the three newest current handoffs linked below;
 
 Latest handoffs:
 
-- To resume Iskios, the assistant formerly called Guildmaster (proposes quests, makes and renames realms; the code renaming and the Guild Hall hub remain), read the [current handoff](.agents/handoffs/2026-11-11-1912-iskios-assistant.md). Handoffs are shared and committed.
+- To resume Iskios, the assistant formerly called Guildmaster (reviewed and pushed; the Guild Hall hub, the code renaming, and four owner decisions remain), read the [current handoff](.agents/handoffs/2026-11-11-2123-iskios-reviewed.md). Handoffs are shared and committed.
 
 - To resume the quest moves by dragging (built and driven in a throwaway Electron window, not yet seen by the owner; sessions kept across a move), read the [current handoff](.agents/handoffs/2026-11-11-1743-quest-moves.md). Handoffs are shared and committed.
 
