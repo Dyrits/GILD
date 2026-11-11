@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  accountBudgetTextOf,
   briefingSizeOf,
   budgetUseTextOf,
   consumptionDetailsOf,
@@ -357,5 +358,56 @@ describe("the line saying where the model prices come from", () => {
     expect(priceStatusTextOf({ at, isFetching: false, models: 300, source: "Snapshot" })).toBe(
       "Prices from the snapshot of 10 Nov",
     );
+  });
+});
+
+describe("an account's budget in one line", () => {
+  const tokens = { cacheCreation: 0, cacheRead: 0, input: 0, output: 0 };
+  const consumption = { earlierTurns: 0, estimated: 0, reported: 0, tokens, turns: 0, unpricedTurns: 0 };
+  const budget = {
+    consumption,
+    limits: { cost: null, tokens: null },
+    period: null,
+    remaining: { cost: null, tokens: null },
+    spent: { cost: 0, tokens: 0 },
+  };
+
+  it("says there is none when no limit is set", () => {
+    expect(accountBudgetTextOf(budget)).toBe("No budget · counted by Gild");
+  });
+
+  it("says what is left of credits", () => {
+    expect(
+      accountBudgetTextOf({
+        ...budget,
+        limits: { cost: 50, tokens: null },
+        remaining: { cost: 37.5, tokens: null },
+        spent: { cost: 12.5, tokens: 0 },
+      }),
+    ).toBe("$12.50 of $50.00 · $37.50 left · counted by Gild");
+  });
+
+  it("marks what is left with ≈ when some of the spending was estimated", () => {
+    expect(
+      accountBudgetTextOf({
+        ...budget,
+        consumption: { ...consumption, estimated: 1 },
+        limits: { cost: 50, tokens: null },
+        remaining: { cost: 31, tokens: null },
+        spent: { cost: 19, tokens: 0 },
+      }),
+    ).toBe("$19.00 of $50.00 · ≈ $31.00 left · counted by Gild");
+  });
+
+  it("says the tokens used of a token limit and the share left in its period", () => {
+    expect(
+      accountBudgetTextOf({
+        ...budget,
+        limits: { cost: null, tokens: 10_000 },
+        period: "Month",
+        remaining: { cost: null, tokens: 8_000 },
+        spent: { cost: 0, tokens: 2_000 },
+      }),
+    ).toBe("2,000 of 10,000 tokens · 80% left this month · counted by Gild");
   });
 });

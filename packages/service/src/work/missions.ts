@@ -25,6 +25,7 @@ import {
   tokenSum,
 } from "../core/index.ts";
 import { checkAccount, type RunnerChoice, runnerOf } from "../harness/index.ts";
+import { budgetRefusalOf } from "./budgetScopes.ts";
 import { applyDefaultBudget } from "./budgets.ts";
 import { consumptionOf } from "./consumption.ts";
 import { insertJournal } from "./journal.ts";
@@ -90,6 +91,9 @@ export const insertQuest = (
       ),
     );
     const { accountId, effort, harness, model } = runner;
+    // A reached account budget refuses a quest started on that account (budget-control, Reaching a limit).
+    const accountBudgetRefusal = yield* budgetRefusalOf(null, { accountId, harness }, "Account");
+    if (accountBudgetRefusal !== null) return yield* invalid(accountBudgetRefusal);
     const workspaceId = workspacePath === null ? null : yield* attachWorkspace(workspacePath, realm);
     const now = yield* Clock.currentTimeMillis;
     const missionId = crypto.randomUUID();

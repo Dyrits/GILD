@@ -63,7 +63,7 @@ export const periodStartOf = (now: number, period: BudgetPeriod) => {
 };
 
 /** When the global period holding `now` starts over. */
-const nextStartOf = (now: number, period: BudgetPeriod) => {
+export const nextStartOf = (now: number, period: BudgetPeriod) => {
   const date = new Date(periodStartOf(now, period));
   nextShifts[period](date);
   return date.getTime();
@@ -76,9 +76,9 @@ export const isEmpty = (limits: BudgetLimits) => limits.cost === null && limits.
 export const isReached = (limits: BudgetLimits, spent: Spending) =>
   (limits.cost !== null && spent.cost >= limits.cost) || (limits.tokens !== null && spent.tokens >= limits.tokens);
 
-const tokenCountText = (tokens: number) => Math.round(tokens).toLocaleString("en-US");
-const tokensText = (tokens: number) => `${tokenCountText(tokens)} tokens`;
-const costText = (cost: number) => `$${cost.toFixed(2)}`;
+export const tokenCountText = (tokens: number) => Math.round(tokens).toLocaleString("en-US");
+export const tokensText = (tokens: number) => `${tokenCountText(tokens)} tokens`;
+export const costText = (cost: number) => `$${cost.toFixed(2)}`;
 
 /** A budget's limits in words, for example "$5.00 and 50,000 tokens". */
 export const limitsTextOf = (limits: BudgetLimits) =>
@@ -147,59 +147,3 @@ export const readGlobalBudget = Effect.gen(function* () {
     spent: row ?? { cost: 0, tokens: 0 },
   };
 });
-
-/** Which budgets over a mission are reached: its own, and the global one. */
-export const reachedScopesOf = (missionId: string) =>
-  Effect.gen(function* () {
-    const global = yield* readGlobalBudget;
-    return {
-      isGlobal: isReached(global.limits, global.spent),
-      isMission: isReached(yield* missionLimitsOf(missionId), yield* missionSpendingOf(missionId)),
-    };
-  });
-
-/** The refusal for work under a reached budget, or null when none is reached. */
-export const budgetRefusalOf = (missionId: string) =>
-  Effect.gen(function* () {
-    const reached = yield* reachedScopesOf(missionId);
-    if (reached.isMission)
-      return "The mission's budget is reached. Only the owner can raise it: wait, or tell the owner.";
-    if (reached.isGlobal) return "The global budget is reached. Only the owner can raise it: wait, or tell the owner.";
-    return null;
-  });
-
-const percentOf = (spent: number, limit: number) => Math.floor((spent / limit) * 100);
-
-const usesOf = (limits: BudgetLimits, spent: Spending) =>
-  [
-    limits.cost === null
-      ? null
-      : `${costText(spent.cost)} of ${costText(limits.cost)} used (${percentOf(spent.cost, limits.cost)}%)`,
-    limits.tokens === null
-      ? null
-      : `${tokenCountText(spent.tokens)} of ${tokensText(limits.tokens)} used (${percentOf(spent.tokens, limits.tokens)}%)`,
-  ].filter((part) => part !== null);
-
-const periodWords = { Day: "today's", Month: "this month's", Week: "this week's" } satisfies Record<
-  BudgetPeriod,
-  string
->;
-
-/** The one budget line a thread's turn context carries, or null with no budget at all. */
-export const budgetLineOf = (missionId: string) =>
-  Effect.gen(function* () {
-    const limits = yield* missionLimitsOf(missionId);
-    const global = yield* readGlobalBudget;
-    if (isEmpty(limits) && isEmpty(global.limits)) return null;
-    const mission = isEmpty(limits)
-      ? "no budget for this mission"
-      : usesOf(limits, yield* missionSpendingOf(missionId)).join("; ");
-    const words = periodWords[global.period];
-    const globalParts = [
-      global.limits.cost === null ? null : `${percentOf(global.spent.cost, global.limits.cost)}% of ${words} cost`,
-      global.limits.tokens === null
-        ? null
-        : `${percentOf(global.spent.tokens, global.limits.tokens)}% of ${words} tokens`,
-    ].filter((part) => part !== null);
-    return `Budget: ${mission}${globalParts.length === 0 ? "" : `; global: ${globalParts.join(", ")}`}. At a limit, Gild stops the work under it and asks the owner.`;
-  });

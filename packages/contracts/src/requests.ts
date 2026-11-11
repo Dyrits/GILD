@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 import { AttachmentCard, AttachmentContent, maxAttachmentsPerMessage } from "./attachments.ts";
-import { BudgetLimits, BudgetWindow, PriceStatus } from "./budgets.ts";
+import { AccountBudget, BudgetLimits, BudgetPeriod, BudgetWindow, PriceStatus } from "./budgets.ts";
 import { Crest } from "./crest.ts";
 import { HarnessList, HarnessName } from "./harnesses.ts";
 import {
@@ -194,6 +194,27 @@ export const ResolveChatter = Schema.TaggedStruct("ResolveChatter", {
 /** Reads the owner's settings. */
 export const ReadSettings = Schema.TaggedStruct("ReadSettings", {});
 /** The model price table in use and where it came from (budget-control, The price table). */
+/** Every provider account's use and budget (budget-control, Account budgets and credits). */
+export const ReadAccountBudgets = Schema.TaggedStruct("ReadAccountBudgets", {});
+/**
+ * Sets, changes, or removes an account's budget: limits over a period, or with no period (credits) counted from
+ * `since`, a time on the day they were bought; null counts from now.
+ */
+export const SetAccountBudget = Schema.TaggedStruct("SetAccountBudget", {
+  accountId: Schema.NullOr(AccountId),
+  harness: HarnessName,
+  limits: BudgetLimits,
+  period: Schema.NullOr(BudgetPeriod),
+  since: Schema.NullOr(Schema.Number),
+});
+/** Adds credit to an account's cost limit, which has no period. */
+export const AddCredit = Schema.TaggedStruct("AddCredit", {
+  accountId: Schema.NullOr(AccountId),
+  amount: Schema.Number.check(Schema.isGreaterThan(0)),
+  harness: HarnessName,
+});
+/** At an account's budget, hands the held thread to its next backup Companion. */
+export const SwitchAtBudget = Schema.TaggedStruct("SwitchAtBudget", { stopId: BudgetStopId });
 export const ReadPriceStatus = Schema.TaggedStruct("ReadPriceStatus", {});
 /** Reads the public price table now, as Refresh now in the Charter does. */
 export const RefreshPrices = Schema.TaggedStruct("RefreshPrices", {});
@@ -405,6 +426,10 @@ export const Request = Schema.Union([
   ReadSettings,
   ReadPriceStatus,
   RefreshPrices,
+  ReadAccountBudgets,
+  SetAccountBudget,
+  AddCredit,
+  SwitchAtBudget,
   UpdateSettings,
   ReadJournal,
   RewriteBriefing,
@@ -476,6 +501,7 @@ export const Results = {
   AddAccount: HarnessList,
   AddAttachment: AttachmentCard,
   AddBrowsableRoot: FolderListing,
+  AddCredit: Schema.Null,
   AddJournalEntry: JournalView,
   AnswerQuestion: Question,
   AnswerSuggestion: Suggestion,
@@ -505,6 +531,7 @@ export const Results = {
   PreviewDeletion: DeletionPreview,
   PreviewEnding: EndingPreview,
   PreviewStartingContext: StartingContext,
+  ReadAccountBudgets: Schema.Array(AccountBudget),
   ReadAttachment: AttachmentContent,
   ReadBudget: BudgetWindow,
   ReadGuildmaster: GuildmasterPlace,
@@ -533,6 +560,7 @@ export const Results = {
   RewriteBriefing: JournalView,
   RunRitual: Schema.Null,
   SendMessage: SendMessageResult,
+  SetAccountBudget: Schema.Null,
   SetMissionBudget: Schema.Null,
   SetRealmCrest: Schema.Null,
   SetThreadBackups: Schema.Null,
@@ -540,6 +568,7 @@ export const Results = {
   StartMission: StartMissionResult,
   StopAtBudget: Schema.Null,
   StopThread: Schema.Null,
+  SwitchAtBudget: Schema.Null,
   UndoIntelChange: Schema.Null,
   UpdateHarness: HarnessList,
   UpdateRitual: Schema.Null,

@@ -43,21 +43,23 @@ export { sandboxProblem } from "./sandbox.ts";
 export { removeScratch } from "./scratch.ts";
 export { dayMillis, readSettings, readStartChoices, saveStartChoices, writeSettings } from "./settings.ts";
 export {
-  budgetLineOf,
-  budgetRefusalOf,
   changeTextOf,
   consumptionColumns,
   costSum,
+  costText,
   isEmpty,
   isReached,
   limitsTextOf,
   missionLimitsOf,
   missionSpendingOf,
-  reachedScopesOf,
+  nextStartOf,
+  periodStartOf,
   reachedTextOf,
   readGlobalBudget,
   spendingColumns,
+  tokenCountText,
   tokenSum,
+  tokensText,
 } from "./spending.ts";
 export { storeLayer } from "./store.ts";
 export { tokensOf } from "./tokens.ts";

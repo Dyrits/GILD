@@ -1,5 +1,6 @@
 import { Schema } from "effect";
-import { BudgetStopId, MissionId, ThreadId } from "./ids.ts";
+import { HarnessName } from "./harnesses.ts";
+import { AccountId, BudgetStopId, MissionId, ThreadId } from "./ids.ts";
 
 // Budgets and spending (budget-control).
 
@@ -71,14 +72,18 @@ export type PriceStatus = typeof PriceStatus.Type;
 export const BudgetUse = Schema.Struct({ limits: BudgetLimits, spent: Spending });
 export type BudgetUse = typeof BudgetUse.Type;
 
-/** Which budget a stop or a budget window is about: a mission's, or the global one. */
-export const BudgetScope = Schema.Literals(["Mission", "Global"]);
+/** Which budget a stop or a budget window is about: a mission's, a provider account's, or the global one. */
+export const BudgetScope = Schema.Literals(["Mission", "Account", "Global"]);
 export type BudgetScope = typeof BudgetScope.Type;
 
 /** A budget reached and not yet answered: the mission's, or the global one (budget-control, Reaching a limit). */
 export const BudgetStop = Schema.Struct({
+  /** The account an account budget covers, else null. */
+  account: Schema.NullOr(Schema.Struct({ accountId: Schema.NullOr(AccountId), harness: HarnessName })),
+  /** The account's name (for example "Claude Code · Work") for an account budget, else null. */
+  accountLabel: Schema.NullOr(Schema.String),
   id: BudgetStopId,
-  /** Null for the global budget. */
+  /** Null for the global budget and for an account's. */
   missionId: Schema.NullOr(MissionId),
   missionTitle: Schema.NullOr(Schema.String),
   reachedAt: Schema.Number,
@@ -119,3 +124,26 @@ export const BudgetWindow = Schema.Struct({
   stop: Schema.NullOr(BudgetStop),
 });
 export type BudgetWindow = typeof BudgetWindow.Type;
+
+/** What one provider account has used, with the budget the owner set on it (budget-control, Account budgets and credits). */
+export const AccountBudget = Schema.Struct({
+  /** Null for the harness's own sign-in on this computer. */
+  accountId: Schema.NullOr(AccountId),
+  consumption: Consumption,
+  harness: HarnessName,
+  /** The account's name as the owner reads it, for example "Work", or "This computer". */
+  label: Schema.String,
+  /** The last change to the budget in words, for example "Budget set: $50.00", or null. */
+  lastChange: Schema.NullOr(Schema.String),
+  limits: BudgetLimits,
+  /** When the period starts over; null with no period. */
+  nextStart: Schema.NullOr(Schema.Number),
+  /** Null for credits: a budget counted from `since` with no period. */
+  period: Schema.NullOr(BudgetPeriod),
+  /** What is left of each limit, null for a limit not set; never below zero. */
+  remaining: Schema.Struct({ cost: Schema.NullOr(Schema.Number), tokens: Schema.NullOr(Schema.Number) }),
+  /** When counting began: the period's start, or the day the credits were bought. */
+  since: Schema.Number,
+  spent: Spending,
+});
+export type AccountBudget = typeof AccountBudget.Type;

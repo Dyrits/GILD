@@ -5,38 +5,32 @@ import {
   changeTextOf,
   invalid,
   isEmpty,
-  isReached,
   limitsTextOf,
   missionLimitsOf,
-  missionSpendingOf,
   notFound,
-  reachedScopesOf,
-  reachedTextOf,
   readGlobalBudget,
 } from "../core/index.ts";
+import { fallBackToBackup } from "./backups.ts";
+import {
+  accountLabelOf,
+  accountOfThread,
+  type BudgetScope,
+  isScopeReached,
+  reachedScopesOf,
+  reachedTextOfScope,
+  scopeOfStop,
+  stopWhere,
+  threadsWhere,
+} from "./budgetScopes.ts";
 import { changed } from "./commands.ts";
 import { haltThreads, holdQuestionHolder, holdThread, releaseThread, waitsInTurn } from "./lifecycle.ts";
 
 // Stopping and releasing work at budget limits, and the owner's budget changes (budget-control, Reaching a limit).
-// A scope is a mission's id, or null for the global budget; what the owner reads lives in budgetViews.ts.
-
-/** The `budget_stops` rows of a scope: the mission's, or the global ones with null. */
-export const stopScopeOf = (sql: SqlClient.SqlClient, missionId: string | null, column = "mission_id") =>
-  missionId === null ? sql`${sql.literal(column)} IS NULL` : sql`${sql.literal(column)} = ${missionId}`;
-
-/** The threads a scope covers: the mission's, or every thread with null. */
-const threadScopeOf = (sql: SqlClient.SqlClient, missionId: string | null) =>
-  missionId === null ? sql`1 = 1` : sql`mission_id = ${missionId}`;
-
-/** The scopes whose budget is reached over a mission: its own, then the global one. */
-const reachedScopeListOf = (missionId: string) =>
-  Effect.map(reachedScopesOf(missionId), (reached) => [
-    ...(reached.isMission ? [missionId] : []),
-    ...(reached.isGlobal ? [null] : []),
-  ]);
+// A scope is a mission's budget, a provider account's, or the global one (budgetScopes.ts); what the owner reads
+// lives in budgetViews.ts.
 
 /** Records a budget line in the mission's top thread. Callers run it in a transaction. */
-const insertEvent = (missionId: string, text: string) =>
+export const insertEvent = (missionId: string, text: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const now = yield* Clock.currentTimeMillis;
@@ -51,35 +45,45 @@ const insertGlobalEvent = (text: string) =>
     if (guildmaster !== undefined) yield* insertEvent(guildmaster.id, text);
   });
 
-/** The scope's open stop's holder, opening the stop with `holderId` when none is open. */
-const ensureStop = (missionId: string | null, holderId: string) =>
+/** The scope's open stop's holder, opening the stop with `holderId` when none is open; whether it was opened now. */
+const ensureStop = (scope: BudgetScope, holderId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const [open] = yield* sql<{ threadId: string }>`
       SELECT thread_id AS threadId FROM budget_stops
-      WHERE resolution IS NULL AND ${stopScopeOf(sql, missionId)}`;
-    if (open !== undefined) return open.threadId;
+      WHERE resolution IS NULL AND ${stopWhere(sql, scope)}`;
+    if (open !== undefined) return { holder: open.threadId, isNew: false };
     const now = yield* Clock.currentTimeMillis;
-    yield* sql`INSERT INTO budget_stops (id, mission_id, thread_id, reached_at)
-      VALUES (${crypto.randomUUID()}, ${missionId}, ${holderId}, ${now})`;
-    if (missionId !== null) {
-      const text = reachedTextOf(yield* missionLimitsOf(missionId), yield* missionSpendingOf(missionId));
-      yield* insertEvent(missionId, `Stopped at the budget limit: ${text}`);
-    } else {
-      const global = yield* readGlobalBudget;
-      yield* insertGlobalEvent(`Stopped at the global budget limit: ${reachedTextOf(global.limits, global.spent)}`);
+    yield* sql`INSERT INTO budget_stops (id, mission_id, account_key, thread_id, reached_at)
+      VALUES (${crypto.randomUUID()}, ${scope._tag === "Mission" ? scope.id : null},
+        ${scope._tag === "Account" ? `${scope.harness}:${scope.accountId ?? ""}` : null}, ${holderId}, ${now})`;
+    if (scope._tag === "Mission") {
+      yield* insertEvent(scope.id, `Stopped at the budget limit: ${yield* reachedTextOfScope(scope)}`);
+    } else if (scope._tag === "Global") {
+      yield* insertGlobalEvent(`Stopped at the global budget limit: ${yield* reachedTextOfScope(scope)}`);
     }
-    return holderId;
+    return { holder: holderId, isNew: true };
   });
 
-/** Threads at work, in a turn or waiting inside one on the owner, in a mission or everywhere. */
-const workingThreadsOf = (missionId: string | null) =>
+/** A line in each quest that has a thread the account's budget stopped, naming the account and what was reached. */
+const recordAccountStop = (scope: BudgetScope & { _tag: "Account" }, threadIds: ReadonlyArray<string>) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    if (threadIds.length === 0) return;
+    const missions = yield* sql<{ missionId: string }>`
+      SELECT DISTINCT mission_id AS missionId FROM threads WHERE id IN ${sql.in(threadIds)}`;
+    const text = `Account ${yield* accountLabelOf(scope)} reached its budget: ${yield* reachedTextOfScope(scope)}`;
+    for (const { missionId } of missions) yield* insertEvent(missionId, text);
+  });
+
+/** Threads at work, in a turn or waiting inside one on the owner, under a scope. */
+const workingThreadsOf = (scope: BudgetScope) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const rows = yield* sql<{ id: string }>`
       SELECT id FROM threads
       WHERE (state = 'Running' OR ${sql.literal(waitsInTurn)})
-        AND ${threadScopeOf(sql, missionId)}`;
+        AND ${threadsWhere(sql, scope)}`;
     return rows.map((row) => row.id);
   });
 
@@ -94,36 +98,39 @@ const holdThreads = (ids: ReadonlyArray<string>) =>
   });
 
 /**
- * Stops work under every reached budget over the mission: running threads go to Attention and the
- * scope's question opens, held by `holderId` unless one is open. Returns the threads whose turns the
- * command must cancel. Callers run it in a transaction.
- */
-export const enforceBudgets = (missionId: string, holderId: string | null) =>
-  Effect.gen(function* () {
-    const halted = new Set<string>();
-    for (const scope of yield* reachedScopeListOf(missionId))
-      for (const id of yield* stopScope(scope, holderId)) halted.add(id);
-    return [...halted];
-  });
-
-/**
  * Holds the scope's working threads and opens its question, held by `holderId` or the first of them.
  * Returns the threads at work, held or not, as the turns to cancel.
  */
-const stopScope = (scope: string | null, holderId: string | null) =>
+const stopScope = (scope: BudgetScope, holderId: string | null) =>
   Effect.gen(function* () {
     const working = yield* workingThreadsOf(scope);
     const holder = holderId ?? working[0] ?? null;
     if (holder === null) return working;
     yield* holdThreads(working);
-    yield* holdQuestionHolder(yield* ensureStop(scope, holder), "Budget");
+    const stop = yield* ensureStop(scope, holder);
+    if (stop.isNew && scope._tag === "Account") yield* recordAccountStop(scope, [...new Set([holder, ...working])]);
+    yield* holdQuestionHolder(stop.holder, "Budget");
     return working;
+  });
+
+/**
+ * Stops work under every reached budget over the mission and the account of the thread that spent: running threads
+ * go to Attention and the scope's question opens, held by `holderId` unless one is open. Returns the threads whose
+ * turns the command must cancel. Callers run it in a transaction.
+ */
+export const enforceBudgets = (missionId: string, holderId: string | null) =>
+  Effect.gen(function* () {
+    const halted = new Set<string>();
+    const account = holderId === null ? null : yield* accountOfThread(holderId);
+    for (const scope of yield* reachedScopesOf(missionId, account))
+      for (const id of yield* stopScope(scope, holderId)) halted.add(id);
+    return [...halted];
   });
 
 /** A thread about to start a turn under a reached budget waits in Attention instead. Callers run it in a transaction. */
 export const holdIfReached = (threadId: string, missionId: string) =>
   Effect.gen(function* () {
-    const scopes = yield* reachedScopeListOf(missionId);
+    const scopes = yield* reachedScopesOf(missionId, yield* accountOfThread(threadId));
     if (scopes.length === 0) return false;
     for (const scope of scopes) yield* ensureStop(scope, threadId);
     yield* holdThread(threadId, "Budget");
@@ -137,25 +144,20 @@ export const holdIfReached = (threadId: string, missionId: string) =>
 export const releaseBudgets = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const now = yield* Clock.currentTimeMillis;
-  const global = yield* readGlobalBudget;
-  const isGlobalReached = isReached(global.limits, global.spent);
-  const stops = yield* sql<{ id: string; missionId: string | null }>`
-    SELECT id, mission_id AS missionId FROM budget_stops WHERE resolution IS NULL`;
+  const stops = yield* sql<{ accountKey: string | null; id: string; missionId: string | null }>`
+    SELECT id, mission_id AS missionId, account_key AS accountKey FROM budget_stops WHERE resolution IS NULL`;
   for (const stop of stops) {
-    const isStillReached =
-      stop.missionId === null ? isGlobalReached : (yield* reachedScopesOf(stop.missionId)).isMission;
-    if (!isStillReached)
+    if (!(yield* isScopeReached(scopeOfStop(stop))))
       yield* sql`UPDATE budget_stops SET resolution = 'Raised', resolved_at = ${now} WHERE id = ${stop.id}`;
   }
   const held = yield* sql<{ id: string; missionId: string }>`
     SELECT id, mission_id AS missionId FROM threads WHERE blocker = 'Budget' AND state = 'Attention'`;
   const released: Array<string> = [];
   for (const thread of held) {
-    const reached = yield* reachedScopesOf(thread.missionId);
-    if (reached.isMission || reached.isGlobal) {
-      // Still held by the other budget: make sure its question is open.
-      if (reached.isMission) yield* ensureStop(thread.missionId, thread.id);
-      if (reached.isGlobal) yield* ensureStop(null, thread.id);
+    const reached = yield* reachedScopesOf(thread.missionId, yield* accountOfThread(thread.id));
+    if (reached.length > 0) {
+      // Still held by another budget: make sure its question is open.
+      for (const scope of reached) yield* ensureStop(scope, thread.id);
       continue;
     }
     yield* releaseThread(thread.id);
@@ -164,6 +166,15 @@ export const releaseBudgets = Effect.gen(function* () {
   return released;
 });
 
+/** The held threads under a scope, to stop or to carry on. */
+const heldThreadsOf = (scope: BudgetScope) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    return yield* sql<{ id: string; missionId: string }>`
+      SELECT id, mission_id AS missionId FROM threads
+      WHERE blocker = 'Budget' AND state = 'Attention' AND ${threadsWhere(sql, scope)}`;
+  });
+
 /**
  * The owner answers Stop: the stop's held threads become Stopped and keep their messages, and the missions
  * whose threads stopped are woken.
@@ -171,20 +182,51 @@ export const releaseBudgets = Effect.gen(function* () {
 export const stopAtBudget = (stopId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const [stop] = yield* sql<{ missionId: string | null; resolution: string | null }>`
-      SELECT mission_id AS missionId, resolution FROM budget_stops WHERE id = ${stopId}`;
+    const [stop] = yield* sql<{ accountKey: string | null; missionId: string | null; resolution: string | null }>`
+      SELECT mission_id AS missionId, account_key AS accountKey, resolution FROM budget_stops WHERE id = ${stopId}`;
     if (stop === undefined) return yield* notFound("No such budget stop.");
     if (stop.resolution !== null) return yield* invalid("This budget question was already answered.");
     const now = yield* Clock.currentTimeMillis;
     yield* sql`UPDATE budget_stops SET resolution = 'Stopped', resolved_at = ${now} WHERE id = ${stopId}`;
-    const held = yield* sql<{ id: string; missionId: string }>`
-      SELECT id, mission_id AS missionId FROM threads
-      WHERE blocker = 'Budget' AND state = 'Attention' AND ${threadScopeOf(sql, stop.missionId)}`;
+    const held = yield* heldThreadsOf(scopeOfStop(stop));
     yield* haltThreads(
       held.map((thread) => thread.id),
       "Stopped",
     );
     return changed(null, { missionsToWake: [...new Set(held.map((thread) => thread.missionId))] });
+  });
+
+/**
+ * The owner answers Switch to a backup Companion at an account's budget: the thread that holds the question carries on
+ * with its next backup, on another account or harness, and the threads still held by the account stay held under
+ * the same question. Refused when the stop is not an account's or the thread has no backup to take.
+ */
+export const switchAtBudget = (stopId: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const [stop] = yield* sql<{
+      accountKey: string | null;
+      missionId: string | null;
+      resolution: string | null;
+      threadId: string;
+    }>`SELECT mission_id AS missionId, account_key AS accountKey, resolution, thread_id AS threadId
+      FROM budget_stops WHERE id = ${stopId}`;
+    if (stop === undefined) return yield* notFound("No such budget stop.");
+    if (stop.resolution !== null) return yield* invalid("This budget question was already answered.");
+    const scope = scopeOfStop(stop);
+    if (scope._tag !== "Account") return yield* invalid("Only an account's budget offers a backup Companion.");
+    // A held thread is in Attention, which a change of runner refuses: it is released first, and the whole answer is
+    // undone when it has no backup to take.
+    yield* releaseThread(stop.threadId);
+    const reason = `Account ${yield* accountLabelOf(scope)} reached its budget`;
+    const switched = yield* fallBackToBackup(stop.threadId, reason);
+    if (!switched.followUps.isChanged) return yield* invalid("This thread has no backup Companion to switch to.");
+    const others = (yield* heldThreadsOf(scope)).filter((thread) => thread.id !== stop.threadId);
+    const now = yield* Clock.currentTimeMillis;
+    if (others[0] === undefined)
+      yield* sql`UPDATE budget_stops SET resolution = 'Switched', resolved_at = ${now} WHERE id = ${stopId}`;
+    else yield* sql`UPDATE budget_stops SET thread_id = ${others[0].id} WHERE id = ${stopId}`;
+    return switched;
   });
 
 /**
@@ -203,7 +245,7 @@ export const setMissionBudget = (missionId: string, limits: BudgetLimits) =>
     yield* sql`UPDATE missions SET budget_cost = ${limits.cost}, budget_tokens = ${limits.tokens} WHERE id = ${missionId}`;
     const text = changeTextOf(before, limits);
     if (text !== null) yield* insertEvent(missionId, text);
-    const halted = (yield* reachedScopesOf(missionId)).isMission
+    const halted = (yield* isScopeReached({ _tag: "Mission", id: missionId }))
       ? yield* enforceBudgets(missionId, mission.topThreadId)
       : [];
     return changed(null, { threadsToWake: yield* releaseBudgets, turnsToCancel: halted });
@@ -218,7 +260,17 @@ export const applyGlobalBudget = (before: BudgetLimits) =>
     const global = yield* readGlobalBudget;
     const text = changeTextOf(before, global.limits);
     if (text !== null) yield* insertGlobalEvent(text.replace(/^Budget/, "Global budget"));
-    const halted = isReached(global.limits, global.spent) ? yield* stopScope(null, null) : [];
+    const halted = (yield* isScopeReached({ _tag: "Global" })) ? yield* stopScope({ _tag: "Global" }, null) : [];
+    return changed(null, { threadsToWake: yield* releaseBudgets, turnsToCancel: halted });
+  });
+
+/**
+ * After an account's budget changed: its threads stop if it is now reached, or held threads are released; the halted
+ * turns are cancelled and the released threads woken.
+ */
+export const applyAccountBudget = (scope: BudgetScope & { _tag: "Account" }) =>
+  Effect.gen(function* () {
+    const halted = (yield* isScopeReached(scope)) ? yield* stopScope(scope, null) : [];
     return changed(null, { threadsToWake: yield* releaseBudgets, turnsToCancel: halted });
   });
 

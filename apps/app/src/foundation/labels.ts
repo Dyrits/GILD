@@ -1,4 +1,5 @@
 import type {
+  AccountBudget,
   BudgetLimits,
   Consumption,
   ContextGauge,
@@ -136,6 +137,30 @@ export const totalTokensOf = (consumption: Pick<Consumption, "tokens">) =>
   consumption.tokens.output +
   consumption.tokens.cacheRead +
   consumption.tokens.cacheCreation;
+
+/**
+ * An account's budget in one line, for example "$12.50 of $50.00 · $37.50 left · counted by Gild"; what is left of a cost
+ * is marked with ≈ when some of the spending was estimated, and the line says Gild only counts its own turns.
+ */
+export const accountBudgetTextOf = (
+  budget: Pick<AccountBudget, "consumption" | "limits" | "period" | "remaining" | "spent">,
+) => {
+  const periodWords = { Day: "today", Month: "this month", Week: "this week" } as const;
+  const when = budget.period === null ? "" : ` ${periodWords[budget.period]}`;
+  const parts = [
+    ...(budget.limits.cost === null || budget.remaining.cost === null
+      ? []
+      : [
+          `${budgetUseTextOf("cost", budget.spent.cost, budget.limits.cost)} · ${budget.consumption.estimated > 0 ? "≈ " : ""}$${budget.remaining.cost.toFixed(2)} left${when}`,
+        ]),
+    ...(budget.limits.tokens === null || budget.remaining.tokens === null
+      ? []
+      : [
+          `${budgetUseTextOf("tokens", budget.spent.tokens, budget.limits.tokens)} · ${Math.round((budget.remaining.tokens / budget.limits.tokens) * 100)}% left${when}`,
+        ]),
+  ];
+  return `${parts.length === 0 ? "No budget" : parts.join(" · ")} · counted by Gild`;
+};
 
 /** Where the price table in use came from, for example "Prices from models.dev · fetched 10 Nov". */
 export const priceStatusTextOf = (status: PriceStatus) => {

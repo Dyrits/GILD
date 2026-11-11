@@ -509,6 +509,22 @@ const migrations = {
       PRIMARY KEY (provider, model)
     )`;
   }),
+  // A provider account's own budget or credits, and the stops it causes (budget-control, Account budgets and credits).
+  // The account's id is empty for a harness's own sign-in on this computer.
+  "0034_account_budgets": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE account_budgets (
+      harness TEXT NOT NULL,
+      account_id TEXT NOT NULL,
+      cost REAL,
+      tokens INTEGER,
+      period TEXT,
+      since INTEGER NOT NULL,
+      last_change TEXT,
+      PRIMARY KEY (harness, account_id)
+    )`;
+    yield* sql`ALTER TABLE budget_stops ADD COLUMN account_key TEXT`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

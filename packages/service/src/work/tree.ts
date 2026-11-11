@@ -1,8 +1,9 @@
 import type { HarnessName, OpenThreadResult, ThreadId } from "@gild/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
-import { budgetRefusalOf, invalid, notFound } from "../core/index.ts";
+import { invalid, notFound } from "../core/index.ts";
 import { checkAccount, type Runner, type RunnerChoice, runnerOf } from "../harness/index.ts";
+import { budgetRefusalOf } from "./budgetScopes.ts";
 import { changed, unchanged } from "./commands.ts";
 import { type JournalAuthor, nothingToRecord, openerMessagesOf, updateJournal } from "./journal.ts";
 import { maxOwnerDepth, waitsInTurn } from "./lifecycle.ts";
@@ -170,11 +171,20 @@ export const openThreadByAgent = (
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const [caller] = yield* sql<{
+      accountId: string | null;
+      harness: HarnessName;
       missionId: string;
-    }>`SELECT mission_id AS missionId FROM threads WHERE id = ${callerId} AND is_deleting = 0`;
+    }>`SELECT mission_id AS missionId, harness, account_id AS accountId FROM threads WHERE id = ${callerId} AND is_deleting = 0`;
     if (caller === undefined) return refusedOf("Unknown thread.");
     if (request.trim() === "") return refusedOf("The request is empty.");
-    const overBudget = yield* budgetRefusalOf(caller.missionId);
+    const target = runnerOf(
+      { accountId: caller.accountId, effort: "default", harness: caller.harness, model: "default" },
+      choice,
+    );
+    const overBudget = yield* budgetRefusalOf(caller.missionId, {
+      accountId: target.accountId,
+      harness: target.harness,
+    });
     if (overBudget !== null) return refusedOf(`Not opened: ${overBudget}`);
     if ((yield* runningCountOf(caller.missionId)) >= maxRunning)
       return refusedOf(

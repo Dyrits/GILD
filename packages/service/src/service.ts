@@ -41,6 +41,7 @@ import {
   removePermission,
   widenPermission,
 } from "./policy/index.ts";
+import { addCredit, readAccountBudgets, setAccountBudget } from "./work/accountBudgets.ts";
 import {
   addAccount,
   listHarnesses,
@@ -53,7 +54,7 @@ import { Approvals, approvalsLayer } from "./work/approvals.ts";
 import { AttachmentsRoot, addAttachment, discardAttachment, readAttachment, sweepDrafts } from "./work/attachments.ts";
 import { setThreadBackups } from "./work/backups.ts";
 import { budgetPeriodsLayer } from "./work/budgetPeriods.ts";
-import { applyGlobalBudget, setMissionBudget, stopAtBudget } from "./work/budgets.ts";
+import { applyGlobalBudget, setMissionBudget, stopAtBudget, switchAtBudget } from "./work/budgets.ts";
 import { readBudgetWindow } from "./work/budgetViews.ts";
 import { resolveChatter } from "./work/chatter.ts";
 import { Commands, changed, commandsLayer, type FollowUps, noFollowUps, type WithFollowUps } from "./work/commands.ts";
@@ -202,6 +203,8 @@ const make = Effect.gen(function* () {
         AddAccount: (add) => thenListHarnesses(addAccount(add.harness, add.label)),
         AddAttachment: (add) => withFiles(addAttachment(add.name, add.data)),
         AddBrowsableRoot: (add) => change(addBrowsableRoot(add.path)),
+        AddCredit: (given) =>
+          commands.run(addCredit({ accountId: given.accountId, harness: given.harness }, given.amount)),
         AddJournalEntry: (add) =>
           nonBlank(add.text).pipe(
             Effect.andThen((text) =>
@@ -335,6 +338,7 @@ const make = Effect.gen(function* () {
             { harness: given.harness ?? null, model: given.model },
             given.text,
           ).pipe(Effect.provideService(ScratchRoot, scratchRoot)),
+        ReadAccountBudgets: () => readAccountBudgets,
         ReadAttachment: (read) => withFiles(readAttachment(read.attachmentId)),
         ReadBudget: (read) => readBudgetWindow(read.missionId),
         ReadGuildmaster: () => change(readGuildmaster),
@@ -416,6 +420,15 @@ const make = Effect.gen(function* () {
               ),
             );
           }),
+        SetAccountBudget: (given) =>
+          commands.run(
+            setAccountBudget(
+              { accountId: given.accountId, harness: given.harness },
+              given.limits,
+              given.period,
+              given.since,
+            ),
+          ),
         SetMissionBudget: (given) => commands.run(setMissionBudget(given.missionId, given.limits)),
         SetRealmCrest: (set) => change(setRealmCrest(set.workspaceId, set.crest)),
         SetThreadBackups: (given) => commands.run(setThreadBackups(given.threadId, given.backups)),
@@ -458,6 +471,7 @@ const make = Effect.gen(function* () {
           }),
         StopAtBudget: (given) => commands.run(stopAtBudget(given.stopId)),
         StopThread: (stop) => threads.stop(stop.threadId).pipe(Effect.as(null)),
+        SwitchAtBudget: (given) => commands.run(switchAtBudget(given.stopId)),
         UndoIntelChange: (given) => change(undoLoreChange(given.entryId)),
         // Not a command: the harness's own update runs for minutes and must not hold the command queue.
         UpdateHarness: (given) =>

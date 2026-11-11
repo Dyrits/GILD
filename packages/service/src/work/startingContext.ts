@@ -2,7 +2,7 @@ import { join } from "node:path";
 import type { HarnessName, ModelChoice, ModelOption, StartingContext } from "@gild/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
-import { budgetLineOf, notFound, readSettings, sandboxProblem, tokensOf } from "../core/index.ts";
+import { notFound, readSettings, sandboxProblem, tokensOf } from "../core/index.ts";
 import {
   approvalInstructionsOf,
   claudeModels,
@@ -13,6 +13,7 @@ import {
 } from "../harness/index.ts";
 import { contextWindowOf, loreContextOf, loreInstructions } from "../lore/index.ts";
 import { listThreadPermissions } from "../policy/index.ts";
+import { accountOfThread, budgetLineOf } from "./budgetScopes.ts";
 import { guildmasterContextOf } from "./guildmaster.ts";
 import { journalContextOf, journalInstructions, openerContextOf, openerMessagesOf } from "./journal.ts";
 import { titleOf } from "./titles.ts";
@@ -72,7 +73,7 @@ const catalogModels = {
 const readSections = (subject: Subject, workspace: string) =>
   Effect.gen(function* () {
     return {
-      budget: yield* budgetLineOf(subject.missionId),
+      budget: yield* budgetLineOf(subject.missionId, yield* accountOfThread(subject.position.threadId)),
       instructions: (subject.isGuildmaster === true
         ? [guildmasterInstructionsOf(subject.position.threadId), loreInstructions]
         : [threadInstructionsOf(subject.position), journalInstructions, loreInstructions]

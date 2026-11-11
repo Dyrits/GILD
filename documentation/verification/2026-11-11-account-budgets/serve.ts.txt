@@ -1,0 +1,53 @@
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
+import { Effect, Layer } from "effect";
+import { fakeHarnessLayer, fakeHarnessToolsLayer, Service, serveLoopback, serviceLayer } from "./src/index.ts";
+
+// A throwaway service on the scripted fake harness: an account "Work" on Claude Code with a 1,000-token budget, a quest
+// running on it that spent 2,000 (so the account's budget is reached and the quest is held), and a second quest on the
+// computer's own sign-in that carries on.
+const dir = process.env.GILD_DATA_DIR ?? "/tmp/gild-accounts";
+mkdirSync(join(dir, "app"), { recursive: true });
+const layer = serviceLayer({
+  accountsRoot: join(dir, "accounts"),
+  filename: join(dir, "gild.sqlite"),
+  harness: fakeHarnessLayer("300 millis"),
+  harnessTools: fakeHarnessToolsLayer(),
+  homeFolder: dir,
+  scratchRoot: join(dir, "missions"),
+});
+const program = Effect.gen(function* () {
+  const service = yield* Service;
+  const added = (yield* service.handle({ _tag: "AddAccount", harness: "claude", label: "Work" })) as {
+    harnesses: Array<{ name: string; accounts: Array<{ id: string | null }> }>;
+  };
+  const accountId = added.harnesses.find((harness) => harness.name === "claude")?.accounts[1]?.id as never;
+  yield* service.handle({
+    _tag: "SetAccountBudget",
+    accountId,
+    harness: "claude",
+    limits: { cost: null, tokens: 1000 },
+    period: "Month",
+    since: null,
+  });
+  const start = (text: string, account: unknown) =>
+    service.handle({
+      _tag: "StartMission",
+      accountId: account as never,
+      effort: "default",
+      harness: "claude",
+      model: "default",
+      requestId: crypto.randomUUID(),
+      text,
+      workspacePath: join(dir, "app"),
+    });
+  yield* start("wait 600000", accountId);
+  yield* start("wait 600000", null);
+  yield* Effect.sleep("1000 millis");
+  yield* start("spend 2000", accountId);
+  yield* Effect.sleep("2500 millis");
+  const { port } = yield* serveLoopback({ port: 0, token: "t" });
+  console.log(`ENDPOINT ws://127.0.0.1:${port}/?token=t`);
+  return yield* Effect.never;
+}).pipe(Effect.scoped, Effect.provide(Layer.fresh(layer)));
+Effect.runFork(program);

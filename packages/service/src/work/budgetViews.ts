@@ -1,4 +1,4 @@
-import type { BudgetEvent, BudgetPart, BudgetStop, BudgetWindow, HarnessName } from "@gild/contracts";
+import type { AccountId, BudgetEvent, BudgetPart, BudgetStop, BudgetWindow, HarnessName } from "@gild/contracts";
 import { Effect } from "effect";
 import { SqlClient, type Statement } from "effect/sql";
 import {
@@ -10,7 +10,7 @@ import {
   spendingColumns,
 } from "../core/index.ts";
 import { harnessLabels } from "../harness/index.ts";
-import { stopScopeOf } from "./budgets.ts";
+import { accountLabelOf, accountOfKey, type BudgetScope, stopWhere } from "./budgetScopes.ts";
 import { type ConsumptionRow, consumptionOf } from "./consumption.ts";
 
 // What the owner reads of budgets: open stops, budget lines, and the budget window (budget-control, Seeing use).
@@ -56,26 +56,41 @@ const splitsOf = (where: Statement.Fragment) =>
 
 /** The stops with their mission titles, to filter. */
 const selectStops = (sql: SqlClient.SqlClient) => sql`
-  SELECT s.id, s.mission_id AS missionId, m.title AS missionTitle, s.reached_at AS reachedAt,
-    CASE WHEN s.mission_id IS NULL THEN 'Global' ELSE 'Mission' END AS scope, s.thread_id AS threadId
+  SELECT s.id, s.mission_id AS missionId, m.title AS missionTitle, s.reached_at AS reachedAt, s.account_key AS accountKey,
+    CASE WHEN s.account_key IS NOT NULL THEN 'Account' WHEN s.mission_id IS NULL THEN 'Global' ELSE 'Mission' END AS scope,
+    s.thread_id AS threadId
   FROM budget_stops s LEFT JOIN missions m ON m.id = s.mission_id`;
 
-/** The open stop in a mission's scope, or the global one with null. */
-const readOpenStop = (missionId: string | null) =>
+type StopRow = Omit<BudgetStop, "account" | "accountLabel"> & { accountKey: string | null };
+
+/** A stop as the owner reads it, an account's named. */
+const stopOf = ({ accountKey, ...row }: StopRow) =>
   Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    const [stop] = yield* sql<BudgetStop>`${selectStops(sql)}
-      WHERE s.resolution IS NULL AND ${stopScopeOf(sql, missionId, "s.mission_id")}`;
-    return stop ?? null;
+    const account = accountKey === null ? null : accountOfKey(accountKey);
+    return {
+      ...row,
+      account: account === null ? null : { accountId: account.accountId as AccountId | null, harness: account.harness },
+      accountLabel: account === null ? null : yield* accountLabelOf(account),
+    } satisfies BudgetStop;
   });
 
-/** The open stop whose question the thread holds, mission or global. */
+/** The open stop in a scope. */
+const readOpenStop = (scope: BudgetScope) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const [stop] = yield* sql<StopRow>`${selectStops(sql)}
+      WHERE s.resolution IS NULL AND ${stopWhere(sql, scope, "s.")}`;
+    return stop === undefined ? null : yield* stopOf(stop);
+  });
+
+/** The open stop whose question the thread holds: its mission's first, then its account's, then the global one. */
 export const readHeldStop = (threadId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const [stop] = yield* sql<BudgetStop>`${selectStops(sql)}
-      WHERE s.resolution IS NULL AND s.thread_id = ${threadId} ORDER BY s.mission_id IS NULL`;
-    return stop ?? null;
+    const [stop] = yield* sql<StopRow>`${selectStops(sql)}
+      WHERE s.resolution IS NULL AND s.thread_id = ${threadId}
+      ORDER BY CASE WHEN s.mission_id IS NOT NULL THEN 0 WHEN s.account_key IS NOT NULL THEN 1 ELSE 2 END`;
+    return stop === undefined ? null : yield* stopOf(stop);
   });
 
 /** The mission's budget lines, in order. */
@@ -107,7 +122,7 @@ export const readBudgetWindow = (missionId: string | null) =>
         period: global.period,
         periodStart: global.since,
         spent: global.spent,
-        stop: yield* readOpenStop(null),
+        stop: yield* readOpenStop({ _tag: "Global" }),
       } satisfies BudgetWindow;
     }
     const [mission] = yield* sql<{ id: string }>`SELECT id FROM missions WHERE id = ${missionId}`;
@@ -125,6 +140,6 @@ export const readBudgetWindow = (missionId: string | null) =>
       period: null,
       periodStart: null,
       spent: yield* missionSpendingOf(missionId),
-      stop: yield* readOpenStop(missionId),
+      stop: yield* readOpenStop({ _tag: "Mission", id: missionId }),
     } satisfies BudgetWindow;
   });

@@ -134,6 +134,7 @@ export const removeAccount = (accountId: string) =>
       return yield* invalid(
         `Not removed: ${use?.count} thread(s) in missions not yet ended run on "${account.label}". End or archive those missions first.`,
       );
+    yield* sql`DELETE FROM account_budgets WHERE account_id = ${accountId}`;
     yield* sql`DELETE FROM accounts WHERE id = ${accountId}`;
     yield* Effect.sync(() => rmSync(accountFolderOf(accountsRoot, accountId), { force: true, recursive: true }));
   });

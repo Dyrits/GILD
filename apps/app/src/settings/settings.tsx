@@ -27,6 +27,7 @@ import { colors, fontSizes, fonts } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
 import { GoldButton } from "../ui/parchment";
 import { Choice } from "../ui/pickers";
+import { AccountBudgetsCard } from "./accountBudgetsCard";
 import { AccountsCard, HarnessesCard } from "./accounts";
 import { GuildmasterSettings } from "./guildmasterSettings";
 import { PricesCard } from "./pricesCard";
@@ -347,6 +348,7 @@ export function SettingsScreen({
                 ))}
               </SettingsCard>
               <PricesCard client={client} onSave={save} settings={settings} />
+              <AccountBudgetsCard client={client} />
               <SettingsCard icon="gem" title="Global budget, over the period">
                 <Choice
                   label={(period) => period}
