@@ -8,6 +8,8 @@ import { suggestionLabels } from "../foundation/labels";
 import { allMissions } from "../foundation/queries";
 import { styles } from "../foundation/styles";
 import { useServiceQuery } from "../foundation/useServiceQuery";
+import { tiedRealmsOf } from "../realms/tiedRealms";
+import { companionChoicesOf, hasTiers, selectedChoiceOf } from "./suggestionChoices";
 
 /** The line a resolved suggestion leaves in its thread, opening where the request went. */
 export function SuggestionLine({
@@ -50,22 +52,23 @@ export function SuggestionLine({
   );
 }
 
-/** A labelled row of exclusive choices, shown as chips that wrap. */
+/** A labelled row of exclusive choices, shown as chips that wrap, read by a screen reader as a radio group. */
 function ChoiceRow({
   label,
   options,
 }: {
   label: string;
-  options: ReadonlyArray<{ isSelected: boolean; label: string; onPress: () => void }>;
+  options: ReadonlyArray<{ isSelected: boolean; key: string; label: string; onPress: () => void }>;
 }) {
   return (
-    <View accessibilityLabel={label} style={local.choice}>
+    <View accessibilityLabel={label} accessibilityRole="radiogroup" style={local.choice}>
       <Text style={styles.muted}>{label}</Text>
       <View style={local.chips}>
         {options.map((option) => (
           <Pressable
-            accessibilityState={{ selected: option.isSelected }}
-            key={option.label}
+            accessibilityRole="radio"
+            accessibilityState={{ checked: option.isSelected }}
+            key={option.key}
             onPress={option.onPress}
             style={[styles.answer, local.chip, option.isSelected && styles.answerPrimary]}
           >
@@ -83,151 +86,154 @@ const local = StyleSheet.create({
   choice: { gap: 6 },
 });
 
-/** An open suggestion: where the owner sends a message the thread found off topic. */
-export function SuggestionCard({ client, suggestion }: { client: ServiceClient; suggestion: Suggestion }) {
-  const { data: harnesses } = useHarnesses(client);
-  const [runner, setRunner] = useState<Runner>({
-    accountId: suggestion.accountId,
-    effort: suggestion.effort,
-    harness: suggestion.harness,
-    model: suggestion.model,
-  });
+/** Sends the owner's answer to an open suggestion, and keeps the reason when it is refused. */
+function useSuggestionAnswer(client: ServiceClient, suggestion: Suggestion) {
   const [error, setError] = useState<string | null>(null);
-  // Iskios's cards choose a Companion by the tiers the owner set in the Workshop; the pickers stay behind "Customize".
-  const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
-  const [isCustomizing, setIsCustomizing] = useState(false);
-  const tiers = (["Light", "Balanced", "Heavy"] as const).flatMap((name) => {
-    const tier = settings?.tiers[name];
-    return tier === undefined || tier === null ? [] : [{ name, runner: tier as Runner }];
-  });
-  const defaultRunner: Runner | null =
-    settings === null || settings === undefined
-      ? null
-      : {
-          accountId: null,
-          effort: settings.defaultEffort,
-          harness: settings.defaultHarness,
-          model: settings.defaultModel,
-        };
-  const isSame = (a: Runner, b: Runner | null) =>
-    b !== null &&
-    a.harness === b.harness &&
-    a.model === b.model &&
-    a.effort === b.effort &&
-    (a.accountId ?? null) === (b.accountId ?? null);
-  // The realm for a new quest from Iskios: the proposed one until the owner picks another, or the Borderlands.
-  const [realmPath, setRealmPath] = useState<string | null>(suggestion.realmPath);
-  const { data: known } = useServiceQuery(client, allMissions.request, allMissions.key);
-  const realms = (known?.workspaces ?? [])
-    .filter((realm) => realm.path !== null)
-    .sort((a, b) => a.name.localeCompare(b.name));
   const send = (answer: SuggestionAnswer) =>
     client.request({ _tag: "AnswerSuggestion", answer, suggestionId: suggestion.id }).then(
       () => setError(null),
       (reason) => setError(messageOf(reason)),
     );
+  return { error, send };
+}
+
+/** The "Continue in ..." buttons of the quests that may already cover the request. */
+function MatchButtons({
+  onContinue,
+  suggestion,
+}: {
+  onContinue: (missionId: MissionId) => void;
+  suggestion: Suggestion;
+}) {
+  return suggestion.matches.map((match) => (
+    <Pressable key={match.missionId} onPress={() => onContinue(match.missionId)} style={styles.answer}>
+      <Text style={styles.answerText}>
+        Continue in "{match.title}" · {match.state}
+      </Text>
+    </Pressable>
+  ));
+}
+
+const suggestionRunnerOf = (suggestion: Suggestion): Runner => ({
+  accountId: suggestion.accountId,
+  effort: suggestion.effort,
+  harness: suggestion.harness,
+  model: suggestion.model,
+});
+
+/** An open suggestion: Iskios's proposal of a new quest, or where a thread's off-topic message should go. */
+export function SuggestionCard({ client, suggestion }: { client: ServiceClient; suggestion: Suggestion }) {
+  return suggestion.isFromGuildmaster ? (
+    <ProposalCard client={client} suggestion={suggestion} />
+  ) : (
+    <OffTopicCard client={client} suggestion={suggestion} />
+  );
+}
+
+/**
+ * Iskios's proposal: the realm and the Companion as rows of chips, the Companion offered by the tiers the owner set in
+ * the Workshop (or only the default, stated), and the pickers behind "Customize the Companion" (CHG-0179).
+ */
+function ProposalCard({ client, suggestion }: { client: ServiceClient; suggestion: Suggestion }) {
+  const { data: harnesses } = useHarnesses(client);
+  const { error, send } = useSuggestionAnswer(client, suggestion);
+  const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
+  const { data: known } = useServiceQuery(client, allMissions.request, allMissions.key);
+  const [runner, setRunner] = useState<Runner>(suggestionRunnerOf(suggestion));
+  const [isCustomizing, setIsCustomizing] = useState(false);
+  // The proposed realm until the owner picks another, or the Borderlands.
+  const [realmPath, setRealmPath] = useState<string | null>(suggestion.realmPath);
+  const pickers = (
+    <RunnerPickers client={client} harnesses={harnesses} isCompact={false} onChange={setRunner} value={runner} />
+  );
+  const choices =
+    settings === null ? [] : companionChoicesOf(settings, (tier) => companionLabelOf(tier.harness, null, tier.model));
+  const selected = selectedChoiceOf(choices, runner);
+  const realms = tiedRealmsOf(known?.workspaces ?? []);
+  const hasMatches = suggestion.matches.length > 0;
   return (
     <View style={styles.question}>
       <Text style={styles.questionText}>
-        {suggestion.isFromGuildmaster
-          ? suggestion.matches.length === 0
-            ? "Iskios proposes a new quest. Pick its realm, then open it."
-            : "A quest may already cover this. Continue it, or open a new quest?"
-          : "This message seems off this quest's topic. Where should it go?"}
+        {hasMatches
+          ? "A quest may already cover this. Continue it, or open a new quest?"
+          : "Iskios proposes a new quest. Pick its realm, then open it."}
       </Text>
       <Text style={styles.body}>{suggestion.text}</Text>
-      {suggestion.matches.map((match) => (
-        <Pressable
-          key={match.missionId}
-          onPress={() => send({ _tag: "Continue", missionId: match.missionId })}
-          style={styles.answer}
-        >
-          <Text style={styles.answerText}>
-            Continue in "{match.title}" · {match.state}
-          </Text>
-        </Pressable>
-      ))}
+      <MatchButtons onContinue={(missionId) => send({ _tag: "Continue", missionId })} suggestion={suggestion} />
       <View style={styles.details}>
         <Pressable
-          onPress={() =>
-            send({ _tag: "NewMission", ...runner, ...(suggestion.isFromGuildmaster ? { realmPath } : {}) })
-          }
+          onPress={() => send({ _tag: "NewMission", ...runner, realmPath })}
           style={[styles.answer, styles.answerPrimary]}
         >
           <Text style={[styles.answerText, styles.answerTextPrimary]}>
-            {suggestion.isFromGuildmaster
-              ? suggestion.matches.length === 0
-                ? "Open the new quest"
-                : "Open a new quest anyway"
-              : "Open as new quest"}{" "}
-            "{suggestion.title}"
+            {hasMatches ? "Open a new quest anyway" : "Open the new quest"} "{suggestion.title}"
           </Text>
         </Pressable>
-        {suggestion.isFromGuildmaster && (
+        <ChoiceRow
+          label="Realm"
+          options={[
+            {
+              isSelected: realmPath === null,
+              key: "borderlands",
+              label: "Borderlands",
+              onPress: () => setRealmPath(null),
+            },
+            ...realms.map((realm) => ({
+              isSelected: realmPath === realm.path,
+              key: realm.id,
+              label: realm.name,
+              onPress: () => setRealmPath(realm.path),
+            })),
+          ]}
+        />
+        {hasTiers(choices) ? (
           <ChoiceRow
-            label="Realm"
-            options={[
-              { isSelected: realmPath === null, label: "Borderlands", onPress: () => setRealmPath(null) },
-              ...realms.map((realm) => ({
-                isSelected: realmPath === realm.path,
-                label: realm.name,
-                onPress: () => setRealmPath(realm.path),
-              })),
-            ]}
+            label="Companion"
+            options={choices.map((choice) => ({
+              isSelected: choice === selected,
+              key: choice.label,
+              label: choice.label,
+              onPress: () => setRunner(choice.runner),
+            }))}
           />
-        )}
-        {suggestion.isFromGuildmaster ? (
-          <>
-            {tiers.length > 0 ? (
-              <ChoiceRow
-                label="Companion"
-                options={[
-                  ...(defaultRunner === null
-                    ? []
-                    : [
-                        {
-                          isSelected: isSame(runner, defaultRunner),
-                          label: "Default",
-                          onPress: () => setRunner(defaultRunner),
-                        },
-                      ]),
-                  ...tiers.map((tier) => ({
-                    isSelected: isSame(runner, tier.runner),
-                    label: `${tier.name} · ${companionLabelOf(tier.runner.harness, null, tier.runner.model)}`,
-                    onPress: () => setRunner(tier.runner),
-                  })),
-                ]}
-              />
-            ) : (
-              <Text style={styles.muted}>
-                Starts on {harnessLabels[runner.harness]} · {companionLabelOf(runner.harness, null, runner.model)}, the
-                default Companion. Set Light, Balanced, and Heavy in the Workshop to choose by tier.
-              </Text>
-            )}
-            <Pressable onPress={() => setIsCustomizing(!isCustomizing)}>
-              <Text style={styles.link}>
-                {isCustomizing ? "Hide the Companion settings" : "Customize the Companion"}
-              </Text>
-            </Pressable>
-            {isCustomizing && (
-              <RunnerPickers
-                client={client}
-                harnesses={harnesses}
-                isCompact={false}
-                onChange={setRunner}
-                value={runner}
-              />
-            )}
-          </>
         ) : (
-          <RunnerPickers client={client} harnesses={harnesses} isCompact={false} onChange={setRunner} value={runner} />
+          <Text style={styles.muted}>
+            Starts on {harnessLabels[runner.harness]} · {companionLabelOf(runner.harness, null, runner.model)}, the
+            default Companion. Set Light, Balanced, and Heavy in the Workshop to choose by tier.
+          </Text>
         )}
-      </View>
-      {!suggestion.isFromGuildmaster && (
-        <Pressable onPress={() => send({ _tag: "Aside" })} style={styles.answer}>
-          <Text style={styles.answerText}>Keep as aside</Text>
+        <Pressable onPress={() => setIsCustomizing(!isCustomizing)}>
+          <Text style={styles.link}>{isCustomizing ? "Hide the Companion settings" : "Customize the Companion"}</Text>
         </Pressable>
-      )}
+        {isCustomizing && pickers}
+      </View>
+      {error !== null && <Text style={styles.error}>{error}</Text>}
+    </View>
+  );
+}
+
+/** A thread's off-topic message: continue in a matching quest, open a new one, or keep it as an aside. */
+function OffTopicCard({ client, suggestion }: { client: ServiceClient; suggestion: Suggestion }) {
+  const { data: harnesses } = useHarnesses(client);
+  const { error, send } = useSuggestionAnswer(client, suggestion);
+  const [runner, setRunner] = useState<Runner>(suggestionRunnerOf(suggestion));
+  return (
+    <View style={styles.question}>
+      <Text style={styles.questionText}>This message seems off this quest's topic. Where should it go?</Text>
+      <Text style={styles.body}>{suggestion.text}</Text>
+      <MatchButtons onContinue={(missionId) => send({ _tag: "Continue", missionId })} suggestion={suggestion} />
+      <View style={styles.details}>
+        <Pressable
+          onPress={() => send({ _tag: "NewMission", ...runner })}
+          style={[styles.answer, styles.answerPrimary]}
+        >
+          <Text style={[styles.answerText, styles.answerTextPrimary]}>Open as new quest "{suggestion.title}"</Text>
+        </Pressable>
+        <RunnerPickers client={client} harnesses={harnesses} isCompact={false} onChange={setRunner} value={runner} />
+      </View>
+      <Pressable onPress={() => send({ _tag: "Aside" })} style={styles.answer}>
+        <Text style={styles.answerText}>Keep as aside</Text>
+      </Pressable>
       {error !== null && <Text style={styles.error}>{error}</Text>}
     </View>
   );

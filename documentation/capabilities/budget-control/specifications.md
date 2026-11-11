@@ -138,7 +138,7 @@ Recorded Reserves acceptance direction, to refine when the screen is specified f
 
 ## External contract
 
-No thread tool: threads read their budget use from their context and cannot change a budget. `open_thread` and `open_mission` answer a reached budget with a refusal and its reason.
+No thread tool: threads read their budget use from their context and cannot change a budget. `open_thread` answers a reached budget with a refusal and its reason; so does the owner's Create on a proposed quest.
 
 ## Acceptance and validation
 
@@ -179,7 +179,7 @@ No thread tool: threads read their budget use from their context and cannot chan
 
 - [mission-tracking](../mission-tracking/specifications.md): spending per provider unit, and the dashboard where the rings and estimates appear.
 - [thread-tree](../thread-tree/specifications.md): `open_thread` refusals and the Attention state.
-- [mission-coordination](../mission-coordination/specifications.md): Guildmaster, its own budget, and `open_mission` refusals.
+- [mission-coordination](../mission-coordination/specifications.md): Guildmaster, its own budget, and the refusal of a proposed quest at a reached budget.
 - [action-approval](../action-approval/specifications.md): the question with buttons and the line format for recorded answers.
 - [provider-accounts](../provider-accounts/specifications.md): the accounts that carry budgets, credits, and plan limits, and the sign-in a billing kind is read from.
 - [thread-panel](../thread-panel/specifications.md): the rows that show a thread's spending, and the backup Companions a stop at an account's budget hands over to.

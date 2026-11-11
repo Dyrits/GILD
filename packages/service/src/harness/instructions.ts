@@ -88,7 +88,7 @@ const asideInstructions = [
 ];
 
 /**
- * The Guildmaster's instructions in place of a quest thread's (quest coordination): it routes and never does the work.
+ * The Guildmaster's instructions in place of a quest thread's (quest coordination): it proposes quests and never does the work.
  * Tool names and ids keep `mission`, as the contracts do; everything said to the owner says quest.
  */
 export const guildmasterInstructionsOf = (threadId: string) =>

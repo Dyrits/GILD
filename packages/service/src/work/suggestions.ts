@@ -27,6 +27,8 @@ const withdrawn: Resolution = { outcome: "Withdrawn", targetMissionId: null, tar
 /** What a thread's off-topic suggestion came to; what the thread is told is the tool's concern. */
 export type Suggested =
   | { readonly _tag: "UnknownThread" }
+  /** Iskios named a realm that no folder is tied to: no card is made (the owner would see the Borderlands). */
+  | { readonly _tag: "UnknownRealm"; readonly given: string }
   /** The thread is not at work in a turn, so the owner was not asked. */
   | { readonly _tag: "NotAsked" }
   /** With the setting on and nothing matching, a new mission opened without asking. */
@@ -147,10 +149,8 @@ export const suggestionsLayer = Layer.effect(
           }),
         NewMission: (chosen) =>
           Effect.gen(function* () {
-            const [stored] = yield* sql<{ realmPath: string | null }>`
-              SELECT realm_path AS realmPath FROM suggestions WHERE id = ${suggestion.id}`;
             // The realm the owner chose on the card (null for the Borderlands) over the one proposed.
-            const chosenPath = chosen.realmPath === undefined ? (stored?.realmPath ?? null) : chosen.realmPath;
+            const chosenPath = chosen.realmPath === undefined ? suggestion.realmPath : chosen.realmPath;
             if (chosenPath !== null) {
               const [known] = yield* sql<{ id: string }>`SELECT id FROM workspaces WHERE path = ${chosenPath}`;
               if (known === undefined) return yield* invalid("No realm is tied to that folder.");
@@ -261,7 +261,10 @@ export const suggestionsLayer = Layer.effect(
           .slice(0, maxMatches);
         // The Guildmaster always asks: it is where the owner decides whether a quest continues or a new one opens.
         const isGuildmaster = yield* isGuildmasterThread(threadId);
-        const realm = isGuildmaster && args.realm !== undefined ? yield* findRealm(args.realm) : null;
+        const givenRealm = args.realm?.trim() ?? "";
+        const realm = isGuildmaster && givenRealm !== "" ? yield* findRealm(givenRealm) : null;
+        if (isGuildmaster && givenRealm !== "" && realm === null)
+          return unchanged<Suggested>({ _tag: "UnknownRealm", given: givenRealm });
         const shouldOpenOffTopicMissions = !isGuildmaster && (yield* readSettings).shouldOpenOffTopicMissions;
         // Opening without asking needs no mission to match, so it is checked here, not taken from the thread.
         const matches =

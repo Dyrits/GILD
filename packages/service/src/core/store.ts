@@ -604,6 +604,13 @@ export const migrations = {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`ALTER TABLE threads ADD COLUMN handover_from TEXT`;
   }),
+  // The assistant was renamed Iskios (CHG-0177): its stored quest and thread titles follow, once, here.
+  "0041_assistant_renamed_iskios": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`UPDATE missions SET title = 'Iskios' WHERE is_guildmaster = 1 AND title = 'Guildmaster'`;
+    yield* sql`UPDATE threads SET title = 'Iskios'
+      WHERE title = 'Guildmaster' AND mission_id IN (SELECT id FROM missions WHERE is_guildmaster = 1)`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

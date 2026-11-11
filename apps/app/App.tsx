@@ -45,7 +45,7 @@ export default function App() {
   // The side-quest open in the open quest, chosen in the sidebar or the conversation; null for the quest itself.
   const [openThread, setOpenThread] = useState<ThreadId | null>(null);
   const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
-  // The realm chosen for the Guildmaster's next message: from its side panel, or from a realm's page.
+  // The realm chosen for the Guildmaster's next message: from a realm's page.
   const [guildmasterRealm, setGuildmasterRealm] = useState<string | null>(null);
   // Counts openings from the sidebar, so choosing the open mission again goes back to its threads.
   const [openCount, setOpenCount] = useState(0);

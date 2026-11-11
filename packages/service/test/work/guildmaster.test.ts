@@ -5,6 +5,7 @@ import type { MissionDetail, MissionId, Suggestion, SuggestionAnswer, ThreadId }
 import { Effect, PubSub } from "effect";
 import { afterEach } from "vitest";
 import { Changes } from "../../src/core/index.ts";
+import { threadTools, toolListing } from "../../src/work/threadTools.ts";
 import { call, fixture, read, send, settle, start, tool } from "../fixtures/service.ts";
 
 const fixtures: ReturnType<typeof fixture>[] = [];
@@ -39,8 +40,8 @@ const answer = (suggestion: Suggestion, given: SuggestionAnswer) =>
 
 const listed = call({ _tag: "ListMissions", isArchived: false, search: null, state: null, workspaceId: null });
 
-/** Iskios proposes a quest by a card with no matching quest, and the owner opens it as a new quest; returns the quest. */
-const openByOwner = (place: { missionId: MissionId; threadId: ThreadId }, args: object) =>
+/** Iskios proposes a quest by a card, which waits for the owner's choice; returns the card. */
+const proposeCard = (place: { missionId: MissionId; threadId: ThreadId }, args: object) =>
   Effect.gen(function* () {
     yield* say(place.threadId, `call suggest_mission ${JSON.stringify(args)}`);
     const waiting = yield* settle(
@@ -50,13 +51,27 @@ const openByOwner = (place: { missionId: MissionId; threadId: ThreadId }, args: 
     );
     const card = waiting.suggestions.find((s) => s.outcome === null);
     if (card === undefined) return yield* Effect.die("Missing card");
+    return card;
+  });
+
+/** The quest a resolved card opened. */
+const questOf = (card: Suggestion | undefined) =>
+  Effect.gen(function* () {
+    if (card?.targetMissionId == null) return yield* Effect.die("The card opened no quest");
+    return card.targetMissionId;
+  });
+
+/** Iskios proposes a quest, and the owner opens it as a new quest; returns the quest. */
+const openByOwner = (place: { missionId: MissionId; threadId: ThreadId }, args: object) =>
+  Effect.gen(function* () {
+    const card = yield* proposeCard(place, args);
     yield* answer(card, { _tag: "NewMission", effort: "default", model: "default" });
     const done = yield* settle(
       place.missionId,
       (d) => d.suggestions.some((s) => s.outcome === "MovedToMission") && isIdle(d),
       place.threadId,
     );
-    return done.suggestions.find((s) => s.outcome === "MovedToMission")?.targetMissionId as MissionId;
+    return yield* questOf(done.suggestions.find((s) => s.outcome === "MovedToMission"));
   });
 
 /** A folder under the fixture's home, which a quest turns into a realm. */
@@ -181,7 +196,7 @@ describe("proposing a quest", () => {
           outcome: "MovedToMission",
           targetTitle: "Login loop",
         });
-        const opened = yield* settle(detail.suggestions[0]?.targetMissionId as MissionId, (d) =>
+        const opened = yield* settle(yield* questOf(detail.suggestions[0]), (d) =>
           d.messages.some((m) => m.sender === "agent"),
         );
         expect(opened.messages[0]?.text).toBe("Fix the login redirect loop");
@@ -191,67 +206,94 @@ describe("proposing a quest", () => {
     },
   );
 
-  it.live(
-    "opens it in the realm the owner picks on the card, or in the Borderlands, and refuses an unknown folder",
-    () => {
-      const { directory, layer } = setup();
-      return Effect.gen(function* () {
+  const twoRealms = () => {
+    const { directory, layer } = setup();
+    return {
+      directory,
+      layer,
+      prepare: Effect.gen(function* () {
         const shop = folderIn(directory, "shop");
         const app = folderIn(directory, "app");
         yield* startIdle("Existing", shop);
         yield* startIdle("Other", app);
-        const place = yield* guildmaster;
-        const propose = (title: string) =>
-          Effect.gen(function* () {
-            yield* say(place.threadId, `call suggest_mission ${JSON.stringify({ realm: "shop", text: title, title })}`);
-            const waiting = yield* settle(
-              place.missionId,
-              (d) => d.suggestions.some((s) => s.outcome === null),
-              place.threadId,
-            );
-            const card = waiting.suggestions.find((s) => s.outcome === null);
-            if (card === undefined) return yield* Effect.die("Missing card");
-            return card;
-          });
-        const first = yield* propose("First");
-        expect(first.realmPath).toBe(shop);
-        const refused = yield* Effect.flip(
-          answer(first, {
-            _tag: "NewMission",
-            effort: "default",
-            model: "default",
-            realmPath: join(directory, "nowhere"),
-          }),
-        );
-        expect(JSON.stringify(refused)).toContain("No realm is tied to that folder");
-        yield* answer(first, { _tag: "NewMission", effort: "default", model: "default", realmPath: app });
-        const done = yield* settle(
+        return { app, place: yield* guildmaster, shop };
+      }),
+    };
+  };
+
+  it.live("proposes the realm Iskios names, and opens the quest in the one the owner picks instead", () => {
+    const { layer, prepare } = twoRealms();
+    return Effect.gen(function* () {
+      const { app, place, shop } = yield* prepare;
+      const card = yield* proposeCard(place, { realm: "shop", text: "First", title: "First" });
+      expect(card.realmPath).toBe(shop);
+      yield* answer(card, { _tag: "NewMission", effort: "default", model: "default", realmPath: app });
+      const done = yield* settle(
+        place.missionId,
+        (d) => d.suggestions.some((s) => s.outcome === "MovedToMission") && isIdle(d),
+        place.threadId,
+      );
+      const opened = yield* read(yield* questOf(done.suggestions[0]));
+      expect(opened.thread.workspace?.path).toBe(app);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("opens the quest in the Borderlands when the owner picks no realm", () => {
+    const { layer, prepare } = twoRealms();
+    return Effect.gen(function* () {
+      const { place } = yield* prepare;
+      const card = yield* proposeCard(place, { realm: "shop", text: "Second", title: "Second" });
+      yield* answer(card, { _tag: "NewMission", effort: "default", model: "default", realmPath: null });
+      const done = yield* settle(
+        place.missionId,
+        (d) => d.suggestions.some((s) => s.outcome === "MovedToMission") && isIdle(d),
+        place.threadId,
+      );
+      expect((yield* read(yield* questOf(done.suggestions[0]))).thread.workspace).toBeNull();
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("refuses a folder no realm is tied to, and leaves the card waiting", () => {
+    const { directory, layer, prepare } = twoRealms();
+    return Effect.gen(function* () {
+      const { place } = yield* prepare;
+      const card = yield* proposeCard(place, { realm: "shop", text: "Third", title: "Third" });
+      const refused = yield* Effect.flip(
+        answer(card, {
+          _tag: "NewMission",
+          effort: "default",
+          model: "default",
+          realmPath: join(directory, "nowhere"),
+        }),
+      );
+      expect(JSON.stringify(refused)).toContain("No realm is tied to that folder");
+      expect((yield* read(place.missionId, place.threadId)).suggestions.some((s) => s.outcome === null)).toBe(true);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("makes no card for a realm that does not exist or has no folder, and tells Iskios which to name", () =>
+    Effect.gen(function* () {
+      yield* call({ _tag: "CreateRealm", crest: null, name: "Ideas", path: null });
+      yield* startIdle("Existing");
+      const place = yield* guildmaster;
+      for (const realm of ["nowhere", "Ideas"]) {
+        yield* say(place.threadId, `call suggest_mission ${JSON.stringify({ realm, text: "Job", title: "Job" })}`);
+        const detail = yield* settle(
           place.missionId,
-          (d) => d.suggestions.some((s) => s.outcome === "MovedToMission") && isIdle(d),
+          (d) => isIdle(d) && lastAgentText(d).includes(`Not proposed: no realm "${realm}"`),
           place.threadId,
         );
-        const opened = yield* read(done.suggestions[0]?.targetMissionId as MissionId);
-        expect(opened.thread.workspace?.path).toBe(app);
-        const second = yield* propose("Second");
-        yield* answer(second, { _tag: "NewMission", effort: "default", model: "default", realmPath: null });
-        const settled = yield* settle(
-          place.missionId,
-          (d) => d.suggestions.filter((s) => s.outcome === "MovedToMission").length === 2 && isIdle(d),
-          place.threadId,
-        );
-        const borderlands = yield* read(
-          settled.suggestions.find((s) => s.title === "Second")?.targetMissionId as MissionId,
-        );
-        expect(borderlands.thread.workspace).toBeNull();
-      }).pipe(Effect.provide(layer));
-    },
+        expect(detail.suggestions).toEqual([]);
+      }
+    }).pipe(Effect.provide(setup().layer)),
   );
 
-  it.live("has no tool to open a quest by itself", () =>
+  it.live("has no tool to open a quest by itself, only the card", () =>
     Effect.gen(function* () {
+      expect(Object.keys(threadTools)).not.toContain("open_mission");
+      expect(toolListing.map((listed) => listed.name)).not.toContain("open_mission");
       const place = yield* guildmaster;
-      const refused = yield* tool(place.threadId, "open_mission", { request: "Do something" });
-      expect(refused).not.toContain("Opened");
+      yield* tool(place.threadId, "open_mission", { request: "Do something" });
       expect((yield* listed).missions).toHaveLength(0);
     }).pipe(Effect.provide(setup().layer)),
   );
@@ -533,40 +575,93 @@ describe("hearing back from quests it opened", () => {
 });
 
 describe("managing realms at the owner's request", () => {
-  const manage = (threadId: ThreadId, name: string, args: object) =>
-    say(threadId, `call ${name} ${JSON.stringify(args)}`);
+  const manage = (place: { missionId: MissionId; threadId: ThreadId }, name: string, args: object) =>
+    Effect.gen(function* () {
+      yield* say(place.threadId, `call ${name} ${JSON.stringify(args)}`);
+      return lastAgentText(yield* settle(place.missionId, isIdle, place.threadId));
+    });
   const realms = Effect.map(listed, (list) => list.workspaces);
 
-  it.live("makes a realm tied to no folder, and one tied to a folder, only on the owner's quoted words", () => {
-    const { directory, layer } = setup();
-    return Effect.gen(function* () {
+  it.live("makes a realm only on the owner's quoted words", () =>
+    Effect.gen(function* () {
       const place = yield* guildmaster;
       const refused = yield* tool(place.threadId, "create_realm", { name: "Ideas", quote: "make a realm" });
       expect(refused).toContain("only when the owner asks");
       expect(yield* realms).toHaveLength(0);
-      yield* manage(place.threadId, "create_realm", { name: "Ideas", quote: "create_realm" });
-      yield* settle(place.missionId, isIdle, place.threadId);
+    }).pipe(Effect.provide(setup().layer)),
+  );
+
+  it.live("makes a realm tied to no folder", () =>
+    Effect.gen(function* () {
+      const place = yield* guildmaster;
+      yield* manage(place, "create_realm", { name: "Ideas", quote: "create_realm" });
+      expect((yield* realms).map((realm) => [realm.name, realm.path])).toEqual([["Ideas", null]]);
+    }).pipe(Effect.provide(setup().layer)),
+  );
+
+  it.live("makes a realm tied to a folder", () => {
+    const { directory, layer } = setup();
+    return Effect.gen(function* () {
+      const place = yield* guildmaster;
       const folder = folderIn(directory, "shop");
-      yield* manage(place.threadId, "create_realm", { folder, name: "Shop", quote: "create_realm" });
-      yield* settle(place.missionId, isIdle, place.threadId);
-      const made = yield* realms;
-      expect(made.map((realm) => realm.name).sort()).toEqual(["Ideas", "Shop"]);
-      expect(made.find((realm) => realm.name === "Ideas")?.path).toBeNull();
-      expect(made.find((realm) => realm.name === "Shop")?.path).toBe(folder);
+      yield* manage(place, "create_realm", { folder, name: "Shop", quote: "create_realm" });
+      expect((yield* realms).map((realm) => [realm.name, realm.path])).toEqual([["Shop", folder]]);
     }).pipe(Effect.provide(layer));
   });
 
-  it.live("renames a realm by its name, and refuses an unknown realm, a duplicate name, or a quest thread", () =>
+  it.live("refuses a name another realm has, and a folder that already has a realm", () => {
+    const { directory, layer } = setup();
+    return Effect.gen(function* () {
+      const place = yield* guildmaster;
+      const folder = folderIn(directory, "shop");
+      yield* manage(place, "create_realm", { folder, name: "Shop", quote: "create_realm" });
+      const sameName = yield* manage(place, "create_realm", { name: "shop", quote: "create_realm" });
+      expect(sameName).toContain("already exists");
+      const sameFolder = yield* manage(place, "create_realm", { folder, name: "Store", quote: "create_realm" });
+      expect(sameFolder).toContain("already belongs to a realm");
+      expect((yield* realms).map((realm) => realm.name)).toEqual(["Shop"]);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("refuses a folder that does not exist, and makes no realm", () => {
+    const { directory, layer } = setup();
+    return Effect.gen(function* () {
+      const place = yield* guildmaster;
+      const folder = join(directory, "nowhere");
+      const refused = yield* manage(place, "create_realm", { folder, name: "Ghost", quote: "create_realm" });
+      expect(refused).toContain("Not done: No folder at");
+      expect(yield* realms).toHaveLength(0);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("renames a realm found by its name, whatever the case", () =>
     Effect.gen(function* () {
       const place = yield* guildmaster;
-      yield* manage(place.threadId, "create_realm", { name: "Ideas", quote: "create_realm" });
-      yield* settle(place.missionId, isIdle, place.threadId);
-      yield* manage(place.threadId, "rename_realm", { name: "Notions", quote: "rename_realm", realm: "ideas" });
-      yield* settle(place.missionId, isIdle, place.threadId);
+      yield* manage(place, "create_realm", { name: "Ideas", quote: "create_realm" });
+      yield* manage(place, "rename_realm", { name: "Notions", quote: "rename_realm", realm: "ideas" });
       expect((yield* realms).map((realm) => realm.name)).toEqual(["Notions"]);
-      yield* manage(place.threadId, "create_realm", { name: "notions", quote: "create_realm" });
-      yield* settle(place.missionId, isIdle, place.threadId);
-      expect(yield* realms).toHaveLength(1);
+    }).pipe(Effect.provide(setup().layer)),
+  );
+
+  it.live("refuses to rename an unknown realm, or to a name another realm has", () =>
+    Effect.gen(function* () {
+      const place = yield* guildmaster;
+      yield* manage(place, "create_realm", { name: "Ideas", quote: "create_realm" });
+      yield* manage(place, "create_realm", { name: "Notions", quote: "create_realm" });
+      const unknown = yield* manage(place, "rename_realm", { name: "X", quote: "rename_realm", realm: "nowhere" });
+      expect(unknown).toContain('no realm "nowhere"');
+      const duplicate = yield* manage(place, "rename_realm", {
+        name: "NOTIONS",
+        quote: "rename_realm",
+        realm: "Ideas",
+      });
+      expect(duplicate).toContain("already named");
+      expect((yield* realms).map((realm) => realm.name).sort()).toEqual(["Ideas", "Notions"]);
+    }).pipe(Effect.provide(setup().layer)),
+  );
+
+  it.live("keeps the realm tools to Iskios: a quest's thread is refused", () =>
+    Effect.gen(function* () {
       const quest = yield* startIdle("Some quest");
       expect(yield* tool(quest.threadId, "create_realm", { name: "Mine", quote: "create it" })).toContain(
         "Only Iskios",

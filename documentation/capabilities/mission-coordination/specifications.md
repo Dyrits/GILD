@@ -58,8 +58,8 @@ The additional search and management operations still need design, implementatio
 
 - Guildmaster first looks for quests that fit the request with `find_missions`, which searches each quest's title, briefing, and opening request, and weighs an exact ticket key or link above plain words, so two requests about one ticket meet and offers **Continue in** for up to 3 matches, as the [off-topic suggestion](../thread-tree/specifications.md#off-topic-requests) does. When nothing matches, it still proposes a new quest as a card (CHG-0173); it opens none itself.
 - Settings hold a default model and up to three optional tiers (Light, Balanced, Heavy), each a harness, model, and effort. Guildmaster picks a tier from how complex the request is, or the default when no tiers are set.
-- Guildmaster picks the workspace the request implies, for example "fix the login bug in Iskios" picks the Iskios workspace, or none. Given a repository link, it clones the repository with `clone_repository`, or reuses its earlier clone, and opens the quest there (see [workspace-attachment](../workspace-attachment/specifications.md#cloning-a-repository)).
-- Its reply links to the quest and names the tier, harness, model, effort, and workspace it chose, for example "Opened on Balanced: Codex, GPT-5, medium".
+- Guildmaster picks the workspace the request implies, for example "fix the login bug in Iskios" picks the Iskios workspace, or none. Given a repository link, it clones the repository with `clone_repository`, or reuses its earlier clone, and proposes the quest there (see [workspace-attachment](../workspace-attachment/specifications.md#cloning-a-repository)).
+- Its reply says in one sentence what it proposed, naming the tier only when it passed one, for example "Proposed on Balanced"; the card shows the realm and Companion, and the quest links from the card once the owner opened it.
   The user can change the harness, agent, model, and effort afterwards through a handover, or change the workspace through a [whole-quest move](../mission-tracking/specifications.md#quest-placement-and-moves).
 - The new quest's top thread starts as **Open as new quest** does: with the request, global skills and intel, and nothing from another quest.
 
@@ -97,12 +97,14 @@ Guildmaster uses these thread tools in addition to `find_missions`, `suggest_mis
 
 | Tool | Purpose | Arguments | Answer |
 | --- | --- | --- | --- |
-| `open_mission` | Open a new quest | The request; optionally a tier, harness, agent, model, effort, and workspace | The new quest's identifier and the choices it started with, or a refusal and its reason |
+| `suggest_mission` | Propose a quest as a card, or continue a matching one | The request, a title, the ids of matching quests (none when nothing fits); optionally a realm and a tier | What the owner chose, or a refusal when the realm named has no folder or does not exist (no card is made). There is no tool that opens a quest without the owner's choice (CHG-0173) |
+| `create_realm` | Make a realm | A name, optionally a folder, and the user's exact words as `quote` | Done, or a refusal: no quote, a name or a folder a realm already has, a folder that does not exist |
+| `rename_realm` | Rename a realm | The realm's name or folder, the new name, and the user's exact words as `quote` | Done, or a refusal: no quote, an unknown realm, a name another realm has |
 | `create_ritual` | Create a [Ritual](../rituals/specifications.md) for a repeating request | The instruction, a title, a schedule preset; optionally a tier, harness, model, effort, and realm | The Ritual's title, schedule, and Companion, or a refusal and its reason |
 | `act_on_mission` | Stop threads, archive, or rename, at the user's request | A quest, an action, the user's exact words asking for it as `quote`, for renaming a title, and for a confirmed ending the snapshot it was given | Done, or the confirmation the user must give first, or a refusal |
 | `read_control_history` | Read Guildmaster's older messages | A query or a starting point | The matching messages |
 
-Only Guildmaster can call these four tools. Any thread can address Guildmaster with `send_thread_message`.
+Only Guildmaster can call these tools, except `suggest_mission`, which any thread calls for an off-topic message. Any thread can address Guildmaster with `send_thread_message`.
 Direct creation uses the app's service interface; it does not grant ordinary threads access to Guildmaster-only tools.
 
 The table covers the existing coordination tools.
@@ -127,7 +129,7 @@ The additional search and management tools for CHG-0132 need a contract and serv
   - the chatter guard pausing two threads in different quests;
   - Guildmaster's starting context: the dashboard as text, global intel, and its 20 latest messages, with older ones summarized and retrieved when needed;
   - Guildmaster saving global intel only after approval.
-- **Human acceptance**: on the desktop and on the phone web app, the user asks Guildmaster for 3 different tasks, sees one continue an existing quest and two open new ones on different tiers, gets told in Guildmaster when one needs them, and has a thread in one quest ask a thread in another a question with `@`.
+- **Human acceptance**: on the desktop and on the phone web app, the user asks Guildmaster for 3 different tasks, sees one continue an existing quest and two proposed as new quests on different tiers, which the user opens from the cards, gets told in Guildmaster when one needs them, and has a thread in one quest ask a thread in another a question with `@`.
 
 ## Requirements
 

@@ -1,4 +1,4 @@
-import type { MissionSummary, ThreadId, WorkspaceChoice } from "@iskios/contracts";
+import type { ThreadId, WorkspaceChoice } from "@iskios/contracts";
 import { type ReactNode, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { CrestBadge } from "../crest/crest";
@@ -7,7 +7,7 @@ import { samePath } from "../foundation/paths";
 import { styles } from "../foundation/styles";
 import { colors, fontSizes, fonts, radii } from "../foundation/theme";
 import { chooseFolder, folderNameOf, type NewRealm, NewRealmModal } from "./newRealmModal";
-import { AddRealmCard, NoRealmButton, RealmCard } from "./realmCard";
+import { tiedRealmsOf } from "./tiedRealms";
 
 /**
  * Chooses a mission's realm before it starts: the realms that exist, each under its own crest, then no realm for the
@@ -15,17 +15,11 @@ import { AddRealmCard, NoRealmButton, RealmCard } from "./realmCard";
  * and give it a crest, and becomes a realm when imported, before any quest starts in it (workspace-attachment; CHG-0035).
  */
 export function RealmChooser({
-  isBig = false,
-  missions = [],
   onChange,
   onCreate,
   realms,
   value,
 }: {
-  /** Large tiles in the middle of the screen, not a row of small chips under the message. */
-  isBig?: boolean;
-  /** The quests on the board, from which the large cards count each realm's own. */
-  missions?: ReadonlyArray<MissionSummary>;
   onChange: (path: string | null) => void;
   /** Imports the folder as a realm, named and given a crest; rejects with the reason when refused. */
   onCreate: (realm: NewRealm) => Promise<unknown>;
@@ -48,61 +42,28 @@ export function RealmChooser({
       },
       (reason) => setChooseError(messageOf(reason)),
     );
-  // A quest started here is placed by its realm's folder, so a realm tied to no folder is not offered yet (CHG-0161).
-  const sorted = realms.filter((realm) => realm.path !== null).sort((a, b) => a.name.localeCompare(b.name));
+  const sorted = tiedRealmsOf(realms);
   return (
     <View style={styles.section}>
-      <View accessibilityLabel="Realm" style={[local.chips, isBig && local.chipsBig]}>
-        {!isBig && <Text style={local.label}>Realm</Text>}
-        {isBig ? (
-          <View style={local.stack}>
-            <View style={local.stackCards}>
-              {sorted.map((realm) => (
-                <RealmCard
-                  isFluid
-                  isSelected={samePath(realm.path, value)}
-                  key={realm.id}
-                  missions={missions}
-                  // Pressing the chosen realm again unchooses it, and the quest starts with no realm.
-                  onPress={() => onChange(samePath(realm.path, value) ? null : realm.path)}
-                  realm={realm}
-                />
-              ))}
-            </View>
-            <View style={local.stackFoot}>
-              <NoRealmButton isSelected={value === null} onPress={() => onChange(null)} />
-              <AddRealmCard isFluid label="Choose a folder…" onPress={choose} />
-            </View>
-          </View>
-        ) : (
-          <>
-            {sorted.map((realm) => (
-              <Chip
-                isBig={isBig}
-                isSelected={samePath(realm.path, value)}
-                key={realm.id}
-                // Pressing the chosen realm again unchooses it, and the quest starts with no realm.
-                onPress={() => onChange(samePath(realm.path, value) ? null : realm.path)}
-              >
-                <CrestBadge crest={realm.crest} id={realm.id} size={isBig ? 92 : 24} />
-                <Text
-                  numberOfLines={isBig ? 2 : 1}
-                  style={[
-                    local.chipText,
-                    isBig && local.chipTextBig,
-                    samePath(realm.path, value) && local.chipTextSelected,
-                  ]}
-                >
-                  {realm.name}
-                </Text>
-              </Chip>
-            ))}
-            <Chip isBig={isBig} isSelected={false} onPress={choose}>
-              <Text style={[local.chipPlus, isBig && local.chipPlusBig]}>+</Text>
-              <Text style={[local.chipText, isBig && local.chipTextBig]}>Choose folder…</Text>
-            </Chip>
-          </>
-        )}
+      <View accessibilityLabel="Realm" style={local.chips}>
+        <Text style={local.label}>Realm</Text>
+        {sorted.map((realm) => (
+          <Chip
+            isSelected={samePath(realm.path, value)}
+            key={realm.id}
+            // Pressing the chosen realm again unchooses it, and the quest starts with no realm.
+            onPress={() => onChange(samePath(realm.path, value) ? null : realm.path)}
+          >
+            <CrestBadge crest={realm.crest} id={realm.id} size={24} />
+            <Text numberOfLines={1} style={[local.chipText, samePath(realm.path, value) && local.chipTextSelected]}>
+              {realm.name}
+            </Text>
+          </Chip>
+        ))}
+        <Chip isSelected={false} onPress={choose}>
+          <Text style={local.chipPlus}>+</Text>
+          <Text style={local.chipText}>Choose folder…</Text>
+        </Chip>
       </View>
       {editing !== null && <NewRealmModal initial={editing} onCancel={() => setEditing(null)} onCreate={onCreate} />}
       {chooseError !== null && <Text style={styles.error}>{chooseError}</Text>}
@@ -111,17 +72,7 @@ export function RealmChooser({
 }
 
 /** One choice in the realm row: a pill that turns to parchment when chosen. */
-function Chip({
-  children,
-  isBig = false,
-  isSelected,
-  onPress,
-}: {
-  children: ReactNode;
-  isBig?: boolean;
-  isSelected: boolean;
-  onPress: () => void;
-}) {
+function Chip({ children, isSelected, onPress }: { children: ReactNode; isSelected: boolean; onPress: () => void }) {
   return (
     <Pressable
       accessibilityRole="button"
@@ -129,7 +80,6 @@ function Chip({
       onPress={onPress}
       style={(state) => [
         local.chip,
-        isBig && local.chipBig,
         (state.pressed || (state as { hovered?: boolean }).hovered === true) && local.chipHovered,
         isSelected && local.chipSelected,
       ]}
@@ -182,29 +132,12 @@ const local = StyleSheet.create({
     paddingHorizontal: 12,
     paddingVertical: 6,
   },
-  // The large tiles have no outline: a tile is a quiet card, and the chosen one a lighter step.
-  chipBig: {
-    borderRadius: radii.xl,
-    borderWidth: 0,
-    flexDirection: "column",
-    gap: 12,
-    paddingHorizontal: 16,
-    paddingVertical: 20,
-    width: 176,
-  },
   chipHovered: { backgroundColor: colors.controlHover },
   chipNew: { color: colors.highlight, fontFamily: fonts.sans, fontSize: fontSizes.sm, fontStyle: "italic" },
   chipPlus: { color: colors.highlight, fontFamily: fonts.sans, fontSize: 18, lineHeight: 20 },
-  chipPlusBig: { fontSize: 44, lineHeight: 56 },
   chipSelected: { backgroundColor: colors.controlActive, borderColor: colors.highlight },
   chips: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 8 },
-  chipsBig: { gap: 16, justifyContent: "center" },
   chipText: { color: colors.onGround, fontFamily: fonts.sans, fontSize: fontSizes.base },
-  chipTextBig: { fontSize: fontSizes.lg, textAlign: "center" },
   chipTextSelected: { color: colors.text, fontWeight: "700" },
   label: { color: colors.onGround, fontFamily: fonts.sans, fontSize: fontSizes.md, marginRight: 4, opacity: 0.8 },
-  // The large cards: two to a row while they fit, one when they do not, the add card and the no-realm sign beneath.
-  stack: { gap: 16, maxWidth: 820, width: "100%" },
-  stackCards: { flexDirection: "row", flexWrap: "wrap", gap: 16 },
-  stackFoot: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 16 },
 });

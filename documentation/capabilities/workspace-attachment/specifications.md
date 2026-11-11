@@ -23,7 +23,7 @@ The owner can correct a wrong workspace by moving a whole quest when none of its
 ### Cloning a repository
 
 - Settings hold a **clone location**, `~/Code` by default. A repository given as a link is cloned there, into a folder named after the repository, and becomes a workspace.
-- When the user gives Control a repository link, for example "let's work on this repo: https://github.com/…", Control clones it and opens the mission in it.
+- When the user gives Control a repository link, for example "let's work on this repo: https://github.com/…", Control clones it and proposes the mission in it, as a card the user opens.
 - A repository already cloned by Iskios is reused as the same workspace, never cloned twice.
 - Cloning uses the git sign-in already set up on the computer. A clone that fails (no access, no network) is refused with git's reason shown in the thread.
 
@@ -79,7 +79,7 @@ A started thread's workspace can change through a [whole-quest move](../mission-
 
 ## External contract
 
-Threads use these thread tools in addition to `open_thread` and `open_mission`, whose workspace argument takes a workspace, a folder path, or none (see [0005](../../architecture-decision-record/0005-thread-tools-over-mcp.md)):
+Threads use these thread tools in addition to `open_thread`, whose workspace argument takes a workspace, a folder path, or none (see [0005](../../architecture-decision-record/0005-thread-tools-over-mcp.md)):
 
 | Tool | Purpose | Arguments | Answer |
 | --- | --- | --- | --- |

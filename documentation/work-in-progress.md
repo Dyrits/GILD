@@ -1,9 +1,10 @@
 # Work in progress
 
-## Iskios, the assistant · 2026-11-11 · batches 1 and 2 built and checked, owner review pending
+## Iskios, the assistant · 2026-11-11 · built, checked, and reviewed; owner review pending
 
-Agreed in CHG-0173 and CHG-0174, delivered in CHG-0175; starting commit `f492434`, nothing committed. The Guildmaster becomes Iskios: proposes quests on a card, makes and renames realms.
-CHG-0177 added the rename of every visible text and the card's realm choice (not yet seen in the app). Next: the hub of the Guild Hall (CHG-0176: recent activity, what waits for the owner, a recap of the period, Iskios's box at the foot); realms tied to no folder in proposals; delete realms; moving quests by Iskios (CHG-0172 not built); explaining the app; a live run with a real harness.
+Agreed in CHG-0173, CHG-0174, and CHG-0176; delivered in CHG-0175, CHG-0177, CHG-0178, CHG-0179, and CHG-0180 (review and refactor). Starting commit `f492434`. The Guildmaster is Iskios: it proposes quests as a card (realm and Companion by tier), makes and renames realms on the owner's quoted words, and the Guild Hall has no side panel. Run with Claude Code in a throwaway window ([verification](verification/2026-11-11-iskios-live.md)).
+Open, awaiting the owner: the look of the card and the Guild Hall; whether the card's wording should say "Create" with the realm's folder (CHG-0173 words it so; built as "Open the new quest"); whether "Customize the Companion" stays; realms tied to no folder cannot be chosen on the card, so Iskios can make a realm it cannot use yet (a decision: stop making them, or carry the realm's id); whether `create_ritual` should need the owner's quoted words like the realm tools (a Ritual opens quests on a schedule).
+Not built: the Guild Hall hub (recent activity, what waits for the owner, a recap; the recap's period and contents to settle with the owner); the renaming of code identifiers, columns, request and setting names (a storage and wire migration); deleting realms; moving quests by Iskios; explaining the app; Codex and OpenCode as Iskios's harness not run.
 
 ## Quest moves · 2026-11-11 · built and checked, owner review pending
 

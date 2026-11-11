@@ -50,3 +50,29 @@ describe("only Realms and Borderlands (CHG-0161)", () => {
     }).pipe(Effect.provide(SqliteClient.layer({ filename: join(directory, "store.sqlite") })));
   });
 });
+
+describe("the assistant renamed Iskios (CHG-0177)", () => {
+  it.live("renames the stored titles of the assistant's quest and thread, and no other", () => {
+    const directory = mkdtempSync(join(tmpdir(), "iskios-store-"));
+    directories.push(directory);
+    return Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      yield* migrateUntil("0040_handover_pending");
+      yield* sql`INSERT INTO missions (id, top_thread_id, title, created_at, last_activity_at, is_guildmaster)
+        VALUES ('g', 'gt', 'Guildmaster', 1, 1, 1), ('q', 'qt', 'Guildmaster', 1, 1, 0)`;
+      yield* sql`INSERT INTO threads (id, mission_id, state, harness, model, title)
+        VALUES ('gt', 'g', 'Idle', 'ClaudeCode', 'default', 'Guildmaster'), ('qt', 'q', 'Idle', 'ClaudeCode', 'default', 'Guildmaster')`;
+
+      yield* migrateUntil("0041_assistant_renamed_iskios");
+
+      const titles = yield* sql<{ id: string; title: string }>`
+        SELECT id, title FROM missions UNION ALL SELECT id, title FROM threads ORDER BY id`;
+      expect(titles).toEqual([
+        { id: "g", title: "Iskios" },
+        { id: "gt", title: "Iskios" },
+        { id: "q", title: "Guildmaster" },
+        { id: "qt", title: "Guildmaster" },
+      ]);
+    }).pipe(Effect.provide(SqliteClient.layer({ filename: join(directory, "store.sqlite") })));
+  });
+});

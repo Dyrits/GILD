@@ -33,9 +33,9 @@ function RealmNote({ name, onClear }: { name: string; onClear: () => void }) {
 }
 
 /**
- * The Guildmaster: one permanent conversation that takes any request, looks for a quest that already fits, offers to
- * continue it or opens a new one, and shows each action as a card (quest coordination). The realms stand in the side
- * panel; choosing one fixes where the next message's quest opens.
+ * Iskios: one permanent conversation that takes any request, looks for a quest that already fits, offers to continue
+ * it or proposes a new one as a card for the owner to open, and shows each action as a card (quest coordination). A
+ * realm chosen on a realm's page is attached to the next message.
  */
 export function GuildmasterScreen(props: {
   client: ServiceClient;

@@ -6,7 +6,6 @@ import type {
   ModelChoice,
   Settings,
   TierName,
-  WorkspaceId,
 } from "@iskios/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
@@ -20,13 +19,12 @@ import { insertQuest, listMissionSummaries } from "./missions.ts";
 import { createRitual } from "./rituals.ts";
 import type { ArgumentsOf } from "./threadTools.ts";
 import { renameMission, titleOf } from "./titles.ts";
-import { createRealm, renameRealm } from "./workspaces.ts";
 
-// The Guildmaster (quest coordination): one permanent thread the owner talks to, which looks for a quest that fits a
-// request, offers to continue it, or opens a new one. It is stored as a hidden quest so its turns, messages, usage, and
-// cards are the quests' own; every list, search, and ending leaves it out.
+// Iskios, once the Guildmaster (quest coordination): one permanent thread the owner talks to, which looks for a quest
+// that fits a request and offers to continue it, or proposes a new one for the owner to open. It is stored as a hidden
+// quest so its turns, messages, usage, and cards are the quests' own; every list, search, and ending leaves it out.
 
-/** Iskios's title, in its thread tree and its usage; the stored name of older data was "Guildmaster". */
+/** Iskios's title, in its thread tree and its usage; data made as Guildmaster is renamed by migration 0041. */
 export const guildmasterTitle = "Iskios";
 
 /** How many quests the Guildmaster's dashboard text lists at most; the latest ones. */
@@ -43,12 +41,7 @@ export const ensureGuildmaster = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const [existing] = yield* sql<{ missionId: string; threadId: string }>`
     SELECT id AS missionId, top_thread_id AS threadId FROM missions WHERE is_guildmaster = 1`;
-  if (existing !== undefined) {
-    // The assistant was renamed Iskios (CHG-0177); data made under the old name takes the new one.
-    yield* sql`UPDATE missions SET title = ${guildmasterTitle} WHERE id = ${existing.missionId} AND title = 'Guildmaster'`;
-    yield* sql`UPDATE threads SET title = ${guildmasterTitle} WHERE id = ${existing.threadId} AND title = 'Guildmaster'`;
-    return { ...existing, isCreated: false } as const;
-  }
+  if (existing !== undefined) return { ...existing, isCreated: false } as const;
   const settings = yield* readSettings;
   const started = yield* insertQuest(
     { firstMessage: null, isTitleByOwner: true, realm: null, shouldRememberChoices: false, title: guildmasterTitle },
@@ -112,6 +105,8 @@ export const findRealm = (given: string) =>
 /** The realms known, one line each, so the Guildmaster can name one when it proposes a quest or manages a realm. */
 const realmLinesOf = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
+  // A quest is placed by its realm's folder, so a realm tied to no folder cannot hold a proposed quest yet (CHG-0161,
+  // decision record 0015); it is listed for the realm tools, and marked.
   const realms = yield* sql<{ name: string; path: string | null }>`
     SELECT name, path FROM workspaces ORDER BY name`;
   return realms.length === 0
@@ -320,7 +315,7 @@ export const reportToGuildmaster = Effect.gen(function* () {
 // ----- Acting on quests, at the owner's request -----
 
 /** Whether the owner's words from the message that started the thread's current turn contain the quoted words. */
-const isQuotedByOwner = (threadId: string, quote: string) =>
+export const isQuotedByOwner = (threadId: string, quote: string) =>
   Effect.gen(function* () {
     const wanted = quote.trim().toLowerCase();
     if (wanted.length < 2) return false;
@@ -461,63 +456,4 @@ export const createRitualByGuildmaster = (callerId: string, args: ArgumentsOf<"c
       _tag: "Created",
       text: `Created the Ritual "${title}" ${where}, ${JSON.stringify(args.schedule)}, on ${companionLineOf(args.tier, runner)}. It runs by itself in its own quest when due and is on. Tell the owner in a sentence what it will do and when; do not repeat the instruction.`,
     });
-  });
-
-/** What `create_realm` and `rename_realm` came to. */
-export type RealmManaged =
-  | { readonly _tag: "Done"; readonly text: string }
-  | { readonly _tag: "Refused"; readonly text: string };
-
-/** A refused realm operation, which changes nothing. */
-export const refusedRealm = (text: string) => unchanged<RealmManaged>({ _tag: "Refused", text });
-
-/** A realm by its folder or its name, whether or not it is tied to a folder; null when none matches. */
-const findAnyRealm = (given: string) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    const wanted = given.trim();
-    const [row] = yield* sql<{ id: string; name: string }>`
-      SELECT id, name FROM workspaces WHERE path = ${wanted} OR lower(name) = lower(${wanted})
-      ORDER BY created_at LIMIT 1`;
-    return row ?? null;
-  });
-
-/**
- * `create_realm`: at the owner's request, which their own words prove, the Guildmaster makes a realm, tied to a folder
- * or to none. Only the Guildmaster calls it, and never on its own.
- */
-export const createRealmByGuildmaster = (callerId: string, args: ArgumentsOf<"create_realm">) =>
-  Effect.gen(function* () {
-    if (!(yield* isGuildmasterThread(callerId))) return refusedRealm("Only Iskios makes realms here.");
-    if (!(yield* isQuotedByOwner(callerId, args.quote)))
-      return refusedRealm(
-        "Not done: make a realm only when the owner asks for it in their latest message. Quote their exact words as quote, or ask them first.",
-      );
-    const name = args.name.trim();
-    if (name === "") return refusedRealm("Not done: a realm needs a name.");
-    if ((yield* findAnyRealm(name)) !== null)
-      return refusedRealm(`Not done: a realm "${name}" already exists. Tell the owner, or pick another name.`);
-    const folder = args.folder === undefined || args.folder.trim() === "" ? null : args.folder.trim();
-    yield* createRealm(folder, name, null);
-    return changed<RealmManaged>({
-      _tag: "Done",
-      text: `Made the realm "${name}" ${folder === null ? "tied to no folder" : `tied to ${folder}`}. Tell the owner in a sentence.`,
-    });
-  });
-
-/** `rename_realm`: at the owner's request, which their own words prove, the Guildmaster renames a realm. */
-export const renameRealmByGuildmaster = (callerId: string, args: ArgumentsOf<"rename_realm">) =>
-  Effect.gen(function* () {
-    if (!(yield* isGuildmasterThread(callerId))) return refusedRealm("Only Iskios renames realms here.");
-    if (!(yield* isQuotedByOwner(callerId, args.quote)))
-      return refusedRealm(
-        "Not done: rename a realm only when the owner asks for it in their latest message. Quote their exact words as quote, or ask them first.",
-      );
-    const realm = yield* findAnyRealm(args.realm);
-    if (realm === null)
-      return refusedRealm(`Not done: no realm "${args.realm}". Name one of the realms in your context.`);
-    const name = args.name.trim();
-    if (name === "") return refusedRealm("Not done: a realm needs a name.");
-    yield* renameRealm(realm.id as WorkspaceId, name);
-    return changed<RealmManaged>({ _tag: "Done", text: `Renamed the realm "${realm.name}" to "${name}".` });
   });

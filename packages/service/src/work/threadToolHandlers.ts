@@ -8,15 +8,13 @@ import { type CommandRunner, changed, unchanged, type WithFollowUps } from "./co
 import { readWorkingIds } from "./ending.ts";
 import {
   actOnMission,
-  createRealmByGuildmaster,
   createRitualByGuildmaster,
   isGuildmasterThread,
   readControlHistory,
   refusedAction,
-  refusedRealm,
   refusedRitual,
-  renameRealmByGuildmaster,
 } from "./guildmaster.ts";
+import { createRealmByGuildmaster, renameRealmByGuildmaster } from "./guildmasterRealms.ts";
 import { journalToolsOf } from "./journalTools.ts";
 import { loreToolsOf } from "./loreTools.ts";
 import { insertMessage } from "./messaging.ts";
@@ -89,6 +87,10 @@ const suggestedAnswerOf = (suggested: Suggested): ToolAnswer =>
     Resolved: ({ resolution }) => ({
       isError: resolution.outcome === "Withdrawn",
       text: resolutionTextOf(resolution)[resolution.outcome],
+    }),
+    UnknownRealm: ({ given }) => ({
+      isError: true,
+      text: `Not proposed: no realm "${given}" is tied to a folder. Name one of the realms in your context that has a folder, or leave the realm out.`,
     }),
     UnknownThread: () => ({ isError: true, text: "Unknown thread." }),
   });
@@ -169,12 +171,7 @@ export const makeToolHandlers = (dependencies: {
             ),
           ),
         ),
-    create_realm: (threadId, args) =>
-      runTool(
-        createRealmByGuildmaster(threadId, args).pipe(
-          Effect.catchTag("ServiceFailure", (failure) => Effect.succeed(refusedRealm(failure.message))),
-        ),
-      ).pipe(Effect.map((outcome) => answer(outcome.text, outcome._tag === "Refused"))),
+    create_realm: (threadId, args) => runTool(createRealmByGuildmaster(threadId, args)),
     create_ritual: (threadId, args) =>
       runTool(
         createRitualByGuildmaster(threadId, args).pipe(
@@ -212,12 +209,7 @@ export const makeToolHandlers = (dependencies: {
         ),
       ),
     read_control_history: (threadId, args) => commit(readControlHistory(threadId, args)),
-    rename_realm: (threadId, args) =>
-      runTool(
-        renameRealmByGuildmaster(threadId, args).pipe(
-          Effect.catchTag("ServiceFailure", (failure) => Effect.succeed(refusedRealm(failure.message))),
-        ),
-      ).pipe(Effect.map((outcome) => answer(outcome.text, outcome._tag === "Refused"))),
+    rename_realm: (threadId, args) => runTool(renameRealmByGuildmaster(threadId, args)),
     report_result: (threadId, { journal, result }) =>
       journal.trim() === ""
         ? Effect.succeed(toolCatalogue.report_result.invalid)

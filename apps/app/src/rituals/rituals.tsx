@@ -286,7 +286,6 @@ export function RitualForm({
       {ritual === null ? (
         <Part name="Realm">
           <RealmChooser
-            missions={known?.missions ?? []}
             onChange={setWorkspacePath}
             onCreate={(realm) =>
               client
