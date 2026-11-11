@@ -9,13 +9,24 @@ import { useRituals } from "../rituals/rituals";
 import type { RealmListing } from "./questTree";
 import { clampRailWidth, readHidden, readRailWidth, rememberHidden, rememberRailWidth } from "./railStorage";
 import { Sidebar } from "./sidebar";
-import { crumbsOf, type DetailsToggle, hasOwnTitleBar, PanelIcon, QuestColumn, TopBar } from "./topBar";
+import {
+  crumbsOf,
+  type DetailsToggle,
+  hasOwnTitleBar,
+  PanelIcon,
+  QuestColumn,
+  questColumnWidth,
+  TopBar,
+} from "./topBar";
 
 /** The window width from which the sidebar shows beside the content; narrower windows keep the screens' own links. */
 const sidebarBreakpoint = 820;
 
 /** The size of the round handle on the rail's edge that collapses and expands it. */
 const handleSize = 26;
+
+/** The height of the top bar, which the frame's vertical center is measured from. */
+const topBarHeight = 40;
 
 // The pointer shows it can be dragged sideways.
 const resizeCursor = { cursor: "col-resize" } as object;
@@ -137,7 +148,7 @@ export function Shell(
         <TopBarShown.Provider value={true}>
           <View style={local.window}>
             <View style={local.windowMain}>
-              <TopBar client={props.client} crumbs={crumbs} details={details} />
+              <TopBar client={props.client} crumbs={crumbs} details={null} />
               <View style={local.frame}>
                 {!isHidden && <Sidebar {...props} width={railWidth} />}
                 {!isHidden && <RailResizer onChange={setRailWidth} width={railWidth} />}
@@ -157,6 +168,21 @@ export function Shell(
               </View>
             </View>
             {panelColumn}
+            {details !== null && details.isPinned !== true && (
+              <Pressable
+                accessibilityLabel={details.isOpen ? "Hide quest panel" : "Show quest panel"}
+                accessibilityRole="button"
+                onPress={details.onToggle}
+                style={({ pressed }) => [
+                  local.handle,
+                  local.endHandle,
+                  isPanelShown ? { right: questColumnWidth - handleSize / 2 } : local.endHandleTab,
+                  pressed && local.handlePressed,
+                ]}
+              >
+                <PanelIcon side="right" />
+              </Pressable>
+            )}
           </View>
         </TopBarShown.Provider>
       </SidebarShown.Provider>
@@ -165,6 +191,20 @@ export function Shell(
 }
 
 const local = StyleSheet.create({
+  // The quest panel's handle sits on the window, not the frame, so it can straddle the panel's edge. It is centered on the
+  // frame, which starts below the top bar.
+  endHandle: { marginTop: topBarHeight / 2 - handleSize / 2 },
+  // Closed, the handle is the half of a circle against the window's right edge.
+  endHandleTab: {
+    borderBottomRightRadius: 0,
+    borderRightWidth: 0,
+    borderTopRightRadius: 0,
+    height: handleSize * 1.5,
+    marginTop: topBarHeight / 2 - handleSize * 0.75,
+    paddingLeft: 3,
+    right: 0,
+    width: handleSize * 0.75,
+  },
   frame: { backgroundColor: colors.ground, flex: 1, flexDirection: "row", overflow: "hidden" },
   handle: {
     alignItems: "center",

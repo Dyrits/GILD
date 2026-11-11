@@ -2,8 +2,11 @@
 
 /** The rail's width as it opens, before the owner drags it. */
 export const expandedWidth = 272;
-/** The widths the owner can drag the open rail between. */
-const minRailWidth = 200;
+/**
+ * The widths the owner can drag the open rail between. The least keeps the longest heading, "Free Realms", on one line
+ * beside its icon and add button, with room to spare for wider system fonts.
+ */
+const minRailWidth = 236;
 const maxRailWidth = 380;
 
 /** The key under which the browser remembers whether the sidebar is hidden. */

@@ -212,7 +212,9 @@ function Heading({
         <NavIcon name={icon} size={28} />
       </View>
       <View style={local.headingText}>
-        <Text style={local.headingTitle}>{label}</Text>
+        <Text numberOfLines={1} style={local.headingTitle}>
+          {label}
+        </Text>
       </View>
       {onAdd !== undefined && (
         <Pressable

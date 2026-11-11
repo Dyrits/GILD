@@ -25,6 +25,9 @@ export const noDragRegion = { WebkitAppRegion: "no-drag" } as object;
  */
 export type DetailsToggle = { isOpen: boolean; isPinned?: boolean; onToggle: () => void };
 
+/** The width of the quest panel's column on a wide window. */
+export const questColumnWidth = 360;
+
 /** The icon of a window with its left panel: the rail's collapse and expand button. */
 export function PanelIcon({ side = "left" }: { side?: "left" | "right" }) {
   return (
@@ -224,7 +227,7 @@ const local = StyleSheet.create({
   panelIconRight: { justifyContent: "flex-end" },
   questBody: { backgroundColor: colors.page, flex: 1 },
   questClose: { color: colors.highlight, fontSize: fontSizes.base, paddingHorizontal: 4 },
-  questColumn: { borderColor: colors.edge, borderLeftWidth: 1, width: 360 },
+  questColumn: { borderColor: colors.edge, borderLeftWidth: 1, width: questColumnWidth },
   questColumnNarrow: { flex: 1 },
   topBar: {
     alignItems: "center",

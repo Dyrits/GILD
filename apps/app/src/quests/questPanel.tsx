@@ -395,7 +395,10 @@ export function RealmPanel({
         </View>
         <Group label="Details">
           <Row label="Quests" value={String(missions.length)} />
-          <Row label="Threads" value={String(missions.reduce((sum, mission) => sum + mission.threadCount, 0))} />
+          <Row
+            label="Side-quests"
+            value={String(missions.reduce((sum, mission) => sum + Math.max(0, mission.threadCount - 1), 0))}
+          />
           {lastActivity !== null && <Row label="Last active" value={timeOf(lastActivity)} />}
           <Row label="Spent" value={spentText} />
         </Group>

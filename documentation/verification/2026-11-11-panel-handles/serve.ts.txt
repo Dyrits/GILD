@@ -1,0 +1,48 @@
+import { join } from "node:path";
+import { Effect, Layer } from "effect";
+import { fakeHarnessLayer, fakeHarnessToolsLayer, Service, serveLoopback, serviceLayer } from "./src/index.ts";
+
+// A throwaway service on the fake harness with quests in two realms and outside any realm, some with side-quests nested to
+// three levels, to look at the sidebar.
+const dir = process.env.ISKIOS_DATA_DIR ?? "/tmp/iskios-drive/data";
+const layer = serviceLayer({
+  accountsRoot: join(dir, "accounts"),
+  filename: join(dir, "iskios.sqlite"),
+  harness: fakeHarnessLayer("300 millis"),
+  harnessTools: fakeHarnessToolsLayer(),
+  homeFolder: dir,
+  scratchRoot: join(dir, "missions"),
+});
+const tool = (name: string, args: object) => `call ${name} ${JSON.stringify(args)}`;
+const program = Effect.gen(function* () {
+  const service = yield* Service;
+  const start = (title: string, text: string, workspace: string | null) =>
+    service.handle({
+      _tag: "StartMission",
+      accountId: null,
+      effort: "default",
+      harness: "claude",
+      model: "default",
+      requestId: crypto.randomUUID(),
+      text: `${tool("set_mission_title", { title })}\n${text}`,
+      workspacePath: workspace === null ? null : join(dir, workspace),
+    });
+  const child = (title: string, request: string) => tool("open_thread", { request, title });
+  yield* start("Merge menus into sidebar", "hello", "atlas");
+  yield* start("Improve navigation", "hello", "atlas");
+  yield* start(
+    "Right sidebar",
+    `${child("Design the layout", "Sketch it")}\n${child("Build the component", child("Unit tests", child("Integrate & review", "Check it")))}`,
+    "atlas",
+  );
+  yield* start("Fourth atlas quest", "hello", "atlas");
+  yield* start("Card artwork", "hello", "harbor");
+  yield* start("Balancing & playtests", child("Meta analysis", "Compare"), "harbor");
+  yield* start("Explore new ideas", "wait 600000", null);
+  yield* start("Quick research", "hello", null);
+  yield* Effect.sleep("6000 millis");
+  const { port } = yield* serveLoopback({ port: 0, token: "t" });
+  console.log(`ENDPOINT ws://127.0.0.1:${port}/?token=t`);
+  return yield* Effect.never;
+}).pipe(Effect.scoped, Effect.provide(Layer.fresh(layer)));
+Effect.runFork(program);

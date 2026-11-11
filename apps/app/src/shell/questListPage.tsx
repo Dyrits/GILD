@@ -1,10 +1,15 @@
-import type { MissionId, MissionSummary } from "@iskios/contracts";
+import type { MissionId, MissionSummary, WorkspaceId } from "@iskios/contracts";
+import { useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { CrestStudio } from "../crest/crestStudio";
 import type { ServiceClient } from "../foundation/client";
 import { harnessLabels, modelLabelOf } from "../foundation/formatting";
 import { allMissions } from "../foundation/queries";
+import { useHasSidebar, useQuestPanel } from "../foundation/shellContext";
 import { colors, fontSizes, fonts, radii, stateLabels, stateTones } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
+import { LoreScreen } from "../lore/lore";
+import { RealmPanel } from "../quests/questPanel";
 import { EmptyBoard } from "../ui/brand";
 import { agoOf, type RealmListing, recencyGroupsOf } from "./questTree";
 
@@ -33,7 +38,7 @@ function QuestLine({ mission, now, onOpen }: { mission: MissionSummary; now: num
 
 /**
  * The page of a realm's, a Free Realm's, or the Realmless quests: every one of them, latest first, under Today,
- * Yesterday, and the months.
+ * Yesterday, and the months. A realm's page has the realm's panel in the window's side column, as its board has.
  */
 export function QuestListScreen({
   client,
@@ -54,20 +59,64 @@ export function QuestListScreen({
         : mission.freeRealmId === listing.id,
   );
   const now = Date.now();
+  const hasSidebar = useHasSidebar();
+  const { data: realms } = useServiceQuery(client, allMissions.request, allMissions.key);
+  const realm = listing?.kind === "realm" ? (realms?.workspaces.find((each) => each.id === listing.id) ?? null) : null;
+  // The realm whose crest studio or lore is open; showing another realm closes them.
+  const [designingId, setDesigningId] = useState<WorkspaceId | null>(null);
+  const [loreId, setLoreId] = useState<WorkspaceId | null>(null);
+  useQuestPanel(
+    hasSidebar && realm !== null && (
+      <RealmPanel
+        key={realm.id}
+        missions={quests}
+        onCustomize={() => setDesigningId(realm.id)}
+        onOpenLore={() => setLoreId(realm.id)}
+        onRename={(name) => client.request({ _tag: "RenameRealm", name, workspaceId: realm.id })}
+        onSelect={onOpen}
+        realm={realm}
+      />
+    ),
+    "Realm",
+  );
+  if (realm !== null && loreId === realm.id) {
+    return (
+      <LoreScreen
+        client={client}
+        onBack={() => setLoreId(null)}
+        threadId={null}
+        title={`Lore · ${realm.name}`}
+        workspaceId={realm.id}
+      />
+    );
+  }
   return (
-    <ScrollView contentContainerStyle={local.content} style={local.page}>
-      {quests.length === 0 && (
-        <EmptyBoard line={listing === null ? "No quest outside a realm yet." : "No quest in this realm yet."} />
+    <View style={local.page}>
+      {realm !== null && designingId === realm.id && (
+        <CrestStudio
+          id={realm.id}
+          initial={realm.crest}
+          name={realm.name}
+          onCancel={() => setDesigningId(null)}
+          onDone={(crest) =>
+            client.request({ _tag: "SetRealmCrest", crest, workspaceId: realm.id }).then(() => setDesigningId(null))
+          }
+        />
       )}
-      {recencyGroupsOf(quests, now).map((group) => (
-        <View key={group.heading} style={local.group}>
-          <Text style={local.heading}>{group.heading}</Text>
-          {group.quests.map((mission) => (
-            <QuestLine key={mission.id} mission={mission} now={now} onOpen={() => onOpen(mission.id)} />
-          ))}
-        </View>
-      ))}
-    </ScrollView>
+      <ScrollView contentContainerStyle={local.content} style={local.page}>
+        {quests.length === 0 && (
+          <EmptyBoard line={listing === null ? "No quest outside a realm yet." : "No quest in this realm yet."} />
+        )}
+        {recencyGroupsOf(quests, now).map((group) => (
+          <View key={group.heading} style={local.group}>
+            <Text style={local.heading}>{group.heading}</Text>
+            {group.quests.map((mission) => (
+              <QuestLine key={mission.id} mission={mission} now={now} onOpen={() => onOpen(mission.id)} />
+            ))}
+          </View>
+        ))}
+      </ScrollView>
+    </View>
   );
 }
 

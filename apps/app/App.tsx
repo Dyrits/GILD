@@ -159,7 +159,9 @@ export default function App() {
       details={
         isBoard || isGuildmaster
           ? { isOpen: true, isPinned: true, onToggle: () => {} }
-          : openMission === null && selectedMission === null
+          : openMission === null &&
+              selectedMission === null &&
+              !(place === "RealmQuests" && listedRealm?.kind === "realm")
             ? null
             : { isOpen: areDetailsOpen, onToggle: () => setAreDetailsOpen(!areDetailsOpen) }
       }
