@@ -47,8 +47,9 @@ When adding a handoff, keep only the three newest current handoffs linked below;
 
 Latest handoffs:
 
+- To resume comments on messages in a quest or side-quest (built and checked; owner review pending; other items such as cards and the quest panel not commentable yet), read the [current handoff](.agents/handoffs/2026-11-12-0001-message-comments.md). Handoffs are shared and committed.
+
 - To resume Iskios, the assistant formerly called Guildmaster (the Guild Hall hub, Iskios's panel on every screen, its context and settings tools built and checked; owner review pending; the code renaming and four older owner decisions remain), read the [current handoff](.agents/handoffs/2026-11-11-2346-iskios-guild-hall-hub.md). Handoffs are shared and committed.
 
 - To resume the architecture deepening of the @ menu and Gild work (done and checked; owner decisions on seven behaviour points pending), read the [current handoff](.agents/handoffs/2026-11-11-2343-architecture-deepening.md). Handoffs are shared and committed.
 
-- To resume the @ menu with quests, side-quests, and realms (built and checked; owner review pending), read the [current handoff](.agents/handoffs/2026-11-11-2156-at-mentions.md). Handoffs are shared and committed.
