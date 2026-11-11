@@ -23,7 +23,7 @@ In the Guild Hall, the user talks with Guildmaster to find information, manage I
 
 ### What Guildmaster does itself
 
-- Guildmaster can access all information and resources managed by Iskios: Realms, Free Realms, realmless quests, side-quests, conversations, journals, lore, Rituals, and app configuration, including retained archived information.
+- Guildmaster can access all information and resources managed by Iskios: Realms, the Borderlands, side-quests, conversations, journals, lore, Rituals, and app configuration, including retained archived information.
 - It answers information requests and manages the app directly in the Guild Hall.
 - It manages resources at the owner's request, including moving quests, changing their state, renaming them, and managing lore, Rituals, settings, and budgets.
   Each operation keeps its existing rules and confirmations.
@@ -39,7 +39,7 @@ The additional search and management operations still need design, implementatio
 
 ### Opening a quest
 
-- The owner can start a quest through Guildmaster or [directly from a Realm or Free Realm](../mission-tracking/specifications.md#starting-a-mission).
+- The owner can start a quest through Guildmaster or [directly from a Realm or the Borderlands](../mission-tracking/specifications.md#starting-a-mission).
   Direct creation starts a new quest without Guildmaster's matching or tier-selection turn (CHG-0133).
 - When a realm page sends a request to Guildmaster, it includes the selected realm.
   Guildmaster checks for matching quests and places any new quest in that realm.

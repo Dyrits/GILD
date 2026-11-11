@@ -12,7 +12,7 @@ const isWithin = (parent: string, child: string) => {
 /** Removes only a service-owned scratch folder; a folder also registered as a workspace takes precedence. */
 export const removeScratch = Effect.fn("removeScratch")(function* (path: string) {
   const sql = yield* SqlClient.SqlClient;
-  const workspaces = yield* sql<{ path: string }>`SELECT path FROM workspaces`;
+  const workspaces = yield* sql<{ path: string }>`SELECT path FROM workspaces WHERE path IS NOT NULL`;
   yield* Effect.tryPromise({
     catch: (error) =>
       new ServiceFailure({

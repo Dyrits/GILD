@@ -1,13 +1,10 @@
-import type { FreeRealm, MissionSummary, ThreadId, ThreadSummary, WorkspaceChoice } from "@iskios/contracts";
+import type { MissionSummary, ThreadId, ThreadSummary, WorkspaceChoice } from "@iskios/contracts";
 import { foldThreads } from "../conversation/folding";
 
-/** The sidebar's three placements of quests: each realm and Free Realm with its quests, and the quests outside any realm. */
+/** The sidebar's two placements of quests (CHG-0161): each realm with its quests, and the Borderlands' quests. */
 export interface Placements {
-  readonly freeRealms: ReadonlyArray<{
-    readonly freeRealm: FreeRealm;
-    readonly quests: ReadonlyArray<MissionSummary>;
-  }>;
-  readonly realmless: ReadonlyArray<MissionSummary>;
+  /** The quests of no realm: autonomous, with no workspace and no shared lore. */
+  readonly borderlands: ReadonlyArray<MissionSummary>;
   readonly realms: ReadonlyArray<{
     readonly quests: ReadonlyArray<MissionSummary>;
     readonly workspace: WorkspaceChoice;
@@ -15,21 +12,16 @@ export interface Placements {
 }
 
 /**
- * Sorts every quest into its placement (mission-tracking, Left navigation structure): realms by name, quests of each
- * placement by latest activity. A realm or Free Realm with no quest is kept, so it can be found.
+ * Sorts every quest into its placement (mission-tracking, Left navigation structure): realms by name, whether tied to a
+ * folder or not, and quests of each placement by latest activity. A realm with no quest is kept, so it can be found.
  */
 export const placementsOf = (
   missions: ReadonlyArray<MissionSummary>,
   workspaces: ReadonlyArray<WorkspaceChoice>,
-  freeRealms: ReadonlyArray<FreeRealm> = [],
 ): Placements => {
   const latestFirst = [...missions].sort((a, b) => b.lastActivityAt - a.lastActivityAt);
   return {
-    freeRealms: freeRealms.map((freeRealm) => ({
-      freeRealm,
-      quests: latestFirst.filter((mission) => mission.freeRealmId === freeRealm.id),
-    })),
-    realmless: latestFirst.filter((mission) => mission.workspaceId === null && mission.freeRealmId === null),
+    borderlands: latestFirst.filter((mission) => mission.workspaceId === null),
     realms: [...workspaces]
       .sort((a, b) => a.name.localeCompare(b.name))
       .map((workspace) => ({
@@ -38,6 +30,30 @@ export const placementsOf = (
       })),
   };
 };
+
+/** What the scroll after a realm's name says on hover: its full path; null where no icon shows, for a realm tied to no folder. */
+export const scrollCueOf = (realm: Pick<WorkspaceChoice, "path">): string | null =>
+  realm.path === null ? null : `Tied to ${realm.path}`;
+
+/**
+ * The folded ids after the owner presses a heading, a chevron, or a realm's row: a folded one unfolds, an unfolded one
+ * folds, and the others stay as they were. Realms, Borderlands, and The Keep fold this same way (CHG-0161).
+ */
+export const toggledFold = (folded: ReadonlySet<string>, id: string): ReadonlySet<string> => {
+  const next = new Set(folded);
+  if (!next.delete(id)) next.add(id);
+  return next;
+};
+
+/**
+ * Whether a sidebar row shows its hover marks (a heading's fold arrow; overview, new quest, new realm): only while the
+ * pointer is over it, or while a keyboard focus is inside it so they stay reachable. The focus a click leaves does not
+ * count. Otherwise they keep their place, unseen.
+ */
+export const areActionsShown = (row: {
+  readonly hasKeyboardFocusWithin: boolean;
+  readonly isHovered: boolean;
+}): boolean => row.isHovered || row.hasKeyboardFocusWithin;
 
 /** One side-quest row of the sidebar: how deep it sits beneath its quest, and what it hides. */
 export interface SideQuestRow {
@@ -72,6 +88,37 @@ export const sideQuestRowsOf = (
   return visible;
 };
 
+/** One row of the full quest list: the quest at depth 0, or one of its side-quests beneath it. */
+export interface QuestListRow {
+  readonly depth: number;
+  /** Whether it has side-quests beneath it, so it can expand and collapse. */
+  readonly hasChildren: boolean;
+  /** The quest's id for the quest's row, the thread's for a side-quest's. */
+  readonly id: string;
+  /** The side-quest, or null for the quest's own row. */
+  readonly thread: ThreadSummary | null;
+}
+
+/**
+ * The rows the full quest list shows for one quest: the quest, then its side-quests nested as the sidebar nests them
+ * (`sideQuestRowsOf`, with the same setting for agents' threads), unless the quest is collapsed. Its tree is null until read.
+ */
+export const questListRowsOf = (
+  quest: Pick<MissionSummary, "id" | "threadCount">,
+  threads: ReadonlyArray<ThreadSummary> | null,
+  collapsed: ReadonlySet<string>,
+  shouldShowAgentThreads = true,
+): ReadonlyArray<QuestListRow> => {
+  const own: QuestListRow = { depth: 0, hasChildren: quest.threadCount > 1, id: quest.id, thread: null };
+  if (threads === null || collapsed.has(quest.id)) return [own];
+  return [
+    own,
+    ...sideQuestRowsOf(threads, { collapsed, shouldShowAgentThreads }).map(
+      ({ depth, hasChildren, thread }): QuestListRow => ({ depth, hasChildren, id: thread.id, thread }),
+    ),
+  ];
+};
+
 /** The threads above a thread, nearest first, so the sidebar can open the path to the one selected. */
 export const ancestorIdsOf = (threads: ReadonlyArray<ThreadSummary>, id: ThreadId): ReadonlyArray<ThreadId> => {
   const parents = new Map(threads.map((thread) => [thread.id, thread.parentId]));
@@ -90,7 +137,7 @@ const dayMillis = 24 * 60 * 60 * 1000;
 
 /**
  * Groups quests, latest first, under Today, Yesterday, This week, then one heading per month (with the year when it is
- * not the current one), as the Realmless page lists them.
+ * not the current one), as the quest list pages list them.
  */
 export const recencyGroupsOf = (missions: ReadonlyArray<MissionSummary>, now: number): ReadonlyArray<RecencyGroup> => {
   const startOfToday = new Date(now).setHours(0, 0, 0, 0);
@@ -127,9 +174,8 @@ export const agoOf = (millis: number, now: number): string => {
   return unit(Math.floor(days / 30), "month");
 };
 
-/** A realm or Free Realm whose quests the quest list page shows in full. */
+/** A realm whose quests the quest list page shows in full. */
 export interface RealmListing {
   readonly id: string;
-  readonly kind: "free" | "realm";
   readonly name: string;
 }

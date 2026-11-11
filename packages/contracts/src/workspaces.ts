@@ -1,6 +1,6 @@
 import { Schema } from "effect";
 import { Crest } from "./crest.ts";
-import { FreeRealmId, WorkspaceId } from "./ids.ts";
+import { WorkspaceId } from "./ids.ts";
 
 // Workspaces and the folder browser (workspace-attachment).
 
@@ -27,20 +27,16 @@ export const FolderListing = Schema.Struct({
 });
 export type FolderListing = typeof FolderListing.Type;
 
-/** One workspace the dashboard can filter by, with its folder, where a mission started from its board works. */
+/**
+ * One realm the dashboard can filter by (mission-tracking): its quests share its lore. A realm tied to a folder gives
+ * its quests that folder to work in; a realm tied to none has a null path, and its quests work in their scratch folder.
+ */
 export const WorkspaceChoice = Schema.Struct({
   /** The crest the owner designed for the realm, or null until then; its quests wear it. */
   crest: Schema.NullOr(Crest),
   id: WorkspaceId,
   name: Schema.String,
-  path: Schema.String,
+  /** The realm's folder, or null for a realm tied to no folder. */
+  path: Schema.NullOr(Schema.String),
 });
 export type WorkspaceChoice = typeof WorkspaceChoice.Type;
-
-/** A Free Realm: a name and a crest, and no folder. */
-export const FreeRealm = Schema.Struct({
-  crest: Schema.NullOr(Crest),
-  id: FreeRealmId,
-  name: Schema.String,
-});
-export type FreeRealm = typeof FreeRealm.Type;

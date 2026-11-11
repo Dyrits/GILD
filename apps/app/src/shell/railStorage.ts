@@ -1,13 +1,15 @@
 // What the rail remembers between launches in the browser's storage: whether it is hidden, how wide it is. A platform without storage, or one that refuses it, only loses the memory.
 
 /** The rail's width as it opens, before the owner drags it. */
-export const expandedWidth = 272;
+export const expandedWidth = 288;
 /**
- * The widths the owner can drag the open rail between. The least keeps the longest heading, "Free Realms", on one line
- * beside its icon and add button, with room to spare for wider system fonts.
+ * The widths the owner can drag the open rail between. The least keeps the longest heading, "Borderlands", whole on one
+ * line beside its icon, its chevron, and its two hover buttons (measured at 274 px in the web build, CHG-0163), with
+ * room to spare for wider system fonts.
  */
-const minRailWidth = 236;
-const maxRailWidth = 380;
+const minRailWidth = 284;
+/** The most the open rail can have: a quarter of the window, so the conversation and the right panel stay usable. */
+const maxRailShare = 0.25;
 
 /** The key under which the browser remembers whether the sidebar is hidden. */
 const hiddenKey = "iskios:sidebar-hidden";
@@ -31,14 +33,19 @@ export const rememberHidden = (isHidden: boolean) => {
 /** The key under which the browser remembers how wide the open rail is. */
 const widthKey = "iskios:sidebar-width";
 
-/** A width held between the least and the most the open rail can have. */
-export const clampRailWidth = (width: number) => Math.min(maxRailWidth, Math.max(minRailWidth, Math.round(width)));
+/**
+ * A width held between the least and the most the open rail can have in a window this wide: at most a quarter of the
+ * window, never less than the least width, which wins on a window too narrow for its quarter to reach it.
+ */
+export const clampRailWidth = (width: number, windowWidth: number) =>
+  Math.max(minRailWidth, Math.min(Math.floor(windowWidth * maxRailShare), Math.round(width)));
 
 /** Reads the remembered rail width; a platform without browser storage starts at the default. */
 export const readRailWidth = (): number => {
   try {
     const stored = Number(globalThis.localStorage?.getItem(widthKey));
-    return Number.isFinite(stored) && stored > 0 ? clampRailWidth(stored) : expandedWidth;
+    // The window's quarter is applied where the width is used, since the window can change size after this.
+    return Number.isFinite(stored) && stored > 0 ? Math.max(minRailWidth, Math.round(stored)) : expandedWidth;
   } catch {
     return expandedWidth;
   }

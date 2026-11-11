@@ -2236,6 +2236,17 @@ Scope: Interface
 Summary: At the owner's request the sidebar icons come in two sets, taken from the owner's `guildmaster-menu-icons` folder (13 drawings, ivory/silver for the dark look, slate blue for the light). Each 512 px source was cropped to one common frame, so the drawings keep their relative sizes, and reduced to 192 px: `assets/nav/*.png` is the dark set (replacing the former silver icons, so Realms, Craft, Archive, Reserves, and Workshop have new drawings; Borderlands is `free-realms.png`) and `assets/nav/light/*.png` the light one. `shell/navIcons.tsx` picks the set of the look in use. Provisional: the owner chose these "for now". Earlier attempts, a recoloring of the former icons and cut-outs of the concept sheet, were dropped; the 500-icon pack in Downloads (flat Font Awesome glyphs, CC BY 4.0) was reviewed and not used.
 Validation: typecheck and Biome pass; seen in a throwaway Electron instance of the web export, sidebar in light and in dark. The icons on screens other than the sidebar's were not checked; the sources are raster, extracted and upscaled from concept art, so detail is limited at large sizes.
 
+## CHG-0161 · 2026-11-11 · Only Realms and Borderlands
+
+Type: Documentation
+Event: Agreement
+Scope: Mission tracking, Lore scopes, Glossary
+
+Summary: At the owner's request the placements are reduced to two. A Realm groups quests with lore shared across them and is tied to a workspace (repository or folder) or to none; this replaces the Free Realm. The Borderlands are the one place for autonomous quests: no workspace, no shared lore, only a quest's own lore and global lore; this replaces Realmless. Every quest belongs to a Realm or to the Borderlands. The glossary, outline, architecture, and the mission-tracking, scoped-intel, mission-coordination, thread-tree, and conversation-terminal specifications were updated, and the sidebar order loses one entry (Rituals now sits at position 4).
+Decision: no data migration; Free Realms and Realmless are dropped from the interface and the service when this is built.
+Assumption to confirm: the Borderlands are one section, not several named groups; the owner's wording "borderlands only have autonomous quests" was read that way.
+Validation: documentation only; no code, test, or interface change. The app, service, and tests still use Free Realm and Realmless until the code batch. Older entries and verification records keep the former terms.
+
 ## CHG-0162 · 2026-11-11 · OpenCode effort levels read ahead
 
 Type: Code
@@ -2244,3 +2255,29 @@ Scope: Service
 
 Summary: At the owner's request the OpenCode effort picker no longer waits for a short ACP session on each pick. When the service reads OpenCode's model list afresh (`listModels` in `harnessTools.ts`), it starts a background read of every model's levels, three at a time, into the cache `ListModelEfforts` already uses; a pick then answers from the cache. A model not yet read, or read under another account's folder, still falls back to the on-demand read. The request, its response, and the app's pickers are unchanged (one comment updated). The cache lifetime is the model list's, so the levels are read again after it expires, when the list is next read.
 Validation: typecheck and Biome pass; `harnesses.test.ts` passes with the new warming case (43 of 44; the one failure, the added account's own folder, fails identically without this change because the running session's environment leaks into it). Not seen in the running app, nor timed against OpenCode 2.2.0's 60 models.
+
+## CHG-0163 · 2026-11-11 · Sidebar marks on hover, folding headings, widths, and the nested full list
+
+Type: Documentation
+Event: Agreement
+Scope: Mission tracking
+
+Summary: The owner's requests during the CHG-0161 build, recorded in the [mission-tracking specification](capabilities/mission-tracking/specifications.md#left-navigation-structure):
+- The Borderlands section is the former Realmless section renamed, with the former Borderlands mountain icon and the same new-quest button; the former Borderlands "+" (it made Free Realms) is gone.
+- Realms, Borderlands, and The Keep fold the same way under their headings.
+- A realm tied to a folder shows a small scroll (rolled parchment) after its name, with the full path on hover; a realm tied to none shows nothing. It replaces a folder glyph tried first.
+- Hover marks, after the Delta app's sidebar ([inspirations](inspirations.md#delta-and-zeds-deltadb)): fold arrows and action buttons show only while the pointer is anywhere over the whole row, or on a keyboard focus inside it (not the focus a click leaves); unseen, they keep their place. Titles, icons, crests, the scroll, counts, and state dots always show.
+- The fold arrow is a bow arrow (fletching, shaft, head), right when folded and down when open: right after the title on group headings, after the name and scroll on realm rows, in its former place on quest and side-quest rows.
+- The sidebar's minimum width keeps "Borderlands" whole with its arrow and two buttons (284 px); its maximum is a quarter of the window, held again when the window changes size.
+- The full quest list ("Show all N quests") nests side-quests beneath their quest as the sidebar does, each with its harness, model, and latest activity; N counts quests only.
+Assumptions to confirm: nesting rather than a flat list in the full list, with quests unfolded there by default; "Show all N quests" counting quests without side-quests; the arrow on quest and side-quest rows keeping its place before the title.
+Validation: the owner's messages relayed by the coordinator on 2026-11-11, with screenshots.
+
+## CHG-0164 · 2026-11-11 · Only Realms and Borderlands, built
+
+Type: Code
+Event: Delivery
+Scope: Mission tracking, Lore scopes, Interface
+
+Summary: CHG-0161 and CHG-0163 built. Service: migration `0039_realms_and_borderlands` makes `workspaces.path` nullable, drops `free_realms` and `missions.free_realm_id` without migrating them ([0015](architecture-decision-record/0015-realms-tied-or-not-and-one-borderlands.md)); `CreateRealm` takes a null path for a realm tied to no folder; `StartEmptyQuest` takes `realmId` (null for the Borderlands) instead of a path or Free Realm; `CreateFreeRealm`, `ListFreeRealms`, `FreeRealm`, `FreeRealmId`, and `MissionSummary.freeRealmId` are gone; `WorkspaceChoice.path` is nullable; a realm without a folder gives its threads no workspace (scratch folder, terminal in the home folder) and still shares realm lore; `ThreadSummary` gains `harness`, `model`, and `lastActivityAt` for the full list. App: one "New realm" menu with an optional folder; the sidebar as agreed in CHG-0163 (`shell/sidebar.tsx`, `shell/questTree.ts`, `foundation/inputModality.ts`, `shell/railStorage.ts`); the full list nests side-quests (`shell/questListPage.tsx`); realm cards and panels say "Tied to no folder". Fixed on the way: the Guild Hall matched a no-path choice to a realm tied to no folder. Quest moves were not built: no move code existed to adapt.
+Validation: typecheck (four workspaces) and Biome pass. New or updated tests pass: the migration on existing data (`test/core/store.test.ts`), realms with no folder, empty quests in a realm or the Borderlands, shared realm lore without a folder and none in the Borderlands (`lore.test.ts`), thread metadata, and the app's placements, scroll cue, folds, hover rule, input modality, full-list rows, and rail clamp. Full suite: 764 passed, 3 failed, 10 skipped; the failures are outside this change: `harnesses.test.ts` "added account's own folder" (the session's environment leaks in, as recorded in CHG-0162), `prices.test.ts` (passes alone), and a `loreOverTime.test.ts` timeout (the lore fading and proposal tests time out on the starting commit too, checked in a worktree of `10684a9`). Driven in the web export on the fake harness, dark and light ([evidence](verification/2026-11-11-realms-and-borderlands.md)). Not seen: the Electron window; moving quests; the Guildmaster placing a quest in a realm tied to no folder (not offered).

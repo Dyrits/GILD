@@ -1,0 +1,53 @@
+import { join } from "node:path";
+import { Effect, Layer } from "effect";
+import { fakeHarnessLayer, fakeHarnessToolsLayer, Service, serveLoopback, serviceLayer } from "./src/index.ts";
+
+// A throwaway service on the fake harness: a realm tied to a folder, a realm tied to none, and Borderlands quests.
+const dir = process.env.ISKIOS_DATA_DIR ?? "/tmp/iskios-cl/data";
+const layer = serviceLayer({
+  accountsRoot: join(dir, "accounts"),
+  filename: join(dir, "iskios.sqlite"),
+  harness: fakeHarnessLayer("300 millis"),
+  harnessTools: fakeHarnessToolsLayer(),
+  homeFolder: dir,
+  scratchRoot: join(dir, "missions"),
+});
+const tool = (name: string, args: object) => `call ${name} ${JSON.stringify(args)}`;
+const program = Effect.gen(function* () {
+  const service = yield* Service;
+  const start = (title: string, text: string, workspace: string | null) =>
+    service.handle({
+      _tag: "StartMission",
+      accountId: null,
+      effort: "default",
+      harness: "claude",
+      model: "default",
+      requestId: crypto.randomUUID(),
+      text: `${tool("set_mission_title", { title })}\n${text}`,
+      workspacePath: workspace === null ? null : join(dir, workspace),
+    });
+  yield* service.handle({ _tag: "CreateRealm", crest: null, name: "Atlas", path: join(dir, "atlas") });
+  yield* service.handle({ _tag: "CreateRealm", crest: null, name: "Ideas", path: null });
+  yield* start("Merge menus into sidebar", "hello", "atlas");
+  yield* start("Improve navigation", "hello", "atlas");
+  const list = (yield* service.handle({
+    _tag: "ListMissions",
+    isArchived: false,
+    search: null,
+    state: null,
+    workspaceId: null,
+  })) as { workspaces: ReadonlyArray<{ id: string; name: string }> };
+  const ideas = list.workspaces.find((w) => w.name === "Ideas");
+  yield* service.handle({ _tag: "StartEmptyQuest", realmId: (ideas?.id ?? null) as never, requestId: crypto.randomUUID() });
+  const child = (title: string, request: string) => tool("open_thread", { request, title });
+  yield* start("Explore new ideas", `${child("Sketch options", child("Compare two", "Check it"))}\n${child("Read sources", "Look")}`, null);
+  yield* start("Quick research", "hello", null);
+  yield* start("Side notes", "hello", null);
+  yield* start("Old errand", "hello", null);
+  yield* Effect.sleep("4000 millis");
+  const { port } = yield* serveLoopback({ port: 0, token: "t" });
+  console.log(`ENDPOINT ws://127.0.0.1:${port}/?token=t`);
+  return yield* Effect.never;
+}).pipe(Effect.scoped, Effect.provide(Layer.fresh(layer)));
+Effect.runFork(program);
+setInterval(() => {}, 1 << 30);

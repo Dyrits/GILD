@@ -613,7 +613,7 @@ describe("naming files and folders of a workspace with @", () => {
   });
 });
 
-describe("free realms", () => {
+describe("realms with no folder", () => {
   const crest = {
     band: "None",
     bandWidth: 1,
@@ -633,41 +633,44 @@ describe("free realms", () => {
     plate: "Shield",
     trim: "None",
   } as const;
+  const realms = () =>
+    call({ _tag: "ListMissions", isArchived: false, search: null, state: null, workspaceId: null }).pipe(
+      Effect.map((list) => list.workspaces),
+    );
 
-  it.live("makes a free realm with a name and no folder, and lists it with its crest", () => {
-    const { layer } = setUp();
+  it.live("makes a realm with a name and no folder, and lists it among the realms with its crest", () => {
+    const { home, layer } = setUp();
     return Effect.gen(function* () {
-      expect(yield* call({ _tag: "ListFreeRealms" })).toEqual([]);
-      yield* call({ _tag: "CreateFreeRealm", crest, name: "  Game Design " });
-      yield* call({ _tag: "CreateFreeRealm", crest: null, name: "Archive of ideas" });
-      const listed = yield* call({ _tag: "ListFreeRealms" });
-      expect(listed.map((each) => each.name)).toEqual(["Archive of ideas", "Game Design"]);
+      yield* call({ _tag: "CreateRealm", crest, name: "  Game Design ", path: null });
+      yield* call({ _tag: "CreateRealm", crest: null, name: "Archive of ideas", path: null });
+      yield* call({ _tag: "CreateRealm", crest: null, name: "App", path: join(home, "app") });
+      const listed = yield* realms();
+      expect(listed.map(({ name, path }) => ({ name, path })).sort((a, b) => a.name.localeCompare(b.name))).toEqual([
+        { name: "App", path: join(home, "app") },
+        { name: "Archive of ideas", path: null },
+        { name: "Game Design", path: null },
+      ]);
       expect(listed.find((each) => each.name === "Game Design")?.crest).toEqual(crest);
-      expect(listed[0]?.crest).toBeNull();
     }).pipe(Effect.provide(layer));
   });
 
-  it.live("keeps free realms apart from the realms tied to a folder", () => {
+  it.live("renames a realm with no folder and keeps its crest", () => {
     const { layer } = setUp();
     return Effect.gen(function* () {
-      yield* call({ _tag: "CreateFreeRealm", crest: null, name: "Game Design" });
-      const missions = yield* call({
-        _tag: "ListMissions",
-        isArchived: false,
-        search: null,
-        state: null,
-        workspaceId: null,
-      });
-      expect(missions.workspaces).toEqual([]);
+      yield* call({ _tag: "CreateRealm", crest: null, name: "Game Design", path: null });
+      const [realm] = yield* realms();
+      yield* call({ _tag: "RenameRealm", name: "Level Design", workspaceId: realm?.id as never });
+      yield* call({ _tag: "SetRealmCrest", crest, workspaceId: realm?.id as never });
+      expect(yield* realms()).toEqual([{ crest, id: realm?.id, name: "Level Design", path: null }]);
     }).pipe(Effect.provide(layer));
   });
 
   it.live("refuses a blank name", () => {
     const { layer } = setUp();
     return Effect.gen(function* () {
-      const failure = yield* failureOf({ _tag: "CreateFreeRealm", crest: null, name: "   " });
+      const failure = yield* failureOf({ _tag: "CreateRealm", crest: null, name: "   ", path: null });
       expect(JSON.stringify(failure)).toContain("needs a name");
-      expect(yield* call({ _tag: "ListFreeRealms" })).toEqual([]);
+      expect(yield* realms()).toEqual([]);
     }).pipe(Effect.provide(layer));
   });
 });

@@ -15,7 +15,7 @@ The first build serves one user. The [architecture](architecture.md#future-multi
 
 ## Capabilities
 
-- **[mission-tracking](capabilities/mission-tracking/specifications.md)**: creating quests directly in realms or through Guildmaster, keeping them in realms or realmless, moving whole quest trees with confirmation, and following their state, threads, and spending.
+- **[mission-tracking](capabilities/mission-tracking/specifications.md)**: creating quests directly in realms or through Guildmaster, keeping them in realms or the Borderlands, moving whole quest trees with confirmation, and following their state, threads, and spending.
 - **[mission-coordination](capabilities/mission-coordination/specifications.md)**: talking with Guildmaster in the Guild Hall to find information across Iskios, manage the app, and coordinate quests and their messages.
 - **[mission-journal](capabilities/mission-journal/specifications.md)**: keeping each mission's briefing and change log, read by every thread in the mission and updated as it works.
 - **[thread-tree](capabilities/thread-tree/specifications.md)**: opening threads beneath a thread, by the user or by a thread, each with its own harness, agent, model, and effort; every subagent a harness starts shows up as a thread beneath the one that started it, so the user can follow it.
@@ -28,7 +28,7 @@ The first build serves one user. The [architecture](architecture.md#future-multi
 - **workflow-running**: running a workflow, each step as a thread.
 - **[provider-accounts](capabilities/provider-accounts/specifications.md)**: running each thread on the harness and provider account chosen for it, with several accounts per harness, each signed in through the harness's own sign-in.
 - **[tool-and-skill-loading](capabilities/tool-and-skill-loading/specifications.md)**: giving every thread its selected global and workspace MCP servers, required thread tools, and skill names and descriptions, with full instructions loaded when used and harness-specific skill preference.
-- **[scoped-intel](capabilities/scoped-intel/specifications.md)**: gathering and recalling lore at thread, realm (including free realm), or global scope.
+- **[scoped-intel](capabilities/scoped-intel/specifications.md)**: gathering and recalling lore at thread, realm, or global scope.
 - **[action-approval](capabilities/action-approval/specifications.md)**: asking the user in plain language before a risky action, one approval per action and thread, with standing permissions for what the user always allows.
 - **[budget-control](capabilities/budget-control/specifications.md)**: budgets on each mission, on Guildmaster, and on all spending over a period, stopping new spending at the limit and shown as rings that fill as they are used.
 - **device-pairing**: pairing a phone with one pairing code and using Iskios from it on any network.

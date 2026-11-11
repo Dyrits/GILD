@@ -2,7 +2,8 @@ import { SqliteClient, SqliteMigrator } from "@effect/sql-sqlite-node";
 import { Effect, Layer } from "effect";
 import { SqlClient } from "effect/sql";
 
-const migrations = {
+/** Every schema change, in order; exported so a test can stop before one and check it on existing data. */
+export const migrations = {
   "0001_first_slice": Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`CREATE TABLE missions (
@@ -562,6 +563,40 @@ const migrations = {
   "0038_mission_free_realm": Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`ALTER TABLE missions ADD COLUMN free_realm_id TEXT`;
+  }),
+  // Only Realms and Borderlands (CHG-0161): a realm is a `workspaces` row, tied to a folder or, with a null path, to
+  // none; a quest with no realm is in the Borderlands. Free Realms are dropped without migrating them (owner's
+  // decision, pre-release): their quests fall into the Borderlands. The table is rebuilt because SQLite cannot drop
+  // NOT NULL. Foreign keys cannot be turned off inside the migration's transaction, so the threads' and permissions'
+  // references are set aside while the old table is dropped, then put back on the rebuilt one.
+  "0039_realms_and_borderlands": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TEMP TABLE kept_thread_realms AS
+      SELECT id, workspace_id FROM threads WHERE workspace_id IS NOT NULL`;
+    yield* sql`CREATE TEMP TABLE kept_permission_realms AS
+      SELECT id, workspace_id FROM standing_permissions WHERE workspace_id IS NOT NULL`;
+    yield* sql`UPDATE threads SET workspace_id = NULL WHERE workspace_id IS NOT NULL`;
+    yield* sql`UPDATE standing_permissions SET workspace_id = NULL WHERE workspace_id IS NOT NULL`;
+    yield* sql`CREATE TABLE realms_rebuilt (
+      id TEXT PRIMARY KEY,
+      name TEXT NOT NULL,
+      path TEXT UNIQUE,
+      created_at INTEGER NOT NULL,
+      crest TEXT
+    )`;
+    yield* sql`INSERT INTO realms_rebuilt (id, name, path, created_at, crest)
+      SELECT id, name, path, created_at, crest FROM workspaces`;
+    yield* sql`DROP TABLE workspaces`;
+    yield* sql`ALTER TABLE realms_rebuilt RENAME TO workspaces`;
+    yield* sql`UPDATE threads SET workspace_id = (SELECT k.workspace_id FROM kept_thread_realms k WHERE k.id = threads.id)
+      WHERE id IN (SELECT id FROM kept_thread_realms)`;
+    yield* sql`UPDATE standing_permissions
+      SET workspace_id = (SELECT k.workspace_id FROM kept_permission_realms k WHERE k.id = standing_permissions.id)
+      WHERE id IN (SELECT id FROM kept_permission_realms)`;
+    yield* sql`DROP TABLE kept_thread_realms`;
+    yield* sql`DROP TABLE kept_permission_realms`;
+    yield* sql`DROP TABLE free_realms`;
+    yield* sql`ALTER TABLE missions DROP COLUMN free_realm_id`;
   }),
 };
 

@@ -35,10 +35,20 @@ const resizeCursor = { cursor: "col-resize" } as object;
  * A thin strip on the open rail's edge that the owner drags to widen or narrow it, between a least and a most width; the
  * width is remembered.
  */
-function RailResizer({ onChange, width }: { onChange: (width: number) => void; width: number }) {
+function RailResizer({
+  onChange,
+  width,
+  windowWidth,
+}: {
+  onChange: (width: number) => void;
+  width: number;
+  windowWidth: number;
+}) {
   const start = useRef(width);
   const latest = useRef(width);
   latest.current = width;
+  const windowNow = useRef(windowWidth);
+  windowNow.current = windowWidth;
   const responder = useRef(
     PanResponder.create({
       onMoveShouldSetPanResponder: () => true,
@@ -47,7 +57,7 @@ function RailResizer({ onChange, width }: { onChange: (width: number) => void; w
         // No text is picked up by the pointer while the rail is dragged.
         if (typeof document !== "undefined") document.body.style.userSelect = "none";
       },
-      onPanResponderMove: (_, gesture) => onChange(clampRailWidth(start.current + gesture.dx)),
+      onPanResponderMove: (_, gesture) => onChange(clampRailWidth(start.current + gesture.dx, windowNow.current)),
       onPanResponderRelease: () => {
         if (typeof document !== "undefined") document.body.style.userSelect = "";
         rememberRailWidth(latest.current);
@@ -75,13 +85,15 @@ export function Shell(
   props: Omit<Parameters<typeof Sidebar>[0], "width"> & {
     children: ReactNode;
     details: DetailsToggle | null;
-    /** The realm or Free Realm whose quest list is open, named in the top bar. */
+    /** The realm whose quest list is open, named in the top bar. */
     listedRealm: RealmListing | null;
   },
 ) {
   const { width } = useWindowDimensions();
   const [isHidden, setIsHidden] = useState(readHidden);
-  const [railWidth, setRailWidth] = useState(readRailWidth);
+  const [storedRailWidth, setRailWidth] = useState(readRailWidth);
+  // Held to a quarter of the window again whenever the window changes size; the remembered width stays as dragged.
+  const railWidth = clampRailWidth(storedRailWidth, width);
   const [questPanel, setQuestPanel] = useState<ReactNode>(null);
   const [panelTitle, setPanelTitle] = useState("Quest");
   const setPanel = useCallback((panel: ReactNode, title: string) => {
@@ -151,7 +163,7 @@ export function Shell(
               <TopBar client={props.client} crumbs={crumbs} details={null} />
               <View style={local.frame}>
                 {!isHidden && <Sidebar {...props} width={railWidth} />}
-                {!isHidden && <RailResizer onChange={setRailWidth} width={railWidth} />}
+                {!isHidden && <RailResizer onChange={setRailWidth} width={railWidth} windowWidth={width} />}
                 <Pressable
                   accessibilityLabel={isHidden ? "Show sidebar (⌘B)" : "Hide sidebar (⌘B)"}
                   accessibilityRole="button"

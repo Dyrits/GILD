@@ -390,7 +390,7 @@ export function RealmPanel({
           </View>
           {renameError !== null && <Text style={styles.error}>{renameError}</Text>}
           <Text numberOfLines={2} style={local.meta}>
-            {realm.path}
+            {realm.path ?? "Tied to no folder"}
           </Text>
         </View>
         <Group label="Details">

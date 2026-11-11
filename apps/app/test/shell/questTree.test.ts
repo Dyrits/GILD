@@ -1,14 +1,27 @@
-import { type FreeRealm, type MissionSummary, ThreadSummary, type WorkspaceChoice } from "@iskios/contracts";
+import { type MissionSummary, ThreadSummary, type WorkspaceChoice } from "@iskios/contracts";
 import { Schema } from "effect";
 import { describe, expect, it } from "vitest";
-import { agoOf, ancestorIdsOf, placementsOf, recencyGroupsOf, sideQuestRowsOf } from "../../src/shell/questTree";
+import {
+  agoOf,
+  ancestorIdsOf,
+  areActionsShown,
+  placementsOf,
+  questListRowsOf,
+  recencyGroupsOf,
+  scrollCueOf,
+  sideQuestRowsOf,
+  toggledFold,
+} from "../../src/shell/questTree";
 
 const thread = (id: string, parentId: string | null, depth: number, isOpenedByAgent = false) =>
   Schema.decodeUnknownSync(ThreadSummary)({
     depth,
+    harness: "claude",
     id,
     isAside: false,
     isOpenedByAgent,
+    lastActivityAt: 0,
+    model: "default",
     openedAt: 0,
     parentId,
     state: "Idle",
@@ -66,46 +79,41 @@ describe("the path to a thread", () => {
   });
 });
 
-const quest = (id: string, workspaceId: string | null, lastActivityAt: number, freeRealmId: string | null = null) =>
-  ({ freeRealmId, id, lastActivityAt, workspaceId }) as unknown as MissionSummary;
-const realm = (id: string, name: string) => ({ crest: null, id, name, path: `/${name}` }) as unknown as WorkspaceChoice;
+const quest = (id: string, workspaceId: string | null, lastActivityAt: number) =>
+  ({ id, lastActivityAt, workspaceId }) as unknown as MissionSummary;
+const realm = (id: string, name: string, path: string | null = `/${name}`) =>
+  ({ crest: null, id, name, path }) as unknown as WorkspaceChoice;
 
 describe("the placements of quests", () => {
   const placements = placementsOf(
-    [
-      quest("q1", "w2", 1),
-      quest("q2", null, 5),
-      quest("q3", "w2", 9),
-      quest("q4", null, 2),
-      quest("q5", null, 3, "f1"),
-    ],
-    [realm("w2", "Zeta"), realm("w1", "Alpha")],
-    [
-      { crest: null, id: "f1", name: "Free" },
-      { crest: null, id: "f2", name: "Empty" },
-    ] as unknown as FreeRealm[],
+    [quest("q1", "w2", 1), quest("q2", null, 5), quest("q3", "w2", 9), quest("q4", null, 2), quest("q5", "w3", 3)],
+    [realm("w2", "Zeta"), realm("w1", "Alpha"), realm("w3", "Middle", null)],
   );
 
-  it("puts quests outside any realm apart, latest first", () => {
-    expect(placements.realmless.map((each) => each.id)).toEqual(["q2", "q4"]);
+  it("puts the quests of no realm in the Borderlands, latest first", () => {
+    expect(placements.borderlands.map((each) => each.id)).toEqual(["q2", "q4"]);
   });
 
-  it("places a quest in its Free Realm, keeps a Free Realm with none, and leaves it out of the realmless", () => {
-    expect(placements.freeRealms.map((each) => [each.freeRealm.name, each.quests.map((q) => q.id)])).toEqual([
-      ["Free", ["q5"]],
-      ["Empty", []],
-    ]);
-  });
-
-  it("lists realms by name with their own quests, latest first, and keeps a realm with none", () => {
+  it("lists realms by name, with or without a folder, with their own quests latest first, and keeps a realm with none", () => {
     expect(placements.realms.map((each) => [each.workspace.name, each.quests.map((q) => q.id)])).toEqual([
       ["Alpha", []],
+      ["Middle", ["q5"]],
       ["Zeta", ["q3", "q1"]],
     ]);
   });
 });
 
-describe("the Realmless page's groups", () => {
+describe("the scroll cue beside a realm's name", () => {
+  it("shows for a realm tied to a folder, naming the folder's full path", () => {
+    expect(scrollCueOf(realm("w1", "App", "/Users/owner/Code/app"))).toBe("Tied to /Users/owner/Code/app");
+  });
+
+  it("does not show for a realm tied to no folder", () => {
+    expect(scrollCueOf(realm("w2", "Ideas", null))).toBeNull();
+  });
+});
+
+describe("the quest list page's groups", () => {
   const now = new Date(2026, 10, 11, 15, 0).getTime();
   const at = (month: number, day: number, hour = 12) => new Date(2026, month, day, hour).getTime();
 
@@ -142,5 +150,58 @@ describe("the Realmless page's groups", () => {
     expect(agoOf(now - 60 * minute, now)).toBe("1 hour ago");
     expect(agoOf(now - 3 * 24 * 60 * minute, now)).toBe("3 days ago");
     expect(agoOf(now - 14 * 24 * 60 * minute, now)).toBe("2 weeks ago");
+  });
+});
+
+describe("folding the sidebar's sections", () => {
+  it("folds Realms on a press and unfolds it on the next, leaving Borderlands and The Keep as they were", () => {
+    const folded = toggledFold(new Set(["Keep"]), "Realms");
+    expect([...folded].sort()).toEqual(["Keep", "Realms"]);
+    expect([...toggledFold(folded, "Realms")]).toEqual(["Keep"]);
+  });
+
+  it("folds Borderlands and The Keep the same way", () => {
+    const both = toggledFold(toggledFold(new Set(), "Borderlands"), "Keep");
+    expect([...both].sort()).toEqual(["Borderlands", "Keep"]);
+    expect([...toggledFold(both, "Borderlands")]).toEqual(["Keep"]);
+  });
+});
+
+describe("the actions of a sidebar row", () => {
+  it("show while the pointer is over the row or a keyboard focus is inside it", () => {
+    expect(areActionsShown({ hasKeyboardFocusWithin: false, isHovered: true })).toBe(true);
+    expect(areActionsShown({ hasKeyboardFocusWithin: true, isHovered: false })).toBe(true);
+  });
+
+  it("stay hidden otherwise, including after a click left the focus inside the row", () => {
+    expect(areActionsShown({ hasKeyboardFocusWithin: false, isHovered: false })).toBe(false);
+  });
+});
+
+describe("the full quest list's rows", () => {
+  const top = { id: "q1", threadCount: 5 } as unknown as MissionSummary;
+
+  it("lists a quest, then its side-quests beneath it at every depth, indented by level", () => {
+    const rows = questListRowsOf(top, tree, none);
+    expect(rows.map((row) => [row.id, row.depth, row.hasChildren])).toEqual([
+      ["q1", 0, true],
+      ["a", 1, true],
+      ["a1", 2, true],
+      ["a1x", 3, false],
+      ["b", 1, false],
+    ]);
+  });
+
+  it("hides the side-quests of a collapsed quest, and what lies beneath a collapsed side-quest", () => {
+    expect(questListRowsOf(top, tree, new Set(["q1"])).map((row) => row.id)).toEqual(["q1"]);
+    expect(questListRowsOf(top, tree, new Set(["a"])).map((row) => row.id)).toEqual(["q1", "a", "b"]);
+  });
+
+  it("lists the quest alone while its tree is not read yet, or when it has no side-quest", () => {
+    expect(questListRowsOf(top, null, none).map((row) => [row.id, row.hasChildren])).toEqual([["q1", true]]);
+    const single = { id: "q2", threadCount: 1 } as unknown as MissionSummary;
+    expect(questListRowsOf(single, [thread("top", null, 0)], none).map((row) => [row.id, row.hasChildren])).toEqual([
+      ["q2", false],
+    ]);
   });
 });

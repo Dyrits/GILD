@@ -17,7 +17,7 @@ Work with AI agents spreads across disconnected chats, and subagents run out of 
 
 ### Quest tree visibility
 
-- The main left sidebar contains the quest tree, nested beneath Realms, Free Realms, or Realmless as defined in [mission tracking](../mission-tracking/specifications.md#left-navigation-structure).
+- The main left sidebar contains the quest tree, nested beneath Realms or the Borderlands as defined in [mission tracking](../mission-tracking/specifications.md#left-navigation-structure).
 - There is one navigation sidebar on the left and one details sidebar on the right; no second quest-tree sidebar sits beside the left navigation (CHG-0135, agreed on 2026-11-11; implementation pending).
 - Creating the first side-quest or deleting the last changes the nested sidebar tree without adding or removing another column.
 - The main quest remains accessible from the sidebar when viewing a side-quest.

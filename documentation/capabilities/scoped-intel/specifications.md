@@ -17,13 +17,13 @@ For ordinary threads, visibility follows this table:
 | --- | --- |
 | Side-quest | Its own, its ancestor side-quests', its quest's, its realm's when present, and global lore |
 | Quest | Its own, its realm's when present, and global lore |
-| Realm or Free Realm | Its own and global lore |
+| Realm | Its own and global lore |
 | Global | Global lore |
 
 - A quest holds its lore on its top thread, making it available throughout the quest tree.
 - Lore stays hidden from ancestors and sibling branches unless the owner approves [widening](#widening-and-narrowing).
 - Realm membership determines realm lore, even when a side-quest works in another workspace.
-  A realmless quest has no realm lore.
+  A quest in the Borderlands has no realm lore; a Realm without a workspace still shares lore across its quests.
 - Guildmaster can search and read lore at every scope for the owner's requests (CHG-0132).
   This exception leaves ordinary threads' access unchanged and does not copy lore into broader scopes.
   Guildmaster follows the save, change, widening, and deletion rules below.
@@ -54,7 +54,7 @@ Each intel has a kind, which sets how fast it fades when no thread uses it. The 
 ### Recall
 
 - A new thread starts with the intel in scope for it, like a memory:
-  - thread, mission, and realm intel in full (including Free Realm intel, when applicable);
+  - thread, mission, and realm intel in full;
   - global intel as an index of one line per active intel (its identifier, kind, and a short summary), followed by how many dormant intels are not listed. The thread reads a global intel in full through `search_intel`.
 - The index is ordered so that a new intel is added at its end, and the lines before it stay unchanged.
 - The user is warned before a thread starts when its starting context is too large (see [thread-tree](../thread-tree/specifications.md#opening-a-thread)).

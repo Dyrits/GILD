@@ -1,6 +1,6 @@
 import { mkdirSync, readFileSync } from "node:fs";
 import { basename, join } from "node:path";
-import { Crest, type FreeRealm, type FreeRealmId, type Workspace, type WorkspaceId } from "@iskios/contracts";
+import { Crest, type Workspace, type WorkspaceId } from "@iskios/contracts";
 import { Clock, Context, Effect, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, realFolderOf } from "../core/index.ts";
@@ -17,30 +17,23 @@ export const crestOfRow = (text: string | null): Crest | null => {
   }
 };
 
-/** Imports a folder as a realm with the given name and crest; an existing realm for the folder is left as it is. */
-export const createRealm = (path: string, name: string, crest: Crest | null) =>
-  attachWorkspace(path, { crest, name }).pipe(Effect.as(null));
-
-/** Makes a Free Realm: a name and a crest, and no folder; refused for a blank name. */
-export const createFreeRealm = (name: string, crest: Crest | null) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    const trimmed = name.trim();
-    if (trimmed === "") return yield* invalid("A realm needs a name.");
-    const now = yield* Clock.currentTimeMillis;
-    const text = crest === null ? null : JSON.stringify(Schema.encodeSync(Crest)(crest));
-    yield* sql`INSERT INTO free_realms (id, name, crest, created_at)
-      VALUES (${crypto.randomUUID()}, ${trimmed}, ${text}, ${now})`;
-    return null;
-  });
-
-/** Every Free Realm, by name. */
-export const listFreeRealms = Effect.gen(function* () {
-  const sql = yield* SqlClient.SqlClient;
-  const rows = yield* sql<{ crest: string | null; id: string; name: string }>`
-    SELECT id, name, crest FROM free_realms ORDER BY name COLLATE NOCASE, created_at`;
-  return rows.map(({ crest, id, name }): FreeRealm => ({ crest: crestOfRow(crest), id: id as FreeRealmId, name }));
-});
+/**
+ * Makes a realm with the given name and crest: from a folder, where an existing realm for the folder is left as it is,
+ * or tied to no folder (a null path), refused for a blank name.
+ */
+export const createRealm = (path: string | null, name: string, crest: Crest | null) =>
+  path !== null
+    ? attachWorkspace(path, { crest, name }).pipe(Effect.as(null))
+    : Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        const trimmed = name.trim();
+        if (trimmed === "") return yield* invalid("A realm needs a name.");
+        const now = yield* Clock.currentTimeMillis;
+        const text = crest === null ? null : JSON.stringify(Schema.encodeSync(Crest)(crest));
+        yield* sql`INSERT INTO workspaces (id, name, path, crest, created_at)
+          VALUES (${crypto.randomUUID()}, ${trimmed}, NULL, ${text}, ${now})`;
+        return null;
+      });
 
 /** Renames a realm; refused for an unknown realm or a blank name. */
 export const renameRealm = (workspaceId: WorkspaceId, name: string) =>
@@ -96,12 +89,16 @@ export const attachWorkspace = (path: string, realm: { crest: Crest | null; name
     return id;
   });
 
-/** A thread's workspace with whether its folder still exists, or null for the scratch folder. */
+/**
+ * A thread's workspace with whether its folder still exists, or null for the scratch folder: a thread with no realm,
+ * or in a realm tied to no folder, has no workspace.
+ */
 export const readThreadWorkspace = (threadId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const [row] = yield* sql<{ id: string; name: string; path: string }>`
-      SELECT w.id, w.name, w.path FROM threads t JOIN workspaces w ON w.id = t.workspace_id WHERE t.id = ${threadId}`;
+      SELECT w.id, w.name, w.path FROM threads t JOIN workspaces w ON w.id = t.workspace_id
+      WHERE t.id = ${threadId} AND w.path IS NOT NULL`;
     if (row === undefined) return null;
     const isMissing = (yield* realFolderOf(row.path)) === null;
     return { id: row.id as WorkspaceId, isMissing, name: row.name, path: row.path } satisfies Workspace;

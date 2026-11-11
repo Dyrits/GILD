@@ -42,7 +42,6 @@ const local = StyleSheet.create({
 const unbuilt = {
   Charter: "The Charter page is not built yet.",
   Craft: "Craft will hold workflows. It is not built yet.",
-  FreeRealms: "The Borderlands page is not built yet. The sidebar lists them.",
   Library: "Library will hold generated and uploaded artifacts. It is not built yet.",
   Realms: "The Realms page is not built yet. The sidebar lists them.",
   Reserves: "The detailed usage page is not built yet. The sidebar shows the compact summary.",

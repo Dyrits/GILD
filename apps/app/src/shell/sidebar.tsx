@@ -1,19 +1,28 @@
-import type { Crest, FreeRealmId, MissionId, MissionSummary, ThreadId } from "@iskios/contracts";
+import type { Crest, MissionId, MissionSummary, ThreadId, WorkspaceId } from "@iskios/contracts";
 import { type ReactNode, useEffect, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { CrestBadge } from "../crest/crest";
 import { ReserveRows } from "../editors/budgets";
 import { PlanLimitLines } from "../editors/planLimitLines";
 import { messageOf, newRequestId, type ServiceClient } from "../foundation/client";
 import { emblemPaths } from "../foundation/emblems";
+import { isKeyboardFocus } from "../foundation/inputModality";
 import { usedTextOf } from "../foundation/labels";
 import { allMissions } from "../foundation/queries";
 import { colors, fontSizes, fonts, radii, stateTones } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
 import { NewRealmModal } from "../realms/newRealmModal";
 import { NavIcon, type NavIconName } from "./navIcons";
-import { ancestorIdsOf, placementsOf, type RealmListing, sideQuestRowsOf } from "./questTree";
+import {
+  ancestorIdsOf,
+  areActionsShown,
+  placementsOf,
+  type RealmListing,
+  scrollCueOf,
+  sideQuestRowsOf,
+  toggledFold,
+} from "./questTree";
 import { expandedWidth } from "./railStorage";
 
 /** The places the sidebar leads to; a quest is opened from its own row instead, a realm's quests from its own list. */
@@ -21,8 +30,7 @@ export type Place =
   | "Guildmaster"
   | "Quests"
   | "Realms"
-  | "FreeRealms"
-  | "Realmless"
+  | "Borderlands"
   | "RealmQuests"
   | "Rituals"
   | "Craft"
@@ -36,19 +44,26 @@ export type Place =
 /** How far each level of side-quests steps in, and the width of the chevron's place at the start of a row. */
 const indentStep = 14;
 const chevronWidth = 16;
-/** How many quests the sidebar lists under Realmless, and under each realm; the quest list page lists them all. */
-const realmlessShown = 3;
+/** How many quests the sidebar lists under the Borderlands, and under each realm; the quest list page lists them all. */
+const borderlandsShown = 3;
 const realmShown = 3;
 
 const isHovered = (state: unknown) => (state as { hovered?: boolean }).hovered === true;
 
-/** The mark that folds or unfolds what lies beneath a row; a row with nothing beneath it keeps the place empty. */
+/**
+ * The mark that folds or unfolds what lies beneath a realm, quest, or side-quest row: the bow arrow, shown like the row's
+ * actions only on hover or keyboard focus, in a place kept while unseen. A row with nothing beneath it keeps the place empty.
+ */
 function Chevron({
+  focusProps,
   isOpen,
+  isShown,
   label,
   onPress,
 }: {
+  focusProps: FocusProps;
   isOpen: boolean;
+  isShown: boolean;
   label: string;
   /** Null where nothing lies beneath the row. */
   onPress: (() => void) | null;
@@ -56,14 +71,15 @@ function Chevron({
   if (onPress === null) return <View style={local.chevron} />;
   return (
     <Pressable
+      {...focusProps}
       accessibilityLabel={`${isOpen ? "Collapse" : "Expand"} ${label}`}
       accessibilityRole="button"
       accessibilityState={{ expanded: isOpen }}
       hitSlop={6}
       onPress={onPress}
-      style={local.chevron}
+      style={[local.chevron, !isShown && local.actionsHidden]}
     >
-      <Text style={[local.chevronMark, isOpen && local.chevronMarkOpen]}>›</Text>
+      <BowArrow color={colors.textMuted} isOpen={isOpen} size={15} />
     </Pressable>
   );
 }
@@ -90,10 +106,103 @@ function NewQuestIcon({ color }: { color: string }) {
   );
 }
 
+/**
+ * The small scroll after the name of a realm tied to a folder (CHG-0161); a realm tied to none has no mark. Hovering
+ * shows the folder's full path: react-native-web passes no `title` on, so the web build sets it on the element itself.
+ */
+function ScrollCue({ path }: { path: string | null }) {
+  const cue = scrollCueOf({ path });
+  if (cue === null) return null;
+  const setTitle = (element: unknown) => {
+    const node = element as { setAttribute?: (name: string, value: string) => void } | null;
+    if (Platform.OS === "web") node?.setAttribute?.("title", cue);
+  };
+  return (
+    <View accessibilityLabel={cue} ref={setTitle} style={local.scrollCue}>
+      <Svg
+        fill="none"
+        height={15}
+        stroke={colors.textMuted}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.8}
+        viewBox="0 0 24 24"
+        width={15}
+      >
+        {/* A rolled parchment: its upper roll curled at the left, the sheet, and its lower roll curled at the right. */}
+        <Path d="M6 6V5a2 2 0 1 0-4 0v1h4Zm0 0v12" />
+        <Path d="M4 3h12a2 2 0 0 1 2 2v12" />
+        <Path d="M6 18a3 3 0 0 0 3 3h10a3 3 0 0 0 3-3v-1H10v1a2 2 0 0 1-4 0Z" />
+        <Path d="M9.5 8h5M9.5 12h5" />
+      </Svg>
+    </View>
+  );
+}
+
+/** What an action button needs to keep its row's actions showing while it has the keyboard focus. */
+type FocusProps = { readonly onBlur: () => void; readonly onFocus: () => void };
+
+/**
+ * A row's hover and keyboard focus, so its action buttons show only then (`areActionsShown`). The buttons keep their
+ * place while unseen, so nothing moves when they appear; the row gets `rowProps`, each button and the row `focusProps`.
+ */
+const useRowActions = () => {
+  const [isHovered, setIsHovered] = useState(false);
+  const [hasKeyboardFocusWithin, setHasKeyboardFocusWithin] = useState(false);
+  // Only a keyboard focus shows them: the focus a click leaves behind does not, once the pointer moves away.
+  const focusProps: FocusProps = {
+    onBlur: () => setHasKeyboardFocusWithin(false),
+    onFocus: () => setHasKeyboardFocusWithin(isKeyboardFocus()),
+  };
+  const isShown = areActionsShown({ hasKeyboardFocusWithin, isHovered });
+  return {
+    actionsStyle: [local.actions, !isShown && local.actionsHidden],
+    focusProps,
+    isShown,
+    rowProps: { ...focusProps, onHoverIn: () => setIsHovered(true), onHoverOut: () => setIsHovered(false) },
+  };
+};
+
+/**
+ * A heading's fold mark: an archery arrow, its fletching at the tail and its head pointing right while the group is
+ * folded and down while it is open.
+ */
+function BowArrow({ color = colors.text, isOpen, size = 22 }: { color?: string; isOpen: boolean; size?: number }) {
+  return (
+    <View style={isOpen && local.chevronMarkOpen}>
+      <Svg
+        fill="none"
+        height={size}
+        stroke={color}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.8}
+        viewBox="0 0 24 24"
+        width={size}
+      >
+        <Path d="M3 12h15" />
+        <Path d="M21.5 12 16 8.5v7Z" fill={color} />
+        <Path d="M3 12 1.5 9M3 12l-1.5 3M6 12 4.5 9M6 12l-1.5 3" />
+      </Svg>
+    </View>
+  );
+}
+
 /** Opens a group's overview without changing its folded state. */
-function OverviewButton({ isMain = false, label, onPress }: { isMain?: boolean; label: string; onPress: () => void }) {
+function OverviewButton({
+  focusProps,
+  isMain = false,
+  label,
+  onPress,
+}: {
+  focusProps: FocusProps;
+  isMain?: boolean;
+  label: string;
+  onPress: () => void;
+}) {
   return (
     <Pressable
+      {...focusProps}
       accessibilityLabel={`Open ${label} overview`}
       accessibilityRole="button"
       hitSlop={4}
@@ -142,8 +251,8 @@ function Row({
   indent = 0,
   isMain = false,
   isSelected,
+  fold,
   label,
-  lead,
   onPress,
   textStyle,
 }: {
@@ -155,13 +264,15 @@ function Row({
   isMain?: boolean;
   isSelected: boolean;
   label: string;
-  /** What stands before the label: a chevron, or an empty place that keeps the labels aligned. */
-  lead?: ReactNode;
+  /** The fold mark before the label of a quest or side-quest row; null `onPress` keeps its place empty. */
+  fold?: { isOpen: boolean; label: string; onPress: (() => void) | null };
   onPress: () => void;
   textStyle?: object;
 }) {
+  const { focusProps, isShown, rowProps } = useRowActions();
   return (
     <Pressable
+      {...rowProps}
       accessibilityLabel={label}
       accessibilityRole="button"
       onPress={onPress}
@@ -172,7 +283,7 @@ function Row({
         isSelected && local.rowSelected,
       ]}
     >
-      {lead}
+      {fold !== undefined && <Chevron {...fold} focusProps={focusProps} isShown={isShown} />}
       {icon !== undefined && (
         <View style={local.headingIcon}>
           <NavIcon name={icon} size={isMain ? 28 : 22} />
@@ -229,8 +340,10 @@ function Heading({
   onPress: () => void;
   onToggle?: () => void;
 }) {
+  const { actionsStyle, focusProps, isShown, rowProps } = useRowActions();
   return (
     <Pressable
+      {...rowProps}
       accessibilityHint={note}
       accessibilityLabel={label}
       accessibilityRole="button"
@@ -250,43 +363,47 @@ function Heading({
           {label}
         </Text>
       </View>
-      {onToggle !== undefined && (
+      {isOpen !== undefined && (
+        // Right after the title, and like the actions shown only on hover or focus; it keeps its place while unseen.
         <Pressable
+          {...focusProps}
           accessibilityLabel={`${isOpen ? "Collapse" : "Expand"} ${label}`}
           accessibilityRole="button"
-          accessibilityState={{ expanded: isOpen === true }}
-          onPress={onToggle}
-          style={local.headingChevron}
+          accessibilityState={{ expanded: isOpen }}
+          onPress={onToggle ?? onPress}
+          style={[local.headingChevron, !isShown && local.actionsHidden]}
         >
-          <Text style={[local.headingChevronMark, isOpen && local.chevronMarkOpen]}>›</Text>
+          <BowArrow isOpen={isOpen} />
         </Pressable>
       )}
-      {onOverview !== undefined && <OverviewButton isMain label={label} onPress={onOverview} />}
-      {onAdd !== undefined && (
-        <Pressable
-          accessibilityLabel={`New ${label.toLowerCase().replace(/s$/, "")}`}
-          accessibilityRole="button"
-          onPress={onAdd}
-          style={(state) => [local.add, (state.pressed || isHovered(state)) && local.addHovered]}
-        >
-          <Text style={local.addMark}>+</Text>
-        </Pressable>
-      )}
-      {onNewQuest !== undefined && (
-        <Pressable
-          accessibilityLabel={`New quest in ${label.toLowerCase()}`}
-          accessibilityRole="button"
-          onPress={onNewQuest}
-          style={(state) => [local.add, (state.pressed || isHovered(state)) && local.addHovered]}
-        >
-          <NewQuestIcon color={colors.highlight} />
-        </Pressable>
-      )}
-      {isOpen !== undefined && onToggle === undefined && (
-        <View style={local.headingChevron}>
-          <Text style={[local.headingChevronMark, isOpen && local.chevronMarkOpen]}>›</Text>
-        </View>
-      )}
+      <View style={local.flex} />
+      <View style={actionsStyle}>
+        {onOverview !== undefined && (
+          <OverviewButton focusProps={focusProps} isMain label={label} onPress={onOverview} />
+        )}
+        {onAdd !== undefined && (
+          <Pressable
+            {...focusProps}
+            accessibilityLabel={`New ${label.toLowerCase().replace(/s$/, "")}`}
+            accessibilityRole="button"
+            onPress={onAdd}
+            style={(state) => [local.add, (state.pressed || isHovered(state)) && local.addHovered]}
+          >
+            <Text style={local.addMark}>+</Text>
+          </Pressable>
+        )}
+        {onNewQuest !== undefined && (
+          <Pressable
+            {...focusProps}
+            accessibilityLabel={`New quest in ${label.toLowerCase()}`}
+            accessibilityRole="button"
+            onPress={onNewQuest}
+            style={(state) => [local.add, (state.pressed || isHovered(state)) && local.addHovered]}
+          >
+            <NewQuestIcon color={colors.highlight} />
+          </Pressable>
+        )}
+      </View>
     </Pressable>
   );
 }
@@ -351,16 +468,14 @@ function SideQuests({
           ))}
           <Row
             accessory={<StateDot state={thread.state} />}
+            fold={{
+              isOpen: !collapsed.has(thread.id),
+              label: thread.title,
+              onPress: hasChildren ? () => onToggle(thread.id) : null,
+            }}
             indent={depth * indentStep}
             isSelected={selectedThread === thread.id}
             label={foldedCount > 0 ? `${thread.title} +${foldedCount}` : thread.title}
-            lead={
-              <Chevron
-                isOpen={!collapsed.has(thread.id)}
-                label={thread.title}
-                onPress={hasChildren ? () => onToggle(thread.id) : null}
-              />
-            }
             onPress={() => onOpenThread(missionId, thread.id)}
             textStyle={local.sideQuestText}
           />
@@ -403,16 +518,14 @@ function Quest({
     <>
       <Row
         accessory={<StateDot state={mission.state} />}
+        fold={{
+          isOpen,
+          label: mission.title,
+          onPress: mission.threadCount > 1 ? () => onToggle(mission.id) : null,
+        }}
         indent={chevronWidth}
         isSelected={isHere && (openThread === null || openThread === mission.topThreadId)}
         label={mission.title}
-        lead={
-          <Chevron
-            isOpen={isOpen}
-            label={mission.title}
-            onPress={mission.threadCount > 1 ? () => onToggle(mission.id) : null}
-          />
-        }
         onPress={() => onOpenMission(mission.id)}
       />
       {isOpen && mission.threadCount > 1 && (
@@ -433,6 +546,65 @@ function Quest({
   );
 }
 
+/**
+ * A realm's row: its crest, its name with the folder mark when it is tied to a folder, its quest count, and its chevron,
+ * always; its overview and new-quest buttons only while hovered or focused.
+ */
+function RealmHeader({
+  crest,
+  id,
+  isOpen,
+  name,
+  onNewQuest,
+  onOverview,
+  onToggle,
+  path,
+  questCount,
+}: {
+  crest: Crest | null;
+  id: WorkspaceId;
+  isOpen: boolean;
+  name: string;
+  onNewQuest: () => void;
+  onOverview: () => void;
+  onToggle: () => void;
+  path: string | null;
+  questCount: number;
+}) {
+  const { actionsStyle, focusProps, isShown, rowProps } = useRowActions();
+  return (
+    <Pressable
+      {...rowProps}
+      accessibilityLabel={name}
+      accessibilityRole="button"
+      onPress={onToggle}
+      style={(state) => [local.row, { paddingLeft: 6 }, (state.pressed || isHovered(state)) && local.rowHovered]}
+    >
+      <CrestBadge crest={crest} id={id} size={22} />
+      <Text numberOfLines={1} style={[local.rowText, local.realmText]}>
+        {name}
+      </Text>
+      <ScrollCue path={path} />
+      <Chevron focusProps={focusProps} isOpen={isOpen} isShown={isShown} label={name} onPress={onToggle} />
+      <View style={local.realmTextEnd} />
+      <Count value={questCount} />
+      <View style={actionsStyle}>
+        <OverviewButton focusProps={focusProps} label={name} onPress={onOverview} />
+        <Pressable
+          {...focusProps}
+          accessibilityLabel={`New quest in ${name}`}
+          accessibilityRole="button"
+          hitSlop={4}
+          onPress={onNewQuest}
+          style={(state) => [local.newQuest, (state.pressed || isHovered(state)) && local.newQuestHovered]}
+        >
+          <NewQuestIcon color={colors.textMuted} />
+        </Pressable>
+      </View>
+    </Pressable>
+  );
+}
+
 /** The rows under The Keep, in order. */
 const keepRooms: ReadonlyArray<{ icon: NavIconName; label: string; place: Place }> = [
   { icon: "library", label: "Library", place: "Library" },
@@ -443,18 +615,13 @@ const keepRooms: ReadonlyArray<{ icon: NavIconName; label: string; place: Place 
 /** A set of ids the owner toggles, as the expanded and collapsed rows of the tree. */
 const useToggles = () => {
   const [set, setSet] = useState<ReadonlySet<string>>(new Set());
-  const toggle = (id: string) =>
-    setSet((current) => {
-      const next = new Set(current);
-      if (!next.delete(id)) next.add(id);
-      return next;
-    });
+  const toggle = (id: string) => setSet((current) => toggledFold(current, id));
   return { set, setSet, toggle };
 };
 
 /**
- * The left sidebar, in the agreed order: Guild Hall, the Realms with their quests, Borderlands, quests outside any
- * realm, Rituals, Craft, The Keep, Reserves, and the Workshop (the settings). Quests nest their side-quests at every depth,
+ * The left sidebar, in the agreed order: Guild Hall, the Realms with their quests, the Borderlands' quests, Rituals,
+ * Craft, The Keep, Reserves, and the Workshop (the settings). Quests nest their side-quests at every depth,
  * and the sidebar opens the path to the thread that is open.
  */
 export function Sidebar({
@@ -472,7 +639,7 @@ export function Sidebar({
   /** The open rail's width, as dragged. */
   width: number;
   onOpenMission: (id: MissionId) => void;
-  /** Opens the page that lists all of a realm's or Borderland's quests. */
+  /** Opens the page that lists all of a realm's quests. */
   onOpenRealmQuests: (listing: RealmListing) => void;
   /** Opens a side-quest of a quest. */
   onOpenThread: (missionId: MissionId, threadId: ThreadId) => void;
@@ -484,17 +651,16 @@ export function Sidebar({
 }) {
   const { data } = useServiceQuery(client, allMissions.request, allMissions.key);
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
-  const { data: freeRealms } = useServiceQuery(client, { _tag: "ListFreeRealms" }, "free-realms");
-  const placements = placementsOf(data?.missions ?? [], data?.workspaces ?? [], freeRealms ?? []);
+  const placements = placementsOf(data?.missions ?? [], data?.workspaces ?? []);
   const isHere = (each: Place) => openMission === null && place === each;
   // A setting hides the Guild Hall's entry; its screen is still where a realm page's message goes.
   const hasGuildHall = settings?.shouldShowGuildmaster !== false;
-  // The menu that makes a realm: one tied to a folder, or a borderland with none.
-  const [creating, setCreating] = useState<"folder" | "free" | null>(null);
+  // The menu that makes a realm, tied to a folder or to none.
+  const [isCreating, setIsCreating] = useState(false);
   // Realms start open and quests start closed, so a long list of quests stays short; side-quests start open.
   const closedRealms = useToggles();
-  // The Keep's heading folds or unfolds its rooms.
-  const isKeepFolded = useToggles();
+  // Realms, Borderlands, and The Keep fold under their headings, all the same way.
+  const foldedSections = useToggles();
   const openQuests = useToggles();
   // The open quest always shows, even when it lies beyond the first few.
   const shownOf = (quests: ReadonlyArray<MissionSummary>, limit: number) =>
@@ -526,12 +692,14 @@ export function Sidebar({
 
   // Starts an empty quest and opens it; its realm unfolds to show it, and a refusal shows under the realm.
   const [newQuestFailure, setNewQuestFailure] = useState<{ message: string; groupId: string } | null>(null);
-  const startQuest = (groupId: string, placement: { freeRealmId?: FreeRealmId; workspacePath: string | null }) => {
+  const startQuest = (groupId: string, realmId: WorkspaceId | null) => {
     setNewQuestFailure(null);
     client
-      .request({ _tag: "StartEmptyQuest", requestId: newRequestId(), ...placement })
+      .request({ _tag: "StartEmptyQuest", realmId, requestId: newRequestId() })
       .then((started) => {
-        closedRealms.setSet((current) => new Set([...current].filter((id) => id !== groupId)));
+        const unfold = (current: ReadonlySet<string>) => new Set([...current].filter((id) => id !== groupId));
+        closedRealms.setSet(unfold);
+        foldedSections.setSet(unfold);
         onOpenMission(started.missionId);
       })
       .catch((reason) => setNewQuestFailure({ groupId, message: messageOf(reason) }));
@@ -539,44 +707,31 @@ export function Sidebar({
   const failureUnder = (groupId: string) =>
     newQuestFailure?.groupId === groupId && <Text style={local.newQuestFailure}>{newQuestFailure.message}</Text>;
 
-  /** A realm or Borderland: its crest and name, its quests beneath it while it is unfolded, and the button for a new quest. */
+  /**
+   * A realm: its crest, its name with the folder mark when it is tied to a folder, its quests beneath it while it is
+   * unfolded, and the button for a new quest.
+   */
   const realmRow = (realm: {
     crest: Crest | null;
-    id: string;
-    kind: RealmListing["kind"];
+    id: WorkspaceId;
     name: string;
-    placement: { freeRealmId?: FreeRealmId; workspacePath: string | null };
+    path: string | null;
     quests: ReadonlyArray<MissionSummary>;
   }) => {
     const isClosed = closedRealms.set.has(realm.id);
     return (
       <View key={realm.id}>
-        <Pressable
-          accessibilityLabel={realm.name}
-          accessibilityRole="button"
-          onPress={() => closedRealms.toggle(realm.id)}
-          style={(state) => [local.row, { paddingLeft: 6 }, (state.pressed || isHovered(state)) && local.rowHovered]}
-        >
-          <CrestBadge crest={realm.crest} id={realm.id} size={22} />
-          <Text numberOfLines={1} style={[local.rowText, local.realmText]}>
-            {realm.name}
-          </Text>
-          <Count value={realm.quests.length} />
-          <Chevron isOpen={!isClosed} label={realm.name} onPress={() => closedRealms.toggle(realm.id)} />
-          <OverviewButton
-            label={realm.name}
-            onPress={() => onOpenRealmQuests({ id: realm.id, kind: realm.kind, name: realm.name })}
-          />
-          <Pressable
-            accessibilityLabel={`New quest in ${realm.name}`}
-            accessibilityRole="button"
-            hitSlop={4}
-            onPress={() => startQuest(realm.id, realm.placement)}
-            style={(state) => [local.newQuest, (state.pressed || isHovered(state)) && local.newQuestHovered]}
-          >
-            <NewQuestIcon color={colors.textMuted} />
-          </Pressable>
-        </Pressable>
+        <RealmHeader
+          crest={realm.crest}
+          id={realm.id}
+          isOpen={!isClosed}
+          name={realm.name}
+          onNewQuest={() => startQuest(realm.id, realm.id)}
+          onOverview={() => onOpenRealmQuests({ id: realm.id, name: realm.name })}
+          onToggle={() => closedRealms.toggle(realm.id)}
+          path={realm.path}
+          questCount={realm.quests.length}
+        />
         {failureUnder(realm.id)}
         {!isClosed && realm.quests.length === 0 && <Text style={local.emptyRealm}>No quest in this realm yet.</Text>}
         {!isClosed &&
@@ -586,7 +741,7 @@ export function Sidebar({
         {!isClosed && realm.quests.length > realmShown && (
           <ShowAll
             count={realm.quests.length}
-            onPress={() => onOpenRealmQuests({ id: realm.id, kind: realm.kind, name: realm.name })}
+            onPress={() => onOpenRealmQuests({ id: realm.id, name: realm.name })}
             subject={realm.name}
           />
         )}
@@ -612,67 +767,48 @@ export function Sidebar({
 
         <Heading
           icon="realms"
+          isOpen={!foldedSections.set.has("Realms")}
           isSelected={isHere("Realms")}
           label="Realms"
-          note="Tied to a real folder or repository"
-          onAdd={() => setCreating("folder")}
-          onPress={() => onPlace("Realms")}
+          note="Quests sharing lore, tied to a folder or repository or to none"
+          onAdd={() => setIsCreating(true)}
+          onPress={() => foldedSections.toggle("Realms")}
+          onToggle={() => foldedSections.toggle("Realms")}
         />
-        {placements.realms.length === 0 && <Text style={local.empty}>No realm yet.</Text>}
-        {placements.realms.map(({ quests, workspace }) =>
-          realmRow({
-            crest: workspace.crest,
-            id: workspace.id,
-            kind: "realm",
-            name: workspace.name,
-            placement: { workspacePath: workspace.path },
-            quests,
-          }),
+        {!foldedSections.set.has("Realms") && placements.realms.length === 0 && (
+          <Text style={local.empty}>No realm yet.</Text>
         )}
+        {!foldedSections.set.has("Realms") &&
+          placements.realms.map(({ quests, workspace }) =>
+            realmRow({ crest: workspace.crest, id: workspace.id, name: workspace.name, path: workspace.path, quests }),
+          )}
 
         <Gap />
         <Heading
-          icon="free-realms"
-          isSelected={isHere("FreeRealms")}
+          icon="borderlands"
+          isOpen={!foldedSections.set.has("Borderlands")}
+          isSelected={isHere("Borderlands")}
           label="Borderlands"
-          note="No workspace; groups related quests"
-          onAdd={() => setCreating("free")}
-          onPress={() => onPlace("FreeRealms")}
+          note="Autonomous quests, with no workspace and no shared lore"
+          onNewQuest={() => startQuest("Borderlands", null)}
+          onOverview={() => onPlace("Borderlands")}
+          onPress={() => foldedSections.toggle("Borderlands")}
+          onToggle={() => foldedSections.toggle("Borderlands")}
         />
-        {placements.freeRealms.length === 0 && <Text style={local.empty}>No borderland yet.</Text>}
-        {placements.freeRealms.map(({ freeRealm, quests }) =>
-          realmRow({
-            crest: freeRealm.crest,
-            id: freeRealm.id,
-            kind: "free",
-            name: freeRealm.name,
-            placement: { freeRealmId: freeRealm.id, workspacePath: null },
-            quests,
-          }),
-        )}
-
-        <Gap />
-        <Heading
-          icon="realmless"
-          isOpen={!closedRealms.set.has("Realmless")}
-          isSelected={isHere("Realmless")}
-          label="Realmless"
-          note="Independent quest, outside any realm"
-          onNewQuest={() => startQuest("Realmless", { workspacePath: null })}
-          onOverview={() => onPlace("Realmless")}
-          onPress={() => closedRealms.toggle("Realmless")}
-          onToggle={() => closedRealms.toggle("Realmless")}
-        />
-        {failureUnder("Realmless")}
-        {!closedRealms.set.has("Realmless") && placements.realmless.length === 0 && (
+        {failureUnder("Borderlands")}
+        {!foldedSections.set.has("Borderlands") && placements.borderlands.length === 0 && (
           <Text style={local.empty}>No quest yet.</Text>
         )}
-        {!closedRealms.set.has("Realmless") &&
-          shownOf(placements.realmless, realmlessShown).map((mission) => (
+        {!foldedSections.set.has("Borderlands") &&
+          shownOf(placements.borderlands, borderlandsShown).map((mission) => (
             <Quest {...questProps} isOpen={openQuests.set.has(mission.id)} key={mission.id} mission={mission} />
           ))}
-        {!closedRealms.set.has("Realmless") && placements.realmless.length > realmlessShown && (
-          <ShowAll count={placements.realmless.length} onPress={() => onPlace("Realmless")} subject="Realmless" />
+        {!foldedSections.set.has("Borderlands") && placements.borderlands.length > borderlandsShown && (
+          <ShowAll
+            count={placements.borderlands.length}
+            onPress={() => onPlace("Borderlands")}
+            subject="the Borderlands"
+          />
         )}
 
         <Divider />
@@ -681,12 +817,13 @@ export function Sidebar({
         <Divider />
         <Heading
           icon="the-keep"
-          isOpen={!isKeepFolded.set.has("Keep")}
+          isOpen={!foldedSections.set.has("Keep")}
           label="The Keep"
           note="Library, lore, and the archive"
-          onPress={() => isKeepFolded.toggle("Keep")}
+          onPress={() => foldedSections.toggle("Keep")}
+          onToggle={() => foldedSections.toggle("Keep")}
         />
-        {!isKeepFolded.set.has("Keep") &&
+        {!foldedSections.set.has("Keep") &&
           keepRooms.map((room) => (
             <Row
               accessory={room.place === "Archived" ? <ArchiveCount client={client} /> : undefined}
@@ -719,15 +856,18 @@ export function Sidebar({
           onPress={() => onPlace("Settings")}
         />
       </View>
-      {creating !== null && (
+      {isCreating && (
         <NewRealmModal
-          hasFolder={creating === "folder"}
           initial={{ crest: null, name: "", path: "" }}
-          onCancel={() => setCreating(null)}
+          isFolderRequired={false}
+          onCancel={() => setIsCreating(false)}
           onCreate={(realm) =>
-            creating === "folder"
-              ? client.request({ _tag: "CreateRealm", crest: realm.crest, name: realm.name, path: realm.path })
-              : client.request({ _tag: "CreateFreeRealm", crest: realm.crest, name: realm.name })
+            client.request({
+              _tag: "CreateRealm",
+              crest: realm.crest,
+              name: realm.name,
+              path: realm.path === "" ? null : realm.path,
+            })
           }
         />
       )}
@@ -756,6 +896,9 @@ function Spending({ client }: { client: ServiceClient }) {
 }
 
 const local = StyleSheet.create({
+  actions: { alignItems: "center", flexDirection: "row", gap: 4 },
+  // Unseen but in place: the row keeps its layout, and the keyboard can still reach the buttons.
+  actionsHidden: { opacity: 0 },
   add: {
     alignItems: "center",
     borderColor: colors.edge,
@@ -769,7 +912,6 @@ const local = StyleSheet.create({
   addHovered: { backgroundColor: colors.controlActive },
   addMark: { color: colors.highlight, fontFamily: fonts.sans, fontSize: 18, lineHeight: 20 },
   chevron: { alignItems: "center", height: 20, justifyContent: "center", width: chevronWidth },
-  chevronMark: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: 16, lineHeight: 18 },
   chevronMarkOpen: { transform: [{ rotate: "90deg" }] },
   count: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.sm },
   diamond: {
@@ -810,9 +952,9 @@ const local = StyleSheet.create({
     paddingVertical: 6,
   },
   headingChevron: { alignItems: "center", height: 32, justifyContent: "center", marginLeft: 6, width: 28 },
-  headingChevronMark: { color: colors.text, fontFamily: fonts.sans, fontSize: 30, lineHeight: 32 },
   headingIcon: { alignItems: "center", marginRight: 8, width: 28 },
-  headingText: { flex: 1 },
+  // The title never gives up its width; the minimum rail width leaves room for the chevron and the actions.
+  headingText: { flexShrink: 0 },
   headingTitle: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.lg, fontWeight: "700" },
   iconColumn: { gap: 4, padding: 8 },
   iconRow: { alignItems: "center", borderRadius: radii.md, height: 36, justifyContent: "center" },
@@ -837,7 +979,9 @@ const local = StyleSheet.create({
     paddingVertical: 4,
   },
   newQuestHovered: { backgroundColor: colors.controlActive },
-  realmText: { fontWeight: "600" },
+  // The name keeps only its own width, so the folder mark stands right after it.
+  realmText: { flexBasis: "auto", flexGrow: 0, flexShrink: 1, fontWeight: "600" },
+  realmTextEnd: { flex: 1 },
   row: {
     alignItems: "center",
     borderRadius: radii.md,
@@ -852,6 +996,7 @@ const local = StyleSheet.create({
   rowText: { color: colors.onGround, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.base },
   rowTextMain: { color: colors.text, fontSize: fontSizes.lg, fontWeight: "700" },
   rowTextSelected: { color: colors.text, fontWeight: "600" },
+  scrollCue: { flexShrink: 0, marginLeft: 5 },
   sidebar: {
     backgroundColor: colors.sidebar,
     borderRightColor: colors.border,

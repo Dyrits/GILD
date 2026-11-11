@@ -14,9 +14,8 @@ User-authored text and historical service messages are not rewritten.
 | Top-level mission thread | Quest |
 | Model selected to do the work | Companion |
 | Thread opened beneath another thread | Side-quest |
-| Workspace-backed grouping of missions | Realm |
-| Workspace-free grouping of missions | Borderland |
-| Mission outside any realm | Realmless Quest |
+| Grouping of missions with shared lore, tied or not to a workspace | Realm |
+| Home of autonomous missions, with no workspace and no shared lore | Borderlands |
 | Control conversation | Guild Hall |
 | Entity the user talks with in Control | Guildmaster |
 | Workflow | Craft |
@@ -103,13 +102,11 @@ A folder or repository on the user's computer, chosen by the user or cloned by I
 _Avoid_: Project, repo, directory
 
 **Realm**:
-A grouping of quests tied to one workspace, with lore shared across its quests.
+A grouping of quests with lore shared across its quests. A realm may be tied to one workspace (a repository or folder) or tied to none.
 
-**Borderland**:
-A grouping of quests with shared lore and no workspace.
-
-**Realmless Quest**:
-An independent quest outside any realm, with its own lore and global lore but no realm lore.
+**Borderlands**:
+The one place for autonomous quests: no workspace, no shared lore. A quest there has its own lore and global lore only. Every quest belongs to a realm or to the Borderlands.
+_Avoid_: Free Realm, Realmless
 
 **Browsable root**:
 A folder set in the Charter (Settings) under which the user and threads can browse and choose workspaces.
@@ -219,7 +216,7 @@ Saved facts, preferences, and decisions, each held at one lore scope. One item i
 _Avoid_: Memory, note, knowledge, intel
 
 **Lore scope**:
-Where a lore entry belongs: a side-quest, a quest, a realm (including a borderland), or global.
+Where a lore entry belongs: a side-quest, a quest, a realm, or global.
 See [lore scopes](capabilities/scoped-intel/specifications.md#scopes) for visibility and Guildmaster's access exception.
 
 **Lore kind**:

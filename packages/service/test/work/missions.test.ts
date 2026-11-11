@@ -48,6 +48,7 @@ const advance = (duration: Parameters<typeof TestClock.adjust>[0]) =>
   });
 
 const read = (missionId: MissionId) => call({ _tag: "ReadMission", missionId, threadId: null });
+const realmList = () => call({ _tag: "ListMissions", isArchived: false, search: null, state: null, workspaceId: null });
 
 describe("starting a mission", () => {
   it.effect("saves the mission, its top thread, and the first message, titled by the first line", () =>
@@ -80,6 +81,10 @@ describe("starting a mission", () => {
       const detail = yield* read(started.missionId);
       expect(detail.thread).toMatchObject({ id: started.threadId, state: "Running" });
       expect(detail.messages.map((m) => [m.sender, m.text])).toEqual([["user", "Plan the trip\nwith details"]]);
+      // Each thread of the tree carries what the full quest list shows beside it: harness, model, latest activity.
+      const [top] = detail.threads;
+      expect(top).toMatchObject({ harness: "claude", model: "default" });
+      expect(top?.lastActivityAt).toBe(detail.messages[0]?.sentAt);
     }).pipe(Effect.provide(live(databaseFile()))),
   );
 
@@ -158,15 +163,19 @@ describe("starting an empty quest in a realm", () => {
     Effect.gen(function* () {
       const folder = mkdtempSync(join(tmpdir(), "iskios-realm-"));
       directories.push(folder);
-      const started = yield* call({ _tag: "StartEmptyQuest", requestId: "e1", workspacePath: folder });
-      const replayed = yield* call({ _tag: "StartEmptyQuest", requestId: "e1", workspacePath: folder });
+      yield* call({ _tag: "CreateRealm", crest: null, name: "Garden", path: folder });
+      const [realm] = (yield* realmList()).workspaces;
+      const realmId = realm?.id ?? null;
+      const started = yield* call({ _tag: "StartEmptyQuest", realmId, requestId: "e1" });
+      const replayed = yield* call({ _tag: "StartEmptyQuest", realmId, requestId: "e1" });
       expect(replayed).toEqual(started);
 
       const listed = () =>
         call({ _tag: "ListMissions", isArchived: false, search: null, state: null, workspaceId: null });
       const [empty] = (yield* listed()).missions;
       expect(empty).toMatchObject({ id: started.missionId, state: "Idle", title: "New quest" });
-      expect(empty?.workspaceId).not.toBeNull();
+      expect(empty?.workspaceId).toBe(realmId);
+      expect((yield* read(started.missionId)).thread.workspace?.path).toBe(realm?.path);
       expect((yield* read(started.missionId)).messages).toHaveLength(0);
 
       yield* call({
@@ -183,37 +192,24 @@ describe("starting an empty quest in a realm", () => {
   );
 });
 
-describe("starting an empty quest in a Free Realm or in none", () => {
-  it.effect("places it in the Free Realm, or leaves it realmless, and refuses an unknown Free Realm", () =>
-    Effect.gen(function* () {
-      yield* call({ _tag: "CreateFreeRealm", crest: null, name: "Garden" });
-      const [freeRealm] = yield* call({ _tag: "ListFreeRealms" });
-      const placed = yield* call({
-        _tag: "StartEmptyQuest",
-        freeRealmId: freeRealm?.id ?? null,
-        requestId: "f1",
-        workspacePath: null,
-      });
-      const loose = yield* call({ _tag: "StartEmptyQuest", requestId: "f2", workspacePath: null });
-      const refused = yield* failureOf({
-        _tag: "StartEmptyQuest",
-        freeRealmId: "missing" as never,
-        requestId: "f3",
-        workspacePath: null,
-      });
-      expect(refused).toMatchObject({ kind: "InvalidInput", message: "No such free realm." });
+describe("starting an empty quest in a realm with no folder or in the Borderlands", () => {
+  it.effect(
+    "places it in the realm, with no folder to work in, or in the Borderlands, and refuses an unknown realm",
+    () =>
+      Effect.gen(function* () {
+        yield* call({ _tag: "CreateRealm", crest: null, name: "Garden", path: null });
+        const [realm] = (yield* realmList()).workspaces;
+        const placed = yield* call({ _tag: "StartEmptyQuest", realmId: realm?.id ?? null, requestId: "f1" });
+        const borderlands = yield* call({ _tag: "StartEmptyQuest", realmId: null, requestId: "f2" });
+        const refused = yield* failureOf({ _tag: "StartEmptyQuest", realmId: "missing" as never, requestId: "f3" });
+        expect(refused).toMatchObject({ kind: "InvalidInput", message: "No such realm." });
 
-      const { missions } = yield* call({
-        _tag: "ListMissions",
-        isArchived: false,
-        search: null,
-        state: null,
-        workspaceId: null,
-      });
-      const byId = new Map(missions.map((each) => [each.id, each]));
-      expect(byId.get(placed.missionId)).toMatchObject({ freeRealmId: freeRealm?.id, workspaceId: null });
-      expect(byId.get(loose.missionId)).toMatchObject({ freeRealmId: null, workspaceId: null });
-    }).pipe(Effect.provide(live(databaseFile()))),
+        const byId = new Map((yield* realmList()).missions.map((each) => [each.id, each]));
+        expect(byId.get(placed.missionId)).toMatchObject({ workspaceId: realm?.id, workspaceName: "Garden" });
+        expect(byId.get(borderlands.missionId)).toMatchObject({ workspaceId: null, workspaceName: null });
+        // A realm with no folder gives its quests no workspace: they work in the quest's scratch folder.
+        expect((yield* read(placed.missionId)).thread.workspace).toBeNull();
+      }).pipe(Effect.provide(live(databaseFile()))),
   );
 });
 

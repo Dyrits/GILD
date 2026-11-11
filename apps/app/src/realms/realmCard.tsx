@@ -46,7 +46,7 @@ export function RealmCard({
           {realm.name}
         </Text>
         <Text numberOfLines={1} style={local.path}>
-          {realm.path}
+          {realm.path ?? "Tied to no folder"}
         </Text>
         <Text style={local.meta}>
           {open} open · {own.length - open} done

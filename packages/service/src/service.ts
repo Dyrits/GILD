@@ -92,14 +92,7 @@ import { nameNewQuest, newQuestTitle, renameMission } from "./work/titles.ts";
 import { openThreadByOwner } from "./work/tree.ts";
 import { imageRefusalOf, readThreadRunner } from "./work/vision.ts";
 import { listWorkspaceEntries } from "./work/workspaceEntries.ts";
-import {
-  createFreeRealm,
-  createRealm,
-  listFreeRealms,
-  renameRealm,
-  ScratchRoot,
-  setRealmCrest,
-} from "./work/workspaces.ts";
+import { createRealm, renameRealm, ScratchRoot, setRealmCrest } from "./work/workspaces.ts";
 
 // Stored and wire names keep `intel` so existing data and agents still work: request tags (`"ListIntel"`, ...).
 
@@ -259,7 +252,6 @@ const make = Effect.gen(function* () {
             );
           }),
         CreateFolder: (create) => createFolder(create.parent, create.name),
-        CreateFreeRealm: (create) => change(createFreeRealm(create.name, create.crest)),
         CreateRealm: (create) => change(createRealm(create.path, create.name, create.crest)),
         CreateRitual: (create) =>
           commands.run(
@@ -303,7 +295,6 @@ const make = Effect.gen(function* () {
                 isInterrupted ? Effect.succeed(null) : invalid("This thread is not running."),
               ),
             ),
-        ListFreeRealms: () => listFreeRealms,
         ListHarnesses: () =>
           listHarnesses.pipe(
             Effect.provideService(HarnessTools, harnessTools),
@@ -479,8 +470,8 @@ const make = Effect.gen(function* () {
                 const started = yield* insertQuest(
                   {
                     firstMessage: null,
-                    freeRealmId: start.freeRealmId ?? null,
                     realm: null,
+                    realmId: start.realmId,
                     shouldRememberChoices: false,
                     title: newQuestTitle,
                   },
@@ -490,7 +481,7 @@ const make = Effect.gen(function* () {
                     harness: choices.harness,
                     model: choices.model,
                   },
-                  start.workspacePath,
+                  null,
                 );
                 return changed({ missionId: started.missionId, threadId: started.threadId });
               }),

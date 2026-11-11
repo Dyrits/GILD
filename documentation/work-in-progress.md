@@ -1,5 +1,11 @@
 # Work in progress
 
+## Only Realms and Borderlands · 2026-11-11 · built and checked in the web export, owner review pending
+
+CHG-0161 (placements) and CHG-0163 (sidebar hover marks, folding headings, scroll cue, widths, nested full list) are built and recorded in CHG-0164; storage in [ADR 0015](architecture-decision-record/0015-realms-tied-or-not-and-one-borderlands.md). Starting commit `10684a9`.
+Evidence: [verification](verification/2026-11-11-realms-and-borderlands.md); the Electron window was not checked.
+Open: the owner's look; the assumptions in CHG-0163 (nested full list unfolded by default, "Show all N" counting quests only, the arrow's place on quest rows); the Guildmaster and the realm chooser do not offer realms tied to no folder; quest moves are still to build; the full list keeps its own small "›" fold marks; unused `assets/nav/realmless.png` files remain; three suite failures outside this change (CHG-0164).
+
 ## Iskios, simple art direction, and the left sidebar · 2026-11-11 · built and checked, owner review pending
 
 The owner asked to rename the app Iskios, simplify the art direction a lot, and organize the sidebar like the supplied Guild Hall image; CHG-0143 records it. Starting revision `37e8c0a`; committed in `2a75c4e`.

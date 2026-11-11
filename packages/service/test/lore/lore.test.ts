@@ -82,7 +82,7 @@ describe("saving lore", () => {
     }).pipe(Effect.provide(layer));
   });
 
-  it.live("refuses workspace lore for a thread without a workspace", () => {
+  it.live("refuses realm lore for a quest in the Borderlands", () => {
     const { layer } = live();
     return Effect.gen(function* () {
       const { threadId } = yield* idle();
@@ -166,6 +166,32 @@ describe("recalling lore", () => {
       expect(yield* contextOf(second.missionId, second.threadId)).toContain("Run the tests before a commit.");
       const elsewhere = yield* idle();
       expect(yield* contextOf(elsewhere.missionId, elsewhere.threadId)).not.toContain("Run the tests");
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("shares realm lore across the quests of a realm with no folder, and not with the Borderlands", () => {
+    const { layer } = live();
+    return Effect.gen(function* () {
+      yield* call({ _tag: "CreateRealm", crest: null, name: "Game Design", path: null });
+      const list = { _tag: "ListMissions", isArchived: false, search: null, state: null, workspaceId: null } as const;
+      const realmId = (yield* call(list)).workspaces[0]?.id ?? null;
+      const inRealm = () =>
+        Effect.gen(function* () {
+          const started = yield* call({ _tag: "StartEmptyQuest", realmId, requestId: crypto.randomUUID() });
+          yield* send(started.threadId);
+          yield* settle(started.missionId, (d) => d.thread.state === "Idle" && d.messages.length > 1);
+          return started;
+        });
+      const first = yield* inRealm();
+      expect(yield* save(first.threadId, "Levels are drawn on paper first.", "workspace")).toContain(
+        "Saved lore entry",
+      );
+      const second = yield* inRealm();
+      expect(yield* contextOf(second.missionId, second.threadId)).toContain("Levels are drawn on paper first.");
+      const side = yield* child(second.missionId, second.threadId);
+      expect(yield* contextOf(second.missionId, side)).toContain("Levels are drawn on paper first.");
+      const borderlands = yield* idle();
+      expect(yield* contextOf(borderlands.missionId, borderlands.threadId)).not.toContain("Levels are drawn");
     }).pipe(Effect.provide(layer));
   });
 

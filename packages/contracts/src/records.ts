@@ -14,7 +14,7 @@ import {
 } from "./budgets.ts";
 import { Crest } from "./crest.ts";
 import { EffortChoice, HarnessName } from "./harnesses.ts";
-import { AccountId, FreeRealmId, MessageId, MissionId, SuggestionId, ThreadId, WorkspaceId } from "./ids.ts";
+import { AccountId, MessageId, MissionId, SuggestionId, ThreadId, WorkspaceId } from "./ids.ts";
 import { LoreChange, LoreGauge } from "./lore.ts";
 import { ApprovalLevel, Question } from "./questions.ts";
 import { RitualCard } from "./ritualSchedules.ts";
@@ -144,8 +144,6 @@ export const MissionSummary = Schema.Struct({
   budget: BudgetUse,
   /** What the mission's turns used, with the estimated cost (budget-control, Estimated cost). */
   consumption: Consumption,
-  /** The Free Realm the quest is placed in, or null for a quest in a realm or in none. */
-  freeRealmId: Schema.NullOr(FreeRealmId),
   /** The top thread's harness and model, for the card. */
   harness: HarnessName,
   id: MissionId,
@@ -239,11 +237,16 @@ export type ThreadBlocker = typeof ThreadBlocker.Type;
 export const ThreadSummary = Schema.Struct({
   /** Levels beneath the top thread, which is 0. */
   depth: Schema.Number,
+  /** The thread's harness and model, shown beside it in the full quest list. */
+  harness: HarnessName,
   id: ThreadId,
   /** Whether it holds an off-topic request the owner kept as an aside (thread-tree, Off-topic requests). */
   isAside: Schema.Boolean,
   /** Whether a thread opened it with `open_thread`, rather than the owner. */
   isOpenedByAgent: Schema.Boolean,
+  /** The time of its latest message, or of its opening while it has none. */
+  lastActivityAt: Schema.Number,
+  model: ModelChoice,
   /** When it was opened: the time of its first message. */
   openedAt: Schema.Number,
   parentId: Schema.NullOr(ThreadId),

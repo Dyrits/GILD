@@ -139,15 +139,19 @@ export default function App() {
         onRealm={setGuildmasterRealm}
         realmPath={guildmasterRealm}
       />
-    ) : place === "Realmless" ? (
-      <QuestListScreen client={client} listing={null} onOpen={openMissionFromAnywhere} />
+    ) : place === "Borderlands" ? (
+      <QuestListScreen client={client} listing={null} onOpen={openMissionFromAnywhere} onOpenThread={openSideQuest} />
     ) : place === "RealmQuests" ? (
-      <QuestListScreen client={client} listing={listedRealm} onOpen={openMissionFromAnywhere} />
+      <QuestListScreen
+        client={client}
+        listing={listedRealm}
+        onOpen={openMissionFromAnywhere}
+        onOpenThread={openSideQuest}
+      />
     ) : place === "Rituals" ? (
       <RitualsScreen client={client} onOpen={openMissionFromAnywhere} />
     ) : place === "Charter" ||
       place === "Craft" ||
-      place === "FreeRealms" ||
       place === "Library" ||
       place === "Realms" ||
       place === "Reserves" ? (
@@ -177,9 +181,7 @@ export default function App() {
       details={
         isBoard || isGuildmaster
           ? { isOpen: true, isPinned: true, onToggle: () => {} }
-          : openMission === null &&
-              selectedMission === null &&
-              !(place === "RealmQuests" && listedRealm?.kind === "realm")
+          : openMission === null && selectedMission === null && !(place === "RealmQuests" && listedRealm !== null)
             ? null
             : { isOpen: areDetailsOpen, onToggle: () => setAreDetailsOpen(!areDetailsOpen) }
       }

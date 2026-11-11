@@ -74,6 +74,8 @@ export function Dashboard({
   const asking = isArchived ? [] : (all?.missions.filter((mission) => mission.prompt !== null) ?? []);
   // The realm whose board shows, and whether its crest studio is open.
   const realm = (data?.workspaces ?? []).find((w) => w.id === workspaceId) ?? null;
+  // The Guildmaster places a quest by its realm's folder, so a realm tied to no folder offers no message to it yet.
+  const handoffRealm = realm?.path == null ? null : { name: realm.name, path: realm.path };
   // The realm whose crest studio or lore is open; showing another realm closes them.
   // The realm's figures count all its quests, whatever the search shows.
   const realmMissions = (all?.missions ?? []).filter((mission) => mission.workspaceId === realm?.id);
@@ -265,11 +267,15 @@ export function Dashboard({
             />
           ))}
       </ScrollView>
-      {!isArchived && realm !== null && (
+      {!isArchived && handoffRealm !== null && (
         // On a realm's board the message at the foot goes to the Guildmaster with the realm attached, and no quest starts
         // from here. The board of every quest has none: the Guildmaster is where quests start.
         <View style={local.footer}>
-          <GuildmasterHandoff client={client} onSent={() => onSendToGuildmaster(realm.path)} realm={realm} />
+          <GuildmasterHandoff
+            client={client}
+            onSent={() => onSendToGuildmaster(handoffRealm.path)}
+            realm={handoffRealm}
+          />
         </View>
       )}
     </View>

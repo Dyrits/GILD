@@ -48,7 +48,8 @@ export function RealmChooser({
       },
       (reason) => setChooseError(messageOf(reason)),
     );
-  const sorted = [...realms].sort((a, b) => a.name.localeCompare(b.name));
+  // A quest started here is placed by its realm's folder, so a realm tied to no folder is not offered yet (CHG-0161).
+  const sorted = realms.filter((realm) => realm.path !== null).sort((a, b) => a.name.localeCompare(b.name));
   return (
     <View style={styles.section}>
       <View accessibilityLabel="Realm" style={[local.chips, isBig && local.chipsBig]}>

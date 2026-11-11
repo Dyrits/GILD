@@ -149,8 +149,7 @@ export const crumbsOf = ({
   if (place === "Charter") return [here("Charter")];
   if (place === "Craft") return [here("Craft")];
   if (place === "Realms") return [here("Realms")];
-  if (place === "FreeRealms") return [here("Borderlands")];
-  if (place === "Realmless") return [here("Realmless")];
+  if (place === "Borderlands") return [here("Borderlands")];
   if (place === "RealmQuests") return [here(listedRealmName ?? "Realm")];
   if (place === "Reserves") return [here("Reserves")];
   if (place === "Settings") return [here("Workshop")];

@@ -6,9 +6,12 @@ import { foldThreads } from "../../src/conversation/folding";
 const thread = (id: string, parentId: string | null, depth: number, isOpenedByAgent = true, state = "Idle") =>
   Schema.decodeUnknownSync(ThreadSummary)({
     depth,
+    harness: "claude",
     id,
     isAside: false,
     isOpenedByAgent,
+    lastActivityAt: 0,
+    model: "default",
     openedAt: 0,
     parentId,
     state,

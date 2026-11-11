@@ -41,7 +41,7 @@ export const listMissions = (filters: MissionFilters) =>
       crest: string | null;
       id: WorkspaceId;
       name: string;
-      path: string;
+      path: string | null;
     }>`SELECT id, name, path, crest FROM workspaces`;
     // Every realm shows on the board, even with no quest yet; the Archived view lists only the realms it has quests in.
     const workspaces = filters.isArchived ? known.filter((workspace) => ids.has(workspace.id)) : known;

@@ -32,6 +32,8 @@ const listThreads = (missionId: string, topThreadId: string) =>
       SELECT t.id, t.parent_id AS parentId, t.title, t.state, tree.depth, tree.path,
         t.is_opened_by_agent AS isOpenedByAgent, t.is_aside AS isAside,
         (SELECT COALESCE(MIN(m.sent_at), 0) FROM messages m WHERE m.thread_id = t.id) AS openedAt,
+        (SELECT COALESCE(MAX(m.sent_at), 0) FROM messages m WHERE m.thread_id = t.id) AS lastActivityAt,
+        t.harness, t.model,
         (SELECT COUNT(*) FROM messages m WHERE m.thread_id = t.id AND m.sender_kind IN ('user', 'thread')
           AND m.delivered_turn_id IS NULL) AS waitingCount
       FROM tree JOIN threads t ON t.id = tree.id

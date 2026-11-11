@@ -9,13 +9,13 @@ import { colorScheme } from "../foundation/colorScheme";
 const sources = {
   dark: {
     archive: require("../../assets/nav/archive.png"),
+    // The Borderlands' mountains; the file keeps the name of the former Free Realms (CHG-0161).
+    borderlands: require("../../assets/nav/free-realms.png"),
     charter: require("../../assets/nav/charter.png"),
     craft: require("../../assets/nav/craft.png"),
-    "free-realms": require("../../assets/nav/free-realms.png"),
     "guild-hall": require("../../assets/nav/guild-hall.png"),
     library: require("../../assets/nav/library.png"),
     lore: require("../../assets/nav/lore.png"),
-    realmless: require("../../assets/nav/realmless.png"),
     realms: require("../../assets/nav/realms.png"),
     reserves: require("../../assets/nav/reserves.png"),
     rituals: require("../../assets/nav/rituals.png"),
@@ -24,13 +24,12 @@ const sources = {
   },
   light: {
     archive: require("../../assets/nav/light/archive.png"),
+    borderlands: require("../../assets/nav/light/free-realms.png"),
     charter: require("../../assets/nav/light/charter.png"),
     craft: require("../../assets/nav/light/craft.png"),
-    "free-realms": require("../../assets/nav/light/free-realms.png"),
     "guild-hall": require("../../assets/nav/light/guild-hall.png"),
     library: require("../../assets/nav/light/library.png"),
     lore: require("../../assets/nav/light/lore.png"),
-    realmless: require("../../assets/nav/light/realmless.png"),
     realms: require("../../assets/nav/light/realms.png"),
     reserves: require("../../assets/nav/light/reserves.png"),
     rituals: require("../../assets/nav/light/rituals.png"),

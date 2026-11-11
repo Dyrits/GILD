@@ -93,14 +93,17 @@ export const findRealm = (given: string) =>
     }>`SELECT name, path FROM workspaces WHERE path = ${wanted}`;
     if (byPath !== undefined) return byPath;
     const [byName] = yield* sql<{ name: string; path: string }>`
-      SELECT name, path FROM workspaces WHERE lower(name) = lower(${wanted}) ORDER BY created_at LIMIT 1`;
+      SELECT name, path FROM workspaces WHERE lower(name) = lower(${wanted}) AND path IS NOT NULL
+      ORDER BY created_at LIMIT 1`;
     return byName ?? null;
   });
 
 /** The realms known, one line each, so the Guildmaster can name one when it opens a quest. */
 const realmLinesOf = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
-  const realms = yield* sql<{ name: string; path: string }>`SELECT name, path FROM workspaces ORDER BY name`;
+  // The Guildmaster places a quest by its realm's folder, so a realm tied to no folder is not offered yet.
+  const realms = yield* sql<{ name: string; path: string }>`
+    SELECT name, path FROM workspaces WHERE path IS NOT NULL ORDER BY name`;
   return realms.length === 0
     ? ["No realm exists yet; a quest opens with no realm."]
     : realms.map((realm) => `- ${realm.name}: ${realm.path}`);

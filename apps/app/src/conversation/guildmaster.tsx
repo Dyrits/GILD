@@ -73,7 +73,8 @@ function GuildmasterChat({
   const { data: known } = useServiceQuery(client, allMissions.request, allMissions.key);
   const { data: harnesses } = useHarnesses(client);
   const realms = known?.workspaces ?? [];
-  const realm = realms.find((candidate) => candidate.path === realmPath) ?? null;
+  // A realm tied to no folder has a null path too, so no path chosen matches none of them (CHG-0161).
+  const realm = realmPath === null ? null : (realms.find((candidate) => candidate.path === realmPath) ?? null);
   const { data: detail } = useServiceQuery(
     client,
     { _tag: "ReadMission", missionId: place.missionId, threadId: null },

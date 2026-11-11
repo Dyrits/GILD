@@ -7,7 +7,6 @@ import {
   AccountId,
   AttachmentId,
   BudgetStopId,
-  FreeRealmId,
   LoreChangeId,
   LoreEntryId,
   LoreHistoryEntryId,
@@ -53,7 +52,7 @@ import {
 } from "./rituals.ts";
 import { Skill } from "./skills.ts";
 import { WorkspaceEntry } from "./workspaceEntries.ts";
-import { Folder, FolderListing, FreeRealm } from "./workspaces.ts";
+import { Folder, FolderListing } from "./workspaces.ts";
 
 // Requests
 
@@ -101,15 +100,13 @@ export const StartMission = Schema.TaggedStruct("StartMission", {
   workspacePath: Schema.NullOr(Schema.String),
 });
 /**
- * Starts a quest with no message yet, on the choices of the last quest started: in the realm at a folder, in a Free Realm,
- * or in neither (realmless). It is named "New quest" until its first message names it.
+ * Starts a quest with no message yet, on the choices of the last quest started, in a realm or in the Borderlands.
+ * It is named "New quest" until its first message names it.
  */
 export const StartEmptyQuest = Schema.TaggedStruct("StartEmptyQuest", {
-  /** The Free Realm to place it in; absent or null places it by `workspacePath`. */
-  freeRealmId: Schema.optionalKey(Schema.NullOr(FreeRealmId)),
+  /** The realm to place it in, or null for the Borderlands. */
+  realmId: Schema.NullOr(WorkspaceId),
   requestId: RequestId,
-  /** The folder of the realm to place it in, or null for a Free Realm or realmless quest. */
-  workspacePath: Schema.NullOr(Schema.String),
 });
 /** Sends the owner's message to a thread, steered or queued. */
 export const SendMessage = Schema.TaggedStruct("SendMessage", {
@@ -295,19 +292,13 @@ export const AnswerQuestion = Schema.TaggedStruct("AnswerQuestion", {
 export const ListOpenQuestions = Schema.TaggedStruct("ListOpenQuestions", {});
 /** The owner sets, changes, or removes a mission's budget; raising past the spending resumes stopped threads. */
 export const SetMissionBudget = Schema.TaggedStruct("SetMissionBudget", { limits: BudgetLimits, missionId: MissionId });
-/** The owner imports a folder as a realm, named and given a crest, before any quest starts in it. */
+/** The owner makes a realm, named and given a crest, before any quest starts in it: from a folder, or tied to none. */
 export const CreateRealm = Schema.TaggedStruct("CreateRealm", {
   crest: Schema.NullOr(Crest),
   name: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(80)),
-  path: Schema.String,
+  /** The folder the realm is tied to, or null for a realm tied to no folder. */
+  path: Schema.NullOr(Schema.String),
 });
-/** The owner makes a Free Realm: a name and a crest, and no folder. */
-export const CreateFreeRealm = Schema.TaggedStruct("CreateFreeRealm", {
-  crest: Schema.NullOr(Crest),
-  name: Schema.String.check(Schema.isMaxLength(80)),
-});
-/** Every Free Realm, by name. */
-export const ListFreeRealms = Schema.TaggedStruct("ListFreeRealms", {});
 /** The owner renames a realm; refused when the name is blank. */
 export const RenameRealm = Schema.TaggedStruct("RenameRealm", {
   name: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(80)),
@@ -484,8 +475,6 @@ export const Request = Schema.Union([
   ReadBudget,
   StopAtBudget,
   ListOpenQuestions,
-  CreateFreeRealm,
-  ListFreeRealms,
   StopThread,
   RetryThread,
   ChangeThreadRunner,
@@ -547,7 +536,6 @@ export const Results = {
   BrowseFolders: FolderListing,
   ChangeThreadRunner: Schema.Null,
   CreateFolder: Folder,
-  CreateFreeRealm: Schema.Null,
   CreateRealm: Schema.Null,
   CreateRitual: CreateRitualResult,
   DeleteIntel: Schema.Null,
@@ -559,7 +547,6 @@ export const Results = {
   EndMission: Schema.Null,
   InstallHarness: HarnessList,
   InterruptThread: Schema.Null,
-  ListFreeRealms: Schema.Array(FreeRealm),
   ListHarnesses: HarnessList,
   ListIntel: LoreView,
   ListMissions: MissionList,

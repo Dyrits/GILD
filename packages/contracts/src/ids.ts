@@ -26,10 +26,6 @@ export type AttachmentId = typeof AttachmentId.Type;
 export const WorkspaceId = Schema.String.pipe(Schema.brand("WorkspaceId"));
 export type WorkspaceId = typeof WorkspaceId.Type;
 
-/** Identifies a Free Realm: a realm tied to no folder, which groups related quests (mission-tracking). */
-export const FreeRealmId = Schema.String.pipe(Schema.brand("FreeRealmId"));
-export type FreeRealmId = typeof FreeRealmId.Type;
-
 /** Identifies an approval question. */
 export const QuestionId = Schema.String.pipe(Schema.brand("QuestionId"));
 export type QuestionId = typeof QuestionId.Type;

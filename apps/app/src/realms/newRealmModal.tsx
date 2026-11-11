@@ -12,7 +12,7 @@ export const chooseFolder = () =>
     ? Promise.reject(new Error("Choosing a folder needs the desktop app."))
     : window.iskios.chooseFolder();
 
-/** A folder being imported as a realm: named and given a crest. The path is empty until a folder is chosen. */
+/** A realm being made: named and given a crest. The path is empty until a folder is chosen, and stays so for a realm tied to none. */
 export type NewRealm = { crest: Crest | null; name: string; path: string };
 
 /** The folder's name, as the last part of its path. */
@@ -24,16 +24,17 @@ export const folderNameOf = (path: string) =>
 
 /**
  * The menu that makes a realm: its folder, its name, and its crest. It opens with a folder chosen, or with none and a
- * button to choose one; the realm is made only once both a folder and a name are given (workspace-attachment; CHG-0035).
+ * button to choose one; the realm is made once a name is given, and a folder where one is required
+ * (workspace-attachment; CHG-0035). Where the folder is optional, a realm made without one is tied to no folder (CHG-0161).
  */
 export function NewRealmModal({
-  hasFolder = true,
+  isFolderRequired = true,
   initial,
   onCancel,
   onCreate,
 }: {
-  /** Whether the realm is tied to a folder; a Borderland is not, and the menu leaves the folder out. */
-  hasFolder?: boolean;
+  /** Whether the realm must be tied to a folder; where it need not, the folder can be chosen, changed, or left out. */
+  isFolderRequired?: boolean;
   initial: NewRealm;
   onCancel: () => void;
   /** Imports the folder as a realm, named and given a crest; rejects with the reason when refused. */
@@ -42,7 +43,7 @@ export function NewRealmModal({
   const [editing, setEditing] = useState(initial);
   const [isStudioOpen, setIsStudioOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const isReady = editing.name.trim() !== "" && (!hasFolder || editing.path !== "");
+  const isReady = editing.name.trim() !== "" && (!isFolderRequired || editing.path !== "");
   const choose = () =>
     chooseFolder().then(
       (path) => {
@@ -57,17 +58,28 @@ export function NewRealmModal({
       <View style={local.backdrop}>
         <Pressable accessibilityLabel="Close" onPress={onCancel} style={StyleSheet.absoluteFill} />
         <View style={local.menu}>
-          <Text style={local.menuTitle}>{hasFolder ? "Travel to a new realm" : "Travel to a new borderland"}</Text>
-          {hasFolder && (
-            <View style={local.folderRow}>
-              <Text numberOfLines={2} style={[local.menuPath, editing.path === "" && local.menuPathEmpty]}>
-                {editing.path === "" ? "No folder chosen" : editing.path}
-              </Text>
-              <Pressable accessibilityRole="button" onPress={choose} style={local.menuButton}>
-                <Text style={local.menuButtonText}>{editing.path === "" ? "Choose folder…" : "Change folder…"}</Text>
+          <Text style={local.menuTitle}>Travel to a new realm</Text>
+          <View style={local.folderRow}>
+            <Text numberOfLines={2} style={[local.menuPath, editing.path === "" && local.menuPathEmpty]}>
+              {editing.path !== ""
+                ? editing.path
+                : isFolderRequired
+                  ? "No folder chosen"
+                  : "No folder: optional, the realm's quests then have none"}
+            </Text>
+            <Pressable accessibilityRole="button" onPress={choose} style={local.menuButton}>
+              <Text style={local.menuButtonText}>{editing.path === "" ? "Choose folder…" : "Change folder…"}</Text>
+            </Pressable>
+            {!isFolderRequired && editing.path !== "" && (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => setEditing({ ...editing, path: "" })}
+                style={local.menuButton}
+              >
+                <Text style={local.menuButtonText}>No folder</Text>
               </Pressable>
-            </View>
-          )}
+            )}
+          </View>
           <View style={local.namingRow}>
             <CrestBadge crest={editing.crest} id={editing.path === "" ? "new-realm" : editing.path} size={72} />
             <View style={local.menuFields}>
