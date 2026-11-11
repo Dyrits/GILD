@@ -147,7 +147,7 @@ function GuildmasterChat({
     <View style={local.page}>
       <View style={styles.header}>
         <Text numberOfLines={1} style={[local.title, styles.flex]}>
-          Guildmaster
+          Iskios
         </Text>
         <Pressable accessibilityRole="button" onPress={() => setIsBudgetOpen(true)}>
           <Text style={local.link}>Budget · {budgetValueOf(detail.mission.budget)}</Text>
@@ -181,8 +181,8 @@ function GuildmasterChat({
         <View style={local.empty}>
           <Text style={local.emptyTitle}>Tell Iskios what you need.</Text>
           <Text style={local.emptyText}>
-            It looks for a quest that already covers it and offers to continue that one, or opens a new quest. Choose a
-            realm on the right to start the next quest there.
+            It looks for a quest that already covers it and offers to continue that one, or proposes a new quest for you
+            to open. Choose a realm on the right to propose the next quest there.
           </Text>
         </View>
       ) : (
@@ -277,8 +277,7 @@ export function GuildmasterHandoff({
   return (
     <View style={local.handoff}>
       <Text style={styles.muted}>
-        Goes to the Guildmaster, who opens the quest in <Text style={styles.code}>{realm.name}</Text> unless one already
-        fits.
+        Goes to Iskios, who proposes a quest in <Text style={styles.code}>{realm.name}</Text> unless one already fits.
       </Text>
       <Composer
         attachments={{ client, refusal: imageRefusalOf(harnesses, "claude", "default") }}

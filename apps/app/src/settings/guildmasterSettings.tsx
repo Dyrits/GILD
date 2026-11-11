@@ -93,8 +93,8 @@ export function GuildmasterSettings({
       </View>
       <SettingsRule />
       <Text style={styles.body}>
-        Companions the Guildmaster picks from by how demanding a request is. Set only the tiers you want; any left out
-        use the default Companion.
+        Companions Iskios picks from by how demanding a request is. Set only the tiers you want; any left out use the
+        default Companion.
       </Text>
       {tierNames.map(({ hint, name }) => (
         <TierRow

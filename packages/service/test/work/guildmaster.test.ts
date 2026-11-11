@@ -2,8 +2,9 @@ import { mkdirSync, realpathSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
 import type { MissionDetail, MissionId, Suggestion, SuggestionAnswer, ThreadId } from "@iskios/contracts";
-import { Effect } from "effect";
+import { Effect, PubSub } from "effect";
 import { afterEach } from "vitest";
+import { Changes } from "../../src/core/index.ts";
 import { call, fixture, read, send, settle, start, tool } from "../fixtures/service.ts";
 
 const fixtures: ReturnType<typeof fixture>[] = [];
@@ -96,6 +97,17 @@ describe("the Guildmaster's place", () => {
       ];
       for (const refusal of refusals) expect(JSON.stringify(refusal)).toContain("Iskios is permanent");
     }).pipe(Effect.provide(setup().layer)),
+  );
+
+  it.live("announces a change only when it makes the place, so a screen reading it does not reload forever", () =>
+    Effect.gen(function* () {
+      const subscription = yield* PubSub.subscribe((yield* Changes).pubsub);
+      yield* guildmaster;
+      expect((yield* PubSub.takeUpTo(subscription, 100)).length).toBeGreaterThan(0);
+      yield* guildmaster;
+      yield* guildmaster;
+      expect(yield* PubSub.takeUpTo(subscription, 100)).toHaveLength(0);
+    }).pipe(Effect.scoped, Effect.provide(setup().layer)),
   );
 
   it.live("starts a turn from its own instructions, the realms, and the quests as a list, not a journal", () => {

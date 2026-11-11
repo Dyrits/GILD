@@ -62,7 +62,12 @@ export const ensureGuildmaster = Effect.gen(function* () {
 
 /** Where the Guildmaster's conversation is, made when it is not there yet. */
 export const readGuildmaster = ensureGuildmaster.pipe(
-  Effect.map(({ missionId, threadId }) => ({ missionId, threadId }) as GuildmasterPlace),
+  // Only making the place announces a change: a read that always did made every screen that follows changes reload
+  // it at once, a loop that froze the Guild Hall.
+  Effect.map(({ isCreated, missionId, threadId }) => {
+    const place = { missionId, threadId } as GuildmasterPlace;
+    return isCreated ? changed(place) : unchanged(place);
+  }),
 );
 
 /** Whether the thread belongs to the Guildmaster. */
