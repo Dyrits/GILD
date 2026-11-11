@@ -51,5 +51,5 @@ Latest handoffs:
 
 - To resume the light mode and the sidebar icon sets (not yet seen by the owner in the running app), read the [current handoff](.agents/handoffs/2026-11-11-1523-light-mode.md). Handoffs are shared and committed.
 
-- To resume the OpenCode effort levels read ahead (pushed; not seen in the running app), read the [current handoff](.agents/handoffs/2026-11-11-1545-opencode-efforts-preloaded.md). Handoffs are shared and committed.
+- To resume the OpenCode effort levels and the committed sidebar grouping (unverified in the running app), read the [current handoff](.agents/handoffs/2026-11-11-1651-committed-opencode-efforts-realm-grouping.md). Handoffs are shared and committed.
 

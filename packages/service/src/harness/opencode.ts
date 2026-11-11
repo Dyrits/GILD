@@ -7,6 +7,7 @@ import {
   fieldOf,
   HarnessFailure,
   type HarnessPrompt,
+  invalid,
   isInsideFolder,
   numberFieldOf,
   type PromptAnswer,
@@ -51,7 +52,8 @@ const effortOptionOf = (configOptions: unknown): { id: string; levels: Array<Eff
 
 /**
  * The effort levels OpenCode offers for one model: it says them only for a session's current model, so a short-lived
- * ACP session is opened, given the model, and asked. Empty when it cannot say.
+ * ACP session is opened, given the model, and asked, once more when that fails. Empty when OpenCode says the model has
+ * none; a failure, which is not an empty answer, when OpenCode could not be asked (timeout, no session).
  */
 export const listOpenCodeEfforts = (
   command: string,
@@ -75,14 +77,17 @@ export const listOpenCodeEfforts = (
       });
       const created = yield* rpc.request("session/new", { cwd: tmpdir(), mcpServers: [] });
       const sessionId = textFieldOf(created, "sessionId");
-      if (sessionId === null) return [];
+      if (sessionId === null) return yield* Effect.fail(invalid("OpenCode opened no session."));
       const chosen =
         model === "default"
           ? created
           : yield* rpc.request("session/set_config_option", { configId: "model", sessionId, value: model });
       return effortOptionOf(fieldOf(chosen, "configOptions"))?.levels ?? [];
-    }).pipe(Effect.timeout("20 seconds"), Effect.ensuring(Effect.sync(() => rpc.close())));
-  }).pipe(Effect.catch(() => Effect.succeed<ReadonlyArray<EffortChoice>>([])));
+    }).pipe(Effect.timeout("30 seconds"), Effect.ensuring(Effect.sync(() => rpc.close())));
+  }).pipe(
+    Effect.retry({ times: 1 }),
+    Effect.catch(() => Effect.fail(invalid("OpenCode did not give this model's effort levels. Try again."))),
+  );
 
 /** How the OpenCode adapter starts its harness. */
 export interface OpenCodeOptions {

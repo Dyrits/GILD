@@ -1,7 +1,7 @@
 import { tmpdir } from "node:os";
 import type { EffortChoice, HarnessName, ModelOption } from "@iskios/contracts";
 import { type Duration, Effect, Queue, type Scope } from "effect";
-import { fieldOf, type HarnessAdapter, routeHarnesses, textFieldOf } from "../core/index.ts";
+import { fieldOf, type HarnessAdapter, routeHarnesses, type ServiceFailure, textFieldOf } from "../core/index.ts";
 import { makeClaudeHarness } from "./claude.ts";
 import { makeCodexHarness } from "./codex.ts";
 import { accountEnvironmentOf, claudeModels, type HarnessFacts, harnessFacts } from "./harnessCatalog.ts";
@@ -28,13 +28,14 @@ export interface HarnessDefinition extends HarnessFacts {
   readonly makeAdapter: (options: AdapterOptions) => Effect.Effect<HarnessAdapter, never, Scope.Scope>;
   /**
    * The effort levels the harness offers for one model, for a harness whose model list does not hold them; the
-   * others give them with each model (`ModelOption.efforts`).
+   * others give them with each model (`ModelOption.efforts`). Fails when the harness could not be asked, which is not
+   * the same as a model that has none (empty).
    */
   readonly readEfforts?: (
     command: string,
     configDirectory: string | null,
     model: string,
-  ) => Effect.Effect<ReadonlyArray<EffortChoice>>;
+  ) => Effect.Effect<ReadonlyArray<EffortChoice>, ServiceFailure>;
   /** The models the harness offers with an account's sign-in, its default first. */
   readonly readModels: (command: string, configDirectory: string | null) => Effect.Effect<ReadonlyArray<ModelOption>>;
   /** Who the harness's tool says is signed in, given the account's environment; never a credential. */

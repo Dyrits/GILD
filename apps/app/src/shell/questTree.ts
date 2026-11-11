@@ -31,8 +31,19 @@ export const placementsOf = (
   };
 };
 
-/** What the scroll after a realm's name says on hover: its full path; null where no icon shows, for a realm tied to no folder. */
-export const scrollCueOf = (realm: Pick<WorkspaceChoice, "path">): string | null =>
+/**
+ * The realms split for the sidebar (CHG-0170): those tied to a folder first, then those tied to none, each keeping the
+ * order it was given; a thin line separates them when both have realms.
+ */
+export const realmGroupsOf = <T extends { readonly workspace: Pick<WorkspaceChoice, "path"> }>(
+  realms: ReadonlyArray<T>,
+): { readonly tied: ReadonlyArray<T>; readonly untied: ReadonlyArray<T> } => ({
+  tied: realms.filter((each) => each.workspace.path !== null),
+  untied: realms.filter((each) => each.workspace.path === null),
+});
+
+/** What the folder icon after a realm's name says on hover: its full path; null where no icon shows, for a realm tied to no folder. */
+export const folderCueOf = (realm: Pick<WorkspaceChoice, "path">): string | null =>
   realm.path === null ? null : `Tied to ${realm.path}`;
 
 /**

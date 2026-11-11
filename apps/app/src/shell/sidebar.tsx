@@ -17,9 +17,10 @@ import { NavIcon, type NavIconName } from "./navIcons";
 import {
   ancestorIdsOf,
   areActionsShown,
+  folderCueOf,
   placementsOf,
   type RealmListing,
-  scrollCueOf,
+  realmGroupsOf,
   sideQuestRowsOf,
   toggledFold,
 } from "./questTree";
@@ -109,18 +110,18 @@ function NewQuestIcon({ color }: { color: string }) {
 }
 
 /**
- * The small scroll after the name of a realm tied to a folder (CHG-0161); a realm tied to none has no mark. Hovering
+ * The small folder after the name of a realm tied to a folder (CHG-0161, CHG-0170); a realm tied to none has no mark. Hovering
  * shows the folder's full path: react-native-web passes no `title` on, so the web build sets it on the element itself.
  */
-function ScrollCue({ path }: { path: string | null }) {
-  const cue = scrollCueOf({ path });
+function FolderCue({ path }: { path: string | null }) {
+  const cue = folderCueOf({ path });
   if (cue === null) return null;
   const setTitle = (element: unknown) => {
     const node = element as { setAttribute?: (name: string, value: string) => void } | null;
     if (Platform.OS === "web") node?.setAttribute?.("title", cue);
   };
   return (
-    <View accessibilityLabel={cue} ref={setTitle} style={local.scrollCue}>
+    <View accessibilityLabel={cue} ref={setTitle} style={local.folderCue}>
       <Svg
         fill="none"
         height={15}
@@ -131,11 +132,7 @@ function ScrollCue({ path }: { path: string | null }) {
         viewBox="0 0 24 24"
         width={15}
       >
-        {/* A closed scroll seen from the side: the rolled parchment, its spiral end at the left, and a band around it. */}
-        <Path d="M6 7.5h12a4.5 4.5 0 0 1 0 9H6" />
-        <Path d="M6 7.5a4.5 4.5 0 1 0 0 9a4.5 4.5 0 1 0 0-9Z" />
-        <Path d="M6 10.2a1.8 1.8 0 1 1-1.8 1.8" />
-        <Path d="M13 7.5v9M15 7.5v9" />
+        <Path d="M3 7a2 2 0 0 1 2-2h4l2 2.5h8a2 2 0 0 1 2 2V17a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2Z" />
       </Svg>
     </View>
   );
@@ -594,7 +591,7 @@ function RealmHeader({
       <Text numberOfLines={1} style={[local.rowText, local.realmText]}>
         {name}
       </Text>
-      <ScrollCue path={path} />
+      <FolderCue path={path} />
       <Chevron focusProps={focusProps} isOpen={isOpen} isShown={isShown} label={name} onPress={onToggle} />
       <View style={local.realmTextEnd} />
       <Count isShown={isShown} value={questCount} />
@@ -789,9 +786,25 @@ export function Sidebar({
           <Text style={local.empty}>No realm yet.</Text>
         )}
         {!foldedSections.set.has("Realms") &&
-          placements.realms.map(({ quests, workspace }) =>
-            realmRow({ crest: workspace.crest, id: workspace.id, name: workspace.name, path: workspace.path, quests }),
-          )}
+          (() => {
+            // Realms tied to a folder first, then a thin line, then those tied to none (CHG-0170).
+            const { tied, untied } = realmGroupsOf(placements.realms);
+            const rowOf = ({ quests, workspace }: (typeof placements.realms)[number]) =>
+              realmRow({
+                crest: workspace.crest,
+                id: workspace.id,
+                name: workspace.name,
+                path: workspace.path,
+                quests,
+              });
+            return (
+              <>
+                {tied.map(rowOf)}
+                {tied.length > 0 && untied.length > 0 && <View style={local.realmSplit} />}
+                {untied.map(rowOf)}
+              </>
+            );
+          })()}
 
         <Heading
           icon="borderlands"
@@ -951,6 +964,7 @@ const local = StyleSheet.create({
     paddingVertical: 4,
   },
   flex: { flex: 1 },
+  folderCue: { alignItems: "center", flexShrink: 0, justifyContent: "center", marginLeft: 5 },
   // The same 1 px between rows as in the scrolling part, so a block's categories are evenly spaced everywhere.
   footer: { gap: 1, paddingBottom: 8, paddingLeft: 8, paddingRight: 16 },
   group: { gap: 1, paddingBottom: 12, paddingLeft: 8, paddingRight: 16, paddingTop: 8 },
@@ -993,6 +1007,14 @@ const local = StyleSheet.create({
   },
   newQuestHovered: { backgroundColor: colors.controlActive },
   // The name keeps only its own width, so the folder mark stands right after it.
+  // A quiet hairline between the realms tied to a folder and the others, much lighter than the diamond dividers.
+  realmSplit: {
+    backgroundColor: colors.border,
+    height: 1,
+    marginLeft: realmIndent + 6,
+    marginRight: 8,
+    marginVertical: 4,
+  },
   realmText: { flexBasis: "auto", flexGrow: 0, flexShrink: 1, fontWeight: "600" },
   realmTextEnd: { flex: 1 },
   row: {
@@ -1010,7 +1032,6 @@ const local = StyleSheet.create({
   rowText: { color: colors.onGround, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.base },
   rowTextMain: { color: colors.text, fontSize: fontSizes.lg, fontWeight: "700" },
   rowTextSelected: { color: colors.text, fontWeight: "600" },
-  scrollCue: { flexShrink: 0, marginLeft: 5 },
   sidebar: {
     backgroundColor: colors.sidebar,
     borderRightColor: colors.border,

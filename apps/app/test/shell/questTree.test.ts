@@ -5,10 +5,11 @@ import {
   agoOf,
   ancestorIdsOf,
   areActionsShown,
+  folderCueOf,
   placementsOf,
   questListRowsOf,
+  realmGroupsOf,
   recencyGroupsOf,
-  scrollCueOf,
   sideQuestRowsOf,
   toggledFold,
 } from "../../src/shell/questTree";
@@ -103,13 +104,13 @@ describe("the placements of quests", () => {
   });
 });
 
-describe("the scroll cue beside a realm's name", () => {
+describe("the folder cue beside a realm's name", () => {
   it("shows for a realm tied to a folder, naming the folder's full path", () => {
-    expect(scrollCueOf(realm("w1", "App", "/Users/owner/Code/app"))).toBe("Tied to /Users/owner/Code/app");
+    expect(folderCueOf(realm("w1", "App", "/Users/owner/Code/app"))).toBe("Tied to /Users/owner/Code/app");
   });
 
   it("does not show for a realm tied to no folder", () => {
-    expect(scrollCueOf(realm("w2", "Ideas", null))).toBeNull();
+    expect(folderCueOf(realm("w2", "Ideas", null))).toBeNull();
   });
 });
 
@@ -203,5 +204,25 @@ describe("the full quest list's rows", () => {
     expect(questListRowsOf(single, [thread("top", null, 0)], none).map((row) => [row.id, row.hasChildren])).toEqual([
       ["q2", false],
     ]);
+  });
+});
+
+describe("the realms tied to a folder and those without", () => {
+  const tied = (name: string) => ({ workspace: realm(name, name) });
+  const untied = (name: string) => ({ workspace: realm(name, name, null) });
+
+  it("lists the realms tied to a folder first, then those without, each in its own order", () => {
+    const groups = realmGroupsOf([untied("Alpha"), tied("Beta"), untied("Gamma"), tied("Delta")]);
+    expect(groups.tied.map((each) => each.workspace.name)).toEqual(["Beta", "Delta"]);
+    expect(groups.untied.map((each) => each.workspace.name)).toEqual(["Alpha", "Gamma"]);
+  });
+
+  it("leaves a group empty when every realm is on one side", () => {
+    expect(realmGroupsOf([tied("Beta")])).toMatchObject({ tied: [{ workspace: { name: "Beta" } }], untied: [] });
+    expect(realmGroupsOf([untied("Alpha")])).toMatchObject({ tied: [], untied: [{ workspace: { name: "Alpha" } }] });
+  });
+
+  it("has two empty groups with no realm", () => {
+    expect(realmGroupsOf([])).toEqual({ tied: [], untied: [] });
   });
 });

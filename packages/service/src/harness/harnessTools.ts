@@ -39,12 +39,15 @@ export class HarnessTools extends Context.Service<
       harness: HarnessName,
       configDirectory: string | null,
     ) => Effect.Effect<ReadonlyArray<ModelOption>>;
-    /** The effort levels the provider offers for one model, lowest first, without "default"; empty when none. */
+    /**
+     * The effort levels the provider offers for one model, lowest first, without "default"; empty when none. Fails when
+     * the provider could not be asked, so that a failed read is not taken for a model without levels.
+     */
     readonly listEfforts: (
       harness: HarnessName,
       configDirectory: string | null,
       model: string,
-    ) => Effect.Effect<ReadonlyArray<EffortChoice>>;
+    ) => Effect.Effect<ReadonlyArray<EffortChoice>, ServiceFailure>;
     /** Opens the harness's own sign-in in a terminal window, pointed at the account's folder. */
     readonly openSignIn: (harness: HarnessName, configDirectory: string | null) => Effect.Effect<void, ServiceFailure>;
     readonly readSignIn: (harness: HarnessName, configDirectory: string | null) => Effect.Effect<SignInStatus>;
@@ -63,7 +66,7 @@ const quoted = (text: string) => `'${text.replaceAll("'", "'\\''")}'`;
 const modelsLifetimeMillis = 10 * 60 * 1000;
 
 /** How many models' effort levels are read ahead at once. */
-const effortWarmingConcurrency = 3;
+const effortWarmingConcurrency = 2;
 
 /** How long the newest release is reused before the registry is asked again. */
 const latestLifetimeMillis = 30 * 60 * 1000;
@@ -166,7 +169,7 @@ export const liveHarnessToolsLayer = (commands: HarnessCommands) =>
       harness: HarnessName,
       configDirectory: string | null,
       model: string,
-    ): Effect.Effect<ReadonlyArray<EffortChoice>> =>
+    ): Effect.Effect<ReadonlyArray<EffortChoice>, ServiceFailure> =>
       Effect.gen(function* () {
         const readEfforts = harnesses[harness].readEfforts;
         if (readEfforts === undefined)
@@ -176,7 +179,7 @@ export const liveHarnessToolsLayer = (commands: HarnessCommands) =>
         const cached = efforts.get(key);
         if (cached !== undefined && now - cached.at < modelsLifetimeMillis) return cached.levels;
         const levels = yield* readEfforts(commands[harness], configDirectory, model);
-        // An empty answer may be a failed read: not kept, so the next pick asks again.
+        // An empty answer is not kept either, so the next pick asks again.
         if (levels.length > 0) efforts.set(key, { at: now, levels });
         return levels;
       });
@@ -197,7 +200,7 @@ export const liveHarnessToolsLayer = (commands: HarnessCommands) =>
         warming.add(prefix);
         yield* Effect.forEach(
           ids.filter((id) => id !== "default"),
-          (id) => listEfforts(harness, configDirectory, id),
+          (id) => listEfforts(harness, configDirectory, id).pipe(Effect.ignore),
           { concurrency: effortWarmingConcurrency, discard: true },
         ).pipe(Effect.ensuring(Effect.sync(() => warming.delete(prefix))));
       });

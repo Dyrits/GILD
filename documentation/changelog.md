@@ -2318,3 +2318,21 @@ Scope: Service, Specification
 
 Summary: At the owner's report (twelve "Handed over to …" lines, one per picker change), a handover line is now written only when a turn starts on the new runner: the owner's next message, or Retry after a failed turn. `changeThreadRunner` still changes the thread's runner at once (session handling is unchanged) but keeps the runner it left in the new `threads.handover_from` column (migration 0040, the first one across several changes); `admitTurn` calls `recordPendingHandover`, which writes one line for the runner that runs, none when it is the runner the thread last ran on, and clears the column. A backup's or a Ritual's fallback still writes its "Fell back to …" line when it happens, as it runs at once. The thread-handover specification's "The line" rule and acceptance were updated.
 Validation: typecheck and Biome pass; `handover.test.ts` has new cases (several changes then one message: one line for the final runner and none on the next turn; change and change back: none; Retry after a failure: the line then) and the others pass, as do backups, rituals, and account budgets. The full run showed timeouts in lore and Codex tests under a machine load of 25 to 55; the lore file then passed 15 of 15 twice with this change. The added account's own folder test fails with and without it. Existing conversations' past lines are kept. Not seen in the running app.
+
+## CHG-0169 · 2026-11-11 · A failed read of OpenCode's effort levels no longer hides the effort picker
+
+Type: Code
+Event: Correction
+Scope: Interface, Service
+
+Summary: The owner reported that OpenCode's effort picker no longer offered levels. A read of the real OpenCode 2.2.0 (60 models) through the service answered correctly, for the default model, with and without the read-ahead of CHG-0162, so the cause was not reproduced; what was found is that a failed or timed-out read (20 seconds, more likely under load or while the read-ahead runs) answered "no levels", which the pickers kept until the model changed, hiding the picker. Now a read that could not be made fails (`readEfforts` and `listEfforts` carry `ServiceFailure`; the read is tried twice, with 30 seconds each) instead of answering empty, an empty answer is only OpenCode saying the model has none, and the pickers ask again up to three times, three seconds apart, without keeping the failure (`useModelEfforts`). The read-ahead runs two models at a time instead of three, so a pick waits less for it (measured: a pick during it took 3 to 8 seconds against 1 to 2 alone).
+Validation: typecheck and Biome pass; `harnesses.test.ts` passes with a new case for the failed read (the one failure, the added account's own folder, also fails without this change) and `handover.test.ts` passes; a pick through the service against the real OpenCode answers with levels. The running app was not driven, so whether this is the owner's cause is not confirmed; the owner's service is protected by a per-launch token and was not queried.
+
+## CHG-0170 · 2026-11-11 · The sidebar groups the realms tied to a folder above the rest, and the mark after a realm's name is a folder
+
+Type: Code
+Event: Change
+Scope: Interface
+
+Summary: In the sidebar's Realms section, realms tied to a folder are listed first, then a thin hairline (`realmSplit`, lighter than the diamond dividers), then the realms tied to none, each group keeping its given order (`realmGroupsOf` in `questTree.ts`). The small closed-scroll mark after a realm tied to a folder is now a folder icon (`FolderCue`, its style `folderCue`), still showing the folder's full path on hover.
+Validation: typecheck and Biome pass; the app suite passes (177 tests, including the updated `questTree.test.ts` cases for the grouping and the renamed cue). Not seen in the running app.

@@ -540,6 +540,15 @@ describe("running OpenCode threads", () => {
     }),
   );
 
+  it.live("an OpenCode that cannot be asked for effort levels fails, which is not a model without levels", () =>
+    Effect.gen(function* () {
+      const failure = yield* listOpenCodeEfforts(join(tmpdir(), "no-such-opencode"), null, "provider/model-a").pipe(
+        Effect.flip,
+      );
+      expect(JSON.stringify(failure)).toContain("effort levels");
+    }),
+  );
+
   it.live("reads OpenCode's effort levels ahead when it lists its models, so a pick starts no session", () => {
     const directory = realpathSync(mkdtempSync(join(tmpdir(), "iskios-warm-")));
     directories.push(directory);
