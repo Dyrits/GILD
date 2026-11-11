@@ -32,7 +32,7 @@ import { colorSchemePreferences } from "../foundation/colorSchemeRules";
 import { useHasSidebar } from "../foundation/shellContext";
 import { styles } from "../foundation/styles";
 import { colors, fontSizes, fonts } from "../foundation/theme";
-import { themes } from "../foundation/themeRules";
+import { type Theme, themes } from "../foundation/themeRules";
 import { useServiceQuery } from "../foundation/useServiceQuery";
 import { Button } from "../ui/button";
 import { Choice } from "../ui/pickers";
@@ -51,9 +51,10 @@ const deliveryLabels = {
   Steer: "Steer its current turn",
 } as const satisfies Record<MessageDelivery, string>;
 
-/** How each choice of look is named in the Charter. */
-const themeLabels = { gild: "Gild", iskios: "Iskios" } as const;
+/** How each theme is named in the Charter. */
+const themeLabels = { gild: "Gild", iskios: "Iskios" } as const satisfies Record<Theme, string>;
 
+/** How each choice of color scheme is named in the Charter. */
 const colorSchemeLabels = { dark: "Dark", light: "Light", system: "System" } as const satisfies Record<
   (typeof colorSchemePreferences)[number],
   string

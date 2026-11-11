@@ -1,5 +1,6 @@
 import { Appearance, Platform } from "react-native";
 import { type ColorScheme, type ColorSchemePreference, preferenceOf, schemeOf } from "./colorSchemeRules";
+import { syncDesktopTheme } from "./desktopTheme";
 import { type Theme, themeOf } from "./themeRules";
 
 const storageKey = "iskios.colorScheme";
@@ -64,12 +65,14 @@ export function chooseTheme(chosen: Theme): void {
 }
 
 /**
- * Tells the browser the look in use, so its scrollbars and form controls match, and paints the page behind the app so
- * an overscroll shows the app's ground rather than white. Returns a stop function. While the owner follows the system,
- * a change of the system's look reloads the window.
+ * Tells the browser the look in use, so its scrollbars and form controls match, paints the page behind the app so an
+ * overscroll shows the app's ground rather than white, and gives the desktop app's Dock and window the icon of the
+ * theme in use. Returns a stop function. While the owner follows the system, a change of the system's look reloads the
+ * window.
  */
-export function applyColorScheme(ground: string): () => void {
+export function applyAppearance(ground: string): () => void {
   if (!canChooseColorScheme) return () => {};
+  void syncDesktopTheme(window.iskios, theme);
   document.documentElement.style.colorScheme = colorScheme;
   document.documentElement.style.backgroundColor = ground;
   const subscription = Appearance.addChangeListener(() => {

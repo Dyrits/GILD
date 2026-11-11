@@ -8,19 +8,11 @@ import { useAttachments } from "../attachments/useAttachments";
 import { messageOf, type ServiceClient } from "../foundation/client";
 import { styles } from "../foundation/styles";
 import { colors, stateLabels, stateTones } from "../foundation/theme";
-import { useMentionables } from "../foundation/useMentionables";
-import { useWorkspaceEntries } from "../foundation/useWorkspaceEntries";
 import { ChipEditor } from "./chipEditor";
-import type { ChipEditorHandle, Trigger } from "./chipEditorTypes";
+import type { ChipEditorHandle } from "./chipEditorTypes";
 import { ChipIcon } from "./chips";
-import {
-  type MentionCategory,
-  type MenuRow,
-  mentionCategories,
-  mentionMenuOf,
-  menuKeyActionOf,
-  selectableRowsOf,
-} from "./mentionMenu";
+import { type MenuRow, mentionCategories } from "./mentionMenu";
+import { useComposerList } from "./useComposerList";
 
 // The web's switch takes the thumb's color when on from a prop the native types do not declare.
 const webSwitchColors = { activeThumbColor: colors.canvas };
@@ -124,7 +116,6 @@ export function Composer({
   hasContent?: boolean;
 }) {
   const [text, setText] = useState("");
-  const [trigger, setTrigger] = useState<Trigger | null>(null);
   const editor = useRef<ChipEditorHandle>(null);
   const [isSending, setIsSending] = useState(false);
   const files = useAttachments(attachable?.client ?? null);
@@ -133,42 +124,10 @@ export function Composer({
   const refusal = files.ids.length > 0 ? (attachable?.refusal ?? null) : null;
   const cannotSend = isEmpty || files.isBusy || refusal !== null;
   const [error, setError] = useState<string | null>(null);
-  const partial = trigger?.character === "/" ? trigger.query : null;
-  const mentioned = mentions === undefined || trigger?.character !== "@" ? null : trigger.query;
-  // The category opened from a bare `@`; typing after the `@` mixes every category again (CHG-0181).
-  const [category, setCategory] = useState<MentionCategory | null>(null);
-  const entries = useWorkspaceEntries(mentions?.client, mentions?.workspacePath ?? null, mentioned);
-  const mentionables = useMentionables(mentions?.client, mentioned !== null);
-  // What the typed word can be completed to; a name already complete offers nothing more.
-  const rows: ReadonlyArray<MenuRow> =
-    partial !== null
-      ? skills
-          .filter((skill) => skill.name !== partial && skill.name.toLowerCase().startsWith(partial.toLowerCase()))
-          .slice(0, 6)
-          .map((skill) => ({
-            chip: { kind: "skill", label: skill.name, token: `/${skill.name}` },
-            description: skill.description,
-            key: skill.name,
-            type: "option",
-          }))
-      : mentioned === null
-        ? []
-        : mentionMenuOf({
-            category,
-            entries,
-            hasFolder: (mentions?.workspacePath ?? null) !== null,
-            mentionables: mentionables ?? [],
-            query: mentioned,
-          });
-  const selectable = selectableRowsOf(rows);
-  const [chosen, setChosen] = useState(0);
-  const highlighted = selectable[Math.min(chosen, selectable.length - 1)];
+  const list = useComposerList(skills, mentions);
   const choose = (row: MenuRow) => {
-    if (row.type === "option") editor.current?.insertChip(row.chip);
-    else if (row.type === "category") {
-      setCategory(row.category);
-      setChosen(0);
-    }
+    const chip = list.choose(row);
+    if (chip !== null) editor.current?.insertChip(chip);
   };
   const send = async (handler: (text: string, attachmentIds: ReadonlyArray<AttachmentId>) => Promise<unknown>) => {
     if (cannotSend || isSending) return;
@@ -191,9 +150,9 @@ export function Composer({
     );
   return (
     <View style={styles.composer}>
-      {rows.length > 0 && (
+      {list.rows.length > 0 && (
         <View style={styles.skillList}>
-          {rows.map((row) =>
+          {list.rows.map((row) =>
             row.type === "heading" ? (
               <Text key={row.key} style={styles.mentionHeading}>
                 {mentionCategories[row.category].label}
@@ -202,7 +161,7 @@ export function Composer({
               <Pressable
                 key={row.key}
                 onPress={() => choose(row)}
-                style={[styles.skillOption, row === highlighted && styles.skillOptionChosen]}
+                style={[styles.skillOption, row === list.highlighted && styles.skillOptionChosen]}
               >
                 <ChipIcon kind={row.type === "category" ? mentionCategories[row.category].kind : row.chip.kind} />
                 <Text style={styles.skillName}>
@@ -225,28 +184,13 @@ export function Composer({
             {...(attachable === undefined ? {} : { onFiles: files.attach })}
             onChange={(value, typed) => {
               setText(value);
-              setTrigger(typed);
-              setChosen(0);
-              if (typed?.character !== "@" || typed.query !== "") setCategory(null);
+              list.onTyped(typed);
               onChangeText?.(value);
             }}
             onKeyDown={(key) => {
-              const action = menuKeyActionOf(key, {
-                hasRows: highlighted !== undefined,
-                isInCategory: category !== null && mentioned === "",
-              });
-              if (action !== null) {
-                if (action.type === "back") {
-                  setCategory(null);
-                  setChosen(0);
-                } else if (action.type === "choose") {
-                  if (highlighted !== undefined) choose(highlighted);
-                } else {
-                  const at = Math.min(chosen, selectable.length - 1);
-                  setChosen((at + action.by + selectable.length) % selectable.length);
-                }
-                return true;
-              }
+              const pressed = list.onKey(key);
+              if (pressed.chip !== null) editor.current?.insertChip(pressed.chip);
+              if (pressed.handled) return true;
               if (key.key === "Enter" && !key.shiftKey) {
                 void send(onSend);
                 return true;

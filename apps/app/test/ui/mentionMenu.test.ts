@@ -93,7 +93,7 @@ describe("moving through the @ list with the keys", () => {
 describe("drawing the references of a sent message as chips", () => {
   it("shows a quest, side-quest, and realm by name and keeps file paths as before", () => {
     const text = "See @quest:q1, @side-quest:t1 in @realm:r1 and @src/";
-    const chips = chipsOf(text, [], new Map([["src/", "folder"]]), mentionables);
+    const chips = chipsOf(text, { entries: new Map([["src/", "folder"]]), mentionables, skills: [] });
     expect(chips.map((chip) => [chip.kind, chip.label])).toEqual([
       ["quest", "Fix login"],
       ["quest", "Fix login › Write tests"],
@@ -104,9 +104,11 @@ describe("drawing the references of a sent message as chips", () => {
   });
 
   it("says a quest no longer open is gone, and only its kind while the list loads", () => {
-    expect(chipsOf("@quest:gone", [], new Map(), mentionables).map((chip) => chip.label)).toEqual([
+    expect(chipsOf("@quest:gone", { entries: new Map(), mentionables, skills: [] }).map((chip) => chip.label)).toEqual([
       "quest no longer open",
     ]);
-    expect(chipsOf("@quest:q1", [], new Map(), null).map((chip) => chip.label)).toEqual(["quest"]);
+    expect(
+      chipsOf("@quest:q1", { entries: new Map(), mentionables: null, skills: [] }).map((chip) => chip.label),
+    ).toEqual(["quest"]);
   });
 });

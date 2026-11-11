@@ -1,9 +1,8 @@
 import { Effect, Match } from "effect";
 import { SqlClient } from "effect/sql";
 import type { ToolAnswer } from "../core/index.ts";
-import { isGuildmasterThread } from "./guildmaster.ts";
 import { journalTextOf, missionOf, readJournalText, updateJournal } from "./journal.ts";
-import { readTurnReach } from "./mentions.ts";
+import { mayReadJournal } from "./reach.ts";
 import type { ToolHandlers } from "./threadTools.ts";
 import { isAside } from "./tree.ts";
 
@@ -18,8 +17,7 @@ export const journalToolsOf = (
           return { isError: false, text: yield* readJournalText(threadId, before ?? null, count ?? null) };
         // Another quest's journal is the Guildmaster's to read, whatever the quest; another thread reads one only
         // when the owner mentioned that quest, or one of its side-quests, in a message its current turn received.
-        const isMentioned = (yield* readTurnReach(threadId)).readable.has(mission);
-        if (!isMentioned && !(yield* isGuildmasterThread(threadId)))
+        if (!(yield* mayReadJournal(threadId, mission)))
           return {
             isError: true,
             text: "Only Iskios reads another quest's journal, unless the owner mentioned that quest with @ in a message of this turn.",

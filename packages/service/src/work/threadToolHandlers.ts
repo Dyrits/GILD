@@ -17,13 +17,13 @@ import {
 import { createRealmByGuildmaster, renameRealmByGuildmaster } from "./guildmasterRealms.ts";
 import { journalToolsOf } from "./journalTools.ts";
 import { loreToolsOf } from "./loreTools.ts";
-import { readTurnReach } from "./mentions.ts";
 import { insertMessage } from "./messaging.ts";
+import { mayMessage } from "./reach.ts";
 import type { Resolution, Suggested, Suggestions } from "./suggestions.ts";
 import type { Threads } from "./threads.ts";
 import { type ArgumentsOf, type ToolHandlers, threadTools as toolCatalogue } from "./threadTools.ts";
 import { titleToolsOf } from "./titles.ts";
-import { isBeneath, isWithinReach, openThreadByAgent, refusedOf, reportResult } from "./tree.ts";
+import { isBeneath, openThreadByAgent, refusedOf, reportResult } from "./tree.ts";
 
 /** Why a thread may not call a thread tool now, or null: an unknown or deleting thread, or one the chatter guard paused. */
 export const callerRefusalOf = (threadId: string, name: string) =>
@@ -235,9 +235,7 @@ export const makeToolHandlers = (dependencies: {
       runTool(
         Effect.gen(function* () {
           // Beyond the tree, the owner's mentions and the messages received in this turn open a way (CHG-0181).
-          const isReachable =
-            (yield* isWithinReach(threadId, to)) || (yield* readTurnReach(threadId)).reachable.has(to);
-          if (!isReachable) return unchanged(false);
+          if (!(yield* mayMessage(threadId, to))) return unchanged(false);
           yield* insertMessage({ fromThreadId: threadId, isQueued: false, isResult: false, text, threadId: to });
           // A pause the message set off ends both turns before the receiver is woken.
           return changed(true, { threadsToWake: [to], turnsToCancel: yield* countChatter(threadId, to) });

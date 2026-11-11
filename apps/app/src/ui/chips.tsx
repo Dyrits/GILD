@@ -86,6 +86,31 @@ export function useMentionKinds(
   return found;
 }
 
+/** The chips of a text: skills, workspace paths as the service knows them, and quests, side-quests, and realms. */
+function useChipsOf({
+  client,
+  skills,
+  text,
+  workspacePath,
+}: {
+  client: ServiceClient;
+  skills: ReadonlyArray<Skill>;
+  text: string;
+  workspacePath: string | null;
+}) {
+  const tokens = mentionTokensOf(text);
+  const entries = useMentionKinds(
+    client,
+    workspacePath,
+    tokens.filter((token) => referenceOf(token.path) === null).map((token) => token.path),
+  );
+  const mentionables = useMentionables(
+    client,
+    tokens.some((token) => referenceOf(token.path) !== null),
+  );
+  return chipsOf(text, { entries, mentionables, skills });
+}
+
 /** A message's text with each chosen skill, workspace path, quest, side-quest, or realm as a chip with its icon. */
 export function ChipText({
   client,
@@ -98,17 +123,7 @@ export function ChipText({
   text: string;
   workspacePath: string | null;
 }) {
-  const tokens = mentionTokensOf(text);
-  const mentions = useMentionKinds(
-    client,
-    workspacePath,
-    tokens.filter((token) => referenceOf(token.path) === null).map((token) => token.path),
-  );
-  const mentionables = useMentionables(
-    client,
-    tokens.some((token) => referenceOf(token.path) !== null),
-  );
-  const chips = chipsOf(text, skills, mentions, mentionables);
+  const chips = useChipsOf({ client, skills, text, workspacePath });
   if (chips.length === 0) return <Text style={styles.body}>{text}</Text>;
   const parts: ReactNode[] = [];
   let at = 0;

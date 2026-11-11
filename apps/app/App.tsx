@@ -5,7 +5,7 @@ import { Conversation } from "./src/conversation/conversation";
 import { GuildmasterScreen } from "./src/conversation/guildmaster";
 import { PermissionsScreen } from "./src/editors/permissions";
 import { ServiceClient } from "./src/foundation/client";
-import { applyColorScheme, rememberPlace, resumedPlace, theme } from "./src/foundation/colorScheme";
+import { applyAppearance, rememberPlace, resumedPlace } from "./src/foundation/colorScheme";
 import { colors, fontSizes, fonts } from "./src/foundation/theme";
 import { LoreScreen } from "./src/lore/lore";
 import { RitualsScreen } from "./src/rituals/rituals";
@@ -55,12 +55,8 @@ export default function App() {
   useAttentionNotice(client);
 
   useEffect(() => rememberPlace(place), [place]);
-  // The browser's own chrome and the page behind the app follow the look in use.
-  useEffect(() => applyColorScheme(colors.ground), []);
-  // The Dock and the window wear the icon of the theme in use.
-  useEffect(() => {
-    void window.iskios?.setTheme(theme);
-  }, []);
+  // The browser's own chrome, the page behind the app, and the Dock's icon follow the theme and look in use.
+  useEffect(() => applyAppearance(colors.ground), []);
   useEffect(() => {
     ServiceClient.connect().then(setClient, (error: Error) => setFailure(error.message));
   }, []);

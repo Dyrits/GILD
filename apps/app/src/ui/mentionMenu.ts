@@ -1,5 +1,6 @@
-import { type Mentionable, mentionLabelOf, mentionTokenOf, type WorkspaceEntry } from "@iskios/contracts";
+import { type Mentionable, mentionLabelOf, type WorkspaceEntry } from "@iskios/contracts";
 import type { Chip } from "./chipEditorTypes";
+import { chipOfMentionable } from "./chipPlaces";
 import type { ChipKind } from "./chips";
 
 // What the list above the message box offers after a typed `@` (CHG-0181): a bare `@` shows the categories, a chosen
@@ -29,11 +30,7 @@ const CATEGORY_LIMIT = 12;
 const MIXED_LIMIT = 5;
 
 const questOptionOf = (mentionable: Mentionable): MenuRow => ({
-  chip: {
-    kind: mentionable.kind === "realm" ? "realm" : "quest",
-    label: mentionLabelOf(mentionable),
-    token: mentionTokenOf(mentionable),
-  },
+  chip: chipOfMentionable(mentionable),
   description: mentionable.detail ?? (mentionable.kind === "realm" ? "Tied to no folder" : "Borderlands"),
   key: `${mentionable.kind}:${mentionable.id}`,
   type: "option",

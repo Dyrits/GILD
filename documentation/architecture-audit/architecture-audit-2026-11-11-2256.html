@@ -1,0 +1,271 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Architecture review for Iskios: the @ mentions and Gild theme work</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+      mermaid.initialize({ securityLevel: "loose", startOnLoad: true, theme: "neutral" });
+    </script>
+    <style>
+      .seam { stroke-dasharray: 4 4; }
+      .leak { stroke: #dc2626; }
+      .deep { color: #f8fafc; background: linear-gradient(135deg, #0f172a, #1e293b); }
+      .mod { background: #fff; border: 1px solid #94a3b8; }
+      .mod-leak { background: #fef2f2; border: 1px solid #dc2626; }
+      .mod-faded { color: #64748b; background: #f1f5f9; border: 1px dashed #cbd5e1; }
+    </style>
+  </head>
+  <body class="bg-stone-50 text-slate-900 font-sans">
+    <main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+      <header class="space-y-3">
+        <h1 class="font-serif text-3xl">Architecture review for Iskios</h1>
+        <p class="text-sm text-slate-600">
+          2026-11-11 · direction: hot spots of CHG-0181 to CHG-0183 (<span class="font-mono">9f85d0e..588d0e3</span>, the @ menu with quests,
+          side-quests and realms, and the Gild theme). Glossary, conventions, the architecture document and the 2026-11-06 to 11-10 audits were read; decision
+          records were matched by title and the two that touch messaging (0005, 0007) by text, the rest not read. The glossary has no term for theme, mention or reach.
+          The earlier audits' service folder split is already in place and is not re-proposed.
+        </p>
+        <div class="flex flex-wrap gap-4 text-xs uppercase tracking-wider text-slate-500">
+          <span><span class="inline-block w-3 h-3 mod align-middle"></span> module</span>
+          <span><span class="inline-block w-5 border-t-2 border-dashed border-slate-400 align-middle"></span> seam</span>
+          <span><span class="inline-block w-5 border-t-2 border-red-600 align-middle"></span> leakage</span>
+          <span><span class="inline-block w-3 h-3 deep align-middle"></span> deep module</span>
+        </div>
+      </header>
+
+      <section class="space-y-10" id="candidates" >
+
+        <!-- A -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-5" id="a" >
+          <div class="flex flex-wrap items-center gap-2">
+            <h2 class="font-serif text-2xl mr-2">A · One turn-reach module for who may message and read whom</h2>
+            <span class="text-xs px-2 py-0.5 rounded bg-emerald-100 text-emerald-800 font-medium">Strong</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-700">in-process</span>
+          </div>
+          <ul class="font-mono text-sm text-slate-700">
+            <li>packages/service/src/work/tree.ts <span class="text-slate-400">(isWithinReach)</span></li>
+            <li>packages/service/src/work/mentions.ts <span class="text-slate-400">(readTurnReach, mentionNoteOf, readQuest, readSideQuest)</span></li>
+            <li>packages/service/src/work/threadToolHandlers.ts:237 · journalTools.ts:21 · messaging.ts:106 · guildmaster.ts</li>
+          </ul>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 p-4 space-y-2">
+              <div class="text-xs uppercase tracking-wider text-slate-500">Before · the rule is spread over four call sites</div>
+              <pre class="mermaid">
+flowchart TB
+  S[send_thread_message] --> W[isWithinReach · tree]
+  S --> R[readTurnReach · mentions]
+  J[read_journal] --> R
+  J --> G[isGuildmasterThread]
+  M[listPending · messaging] --> N[mentionNoteOf · mentions]
+  N --> Q[readQuest / readSideQuest]
+  R --> Q
+  N -. "says 'you may read / message'" .-> R
+  classDef leak stroke:#dc2626,stroke-width:2px;
+  class N,R leak
+              </pre>
+            </div>
+            <div class="rounded-lg border border-slate-200 p-4 space-y-3">
+              <div class="text-xs uppercase tracking-wider text-slate-500">After · one module, two questions and one note</div>
+              <div class="deep rounded-lg p-4 space-y-2">
+                <div class="text-xs uppercase tracking-wider text-slate-300">Turn reach</div>
+                <div class="font-mono text-sm">mayMessage(from, to)</div>
+                <div class="font-mono text-sm">mayReadJournal(thread, mission)</div>
+                <div class="font-mono text-sm">reachNoteOf(messageText)</div>
+                <div class="grid grid-cols-3 gap-2 pt-2 text-[10px] uppercase tracking-wider">
+                  <div class="mod-faded rounded p-2 text-center">tree reach</div>
+                  <div class="mod-faded rounded p-2 text-center">mentions</div>
+                  <div class="mod-faded rounded p-2 text-center">Iskios rule</div>
+                </div>
+              </div>
+              <div class="text-xs text-slate-500">Callers keep only the tool; the refusal wording and the grant sit with the rule.</div>
+            </div>
+          </div>
+          <p><b>Problem.</b> The rule for who may message or read whom is decided in three places and announced in a fourth, and <span class="font-mono">mentionNoteOf</span> promises what <span class="font-mono">readTurnReach</span> grants, so the promise and the grant can drift apart.</p>
+          <p><b>Solution.</b> Put the tree rule, Iskios's rule and the turn grants behind one module; <span class="font-mono">mentionNoteOf</span> reads the same resolved grants the handlers check.</p>
+          <ul class="list-disc pl-5 text-sm">
+            <li>locality: reply-rule changes (the specification review's P4 and P5) land in one file</li>
+            <li>leverage: one interface, two tools and the note</li>
+            <li>tests cross the interface: tree, mention and sender cases together</li>
+            <li>queries stop repeating per tool call</li>
+          </ul>
+          <div class="rounded border border-amber-300 bg-amber-50 text-amber-900 text-sm px-3 py-2">
+            Settle the open specification points P4 (deleted sender) and P5 (reply rule wider than agreed) first: the module would encode whichever answer the owner gives.
+          </div>
+        </article>
+
+        <!-- B -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-5" id="b" >
+          <div class="flex flex-wrap items-center gap-2">
+            <h2 class="font-serif text-2xl mr-2">B · Give the composer's list its state and keys</h2>
+            <span class="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-medium">Worth exploring</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-700">in-process</span>
+          </div>
+          <ul class="font-mono text-sm text-slate-700">
+            <li>apps/app/src/ui/controls.tsx <span class="text-slate-400">(Composer, 292 lines)</span></li>
+            <li>apps/app/src/ui/mentionMenu.ts</li>
+            <li>apps/app/src/foundation/useMentionables.ts</li>
+          </ul>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 p-4 space-y-2">
+              <div class="text-xs uppercase tracking-wider text-slate-500">Before · pure parts out, the state machine left in the screen</div>
+              <div class="space-y-2">
+                <div class="mod rounded p-2 text-xs"><span class="uppercase tracking-wider">mentionMenu.ts</span> · mentionMenuOf, menuKeyActionOf <span class="text-slate-400">(pure, tested)</span></div>
+                <div class="text-center text-red-600 text-xs">▼ the caller keeps what ties them ▼</div>
+                <div class="mod-leak rounded p-2 text-xs space-y-1">
+                  <div class="uppercase tracking-wider">Composer in controls.tsx</div>
+                  <div class="font-mono">category · chosen · trigger · rows · highlighted</div>
+                  <div class="font-mono">choose() · back · move · wrap-around · category reset in onChange</div>
+                  <div class="font-mono">the “/” list written inline, untested (spec review P8)</div>
+                </div>
+              </div>
+            </div>
+            <div class="rounded-lg border border-slate-200 p-4 space-y-2">
+              <div class="text-xs uppercase tracking-wider text-slate-500">After · the list owns its state</div>
+              <div class="deep rounded-lg p-4 space-y-2">
+                <div class="text-xs uppercase tracking-wider text-slate-300">Composer list</div>
+                <div class="font-mono text-sm">useComposerList({ trigger, skills, mentions })</div>
+                <div class="font-mono text-sm text-slate-300">→ { rows, highlighted, onKey, choose }</div>
+                <div class="grid grid-cols-3 gap-2 pt-2 text-[10px] uppercase tracking-wider">
+                  <div class="mod-faded rounded p-2 text-center">slash list</div>
+                  <div class="mod-faded rounded p-2 text-center">@ categories</div>
+                  <div class="mod-faded rounded p-2 text-center">move / back</div>
+                </div>
+              </div>
+              <div class="text-xs text-slate-500">Composer draws rows and forwards keys.</div>
+            </div>
+          </div>
+          <p><b>Problem.</b> The pure functions were extracted for testing, but the bugs live in how <span class="font-mono">Composer</span> wires category, selection and keys, which no test reaches; the “/” list has no test at all.</p>
+          <p><b>Solution.</b> Move the list's state and key handling into one module with the rows, so the “/” and “@” lists share an interface and tests drive it by keys.</p>
+          <ul class="list-disc pl-5 text-sm">
+            <li>locality: category and selection bugs concentrate in one module</li>
+            <li>tests hit one interface, keys in, rows out</li>
+            <li>Composer interface shrinks by five state hooks</li>
+            <li>closes the missing “/” regression test</li>
+          </ul>
+        </article>
+
+        <!-- C -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-5" id="c" >
+          <div class="flex flex-wrap items-center gap-2">
+            <h2 class="font-serif text-2xl mr-2">C · Resolve a mention once for the menu and the chip</h2>
+            <span class="text-xs px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-medium">Worth exploring</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-700">in-process</span>
+          </div>
+          <ul class="font-mono text-sm text-slate-700">
+            <li>apps/app/src/ui/mentionMenu.ts <span class="text-slate-400">(questOptionOf)</span></li>
+            <li>apps/app/src/ui/chipPlaces.ts <span class="text-slate-400">(chipsOf, chipKinds)</span></li>
+            <li>apps/app/src/ui/chips.tsx <span class="text-slate-400">(ChipText, useMentionKinds)</span> · useMentionables.ts</li>
+          </ul>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 p-4 space-y-2">
+              <div class="text-xs uppercase tracking-wider text-slate-500">Before · kind, label and token derived twice, two loaders</div>
+              <pre class="mermaid">
+flowchart LR
+  MM[questOptionOf] --> K[chipKinds + mentionLabelOf + mentionTokenOf]
+  CP[chipsOf] --> K
+  CT[ChipText] --> UK[useMentionKinds · files]
+  CT --> UM[useMentionables · quests, realms]
+  CT -. "splits tokens by referenceOf" .-> CP
+  classDef leak stroke:#dc2626,stroke-width:2px;
+  class K,CT leak
+              </pre>
+            </div>
+            <div class="rounded-lg border border-slate-200 p-4 space-y-2">
+              <div class="text-xs uppercase tracking-wider text-slate-500">After · one resolver, two readers</div>
+              <div class="deep rounded-lg p-4 space-y-2">
+                <div class="text-xs uppercase tracking-wider text-slate-300">Mentions</div>
+                <div class="font-mono text-sm">optionsOf(query, category)</div>
+                <div class="font-mono text-sm">chipsOf(text)</div>
+                <div class="grid grid-cols-2 gap-2 pt-2 text-[10px] uppercase tracking-wider">
+                  <div class="mod-faded rounded p-2 text-center">files adapter</div>
+                  <div class="mod-faded rounded p-2 text-center">quests &amp; realms adapter</div>
+                </div>
+              </div>
+              <div class="text-xs text-slate-500">Two adapters behind one seam: that seam is real.</div>
+            </div>
+          </div>
+          <p><b>Problem.</b> What a mention looks like (icon, label, token, “no longer open”) is worked out in two modules, and <span class="font-mono">ChipText</span> must know which of two loaders owns each token.</p>
+          <p><b>Solution.</b> One module resolves a mention from either source and both the menu and the chips read its result; the specification review's P7 wording is then fixed once.</p>
+          <ul class="list-disc pl-5 text-sm">
+            <li>locality: chip wording lives in one module</li>
+            <li>leverage: one resolver, menu and chips</li>
+            <li><span class="font-mono">chipsOf</span> takes one input, not four</li>
+            <li>tests need no screen and no loader</li>
+          </ul>
+          <div class="rounded border border-amber-300 bg-amber-50 text-amber-900 text-sm px-3 py-2">
+            Overlaps B in <span class="font-mono">controls.tsx</span>; do B first, then C reads one interface.
+          </div>
+        </article>
+
+        <!-- D -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-5" id="d" >
+          <div class="flex flex-wrap items-center gap-2">
+            <h2 class="font-serif text-2xl mr-2">D · One appearance module for theme, look, icons and the Dock</h2>
+            <span class="text-xs px-2 py-0.5 rounded bg-slate-200 text-slate-700 font-medium">Speculative</span>
+            <span class="text-xs px-2 py-0.5 rounded bg-slate-100 text-slate-700">local-substitutable</span>
+          </div>
+          <ul class="font-mono text-sm text-slate-700">
+            <li>apps/app/src/foundation/{colorScheme, colorSchemeRules, themeRules, palettes, theme}.ts</li>
+            <li>apps/app/src/shell/navIcons.tsx <span class="text-slate-400">(48 static requires)</span> · apps/app/App.tsx:62</li>
+            <li>apps/desktop/src/{appIcon, main, preload}.ts · apps/app/src/foundation/desktopBridge.ts</li>
+          </ul>
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="rounded-lg border border-slate-200 p-4 space-y-2">
+              <div class="text-xs uppercase tracking-wider text-slate-500">Before · adding a theme touches six places</div>
+              <div class="space-y-1 text-xs font-mono">
+                <div class="mod rounded p-2">themeRules.themes</div>
+                <div class="mod rounded p-2">palettes[theme][look]</div>
+                <div class="mod rounded p-2">navIcons sources[theme][look] × 12</div>
+                <div class="mod-leak rounded p-2">desktopBridge · preload: <b>"gild" | "iskios"</b> typed by hand</div>
+                <div class="mod-leak rounded p-2">appIcon.iconFileOf(theme: <b>unknown</b>)</div>
+                <div class="mod-leak rounded p-2">App.tsx: void window.iskios?.setTheme(theme) <span class="text-red-600">rejection unhandled</span></div>
+              </div>
+            </div>
+            <div class="rounded-lg border border-slate-200 p-4 space-y-2">
+              <div class="text-xs uppercase tracking-wider text-slate-500">After · the theme is one value with its adapters</div>
+              <div class="deep rounded-lg p-4 space-y-2">
+                <div class="text-xs uppercase tracking-wider text-slate-300">Appearance</div>
+                <div class="font-mono text-sm">appearance = { theme, look, colors, navIcon(name), windowIcon }</div>
+                <div class="font-mono text-sm">choose(theme | look)  // keep, reload, resume</div>
+                <div class="grid grid-cols-3 gap-2 pt-2 text-[10px] uppercase tracking-wider">
+                  <div class="mod-faded rounded p-2 text-center">palette</div>
+                  <div class="mod-faded rounded p-2 text-center">nav set</div>
+                  <div class="mod-faded rounded p-2 text-center">Dock</div>
+                </div>
+              </div>
+            </div>
+          </div>
+          <p><b>Problem.</b> The theme is a string literal copied across the app and the desktop shell, and its Dock sync fails silently (the standards review's S1); <span class="font-mono">colorScheme.ts</span> also carries the place-resume mechanism for reloads.</p>
+          <p><b>Solution.</b> Put the choice, its persistence and what it selects behind one module; the desktop adapter takes the shared type, and a failed Dock sync is handled in one place.</p>
+          <ul class="list-disc pl-5 text-sm">
+            <li>locality: a third theme is one change set</li>
+            <li>the hand-typed theme literal goes</li>
+            <li>S1 gets one owner</li>
+            <li>tests cross one interface</li>
+          </ul>
+          <div class="rounded border border-amber-300 bg-amber-50 text-amber-900 text-sm px-3 py-2">
+            Only one theme pair exists today, so the seam is partly hypothetical, and the owner wants a matte rework of the Gild icons (backlog) that will move these files anyway. Wait for it.
+          </div>
+        </article>
+      </section>
+
+      <section class="rounded-xl border border-slate-200 bg-white p-6 space-y-2">
+        <h2 class="font-serif text-xl">Checked, not proposed</h2>
+        <ul class="list-disc pl-5 text-sm">
+          <li><span class="font-mono">missionStates.ts</span> (9 lines, two callers): shallow, but deleting it would copy the urgency order into <span class="font-mono">missions.ts</span> and <span class="font-mono">mentions.ts</span>. It earns its place.</li>
+          <li><span class="font-mono">packages/contracts/src/mentions.ts</span>: small interface behind the token grammar, used by service and app. Deep enough.</li>
+          <li>Not looked at: <span class="font-mono">sidebar.tsx</span> (1075 lines) did not change in this range, so it is outside this review's direction.</li>
+        </ul>
+      </section>
+
+      <section class="rounded-xl deep p-6 space-y-2" id="top-recommendation" >
+        <div class="text-xs uppercase tracking-wider text-slate-300">Top recommendation</div>
+        <h2 class="font-serif text-2xl">A · One turn-reach module</h2>
+        <p class="text-slate-200">The permission, its announcement to the thread and its refusal wording are the one place where a mismatch lets a thread act beyond what the owner agreed. It also absorbs the open specification points P4 and P5 once the owner answers them. <a class="underline" href="#a">Go to card A</a>. Then B, then C.</p>
+      </section>
+    </main>
+  </body>
+</html>

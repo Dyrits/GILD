@@ -1,3 +1,5 @@
+import type { Theme } from "./themeName";
+
 /** A bounded replay of the owner's local shell, held only until the desktop app quits. */
 export interface TerminalSession {
   readonly cwd: string;
@@ -12,7 +14,7 @@ export interface DesktopBridge {
   endpoint(): Promise<string>;
   readonly hasOwnTitleBar: boolean;
   /** Gives the Dock and the window the icon of the theme in use. */
-  setTheme(theme: "gild" | "iskios"): Promise<void>;
+  setTheme(theme: Theme): Promise<void>;
   terminalClose(id: string): Promise<void>;
   terminalListen(data: (id: string, text: string, sequence: number) => void, exit: (id: string) => void): () => void;
   terminalOpen(id: string, cwd: string | null): Promise<TerminalSession>;

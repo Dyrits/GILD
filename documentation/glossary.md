@@ -83,6 +83,25 @@ The place where the user talks with Iskios, containing the one permanent thread 
 The app-wide assistant the user talks with in the Guild Hall to learn how the app works and to manage realms and quests. It proposes quests and never opens one without the user's confirmation.
 _Avoid_: Coordinator, dispatcher, orchestrator, main thread, Mission control
 
+**Mention**:
+A quest, side-quest, or realm the owner names with `@` in a message, as context for the thread that receives it.
+_Avoid_: Reference (the token's name in code), link, tag
+
+**Reach**:
+Whom a thread may message and whose journal it may read beyond its own tree: what the owner's mentions and the messages it received open for the turn they reached, and nothing after.
+_Avoid_: Permission, access, scope
+
+**Theme**:
+The app's look in colors and icons: Iskios, or Gild. The owner chooses it in the Charter, and each theme comes in a dark and a light **Look**.
+_Avoid_: Skin, style
+
+**Look**:
+A theme's dark or light variant; the owner may follow the system's. Called the color scheme in code.
+_Avoid_: Mode, appearance
+
+**Gild**:
+The theme beside Iskios: brown, gilt, and parchment colors, gilt and bronze sidebar icons, and a hooded figure as the Dock icon.
+
 **The Keep**:
 The navigation group containing Library, Lore, and Archive.
 

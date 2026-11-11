@@ -23,15 +23,15 @@ const withService = <A, E, R>(body: (folder: string) => Effect.Effect<A, E, R>) 
   return body(folder).pipe(Effect.provide(value.layer));
 };
 
-const idle = (detail: { thread: { state: string } }) => detail.thread.state === "Idle";
+const isIdle = (detail: { thread: { state: string } }) => detail.thread.state === "Idle";
 const lastReplyOf = (detail: { messages: ReadonlyArray<{ sender: string; text: string }> }) =>
   detail.messages.filter((message) => message.sender === "agent").at(-1)?.text ?? "";
 
 /** A quest with a known title, settled after its first turn. */
-const quest = (title: string, workspacePath: string | null = null) =>
+const startQuest = (title: string, workspacePath: string | null = null) =>
   Effect.gen(function* () {
     const started = yield* start("Hello", workspacePath);
-    yield* settle(started.missionId, idle);
+    yield* settle(started.missionId, isIdle);
     yield* call({ _tag: "RenameMission", missionId: started.missionId, title });
     return started;
   });
@@ -42,7 +42,7 @@ const say = (missionId: MissionId, threadId: ThreadId, text: string) =>
     const before = (yield* read(missionId, threadId)).messages.length;
     yield* send(threadId, text);
     return lastReplyOf(
-      yield* settle(missionId, (detail) => detail.messages.length >= before + 2 && idle(detail), threadId),
+      yield* settle(missionId, (detail) => detail.messages.length >= before + 2 && isIdle(detail), threadId),
     );
   });
 
@@ -70,10 +70,10 @@ describe("offering quests, side-quests, and realms to the @ menu", () => {
     withService((folder) =>
       Effect.gen(function* () {
         yield* call({ _tag: "CreateRealm", crest: null, name: "Garden", path: folder });
-        const login = yield* quest("Fix login", folder);
+        const login = yield* startQuest("Fix login", folder);
         const side = yield* open(login.threadId, "Write the tests");
         yield* settle(login.missionId, (detail) => detail.threads.every((thread) => thread.state !== "Running"));
-        const old = yield* quest("Old work");
+        const old = yield* startQuest("Old work");
         yield* archive(old.missionId);
 
         const listed = yield* call({ _tag: "ListMentionables" });
@@ -101,8 +101,8 @@ describe("resolving the owner's mentions for the receiving thread", () => {
       Effect.gen(function* () {
         yield* call({ _tag: "CreateRealm", crest: null, name: "Garden", path: folder });
         const realm = (yield* call({ _tag: "ListMentionables" })).find((each) => each.kind === "realm");
-        const login = yield* quest("Fix login", folder);
-        const here = yield* quest("Release notes");
+        const login = yield* startQuest("Fix login", folder);
+        const here = yield* startQuest("Release notes");
         const text = `Compare with ${mentionTokenOf({ id: login.missionId, kind: "quest" })} in ${mentionTokenOf({ id: realm?.id ?? "", kind: "realm" })}`;
 
         const reply = yield* say(here.missionId, here.threadId, text);
@@ -123,9 +123,9 @@ describe("resolving the owner's mentions for the receiving thread", () => {
   it.live("says an archived quest's mention names nothing open", () =>
     withService(() =>
       Effect.gen(function* () {
-        const old = yield* quest("Old work");
+        const old = yield* startQuest("Old work");
         yield* archive(old.missionId);
-        const here = yield* quest("Release notes");
+        const here = yield* startQuest("Release notes");
         const reply = yield* say(
           here.missionId,
           here.threadId,
@@ -142,8 +142,8 @@ describe("reaching a quest the owner mentioned", () => {
   it.live("refuses another quest's journal and top thread without a mention, as before", () =>
     withService(() =>
       Effect.gen(function* () {
-        const login = yield* quest("Fix login");
-        const here = yield* quest("Release notes");
+        const login = yield* startQuest("Fix login");
+        const here = yield* startQuest("Release notes");
         yield* say(here.missionId, here.threadId, "Ask the other quest");
 
         const journal = yield* tool(here.threadId, "read_journal", { mission: login.missionId });
@@ -157,9 +157,9 @@ describe("reaching a quest the owner mentioned", () => {
   it.live("opens the mentioned quest's journal and top thread for that turn only", () =>
     withService(() =>
       Effect.gen(function* () {
-        const login = yield* quest("Fix login");
-        const other = yield* quest("Unrelated");
-        const here = yield* quest("Release notes");
+        const login = yield* startQuest("Fix login");
+        const other = yield* startQuest("Unrelated");
+        const here = yield* startQuest("Release notes");
         yield* say(
           here.missionId,
           here.threadId,
@@ -197,13 +197,13 @@ describe("reaching a quest the owner mentioned", () => {
   it.live("lets the mentioned quest answer the thread that wrote to it", () =>
     withService(() =>
       Effect.gen(function* () {
-        const login = yield* quest("Fix login");
-        const here = yield* quest("Release notes");
+        const login = yield* startQuest("Fix login");
+        const here = yield* startQuest("Release notes");
         yield* say(here.missionId, here.threadId, `Ask ${mentionTokenOf({ id: login.missionId, kind: "quest" })}`);
         yield* tool(here.threadId, "send_thread_message", { text: "Which version?", to: login.threadId });
         yield* settle(
           login.missionId,
-          (detail) => detail.messages.some((message) => message.text === "Which version?") && idle(detail),
+          (detail) => detail.messages.some((message) => message.text === "Which version?") && isIdle(detail),
         );
 
         expect(yield* tool(login.threadId, "send_thread_message", { text: "Version 2.", to: here.threadId })).toBe(
@@ -217,10 +217,10 @@ describe("reaching a quest the owner mentioned", () => {
   it.live("reaches a mentioned side-quest and reads its quest's journal", () =>
     withService(() =>
       Effect.gen(function* () {
-        const login = yield* quest("Fix login");
+        const login = yield* startQuest("Fix login");
         const side = yield* open(login.threadId, "Write the tests");
         yield* settle(login.missionId, (detail) => detail.threads.every((thread) => thread.state !== "Running"));
-        const here = yield* quest("Release notes");
+        const here = yield* startQuest("Release notes");
         const reply = yield* say(
           here.missionId,
           here.threadId,
@@ -242,14 +242,60 @@ describe("reaching a quest the owner mentioned", () => {
   it.live("grants nothing for an archived quest's mention", () =>
     withService(() =>
       Effect.gen(function* () {
-        const old = yield* quest("Old work");
+        const old = yield* startQuest("Old work");
         yield* archive(old.missionId);
-        const here = yield* quest("Release notes");
+        const here = yield* startQuest("Release notes");
         yield* say(here.missionId, here.threadId, `See ${mentionTokenOf({ id: old.missionId, kind: "quest" })}`);
         expect(yield* tool(here.threadId, "read_journal", { mission: old.missionId })).toContain("Only Iskios");
         expect(yield* tool(here.threadId, "send_thread_message", { text: "Hi", to: old.threadId })).toContain(
           "Not sent",
         );
+      }),
+    ),
+  );
+
+  it.live("grants nothing for a realm's mention, even of the realm a quest sits in", () =>
+    withService((folder) =>
+      Effect.gen(function* () {
+        yield* call({ _tag: "CreateRealm", crest: null, name: "Garden", path: folder });
+        const realm = (yield* call({ _tag: "ListMentionables" })).find((each) => each.kind === "realm");
+        const login = yield* startQuest("Fix login", folder);
+        const here = yield* startQuest("Release notes");
+        const reply = yield* say(
+          here.missionId,
+          here.threadId,
+          `Look in ${mentionTokenOf({ id: realm?.id ?? "", kind: "realm" })}`,
+        );
+        expect(reply).toContain(`Realm "Garden"`);
+
+        expect(yield* tool(here.threadId, "read_journal", { mission: login.missionId })).toContain("Only Iskios");
+        expect(yield* tool(here.threadId, "send_thread_message", { text: "Hi", to: login.threadId })).toContain(
+          "Not sent",
+        );
+      }),
+    ),
+  );
+
+  it.live("grants nothing for an @ a thread wrote: only the owner's mentions open a way", () =>
+    withService(() =>
+      Effect.gen(function* () {
+        const login = yield* startQuest("Fix login");
+        const other = yield* startQuest("Unrelated");
+        const here = yield* startQuest("Release notes");
+        yield* say(here.missionId, here.threadId, `Ask ${mentionTokenOf({ id: login.missionId, kind: "quest" })}`);
+        const text = `See ${mentionTokenOf({ id: other.missionId, kind: "quest" })}`;
+        yield* tool(here.threadId, "send_thread_message", { text, to: login.threadId });
+        yield* settle(
+          login.missionId,
+          (detail) => detail.messages.some((message) => message.text === text) && isIdle(detail),
+        );
+
+        expect(yield* tool(login.threadId, "read_journal", { mission: other.missionId })).toContain("Only Iskios");
+        expect(yield* tool(login.threadId, "send_thread_message", { text: "Hi", to: other.threadId })).toContain(
+          "Not sent",
+        );
+        // The thread that wrote can still be answered, as before.
+        expect(yield* tool(login.threadId, "send_thread_message", { text: "Noted", to: here.threadId })).toBe("Sent.");
       }),
     ),
   );

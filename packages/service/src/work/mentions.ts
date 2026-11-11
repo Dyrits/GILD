@@ -14,13 +14,20 @@ interface ThreadRow {
   readonly title: string;
 }
 
+/**
+ * The quests a mention may name: not archived, and not Iskios's own. One fragment for the menu and for what a turn may
+ * read or message, so what is offered and what is reachable cannot drift apart. `m` is the quest's row.
+ */
+const isOpenQuestOf = (sql: SqlClient.SqlClient) =>
+  sql`(m.ending IS NULL OR m.ending <> 'Archived') AND m.is_guildmaster = 0`;
+
 /** The titles from a quest's top thread down to the thread, the top one being the quest's title. */
 const trailOf = (thread: ThreadRow, byId: ReadonlyMap<string, ThreadRow>, questTitle: string) => {
   const titles: string[] = [];
   for (
-    let at: ThreadRow | undefined = thread;
-    at !== undefined;
-    at = at.parentId === null ? void 0 : byId.get(at.parentId)
+    let at: ThreadRow | null = thread;
+    at !== null;
+    at = at.parentId === null ? null : (byId.get(at.parentId) ?? null)
   ) {
     titles.unshift(at.parentId === null ? questTitle : at.title);
   }
@@ -36,12 +43,12 @@ export const listMentionables = Effect.gen(function* () {
   const quests = yield* sql<{ id: string; title: string; realmName: string | null }>`
     SELECT m.id, m.title, w.name AS realmName FROM missions m
       JOIN threads top ON top.id = m.top_thread_id LEFT JOIN workspaces w ON w.id = top.workspace_id
-    WHERE (m.ending IS NULL OR m.ending <> 'Archived') AND m.is_guildmaster = 0 AND top.is_deleting = 0
+    WHERE ${isOpenQuestOf(sql)} AND top.is_deleting = 0
     ORDER BY m.last_activity_at DESC`;
   const threads = yield* sql<ThreadRow>`
     SELECT t.id, t.mission_id AS missionId, t.parent_id AS parentId, t.title FROM threads t
       JOIN missions m ON m.id = t.mission_id
-    WHERE (m.ending IS NULL OR m.ending <> 'Archived') AND m.is_guildmaster = 0 AND t.is_deleting = 0
+    WHERE ${isOpenQuestOf(sql)} AND t.is_deleting = 0
     ORDER BY t.rowid`;
   const realms = yield* sql<{ id: string; name: string; path: string | null }>`
     SELECT id, name, path FROM workspaces ORDER BY name COLLATE NOCASE`;
@@ -66,15 +73,14 @@ export const listMentionables = Effect.gen(function* () {
   ];
 });
 
-/** A mentioned side-quest's thread, in a quest not archived; undefined when there is none. */
+/** A mentioned side-quest's thread, in a quest not archived; null when there is none. */
 const readSideQuest = (threadId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const [row] = yield* sql<{ missionId: string; state: string }>`
       SELECT t.mission_id AS missionId, t.state FROM threads t JOIN missions m ON m.id = t.mission_id
-      WHERE t.id = ${threadId} AND t.parent_id IS NOT NULL AND t.is_deleting = 0 AND m.is_guildmaster = 0
-        AND (m.ending IS NULL OR m.ending <> 'Archived')`;
-    return row;
+      WHERE t.id = ${threadId} AND t.parent_id IS NOT NULL AND t.is_deleting = 0 AND ${isOpenQuestOf(sql)}`;
+    return row ?? null;
   });
 
 /** A quest not archived, nor Iskios's own, with its state and realm; empty when there is none. */
@@ -92,31 +98,62 @@ const readQuest = (missionId: string) =>
       SELECT m.id, m.title, m.ending, m.top_thread_id AS topThreadId, w.name AS workspaceName,
         (SELECT group_concat(t.state) FROM threads t WHERE t.mission_id = m.id) AS states
       FROM missions m JOIN threads top ON top.id = m.top_thread_id LEFT JOIN workspaces w ON w.id = top.workspace_id
-      WHERE m.id = ${missionId} AND m.is_guildmaster = 0 AND top.is_deleting = 0
-        AND (m.ending IS NULL OR m.ending <> 'Archived')`;
+      WHERE m.id = ${missionId} AND ${isOpenQuestOf(sql)} AND top.is_deleting = 0`;
     return rows.map((row) => ({ ...row, state: row.ending ?? workedOutStateOf(row.states.split(",")) }));
   });
 
-/** What a reference names, as the receiving thread reads it, with the ids its tools take. */
-const resolvedLineOf = (reference: MentionReference) =>
+/**
+ * What one reference names: the line the receiving thread reads about it, and what it opens for the turn it reaches.
+ * The line and the grants come from one reading, so what a thread is told it may do is what it may do.
+ */
+interface ResolvedMention {
+  /** The line the receiving thread reads, with the ids its tools take. */
+  readonly line: string;
+  /** The thread it may message, or null. */
+  readonly reachableThread: string | null;
+  /** The quest whose journal the thread may read, or null. */
+  readonly readableQuest: string | null;
+}
+
+const resolveMention = (reference: MentionReference) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const token = mentionTokenOf(reference);
     if (reference.kind === "realm") {
       const [realm] = yield* sql<{ name: string; path: string | null }>`
         SELECT name, path FROM workspaces WHERE id = ${reference.id}`;
-      if (realm === undefined) return `${token} = no realm has this id any more.`;
-      return `${token} = Realm "${realm.name}" (id ${reference.id}, ${realm.path === null ? "tied to no folder" : `folder ${realm.path}`}).`;
+      const line =
+        realm === undefined
+          ? `${token} = no realm has this id any more.`
+          : `${token} = Realm "${realm.name}" (id ${reference.id}, ${realm.path === null ? "tied to no folder" : `folder ${realm.path}`}).`;
+      // A realm is context only: it opens no quest and no thread.
+      return { line, reachableThread: null, readableQuest: null } satisfies ResolvedMention;
     }
-    const sideQuest = reference.kind === "side-quest" ? yield* readSideQuest(reference.id) : void 0;
+    const sideQuest = reference.kind === "side-quest" ? yield* readSideQuest(reference.id) : null;
     const missionId = reference.kind === "quest" ? reference.id : (sideQuest?.missionId ?? null);
     const [quest] = missionId === null ? [] : yield* readQuest(missionId);
-    if (quest === undefined) return `${token} = no open ${reference.kind} has this id: it was archived or deleted.`;
+    const readableQuest = reference.kind === "quest" ? (quest?.id ?? null) : (sideQuest?.missionId ?? null);
+    const reachableThread =
+      reference.kind === "quest" ? (quest?.topThreadId ?? null) : sideQuest === null ? null : reference.id;
+    if (quest === undefined)
+      return {
+        line: `${token} = no open ${reference.kind} has this id: it was archived or deleted.`,
+        reachableThread,
+        readableQuest,
+      } satisfies ResolvedMention;
     const realm = quest.workspaceName === null ? "the Borderlands" : `realm ${quest.workspaceName}`;
-    if (sideQuest === undefined)
-      return `${token} = Quest "${quest.title}" (id ${quest.id}, state ${quest.state}, ${realm}, top thread id ${quest.topThreadId}). This turn you may read its journal with read_journal (mission ${quest.id}) and message its top thread with send_thread_message.`;
+    if (sideQuest === null)
+      return {
+        line: `${token} = Quest "${quest.title}" (id ${quest.id}, state ${quest.state}, ${realm}, top thread id ${quest.topThreadId}). This turn you may read its journal with read_journal (mission ${quest.id}) and message its top thread with send_thread_message.`,
+        reachableThread,
+        readableQuest,
+      } satisfies ResolvedMention;
     const [thread] = yield* sql<{ title: string }>`SELECT title FROM threads WHERE id = ${reference.id}`;
-    return `${token} = Side-quest "${thread?.title ?? ""}" of quest "${quest.title}" (thread id ${reference.id}, state ${sideQuest.state}, quest id ${quest.id}, ${realm}). This turn you may read its quest's journal with read_journal (mission ${quest.id}) and message it with send_thread_message.`;
+    return {
+      line: `${token} = Side-quest "${thread?.title ?? ""}" of quest "${quest.title}" (thread id ${reference.id}, state ${sideQuest.state}, quest id ${quest.id}, ${realm}). This turn you may read its quest's journal with read_journal (mission ${quest.id}) and message it with send_thread_message.`,
+      reachableThread,
+      readableQuest,
+    } satisfies ResolvedMention;
   });
 
 /**
@@ -127,8 +164,8 @@ export const mentionNoteOf = (text: string) =>
   Effect.gen(function* () {
     const references = mentionReferencesOf(text);
     if (references.length === 0) return "";
-    const lines = yield* Effect.forEach(references, resolvedLineOf);
-    return `\n\n[The owner mentioned these with @, as context: decide from their words whether to look at each or write to it.\n${lines.join("\n")}]`;
+    const resolved = yield* Effect.forEach(references, resolveMention);
+    return `\n\n[The owner mentioned these with @, as context: decide from their words whether to look at each or write to it.\n${resolved.map((each) => each.line).join("\n")}]`;
   });
 
 /** What a thread may reach beyond its tree during its current turn, from what was delivered to that turn. */
@@ -159,17 +196,9 @@ export const readTurnReach = (threadId: string) =>
       if (message.senderKind === "thread" && message.fromThreadId !== null) reachable.add(message.fromThreadId);
       if (message.senderKind !== "user") continue;
       for (const reference of mentionReferencesOf(message.text)) {
-        if (reference.kind === "quest") {
-          const [quest] = yield* readQuest(reference.id);
-          if (quest === undefined) continue;
-          readable.add(reference.id);
-          reachable.add(quest.topThreadId);
-        } else if (reference.kind === "side-quest") {
-          const sideQuest = yield* readSideQuest(reference.id);
-          if (sideQuest === undefined) continue;
-          readable.add(sideQuest.missionId);
-          reachable.add(reference.id);
-        }
+        const resolved = yield* resolveMention(reference);
+        if (resolved.readableQuest !== null) readable.add(resolved.readableQuest);
+        if (resolved.reachableThread !== null) reachable.add(resolved.reachableThread);
       }
     }
     reachable.delete(threadId);
