@@ -1,5 +1,6 @@
 # Backlog
 
+- **Gild sidebar icons, matte rework** (CHG-0183): the owner finds the current Gild icons too much (glossy gilt and bronze recolorings of Iskios's metallic icons) and suggests a more matte look. Rework them on their own, with a light twin of each, once the owner decides the direction; the recolorings in `apps/app/assets/nav/gild/` and `gild-light/` are provisional.
 - **Left navigation implementation**: [specified](capabilities/mission-tracking/specifications.md#left-navigation-structure) in CHG-0134 through CHG-0137; implementation remains unauthorized in this session, which is specification only.
 - **Library artifacts**: specify collection, supported types, access, and lifecycle for generated and uploaded artifacts, including quests without a workspace; its destination is agreed under [left navigation](capabilities/mission-tracking/specifications.md#left-navigation-structure).
 - **Reserves usage page**: [direction agreed](capabilities/budget-control/specifications.md#reserves-usage-page), including graphs, totals, breakdowns, reliable skill attribution, filter interactions, count definitions, and local date boundaries (CHG-0135 through CHG-0137); further screen specification is deferred until work on the screen begins, at the owner's request.

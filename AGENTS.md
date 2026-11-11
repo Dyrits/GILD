@@ -49,7 +49,7 @@ Latest handoffs:
 
 - To resume the @ menu with quests, side-quests, and realms (built and checked; owner review pending), read the [current handoff](.agents/handoffs/2026-11-11-2156-at-mentions.md). Handoffs are shared and committed.
 
-- To resume the Gild theme beside Iskios (built and driven in a throwaway Electron window on the web export; the Dock icon and most screens in Gild not yet seen by the owner), read the [current handoff](.agents/handoffs/2026-11-11-2152-gild-theme.md). Handoffs are shared and committed.
+- To resume the Gild theme beside Iskios (built and driven in a throwaway Electron window on the web export; the owner finds the icons too much and wants a matte rework; the Dock icon and most screens in Gild not yet seen), read the [current handoff](.agents/handoffs/2026-11-11-2154-gild-theme-icons-matte.md). Handoffs are shared and committed.
 
 - To resume Iskios, the assistant formerly called Guildmaster (reviewed and pushed; the Guild Hall hub, the code renaming, and four owner decisions remain), read the [current handoff](.agents/handoffs/2026-11-11-2123-iskios-reviewed.md). Handoffs are shared and committed.
 

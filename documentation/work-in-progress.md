@@ -10,7 +10,7 @@ Open, awaiting the owner: the look of the menu and chips; the token form and the
 ## Gild theme · 2026-11-11 · built and checked, owner review pending
 
 CHG-0183: Iskios and Gild themes, each dark and light; Gild's colors come from the owner's Guild Hall image (dark) and the former parchment board (light); gilt and bronze sidebar icons are temporary recolorings; the Dock and window icon follow the theme. Starting commit `5fbfc4c`, worktree branch `worktree/gild-theme`, uncommitted. [Screens](verification/2026-11-11-gild-theme/).
-Open: the owner's look at the colors; the cream cards of the image are not reproduced; real Gild icons to replace the recolorings; the Dock icon was not seen; other screens in Gild were not opened.
+Open: the owner's look at the colors; the cream cards of the image are not reproduced; the owner finds the recolored Gild icons too much and would prefer a more matte look, kept as a separate rework in the [backlog](backlog.md); the Dock icon was not seen; other screens in Gild were not opened.
 
 ## Iskios, the assistant · 2026-11-11 · built, checked, and reviewed; owner review pending
 
