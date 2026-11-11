@@ -47,6 +47,6 @@ When adding a handoff, keep only the three newest current handoffs linked below;
 
 Latest handoffs:
 
-- To resume the sidebar follow-ups (empty quests, Free Realm placement, the Realmless page; committed and pushed, not driven in the app; the changelog entries remain), read the [current handoff](.agents/handoffs/2026-11-11-1306-sidebar-follow-ups-pushed.md). Handoffs are shared and committed.
+- To resume the sidebar follow-ups, the quest list page, and the sidebar caps (committed and pushed, not driven in the app; the changelog entries remain), read the [current handoff](.agents/handoffs/2026-11-11-1310-quest-list-page-pushed.md). Handoffs are shared and committed.
 - To resume Charter harness installation, version labels, and the Dock-name diagnosis, read the [current handoff](.agents/handoffs/2026-11-11-1200-harness-installation.md). Handoffs are shared and committed.
 - To resume consumption, estimated cost, account budgets, and plan limits (built and pushed; the owner's review and the live probes remain), read the [current handoff](.agents/handoffs/2026-11-11-1118-consumption-and-cost.md). Handoffs are shared and committed.
