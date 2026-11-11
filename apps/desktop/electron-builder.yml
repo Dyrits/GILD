@@ -28,6 +28,7 @@ mac:
 dmg:
   title: Gild
 win:
+  icon: assets/icon.png
   target:
     - nsis
 nsis:

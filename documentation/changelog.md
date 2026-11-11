@@ -1971,3 +1971,38 @@ Reason: Avoid migration work for disposable development data and keep this effor
 References: [sidebar](capabilities/mission-tracking/specifications.md#left-navigation-structure), [usage direction](capabilities/budget-control/specifications.md#reserves-usage-page), [deferred capability work](capabilities/mission-tracking/draft.md), [backlog](backlog.md).
 Validation: The owner's answers to questions 12 through 14 and explicit instruction to specify the screen further when working on it.
 Evidence: Documentation only; whitespace checks pass, and no application changes, data reset, or runtime verification were performed.
+
+## CHG-0138 · 2026-11-11 · Compass app icon
+
+Type: Configuration
+Event: Delivery
+Scope: App identity
+
+Summary: Reused the existing transparent compass artwork for the desktop icon, Expo app icon, and browser favicon, and explicitly selected it for Windows packaging.
+References: [source artwork](../apps/app/assets/compass.png), [desktop packaging](../apps/desktop/electron-builder.yml), [app configuration](../apps/app/app.json).
+Validation: Visually inspected the desktop PNG and checked its 1024-pixel square dimensions and alpha channel; the favicon is 64 pixels square.
+App and desktop typechecking passed; workspace lint and typechecking reported failures in existing budget changes.
+No installer build or installed-app check was run.
+
+## CHG-0139 · 2026-11-11 · Hooded emblem app icon
+
+Type: Configuration
+Event: Delivery
+Scope: App identity
+
+Summary: Replaced the compass app icons from CHG-0138 with the owner's supplied silver hooded emblem, preserving its transparency.
+References: [app icon](../apps/app/assets/icon.png), [desktop icon](../apps/desktop/assets/icon.png), [favicon](../apps/app/assets/favicon.png).
+Validation: Checked the supplied artwork and resized it to 1024 pixels square for app icons and 64 pixels square for the favicon.
+Only image assets changed; the earlier workspace check failures remain unresolved, and no installer was rebuilt.
+
+## CHG-0140 · 2026-11-11 · Rounded square app icon
+
+Type: Configuration
+Event: Delivery
+Scope: App identity
+
+Summary: Replaced the previous emblem with the owner's supplied silver hooded profile inside a rounded square frame, preserving the original artwork and black background.
+Converted the 1254-pixel source to matching 1024-pixel PNG icons for Expo and Electron and a 64-pixel browser favicon.
+References: [app icon](../apps/app/assets/icon.png), [desktop icon](../apps/desktop/assets/icon.png), [favicon](../apps/app/assets/favicon.png).
+Validation: Visually inspected the converted icon, checked all output formats and dimensions, and confirmed the app and desktop PNGs have identical SHA-256 hashes.
+No installer rebuild or installed-app verification was performed.

@@ -47,6 +47,6 @@ When adding a handoff, keep only the three newest current handoffs linked below;
 
 Latest handoffs:
 
+- To resume app icon packaging and acceptance, read the [current handoff](.agents/handoffs/2026-11-11-1114-app-icon.md). Handoffs are shared and committed.
 - To resume the sidebar and quest lifecycle implementation preparation, read the [current handoff](.agents/handoffs/2026-11-11-0023-sidebar-specification.md). Handoffs are shared and committed.
 - To resume Free Realms, quest moves, and Guild Hall, read the [current handoff](.agents/handoffs/2026-11-10-2334-free-realms-and-quest-moves.md). Handoffs are shared and committed.
-- To resume the README and agent guide, read the [current handoff](.agents/handoffs/2026-11-10-2220-readme-and-agent-guide.md). Handoffs are shared and committed.
