@@ -24,11 +24,14 @@ import { LoreIcon, LoreScreen } from "../lore/lore";
 import { MissingFolderNotice } from "../realms/workspaces";
 import { useTerminal } from "../terminal/useTerminal";
 import { Composer, StateBadge } from "../ui/controls";
+import { messageWithComments } from "./comments";
+import { CommentTray } from "./commentViews";
 import { AgentReply, EntryView, WorkingIndicator } from "./conversationEntries";
 import { type Entry, entriesOf, workingLabelOf } from "./entries";
 import { ChatterNotices, DeleteThreadAction } from "./threadActions";
 import { ThreadPanel } from "./threadPanel";
 import { OpenThreadForm, ThreadTree } from "./threadTree";
+import { CommentsProvider, useThreadComments } from "./useComments";
 
 /** The reply a thread is writing, while the service streams it. */
 export function useDraft(client: ServiceClient, threadId: string | null) {
@@ -103,6 +106,7 @@ function ThreadPane({
   const [isOpening, setIsOpening] = useState(false);
   const terminal = useTerminal(thread.id, thread.workspace?.path ?? null);
   const followNewest = useFollowNewest();
+  const comments = useThreadComments(thread.id);
   const { data: harnesses } = useHarnesses(client);
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
   const { canOpenBeneath, canResume, canStop, isInTurn } = thread.actions;
@@ -113,7 +117,7 @@ function ThreadPane({
   ];
   const sendAs =
     (delivery: MessageDelivery | null) => async (text: string, attachmentIds: ReadonlyArray<AttachmentId>) => {
-      const prepared = await terminal.prepare(text);
+      const prepared = messageWithComments(await terminal.prepare(text), comments.items);
       followNewest.follow();
       await client.request({
         _tag: "SendMessage",
@@ -123,6 +127,8 @@ function ThreadPane({
         text: prepared,
         threadId: thread.id,
       });
+      // Kept until the service has taken the message, so a refused send loses none of them.
+      comments.clear();
       terminal.sent();
     };
   const entries = entriesOf(detail, isInTurn);
@@ -132,175 +138,182 @@ function ThreadPane({
       (reason) => setActionError(messageOf(reason)),
     );
   return (
-    <View style={[styles.flex, styles.pane]}>
-      <View style={styles.header}>
-        <Text numberOfLines={1} style={[styles.paneTitle, styles.flex]}>
-          {thread.title}
-        </Text>
-        <LoreIcon gauge={detail.loreGauge} onPress={onOpenLore} />
-        <StateBadge state={thread.state} />
-        {canStop && (
-          <Pressable onPress={() => act(client.request({ _tag: "StopThread", threadId: thread.id }))}>
-            <Text style={styles.link}>Stop</Text>
-          </Pressable>
-        )}
-        {canResume && (
-          <Pressable onPress={() => act(client.request({ _tag: "ResumeThread", threadId: thread.id }))}>
-            <Text style={styles.link}>Resume</Text>
-          </Pressable>
-        )}
-        {canOpenDetails && (
-          <Pressable onPress={onOpenDetails}>
-            <Text style={styles.link}>Quest panel</Text>
-          </Pressable>
-        )}
-        {canOpenBeneath && !isOpening && (
-          <Pressable onPress={() => setIsOpening(true)}>
-            <Text style={styles.link}>Open side-quest</Text>
-          </Pressable>
-        )}
-      </View>
-      {parent !== undefined && (
-        <Pressable onPress={() => onSelect(parent.id)}>
-          <Text numberOfLines={1} style={styles.link}>
-            Opened from: {parent.title}
+    <CommentsProvider value={comments}>
+      <View style={[styles.flex, styles.pane]}>
+        <View style={styles.header}>
+          <Text numberOfLines={1} style={[styles.paneTitle, styles.flex]}>
+            {thread.title}
           </Text>
-        </Pressable>
-      )}
-      <DeleteThreadAction client={client} onDeleted={onDeleted} threadId={thread.id} />
-      <ChatterNotices client={client} notices={detail.chatter} />
-      {detail.budgetStop !== null && <BudgetStopCard client={client} onRaise={onOpenBudget} stop={detail.budgetStop} />}
-      {actionError !== null && <Text style={styles.error}>{actionError}</Text>}
-      <Text numberOfLines={1} style={styles.muted}>
-        {harnessLabels[thread.harness]}
-        {thread.accountId === null ? "" : ` (${thread.accountLabel})`} · {modelLabelOf(thread.model)} ·{" "}
-        {effortLabel(thread.effort)} ·{" "}
-        {thread.workspace === null
-          ? "No realm: the quest's scratch folder"
-          : `Realm ${thread.workspace.name} · ${thread.workspace.path}`}
-        {thread.workspace?.isMissing === true && " · folder missing"}
-      </Text>
-      {thread.state === "Stopped" && thread.waitingCount > 0 && (
-        <Text style={styles.muted}>
-          {countedOf(thread.waitingCount, "message")} {thread.waitingCount === 1 ? "waits" : "wait"} until you resume
-          this
-          {work}.
-        </Text>
-      )}
-      {thread.blocker === "MissingWorkspace" && thread.workspace !== null && (
-        <MissingFolderNotice client={client} path={thread.workspace.path} threadId={thread.id} />
-      )}
-      {thread.failure != null && (
-        <View style={styles.failure}>
-          <Text style={styles.error}>The last turn failed: {thread.failure}</Text>
-          <Text style={styles.muted}>
-            Retry runs it again on the Companion chosen below; your next message retries it too.
-          </Text>
-          {!isInTurn && thread.state !== "Stopped" && (
-            <Pressable
-              accessibilityRole="button"
-              onPress={() => act(client.request({ _tag: "RetryThread", threadId: thread.id }))}
-              style={styles.button}
-            >
-              <Text style={styles.buttonText}>Retry</Text>
+          <LoreIcon gauge={detail.loreGauge} onPress={onOpenLore} />
+          <StateBadge state={thread.state} />
+          {canStop && (
+            <Pressable onPress={() => act(client.request({ _tag: "StopThread", threadId: thread.id }))}>
+              <Text style={styles.link}>Stop</Text>
+            </Pressable>
+          )}
+          {canResume && (
+            <Pressable onPress={() => act(client.request({ _tag: "ResumeThread", threadId: thread.id }))}>
+              <Text style={styles.link}>Resume</Text>
+            </Pressable>
+          )}
+          {canOpenDetails && (
+            <Pressable onPress={onOpenDetails}>
+              <Text style={styles.link}>Quest panel</Text>
+            </Pressable>
+          )}
+          {canOpenBeneath && !isOpening && (
+            <Pressable onPress={() => setIsOpening(true)}>
+              <Text style={styles.link}>Open side-quest</Text>
             </Pressable>
           )}
         </View>
-      )}
-      <FlatList<Entry>
-        {...followNewest.listProps}
-        contentContainerStyle={styles.feed}
-        data={entries}
-        keyExtractor={(entry) => entry.key}
-        ListFooterComponent={
-          <View>
-            {draft === "" ? (
-              thread.actions.isInTurn ? (
-                <WorkingIndicator harness={thread.harness} label={workingLabelOf(entries)} />
-              ) : (
-                void 0
-              )
-            ) : (
-              <AgentReply
-                harness={thread.harness}
-                isDraft
-                label={`${companionLabelOf(thread.harness, null, thread.model)} · writing…`}
-                text={draft}
-                time={null}
-              />
-            )}
-            {terminal.panel}
-          </View>
-        }
-        renderItem={({ item }) => (
-          <EntryView
-            client={client}
-            entry={item}
-            harness={thread.harness}
-            onOpenMission={onOpenMission}
-            onSelectThread={onSelect}
-            skills={skills}
-            workspacePath={thread.workspace?.path ?? null}
-          />
+        {parent !== undefined && (
+          <Pressable onPress={() => onSelect(parent.id)}>
+            <Text numberOfLines={1} style={styles.link}>
+              Opened from: {parent.title}
+            </Text>
+          </Pressable>
         )}
-        style={styles.flex}
-      />
-      {isOpening ? (
-        <OpenThreadForm
-          client={client}
-          onCancel={() => setIsOpening(false)}
-          onOpened={(threadId) => {
-            setIsOpening(false);
-            onSelect(threadId);
-          }}
-          parent={thread}
-        />
-      ) : (
-        <Composer
-          hasContent={terminal.hasContent}
-          {...(terminal.onBang === null ? {} : { onBang: terminal.onBang })}
-          attachments={{ client, refusal: imageRefusalOf(harnesses, thread.harness, thread.model) }}
-          mentions={{ client, workspacePath: thread.workspace?.path ?? null }}
-          skills={skills}
-          // The harness, account, Companion, and effort can change between turns: a handover (thread-handover). It
-          // starts no turn: the next message, or Retry after a failed turn, runs on it.
-          {...(isInTurn
-            ? {}
-            : {
-                accessory: (
-                  <RunnerPickers
-                    client={client}
-                    harnesses={harnesses}
-                    isCompact={true}
-                    onChange={(next) =>
-                      act(client.request({ _tag: "ChangeThreadRunner", ...next, threadId: thread.id }))
-                    }
-                    value={{
-                      accountId: thread.accountId,
-                      effort: thread.effort,
-                      harness: thread.harness,
-                      model: thread.model,
-                    }}
-                  />
-                ),
-              })}
-          {...(isInTurn
-            ? {
-                alternative: { label: other, onSend: sendAs(other) },
-                onInterrupt: () => client.request({ _tag: "InterruptThread", threadId: thread.id }),
-              }
-            : {})}
-          onSend={sendAs(isInTurn ? defaultDelivery : null)}
-          placeholder={
-            thread.state === "Stopped"
-              ? `Write to this ${work}; it waits until you resume it…`
-              : isInTurn
-                ? `Write to this ${work}; Send ${defaultDelivery === "Steer" ? "joins its current turn" : "waits for its next turn"}…`
-                : `Write to this ${work}…`
+        <DeleteThreadAction client={client} onDeleted={onDeleted} threadId={thread.id} />
+        <ChatterNotices client={client} notices={detail.chatter} />
+        {detail.budgetStop !== null && (
+          <BudgetStopCard client={client} onRaise={onOpenBudget} stop={detail.budgetStop} />
+        )}
+        {actionError !== null && <Text style={styles.error}>{actionError}</Text>}
+        <Text numberOfLines={1} style={styles.muted}>
+          {harnessLabels[thread.harness]}
+          {thread.accountId === null ? "" : ` (${thread.accountLabel})`} · {modelLabelOf(thread.model)} ·{" "}
+          {effortLabel(thread.effort)} ·{" "}
+          {thread.workspace === null
+            ? "No realm: the quest's scratch folder"
+            : `Realm ${thread.workspace.name} · ${thread.workspace.path}`}
+          {thread.workspace?.isMissing === true && " · folder missing"}
+        </Text>
+        {thread.state === "Stopped" && thread.waitingCount > 0 && (
+          <Text style={styles.muted}>
+            {countedOf(thread.waitingCount, "message")} {thread.waitingCount === 1 ? "waits" : "wait"} until you resume
+            this
+            {work}.
+          </Text>
+        )}
+        {thread.blocker === "MissingWorkspace" && thread.workspace !== null && (
+          <MissingFolderNotice client={client} path={thread.workspace.path} threadId={thread.id} />
+        )}
+        {thread.failure != null && (
+          <View style={styles.failure}>
+            <Text style={styles.error}>The last turn failed: {thread.failure}</Text>
+            <Text style={styles.muted}>
+              Retry runs it again on the Companion chosen below; your next message retries it too.
+            </Text>
+            {!isInTurn && thread.state !== "Stopped" && (
+              <Pressable
+                accessibilityRole="button"
+                onPress={() => act(client.request({ _tag: "RetryThread", threadId: thread.id }))}
+                style={styles.button}
+              >
+                <Text style={styles.buttonText}>Retry</Text>
+              </Pressable>
+            )}
+          </View>
+        )}
+        <FlatList<Entry>
+          {...followNewest.listProps}
+          contentContainerStyle={styles.feed}
+          data={entries}
+          keyExtractor={(entry) => entry.key}
+          ListFooterComponent={
+            <View>
+              {draft === "" ? (
+                thread.actions.isInTurn ? (
+                  <WorkingIndicator harness={thread.harness} label={workingLabelOf(entries)} />
+                ) : (
+                  void 0
+                )
+              ) : (
+                <AgentReply
+                  harness={thread.harness}
+                  isDraft
+                  label={`${companionLabelOf(thread.harness, null, thread.model)} · writing…`}
+                  text={draft}
+                  time={null}
+                />
+              )}
+              {terminal.panel}
+            </View>
           }
+          renderItem={({ item }) => (
+            <EntryView
+              client={client}
+              entry={item}
+              harness={thread.harness}
+              onOpenMission={onOpenMission}
+              onSelectThread={onSelect}
+              skills={skills}
+              workspacePath={thread.workspace?.path ?? null}
+            />
+          )}
+          style={styles.flex}
         />
-      )}
-    </View>
+        {isOpening ? (
+          <OpenThreadForm
+            client={client}
+            onCancel={() => setIsOpening(false)}
+            onOpened={(threadId) => {
+              setIsOpening(false);
+              onSelect(threadId);
+            }}
+            parent={thread}
+          />
+        ) : (
+          <>
+            <CommentTray />
+            <Composer
+              hasContent={terminal.hasContent || comments.items.length > 0}
+              {...(terminal.onBang === null ? {} : { onBang: terminal.onBang })}
+              attachments={{ client, refusal: imageRefusalOf(harnesses, thread.harness, thread.model) }}
+              mentions={{ client, workspacePath: thread.workspace?.path ?? null }}
+              skills={skills}
+              // The harness, account, Companion, and effort can change between turns: a handover (thread-handover). It
+              // starts no turn: the next message, or Retry after a failed turn, runs on it.
+              {...(isInTurn
+                ? {}
+                : {
+                    accessory: (
+                      <RunnerPickers
+                        client={client}
+                        harnesses={harnesses}
+                        isCompact={true}
+                        onChange={(next) =>
+                          act(client.request({ _tag: "ChangeThreadRunner", ...next, threadId: thread.id }))
+                        }
+                        value={{
+                          accountId: thread.accountId,
+                          effort: thread.effort,
+                          harness: thread.harness,
+                          model: thread.model,
+                        }}
+                      />
+                    ),
+                  })}
+              {...(isInTurn
+                ? {
+                    alternative: { label: other, onSend: sendAs(other) },
+                    onInterrupt: () => client.request({ _tag: "InterruptThread", threadId: thread.id }),
+                  }
+                : {})}
+              onSend={sendAs(isInTurn ? defaultDelivery : null)}
+              placeholder={
+                thread.state === "Stopped"
+                  ? `Write to this ${work}; it waits until you resume it…`
+                  : isInTurn
+                    ? `Write to this ${work}; Send ${defaultDelivery === "Steer" ? "joins its current turn" : "waits for its next turn"}…`
+                    : `Write to this ${work}…`
+              }
+            />
+          </>
+        )}
+      </View>
+    </CommentsProvider>
   );
 }
 

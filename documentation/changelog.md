@@ -2541,3 +2541,24 @@ Event: Agreement
 Summary: With the sidebar, the screen, the quest panel, and Iskios's column, four panes can stand at once. The owner asked that: the ✕ of Iskios's panel and of the quest panel go (the top bar's button and icon already hide them); each of the two can be dragged wider, up to a quarter of the window, like the sidebar; and the top bar span the whole window up to the "Iskios" button, with the separations only below it, between the panes. Built: one drag strip for all three panes (the sidebar by its right edge, the other two by their left, each between the width it opens at and a quarter of the window; the width is remembered); the quest panel loses its own header on a wide window; the top bar is above the whole window. Mine, within the agreement: the ✕ stays where no top bar offers a way to close (the card of a narrow window with no top bar, the quest panel taking a narrow window's place); each pane's least width is the one it opens at, so on a window under four times that width a pane cannot grow.
 References: CHG-0189, CHG-0190, CHG-0192, CHG-0193, [quest coordination](capabilities/mission-coordination/specifications.md).
 Validation: Authorized by the owner's message, 2026-11-11.
+
+## CHG-0195 · 2026-11-11 · Comments on messages, sent with the next message
+
+Type: Documentation
+Event: Agreement
+Scope: Thread messaging, Interface
+
+Summary: The owner asked to comment on anything in a quest or side-quest, the comments all going with the next message, as in Delta.dev. Agreed for this batch: comment on a whole message (to reply to it) and on any selected text; added with a hover button; kept per thread until sent. Not in this batch (not ruled out): comments on other items (step groups, cards, lore changes, journal entries, the quest panel). Settled by me within the agreement, for the owner to confirm: the comments travel inside the message's text as a `<comments>` block after the typed text, so the harness reads them as context and the service needs no new request; the conversation reads the block back and draws it as quotes; the keys are Enter to save, Shift+Enter for a new line, Escape to cancel; a quote of a whole message is its first 300 characters; Iskios's own conversation has none; comments wait in the browser's storage, so they stay on the machine and window that made them.
+Reason: The owner reads long replies and wants to answer to several passages at once, with the passage named, instead of retyping quotes.
+References: [thread messaging](capabilities/thread-messaging/specifications.md#comments-on-messages).
+Validation: Authorized by the owner's request and answers, 2026-11-11 ("We should be able to reply to a specific message. But also comment any selected text."; hover button and per-thread keeping accepted as recommended).
+
+## CHG-0196 · 2026-11-11 · Comments on messages built
+
+Type: Code
+Event: Delivery
+Scope: Interface
+
+Summary: Delivers CHG-0195. App only, no service or contract change. `conversation/comments.ts` (the comment, the block written into a message and read back, the quotes, the per-thread storage), `useComments.ts` (the thread's list and a context that exists only in a quest's or side-quest's conversation), `commentViews.tsx` (the field, the tray, the quotes drawn in a sent message), `commentable.web.tsx` (hover and focus button, selection button, the field under the card; `commentable.tsx` leaves the card as it is elsewhere). `conversation.tsx` adds the waiting comments to what is sent and clears them after the service accepts it; the message box counts them as content. `conversationEntries.tsx` wraps the owner's, thread, and agent cards, and draws the comments a message carried apart from its text.
+Validation: [verification](verification/2026-11-11-message-comments.md). typecheck and Biome pass; `comments.test.ts` 12 of 12; app suite passes. Driven in a throwaway Electron window on the fake harness: hover button, whole-message and selection comments, tray, persistence across a reload, edit, remove, Escape, send with typed text (the harness received the block; the thread draws the quotes; the tray and storage empty). Not checked: dark mode, a side-quest conversation (same screen, not driven), a real harness acting on comments, the phone build beyond typecheck, long threads with many comments, the owner's look. Built in worktree `ISKIOS-message-comments`, branch `worktree/message-comments` from `588d0e3`. Built in a separate worktree and rebased onto `b901df9`, which took CHG-0188 to CHG-0194, so these are CHG-0195 and CHG-0196.
+

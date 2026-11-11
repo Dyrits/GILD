@@ -56,6 +56,10 @@ _Avoid_: Side thread, tangent
 A message one thread sends another, in either direction along the tree, or to any thread it references with `@`, that can ask for a reply.
 _Avoid_: Ping, notification
 
+**Comment**:
+A note the owner writes on a message of a quest or side-quest, on the whole message or on a passage selected in it. Comments wait, per thread, in the browser's storage and go with the owner's next message in that thread, as a block in its text.
+_Avoid_: Annotation, review note, reply (a reply is a message)
+
 **Attachment**:
 A file the owner adds to a message, kept by Iskios and given to the thread's harness with the message's text. Only images are supported so far.
 _Avoid_: Upload, media, file (alone)

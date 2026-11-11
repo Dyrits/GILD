@@ -28,6 +28,16 @@ Agreed 2026-11-11 (CHG-0181); built in CHG-0182.
 - The widened reach (above) holds only for quests and side-quests the owner named, only in the turn the message reaches, and never for an archived quest. A realm mention opens nothing: it only says which realm is meant.
 - On the phone and other builds that cannot draw chips inside the text, the chosen token is written into the text as typed; the categories still show.
 
+### Comments on messages
+
+Agreed 2026-11-11 (CHG-0195); built in CHG-0196.
+
+- In a quest's or side-quest's conversation (not Iskios's), the owner can comment on any message, theirs, the Companion's, or another quest's. A small Comment button shows on the message's card while the pointer is on it or it has focus; selecting text inside one message shows a Comment on selection button beside it. Either opens a field under the card: Enter saves, Shift+Enter breaks the line, Escape cancels.
+- A comment waits. Each thread keeps its own in the browser's storage until they are sent or removed, so a reload or leaving the thread loses none. They show in a tray above the message box ("2 comments · sent with your next message"), each with the passage it is about, and can be edited or removed there; a message with comments waiting says so under its card. A thread with comments can be sent with no typed text.
+- Sending carries every waiting comment in the same message: after what the owner typed, a `<comments>` block with one `<comment on=… part=…>` per comment holding its quote (the selected passage, or the first 300 characters of the whole message) and the owner's note. The harness reads it as part of the message; the conversation draws it back as quoted passages under the typed text. Comments leave the tray only once the service has taken the message.
+- A comment is a note in the next message: it is context, not a command, and it opens no reach beyond what the message's words and mentions already do.
+- On the phone and other builds without a pointer or text selection, messages draw as they are and no comment can be written; a message that carries comments is still drawn with them.
+
 ### Delivery
 
 - **Thread messages**, results included, are delivered into the receiving thread's current turn where its harness allows it; otherwise at its next turn. They are delivered whatever the receiving thread is doing.

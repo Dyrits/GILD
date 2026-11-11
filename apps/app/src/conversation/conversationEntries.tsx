@@ -1,5 +1,5 @@
 import type { HarnessName, Message, MissionId, ReplyUsage, Skill, ThreadId } from "@iskios/contracts";
-import { useState } from "react";
+import { type ReactNode, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { MessageImages } from "../attachments/attachmentViews";
 import type { ServiceClient } from "../foundation/client";
@@ -14,6 +14,9 @@ import { terminalSnapshotOf } from "../terminal/terminalSnapshot";
 import { ChipText } from "../ui/chips";
 import { ProviderMark } from "../ui/providerMarks";
 import { QuestionCard, QuestionLine } from "../ui/questions";
+import { Commentable } from "./commentable";
+import { commentsOf } from "./comments";
+import { SentComments } from "./commentViews";
 import type { Entry, QuestLink, Step } from "./entries";
 import { Markdown } from "./markdown";
 import { SuggestionCard, SuggestionLine } from "./suggestions";
@@ -55,6 +58,7 @@ export function AgentReply({
   harness,
   isDraft = false,
   label,
+  messageId = null,
   text,
   time,
   usage = null,
@@ -62,6 +66,8 @@ export function AgentReply({
   harness: HarnessName;
   isDraft?: boolean;
   label: string;
+  /** The message this reply is, which the owner can comment on; null for a draft, which is not a message yet. */
+  messageId?: string | null;
   text: string;
   time: string | null;
   /** What the model call behind the reply used, with its cost, shown small under it; null shows nothing. */
@@ -72,15 +78,38 @@ export function AgentReply({
       <View style={styles.medallion}>
         <ProviderMark harness={harness} />
       </View>
-      <View style={[styles.messageCard, styles.messageCardAgent]}>
-        <View style={styles.senderHeader}>
-          <Text style={styles.senderName}>{label}</Text>
-          {time !== null && <Text style={styles.senderTime}>{time}</Text>}
+      <CommentableCard about="agent" messageId={messageId} text={text}>
+        <View style={[styles.messageCard, styles.messageCardAgent]}>
+          <View style={styles.senderHeader}>
+            <Text style={styles.senderName}>{label}</Text>
+            {time !== null && <Text style={styles.senderTime}>{time}</Text>}
+          </View>
+          <Markdown text={text} />
+          {usage !== null && <Text style={styles.muted}>{replyUsageTextOf(usage)}</Text>}
         </View>
-        <Markdown text={text} />
-        {usage !== null && <Text style={styles.muted}>{replyUsageTextOf(usage)}</Text>}
-      </View>
+      </CommentableCard>
     </View>
+  );
+}
+
+/** A message's card with the means to comment on it; a card with no message behind it is drawn as it is. */
+function CommentableCard({
+  about,
+  children,
+  messageId,
+  text,
+}: {
+  about: Message["sender"];
+  children: ReactNode;
+  messageId: string | null;
+  text: string;
+}) {
+  return messageId === null ? (
+    children
+  ) : (
+    <Commentable about={about} messageId={messageId} text={text}>
+      {children}
+    </Commentable>
   );
 }
 
@@ -154,6 +183,7 @@ function MessageBubble({
       <AgentReply
         harness={writer.harness}
         label={writer.label}
+        messageId={message.id}
         text={message.text}
         time={clockOf(message.sentAt)}
         usage={message.usage}
@@ -161,37 +191,42 @@ function MessageBubble({
     );
   }
   const sender = senderLabelOf(message);
-  const terminal = message.sender === "user" ? terminalSnapshotOf(message.text) : null;
+  // The comments a message of the owner carried are drawn apart from what they typed.
+  const sent = message.sender === "user" ? commentsOf(message.text) : { body: message.text, items: [] };
+  const terminal = message.sender === "user" ? terminalSnapshotOf(sent.body) : null;
   return (
     <View style={[styles.messageRow, message.sender === "user" && styles.messageRowUser]}>
-      <View style={[styles.messageCard, cardStyles[message.sender], fromQuest !== null && styles.cardWithCorner]}>
-        {/* The owner's own messages need no label, as in a chat; a queued one says it waits. */}
-        {sender !== null && <Text style={styles.senderName}>{sender}</Text>}
-        {message.sender === "user" ? (
-          terminal !== null ? (
-            <View style={{ gap: 10 }}>
-              {terminal.before !== "" && (
-                <ChipText client={client} skills={skills} text={terminal.before} workspacePath={workspacePath} />
-              )}
-              <TerminalMessage cwd={terminal.cwd} output={terminal.output} />
-              {terminal.after !== "" && (
-                <ChipText client={client} skills={skills} text={terminal.after} workspacePath={workspacePath} />
-              )}
-            </View>
-          ) : message.text === "" ? null : (
-            <ChipText client={client} skills={skills} text={message.text} workspacePath={workspacePath} />
-          )
-        ) : (
-          <Markdown text={message.text} />
-        )}
-        <MessageImages cards={message.attachments} client={client} />
-        {fromQuest !== null && (
-          <QuestButton
-            link={{ label: "Open quest", missionId: fromQuest, title: message.fromTitle ?? "" }}
-            onOpenMission={onOpenMission}
-          />
-        )}
-      </View>
+      <CommentableCard about={message.sender} messageId={message.id} text={message.text}>
+        <View style={[styles.messageCard, cardStyles[message.sender], fromQuest !== null && styles.cardWithCorner]}>
+          {/* The owner's own messages need no label, as in a chat; a queued one says it waits. */}
+          {sender !== null && <Text style={styles.senderName}>{sender}</Text>}
+          {message.sender === "user" ? (
+            terminal !== null ? (
+              <View style={{ gap: 10 }}>
+                {terminal.before !== "" && (
+                  <ChipText client={client} skills={skills} text={terminal.before} workspacePath={workspacePath} />
+                )}
+                <TerminalMessage cwd={terminal.cwd} output={terminal.output} />
+                {terminal.after !== "" && (
+                  <ChipText client={client} skills={skills} text={terminal.after} workspacePath={workspacePath} />
+                )}
+              </View>
+            ) : sent.body === "" ? null : (
+              <ChipText client={client} skills={skills} text={sent.body} workspacePath={workspacePath} />
+            )
+          ) : (
+            <Markdown text={message.text} />
+          )}
+          <SentComments items={sent.items} />
+          <MessageImages cards={message.attachments} client={client} />
+          {fromQuest !== null && (
+            <QuestButton
+              link={{ label: "Open quest", missionId: fromQuest, title: message.fromTitle ?? "" }}
+              onOpenMission={onOpenMission}
+            />
+          )}
+        </View>
+      </CommentableCard>
     </View>
   );
 }

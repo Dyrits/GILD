@@ -1,5 +1,12 @@
 # Work in progress
 
+## Comments on messages · 2026-11-11 · built and checked, owner review pending
+
+Agreed in CHG-0195, built in CHG-0196. Starting commit `588d0e3`, built in worktree `ISKIOS-message-comments` (branch `worktree/message-comments`) and rebased onto `b901df9`.
+Built: a Comment button on any message card (hover or focus) and a Comment on selection button beside selected text; comments wait per thread in the browser's storage, listed in a tray above the message box (edit, remove); sending carries them as a `<comments>` block after the typed text and the conversation draws them back as quotes.
+Checks: typecheck, Biome, 12 tests added, app suite passes; driven in a throwaway Electron window on the fake harness ([proof](verification/2026-11-11-message-comments.md)).
+Open, awaiting the owner: the look; the block's form and the keys (my choices in CHG-0195); comments on other items (step groups, cards, lore changes, journal, quest panel) not built. Not checked: dark mode, a side-quest, a real harness reading the block, the phone build beyond typecheck.
+
 ## Mentions with @ · 2026-11-11 · built and checked, owner review pending
 
 Agreed in CHG-0181, built in CHG-0182. Starting commit `5fbfc4c`; nothing committed.
@@ -14,7 +21,7 @@ Open: the owner's look at the colors; the cream cards of the image are not repro
 
 ## Guild Hall hub · 2026-11-11 · built and checked, redesigned after the owner's looks, then given context and settings; owner review pending
 
-Agreed with the owner for this batch (shape from CHG-0176; panel and design direction in CHG-0189, top bar button and expand in CHG-0190, band of figures and dense list in CHG-0191, far-right column in CHG-0192, context, settings, and the column in the Guild Hall in CHG-0193); delivered in CHG-0188 in worktree `ISKIOS-guild-hall-hub` (branch `worktree/guild-hall-hub`, return destination recorded in its Git directory). Starting commit `5fbfc4c`; nothing committed.
+Agreed with the owner for this batch (shape from CHG-0176; panel and design direction in CHG-0196, top bar button and expand in CHG-0190, band of figures and dense list in CHG-0191, far-right column in CHG-0192, context, settings, and the column in the Guild Hall in CHG-0193); delivered in CHG-0195 in worktree `ISKIOS-guild-hall-hub` (branch `worktree/guild-hall-hub`, return destination recorded in its Git directory). Starting commit `5fbfc4c`; nothing committed.
 Built: requests `ReadGuildHallRecap` and `VisitGuildHall` (`packages/service/src/work/guildHall.ts`); the hub page (`apps/app/src/conversation/guildHallHub.tsx`, `guildHall.ts`); Iskios's conversation as a panel (`IskiosConversation` in `guildmaster.tsx`; top bar button in `shell/topBar.tsx`; floating card, column, and the pill for a window with no top bar in `shell/iskiosDock.tsx`, wired in `shell/shell.tsx`; its open state in `railStorage.ts`).
 Checks: typecheck, Biome, 6 service and 10 app tests added, app suite 196 passed (service suite last run 816 passed with one failure that predates this work, code unchanged since); driven in a throwaway Electron window ([proof](verification/2026-11-11-guild-hall-hub.md)).
 Open: the owner to confirm what CHG-0193 chose for them (context read by tools, not pushed; settings changeable except the approval level, budgets, and price fetching; no confirmation card or undo); the owner's look at the hub, the panel, and the top bar button; a phone not seen; the button does not show Iskios working or a proposal waiting while folded; the setting that hides the Guild Hall does not hide the button; with Iskios's column and the quest panel both open the quest page is cramped; the duplicate of a quest as waiting and recent is an assumption; a realm's crest is a lozenge for a quest in the Borderlands. The other Iskios decisions (card wording, Customize, realms tied to no folder, `create_ritual`) and the code renaming remain as in the handoff below.
