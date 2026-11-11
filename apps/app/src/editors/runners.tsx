@@ -52,7 +52,7 @@ const listedEffortsOf = (harness: HarnessInfo | undefined, model: ModelChoice) =
 
 /**
  * The effort levels of the chosen model: from the harness's model list, or, when the list does not say (OpenCode),
- * asked of the provider each time a model is picked. Empty while unknown or without a client to ask.
+ * asked of the service when a model is picked, which has read them ahead since the model list was read. Empty while unknown or without a client to ask.
  */
 function useModelEfforts(client: ServiceClient | undefined, harness: HarnessInfo | undefined, value: Runner) {
   const listed = listedEffortsOf(harness, value.model);

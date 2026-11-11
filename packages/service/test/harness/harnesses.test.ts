@@ -1,4 +1,4 @@
-import { mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
+import { chmodSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
@@ -19,7 +19,9 @@ import {
   type FakeUpdates,
   fakeHarnessToolsLayer,
   Harness,
+  HarnessTools,
   listOpenCodeEfforts,
+  liveHarnessToolsLayer,
   makeClaudeHarness,
   makeCodexHarness,
   makeOpenCodeHarness,
@@ -537,6 +539,35 @@ describe("running OpenCode threads", () => {
       expect(yield* listOpenCodeEfforts(process.execPath, null, "provider/plain", standIn)).toEqual([]);
     }),
   );
+
+  it.live("reads OpenCode's effort levels ahead when it lists its models, so a pick starts no session", () => {
+    const directory = realpathSync(mkdtempSync(join(tmpdir(), "iskios-warm-")));
+    directories.push(directory);
+    const log = join(directory, "log.jsonl");
+    process.env.STAND_IN_LOG = log;
+    // A command that lists two models and runs the stand-in as `opencode acp`.
+    const command = join(directory, "opencode");
+    writeFileSync(
+      command,
+      `#!/bin/sh\nif [ "$1" = models ]; then printf 'provider/model-a\\nprovider/plain\\n'; exit 0; fi\nexec ${JSON.stringify(process.execPath)} ${JSON.stringify(join(fixtures, "stand-in-opencode.mjs"))} "$@"\n`,
+    );
+    chmodSync(command, 0o755);
+    const sessions = () =>
+      (existsSync(log) ? readFileSync(log, "utf8") : "").split("\n").filter((line) => line.includes('"pid"')).length;
+    return Effect.gen(function* () {
+      const tools = yield* HarnessTools;
+      const listed = yield* tools.listModels("opencode", null);
+      expect(listed.map((option) => option.id)).toEqual(["provider/model-a", "provider/plain"]);
+      // The levels are read in the background; wait for both models' sessions.
+      for (let i = 0; i < 100 && sessions() < 2; i++) yield* Effect.sleep("100 millis");
+      yield* Effect.sleep("500 millis");
+      const before = sessions();
+      expect(before).toBe(2);
+      // A pick now answers from what was kept, without opening a session.
+      expect(yield* tools.listEfforts("opencode", null, "provider/model-a")).toEqual(["none", "high"]);
+      expect(sessions()).toBe(before);
+    }).pipe(Effect.provide(liveHarnessToolsLayer({ claude: "claude", codex: "codex", opencode: command })));
+  });
 
   it.live("carries on in the same turn after the owner's refusal cancels OpenCode's prompt", () => {
     const { layer, requests } = withHarnesses();

@@ -62,6 +62,9 @@ const quoted = (text: string) => `'${text.replaceAll("'", "'\\''")}'`;
 /** How long a model list is reused before the harness is asked again. */
 const modelsLifetimeMillis = 10 * 60 * 1000;
 
+/** How many models' effort levels are read ahead at once. */
+const effortWarmingConcurrency = 3;
+
 /** How long the newest release is reused before the registry is asked again. */
 const latestLifetimeMillis = 30 * 60 * 1000;
 
@@ -132,7 +135,10 @@ export const liveHarnessToolsLayer = (commands: HarnessCommands) =>
     const readModels = (harness: HarnessName, configDirectory: string | null) =>
       harnesses[harness].readModels(commands[harness], configDirectory);
 
-    const listModels = (harness: HarnessName, configDirectory: string | null) =>
+    const listModels = (
+      harness: HarnessName,
+      configDirectory: string | null,
+    ): Effect.Effect<ReadonlyArray<ModelOption>> =>
       Effect.gen(function* () {
         const key = `${harness}:${configDirectory ?? ""}`;
         const now = yield* Clock.currentTimeMillis;
@@ -140,12 +146,27 @@ export const liveHarnessToolsLayer = (commands: HarnessCommands) =>
         if (cached !== undefined && now - cached.at < modelsLifetimeMillis) return cached.options;
         const options = yield* readModels(harness, configDirectory);
         // A list with only the default is not kept, so a harness signed in later lists its models at once.
-        if (options.length > 1) models.set(key, { at: now, options });
+        if (options.length > 1) {
+          models.set(key, { at: now, options });
+          // A harness whose list does not hold the levels has them read ahead, so a pick shows them at once.
+          if (harnesses[harness].readEfforts !== undefined)
+            yield* Effect.forkDetach(
+              warmEfforts(
+                harness,
+                configDirectory,
+                options.map((option) => option.id),
+              ),
+            );
+        }
         return options;
       });
 
     const efforts = new Map<string, { at: number; levels: ReadonlyArray<EffortChoice> }>();
-    const listEfforts = (harness: HarnessName, configDirectory: string | null, model: string) =>
+    const listEfforts = (
+      harness: HarnessName,
+      configDirectory: string | null,
+      model: string,
+    ): Effect.Effect<ReadonlyArray<EffortChoice>> =>
       Effect.gen(function* () {
         const readEfforts = harnesses[harness].readEfforts;
         if (readEfforts === undefined)
@@ -158,6 +179,27 @@ export const liveHarnessToolsLayer = (commands: HarnessCommands) =>
         // An empty answer may be a failed read: not kept, so the next pick asks again.
         if (levels.length > 0) efforts.set(key, { at: now, levels });
         return levels;
+      });
+
+    // The models whose levels are being read ahead, so one list read starts one warming.
+    const warming = new Set<string>();
+
+    // Reads each model's effort levels into the same cache a pick uses, a few at a time (each read is a short ACP
+    // session); a model that is already kept, or one that fails, is left to the on-demand request.
+    const warmEfforts = (
+      harness: HarnessName,
+      configDirectory: string | null,
+      ids: ReadonlyArray<string>,
+    ): Effect.Effect<void> =>
+      Effect.gen(function* () {
+        const prefix = `${harness}:${configDirectory ?? ""}`;
+        if (warming.has(prefix)) return;
+        warming.add(prefix);
+        yield* Effect.forEach(
+          ids.filter((id) => id !== "default"),
+          (id) => listEfforts(harness, configDirectory, id),
+          { concurrency: effortWarmingConcurrency, discard: true },
+        ).pipe(Effect.ensuring(Effect.sync(() => warming.delete(prefix))));
       });
 
     const openSignIn = (harness: HarnessName, configDirectory: string | null) =>

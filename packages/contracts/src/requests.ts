@@ -399,7 +399,7 @@ export const AddBrowsableRoot = Schema.TaggedStruct("AddBrowsableRoot", { path: 
 export const ListHarnesses = Schema.TaggedStruct("ListHarnesses", {});
 /**
  * The effort levels the provider offers for one model, lowest first, without "default"; empty when it offers none.
- * OpenCode says them only for a model once chosen, so its pickers ask when a model is picked.
+ * OpenCode says them only for a model once chosen, so its pickers ask when a model is picked; the service reads them ahead when it lists the models.
  */
 export const ListModelEfforts = Schema.TaggedStruct("ListModelEfforts", {
   /** The provider account, or null for the harness's own sign-in on this computer. */

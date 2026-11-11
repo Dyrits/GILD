@@ -2235,3 +2235,12 @@ Scope: Interface
 
 Summary: At the owner's request the sidebar icons come in two sets, taken from the owner's `guildmaster-menu-icons` folder (13 drawings, ivory/silver for the dark look, slate blue for the light). Each 512 px source was cropped to one common frame, so the drawings keep their relative sizes, and reduced to 192 px: `assets/nav/*.png` is the dark set (replacing the former silver icons, so Realms, Craft, Archive, Reserves, and Workshop have new drawings; Borderlands is `free-realms.png`) and `assets/nav/light/*.png` the light one. `shell/navIcons.tsx` picks the set of the look in use. Provisional: the owner chose these "for now". Earlier attempts, a recoloring of the former icons and cut-outs of the concept sheet, were dropped; the 500-icon pack in Downloads (flat Font Awesome glyphs, CC BY 4.0) was reviewed and not used.
 Validation: typecheck and Biome pass; seen in a throwaway Electron instance of the web export, sidebar in light and in dark. The icons on screens other than the sidebar's were not checked; the sources are raster, extracted and upscaled from concept art, so detail is limited at large sizes.
+
+## CHG-0162 · 2026-11-11 · OpenCode effort levels read ahead
+
+Type: Code
+Event: Delivery
+Scope: Service
+
+Summary: At the owner's request the OpenCode effort picker no longer waits for a short ACP session on each pick. When the service reads OpenCode's model list afresh (`listModels` in `harnessTools.ts`), it starts a background read of every model's levels, three at a time, into the cache `ListModelEfforts` already uses; a pick then answers from the cache. A model not yet read, or read under another account's folder, still falls back to the on-demand read. The request, its response, and the app's pickers are unchanged (one comment updated). The cache lifetime is the model list's, so the levels are read again after it expires, when the list is next read.
+Validation: typecheck and Biome pass; `harnesses.test.ts` passes with the new warming case (43 of 44; the one failure, the added account's own folder, fails identically without this change because the running session's environment leaks into it). Not seen in the running app, nor timed against OpenCode 2.2.0's 60 models.
