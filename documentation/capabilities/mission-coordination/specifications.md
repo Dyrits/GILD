@@ -19,7 +19,6 @@ In the Guild Hall, the user talks with Guildmaster to find information, manage I
   Each report from a quest it opened (a result, a Summons, a failure) likewise puts a button that opens that quest on the right of Guildmaster's reply to it.
 - A setting hides Guild Hall, which is shown by default.
   Guildmaster's spending appears on the dashboard like a quest's, and it can have its own [budget](../budget-control/specifications.md).
-- The Guild Hall place name was agreed on 2026-11-10 (CHG-0131); the interface rename remains pending.
 
 ### What Guildmaster does itself
 

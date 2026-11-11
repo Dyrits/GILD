@@ -1,6 +1,6 @@
 import type { Crest, MissionId, MissionSummary, ThreadId, WorkspaceId } from "@iskios/contracts";
 import { type ReactNode, useEffect, useState } from "react";
-import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { Image, Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import Svg, { Circle, Path } from "react-native-svg";
 import { CrestBadge } from "../crest/crest";
 import { ReserveRows } from "../editors/budgets";
@@ -279,6 +279,8 @@ function Row({
       style={(state) => [
         local.row,
         { paddingLeft: 6 + indent },
+        // A main row's label starts where a heading's does: no gap after the icon, whose own margin spaces it.
+        isMain && local.rowMain,
         (state.pressed || isHovered(state)) && local.rowHovered,
         isSelected && local.rowSelected,
       ]}
@@ -620,7 +622,7 @@ const useToggles = () => {
 };
 
 /**
- * The left sidebar, in the agreed order: Guild Hall, the Realms with their quests, the Borderlands' quests, Rituals,
+ * The left sidebar, in the agreed order: the logo, Guild Hall, the Realms with their quests, the Borderlands' quests, Rituals,
  * Craft, The Keep, Reserves, and the Workshop (the settings). Quests nest their side-quests at every depth,
  * and the sidebar opens the path to the thread that is open.
  */
@@ -653,7 +655,7 @@ export function Sidebar({
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
   const placements = placementsOf(data?.missions ?? [], data?.workspaces ?? []);
   const isHere = (each: Place) => openMission === null && place === each;
-  // A setting hides the Guild Hall's entry; its screen is still where a realm page's message goes.
+  // A setting hides the Guild Hall entry; its screen is still where a realm page's message goes.
   const hasGuildHall = settings?.shouldShowGuildmaster !== false;
   // The menu that makes a realm, tied to a folder or to none.
   const [isCreating, setIsCreating] = useState(false);
@@ -752,6 +754,12 @@ export function Sidebar({
   return (
     <View style={[local.sidebar, { width }]}>
       <ScrollView contentContainerStyle={local.group} style={local.flex}>
+        <Image
+          accessibilityLabel="Iskios"
+          resizeMode="contain"
+          source={require("../../assets/iskios-logo.png")}
+          style={local.logo}
+        />
         {hasGuildHall && (
           <>
             <Row
@@ -948,16 +956,20 @@ const local = StyleSheet.create({
     alignItems: "center",
     borderRadius: radii.md,
     flexDirection: "row",
+    // Same 36 px as a main row (a 28 px icon with 4 px above and below), so the stack of categories is evenly spaced.
+    minHeight: 36,
     paddingHorizontal: 6,
-    paddingVertical: 6,
+    paddingVertical: 4,
   },
-  headingChevron: { alignItems: "center", height: 32, justifyContent: "center", marginLeft: 6, width: 28 },
+  headingChevron: { alignItems: "center", height: 28, justifyContent: "center", marginLeft: 6, width: 28 },
   headingIcon: { alignItems: "center", marginRight: 8, width: 28 },
   // The title never gives up its width; the minimum rail width leaves room for the chevron and the actions.
   headingText: { flexShrink: 0 },
   headingTitle: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.lg, fontWeight: "700" },
   iconColumn: { gap: 4, padding: 8 },
   iconRow: { alignItems: "center", borderRadius: radii.md, height: 36, justifyContent: "center" },
+  // The owner's logo, tried large above the entries (CHG-0165); it replaces no icon.
+  logo: { alignSelf: "center", height: 96, marginBottom: 4, marginTop: 4, width: 96 },
   more: {
     alignItems: "center",
     borderRadius: radii.md,
@@ -992,6 +1004,7 @@ const local = StyleSheet.create({
     paddingVertical: 4,
   },
   rowHovered: { backgroundColor: colors.controlHover },
+  rowMain: { gap: 0, minHeight: 36 },
   rowSelected: { backgroundColor: colors.controlActive },
   rowText: { color: colors.onGround, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.base },
   rowTextMain: { color: colors.text, fontSize: fontSizes.lg, fontWeight: "700" },
