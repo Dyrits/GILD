@@ -32,7 +32,7 @@ export function NewRealmModal({
   onCancel,
   onCreate,
 }: {
-  /** Whether the realm is tied to a folder; a Free Realm is not, and the menu leaves the folder out. */
+  /** Whether the realm is tied to a folder; a Borderland is not, and the menu leaves the folder out. */
   hasFolder?: boolean;
   initial: NewRealm;
   onCancel: () => void;
@@ -57,7 +57,7 @@ export function NewRealmModal({
       <View style={local.backdrop}>
         <Pressable accessibilityLabel="Close" onPress={onCancel} style={StyleSheet.absoluteFill} />
         <View style={local.menu}>
-          <Text style={local.menuTitle}>{hasFolder ? "Travel to a new realm" : "Travel to a new free realm"}</Text>
+          <Text style={local.menuTitle}>{hasFolder ? "Travel to a new realm" : "Travel to a new borderland"}</Text>
           {hasFolder && (
             <View style={local.folderRow}>
               <Text numberOfLines={2} style={[local.menuPath, editing.path === "" && local.menuPathEmpty]}>

@@ -15,7 +15,7 @@ User-authored text and historical service messages are not rewritten.
 | Model selected to do the work | Companion |
 | Thread opened beneath another thread | Side-quest |
 | Workspace-backed grouping of missions | Realm |
-| Workspace-free grouping of missions | Free Realm |
+| Workspace-free grouping of missions | Borderland |
 | Mission outside any realm | Realmless Quest |
 | Control conversation | Guild Hall |
 | Entity the user talks with in Control | Guildmaster |
@@ -105,7 +105,7 @@ _Avoid_: Project, repo, directory
 **Realm**:
 A grouping of quests tied to one workspace, with lore shared across its quests.
 
-**Free Realm**:
+**Borderland**:
 A grouping of quests with shared lore and no workspace.
 
 **Realmless Quest**:
@@ -219,7 +219,7 @@ Saved facts, preferences, and decisions, each held at one lore scope. One item i
 _Avoid_: Memory, note, knowledge, intel
 
 **Lore scope**:
-Where a lore entry belongs: a side-quest, a quest, a realm (including a free realm), or global.
+Where a lore entry belongs: a side-quest, a quest, a realm (including a borderland), or global.
 See [lore scopes](capabilities/scoped-intel/specifications.md#scopes) for visibility and Guildmaster's access exception.
 
 **Lore kind**:

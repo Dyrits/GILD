@@ -17,20 +17,20 @@ When work runs in many threads across harnesses, the user loses track of which m
 - The user starts a mission from the dashboard with a first message, a harness, agent, model, effort, and workspace (or none).
 - All but the message are prefilled from the user's last choices, so a mission starts with one message and Enter.
 - A new mission's top thread starts as **Open as new mission** does in [thread-tree](../thread-tree/specifications.md#off-topic-requests): with global skills and intel, and nothing from another mission.
-- The owner can create a quest directly from a Realm or Free Realm without going through Guildmaster.
+- The owner can create a quest directly from a Realm or Borderland without going through Guildmaster.
   The quest belongs to that realm and receives its lore; a workspace-backed Realm also supplies its workspace.
-- A new-quest button beside each Realm and Free Realm creates an empty quest there; Realmless also has one. It uses the last quest's harness and model and is named "New quest" until its first message names it.
+- A new-quest button beside each Realm and Borderland creates an empty quest there; Realmless also has one. It uses the last quest's harness and model and is named "New quest" until its first message names it.
 
 Direct realm creation was agreed on 2026-11-10 (CHG-0133) and implemented in `f21e768`; its appearance awaits the owner.
 
 ### Quest placement and moves
 
-Agreed on 2026-11-10 (CHG-0130). Creation in a Free Realm is implemented; moving existing quests remains pending.
+Agreed on 2026-11-10 (CHG-0130). Creation in a Borderland is implemented; moving existing quests remains pending.
 
-- A quest belongs to a Realm tied to a workspace, to a Free Realm with no workspace, or to no realm (realmless).
+- A quest belongs to a Realm tied to a workspace, to a Borderland with no workspace, or to no realm (realmless).
 - Lore access follows [lore scopes](../scoped-intel/specifications.md#scopes).
 - The owner can move an existing quest between any of these placements, including correcting a quest started in the wrong workspace.
-- The sidebar supports dragging a quest from its current Realm, Free Realm, or realmless group onto another placement.
+- The sidebar supports dragging a quest from its current Realm, Borderland, or realmless group onto another placement.
 - Before changing placement, Iskios asks for confirmation naming the source and destination and explaining that the available realm lore will change.
   Confirm applies the move; Cancel leaves the quest and its tree in their original placement.
   This confirmation applies to every placement-changing move, including making a quest realmless, whichever interface initiates it.
@@ -38,7 +38,7 @@ Agreed on 2026-11-10 (CHG-0130). Creation in a Free Realm is implemented; moving
 - A move is refused while any thread in the quest tree is running; it does not stop running threads automatically.
   The running-thread check applies when the owner confirms, even if no thread was running when the drag began.
 - Moving into a workspace-backed Realm changes the workspace of every thread in the tree to that Realm's workspace.
-- Moving into a Free Realm or making a quest realmless removes workspace attachments throughout the tree; its threads then use the quest's scratch folder.
+- Moving into a Borderland or making a quest realmless removes workspace attachments throughout the tree; its threads then use the quest's scratch folder.
 - The conversation, journal, and thread-scoped lore stay with the quest; shared lore access follows the destination, without copying lore between realms.
 - Earlier conversation content can still refer to the former realm or workspace; a move does not rewrite that history.
 - A quest is independent of the artifacts it produces or modifies; moving it does not move, copy, or delete files, edits, branches, or existing own copies.
@@ -96,7 +96,7 @@ Sidebar drag-and-drop and confirmation were agreed on 2026-11-10 (CHG-0133); imp
 ### Compact left navigation
 
 - The owner agreed on 2026-11-10 to a narrower main left menu with smaller icons, tighter rows, readable labels, and the existing collapse and resize controls.
-- The original compact proportions used a width around 220 px and 15 px labels. The current sidebar minimum is 236 px, an estimate intended to keep “Free Realms” on one line; its appearance awaits the owner.
+- The original compact proportions used a width around 220 px and 15 px labels. The current sidebar minimum is 236 px, an estimate intended to keep “Borderlands” on one line; its appearance awaits the owner.
 - The owner judges the final proportions in the running app.
 - The quest tree lives within the main sidebar, following [quest tree visibility](../thread-tree/specifications.md#quest-tree-visibility).
 - Agent validation checks navigation, collapse, resizing, and readable access to long labels at the reduced width; human acceptance checks the proportions in the running app.
@@ -112,7 +112,7 @@ The expanded left sidebar uses this order:
 | --- | --- | --- |
 | 1 | Guild Hall | The place where the owner talks with Guildmaster |
 | 2 | Realms | Workspace-backed Realms, each containing its quests and their nested side-quests |
-| 3 | Free Realms | Workspace-free Realms, each containing its quests and their nested side-quests |
+| 3 | Borderlands | Workspace-free Realms, each containing its quests and their nested side-quests |
 | 4 | Realmless | Quests outside any realm, each with its nested side-quests |
 | 5 | Rituals | Routines |
 | 6 | Craft | Workflows |
@@ -123,10 +123,10 @@ The expanded left sidebar uses this order:
 
 The separate Workshop for MCP servers, connectors, and skills (position 8 of CHG-0134) is withdrawn for now; the owner will ask for a dedicated menu for them later.
 
-- Each Realm and Free Realm can expand or collapse its quests; each quest and side-quest can expand or collapse its children at every supported depth.
+- Each Realm, Borderland, and Realmless can expand or collapse its quests; each quest and side-quest can expand or collapse its children at every supported depth.
 - Realmless has no intermediate realm grouping.
-- Each Realm and Free Realm shows its three newest quests, and Realmless its five newest; the open quest remains visible beyond the cap. A "Show all N quests" link opens the corresponding full list, most recent first. The Realmless cap awaits confirmation.
-- A workspace-backed Realm's quest list offers its realm panel, including crest, lore, and rename controls. Free Realm and Realmless panel content remains undecided.
+- Each Realm, Borderland, and Realmless shows its three newest quests; the open quest remains visible beyond the cap. A "Show all N quests" link opens the corresponding full list, most recent first.
+- A workspace-backed Realm's quest list offers its realm panel, including crest, lore, and rename controls. Borderland and Realmless panel content remains undecided.
 - The sidebar is the only left quest tree; the conversation retains its details sidebar on the right, following [quest tree visibility](../thread-tree/specifications.md#quest-tree-visibility).
 - The owner's supplied Guild Hall image is the reference for the nested quest presentation: visible parent-child relationships, indentation, branch guides, expansion controls, and state indicators.
   The image does not authorize its other Guild Hall contents, footer, wording, or new actions.
@@ -156,10 +156,10 @@ Threads use this thread tool (see [0005](../../architecture-decision-record/0005
 ## Acceptance and validation
 
 - **Automated, with a fake harness**:
-  - direct creation from a Realm, Free Realm, and Realmless without a Guildmaster turn, checking placement, lore and workspace, the last harness and model, the initial title, and naming on the first message;
+  - direct creation from a Realm, Borderland, and Realmless without a Guildmaster turn, checking placement, lore and workspace, the last harness and model, the initial title, and naming on the first message;
   - dragging quests between sidebar placements opening the move confirmation, with no placement change before confirmation and none on Cancel;
   - confirming a move refused if any descendant starts running while confirmation is open;
-  - quests in a workspace-backed Realm, a Free Realm, and no realm, with the correct shared lore;
+  - quests in a workspace-backed Realm, a Borderland, and no realm, with the correct shared lore;
   - moving the entire quest tree between each placement, including nested threads with a different prior workspace;
   - refusing the move without changing any placement or attachment when any thread in the tree is running;
   - preserving conversations, journals, and thread lore while changing workspace attachments and shared lore access;

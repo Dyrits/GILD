@@ -1,7 +1,7 @@
 import type { Crest, FreeRealmId, MissionId, MissionSummary, ThreadId } from "@iskios/contracts";
 import { type ReactNode, useEffect, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
-import Svg, { Path } from "react-native-svg";
+import Svg, { Circle, Path } from "react-native-svg";
 import { CrestBadge } from "../crest/crest";
 import { ReserveRows } from "../editors/budgets";
 import { PlanLimitLines } from "../editors/planLimitLines";
@@ -37,7 +37,7 @@ export type Place =
 const indentStep = 14;
 const chevronWidth = 16;
 /** How many quests the sidebar lists under Realmless, and under each realm; the quest list page lists them all. */
-const realmlessShown = 5;
+const realmlessShown = 3;
 const realmShown = 3;
 
 const isHovered = (state: unknown) => (state as { hovered?: boolean }).hovered === true;
@@ -87,6 +87,36 @@ function NewQuestIcon({ color }: { color: string }) {
       <Path d="M6 2.5v6" />
       <Path d="M3 5.5h6" />
     </Svg>
+  );
+}
+
+/** Opens a group's overview without changing its folded state. */
+function OverviewButton({ isMain = false, label, onPress }: { isMain?: boolean; label: string; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityLabel={`Open ${label} overview`}
+      accessibilityRole="button"
+      hitSlop={4}
+      onPress={onPress}
+      style={(state) => [
+        isMain ? local.add : local.newQuest,
+        (state.pressed || isHovered(state)) && (isMain ? local.addHovered : local.newQuestHovered),
+      ]}
+    >
+      <Svg
+        fill="none"
+        height={18}
+        stroke={colors.textMuted}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        strokeWidth={1.8}
+        viewBox="0 0 24 24"
+        width={18}
+      >
+        <Path d="M2 12s3.5-6 10-6 10 6 10 6-3.5 6-10 6S2 12 2 12Z" />
+        <Circle cx={12} cy={12} r={3} />
+      </Svg>
+    </Pressable>
   );
 }
 
@@ -170,8 +200,7 @@ function Count({ value }: { value: number }) {
 }
 
 /**
- * The heading of a group: its icon and its name. The quest groups are always open, and
- * their headings open the group's own page; a heading that folds what lies beneath it shows a large chevron for it.
+ * The heading of a group, with controls for its page, contents, and creation where applicable.
  */
 function Heading({
   icon,
@@ -181,7 +210,9 @@ function Heading({
   note,
   onAdd,
   onNewQuest,
+  onOverview,
   onPress,
+  onToggle,
 }: {
   icon: NavIconName;
   isSelected?: boolean;
@@ -194,13 +225,16 @@ function Heading({
   onAdd?: () => void;
   /** Starts a quest in the group, in the place of the add button, for a group whose quests need no realm made first. */
   onNewQuest?: () => void;
+  onOverview?: () => void;
   onPress: () => void;
+  onToggle?: () => void;
 }) {
   return (
     <Pressable
       accessibilityHint={note}
       accessibilityLabel={label}
       accessibilityRole="button"
+      accessibilityState={isOpen === undefined ? {} : { expanded: isOpen }}
       onPress={onPress}
       style={(state) => [
         local.heading,
@@ -216,6 +250,18 @@ function Heading({
           {label}
         </Text>
       </View>
+      {onToggle !== undefined && (
+        <Pressable
+          accessibilityLabel={`${isOpen ? "Collapse" : "Expand"} ${label}`}
+          accessibilityRole="button"
+          accessibilityState={{ expanded: isOpen === true }}
+          onPress={onToggle}
+          style={local.headingChevron}
+        >
+          <Text style={[local.headingChevronMark, isOpen && local.chevronMarkOpen]}>›</Text>
+        </Pressable>
+      )}
+      {onOverview !== undefined && <OverviewButton isMain label={label} onPress={onOverview} />}
       {onAdd !== undefined && (
         <Pressable
           accessibilityLabel={`New ${label.toLowerCase().replace(/s$/, "")}`}
@@ -236,7 +282,7 @@ function Heading({
           <NewQuestIcon color={colors.highlight} />
         </Pressable>
       )}
-      {isOpen !== undefined && (
+      {isOpen !== undefined && onToggle === undefined && (
         <View style={local.headingChevron}>
           <Text style={[local.headingChevronMark, isOpen && local.chevronMarkOpen]}>›</Text>
         </View>
@@ -407,7 +453,7 @@ const useToggles = () => {
 };
 
 /**
- * The left sidebar, in the agreed order: Guild Hall, the Realms with their quests, Free Realms, quests outside any
+ * The left sidebar, in the agreed order: Guild Hall, the Realms with their quests, Borderlands, quests outside any
  * realm, Rituals, Craft, The Keep, Reserves, and the Workshop (the settings). Quests nest their side-quests at every depth,
  * and the sidebar opens the path to the thread that is open.
  */
@@ -426,7 +472,7 @@ export function Sidebar({
   /** The open rail's width, as dragged. */
   width: number;
   onOpenMission: (id: MissionId) => void;
-  /** Opens the page that lists all of a realm's or Free Realm's quests. */
+  /** Opens the page that lists all of a realm's or Borderland's quests. */
   onOpenRealmQuests: (listing: RealmListing) => void;
   /** Opens a side-quest of a quest. */
   onOpenThread: (missionId: MissionId, threadId: ThreadId) => void;
@@ -443,11 +489,11 @@ export function Sidebar({
   const isHere = (each: Place) => openMission === null && place === each;
   // A setting hides the Guild Hall's entry; its screen is still where a realm page's message goes.
   const hasGuildHall = settings?.shouldShowGuildmaster !== false;
-  // The menu that makes a realm: one tied to a folder, or a free realm with none.
+  // The menu that makes a realm: one tied to a folder, or a borderland with none.
   const [creating, setCreating] = useState<"folder" | "free" | null>(null);
   // Realms start open and quests start closed, so a long list of quests stays short; side-quests start open.
   const closedRealms = useToggles();
-  // The Keep's heading folds or unfolds its rooms; the quest groups are always open.
+  // The Keep's heading folds or unfolds its rooms.
   const isKeepFolded = useToggles();
   const openQuests = useToggles();
   // The open quest always shows, even when it lies beyond the first few.
@@ -493,7 +539,7 @@ export function Sidebar({
   const failureUnder = (groupId: string) =>
     newQuestFailure?.groupId === groupId && <Text style={local.newQuestFailure}>{newQuestFailure.message}</Text>;
 
-  /** A realm or Free Realm: its crest and name, its quests beneath it while it is unfolded, and the button for a new quest. */
+  /** A realm or Borderland: its crest and name, its quests beneath it while it is unfolded, and the button for a new quest. */
   const realmRow = (realm: {
     crest: Crest | null;
     id: string;
@@ -517,6 +563,10 @@ export function Sidebar({
           </Text>
           <Count value={realm.quests.length} />
           <Chevron isOpen={!isClosed} label={realm.name} onPress={() => closedRealms.toggle(realm.id)} />
+          <OverviewButton
+            label={realm.name}
+            onPress={() => onOpenRealmQuests({ id: realm.id, kind: realm.kind, name: realm.name })}
+          />
           <Pressable
             accessibilityLabel={`New quest in ${realm.name}`}
             accessibilityRole="button"
@@ -584,12 +634,12 @@ export function Sidebar({
         <Heading
           icon="free-realms"
           isSelected={isHere("FreeRealms")}
-          label="Free Realms"
+          label="Borderlands"
           note="No workspace; groups related quests"
           onAdd={() => setCreating("free")}
           onPress={() => onPlace("FreeRealms")}
         />
-        {placements.freeRealms.length === 0 && <Text style={local.empty}>No free realm yet.</Text>}
+        {placements.freeRealms.length === 0 && <Text style={local.empty}>No borderland yet.</Text>}
         {placements.freeRealms.map(({ freeRealm, quests }) =>
           realmRow({
             crest: freeRealm.crest,
@@ -604,18 +654,24 @@ export function Sidebar({
         <Gap />
         <Heading
           icon="realmless"
+          isOpen={!closedRealms.set.has("Realmless")}
           isSelected={isHere("Realmless")}
           label="Realmless"
           note="Independent quest, outside any realm"
           onNewQuest={() => startQuest("Realmless", { workspacePath: null })}
-          onPress={() => onPlace("Realmless")}
+          onOverview={() => onPlace("Realmless")}
+          onPress={() => closedRealms.toggle("Realmless")}
+          onToggle={() => closedRealms.toggle("Realmless")}
         />
         {failureUnder("Realmless")}
-        {placements.realmless.length === 0 && <Text style={local.empty}>No quest yet.</Text>}
-        {shownOf(placements.realmless, realmlessShown).map((mission) => (
-          <Quest {...questProps} isOpen={openQuests.set.has(mission.id)} key={mission.id} mission={mission} />
-        ))}
-        {placements.realmless.length > realmlessShown && (
+        {!closedRealms.set.has("Realmless") && placements.realmless.length === 0 && (
+          <Text style={local.empty}>No quest yet.</Text>
+        )}
+        {!closedRealms.set.has("Realmless") &&
+          shownOf(placements.realmless, realmlessShown).map((mission) => (
+            <Quest {...questProps} isOpen={openQuests.set.has(mission.id)} key={mission.id} mission={mission} />
+          ))}
+        {!closedRealms.set.has("Realmless") && placements.realmless.length > realmlessShown && (
           <ShowAll count={placements.realmless.length} onPress={() => onPlace("Realmless")} subject="Realmless" />
         )}
 

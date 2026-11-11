@@ -119,7 +119,7 @@ export const crumbsOf = ({
 }: {
   /** Whether the quests have been read, so a quest missing from them is known to be archived. */
   isLoaded: boolean;
-  /** The realm or Free Realm whose quest list is open, if any. */
+  /** The realm or Borderland whose quest list is open, if any. */
   listedRealmName: string | null;
   /** The quests that are not archived. */
   missions: readonly MissionSummary[];
@@ -149,7 +149,7 @@ export const crumbsOf = ({
   if (place === "Charter") return [here("Charter")];
   if (place === "Craft") return [here("Craft")];
   if (place === "Realms") return [here("Realms")];
-  if (place === "FreeRealms") return [here("Free Realms")];
+  if (place === "FreeRealms") return [here("Borderlands")];
   if (place === "Realmless") return [here("Realmless")];
   if (place === "RealmQuests") return [here(listedRealmName ?? "Realm")];
   if (place === "Reserves") return [here("Reserves")];
