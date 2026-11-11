@@ -8,7 +8,8 @@ A quest runs on one harness and model for its whole life. When a limit is reache
 
 ## Agreed behavior
 
-- **Where**: the quest's message box offers the same pickers as starting a quest: harness, account (when the harness has several), Companion (model), and effort. Choosing another value is the handover; no other confirmation.
+- **Where**: under the quest's message box, at its right, the same pickers as starting a quest: harness, account (when the harness has several), Companion (model), and effort. Choosing another value is the handover; no other confirmation (CHG-0157).
+- **Effort**: only the levels the provider offers for the chosen model, after the model's own default: Codex's from its model list, Claude Code's from its own model list (fixed in Iskios, read on 2026-11-11). A model with none, such as OpenCode's, shows no effort picker. Changing to a model that lacks the chosen level returns to the default (CHG-0157).
 - **When**: between turns. While the thread is in a turn or waits for an answer (Running or Attention), the pickers are not offered and the service refuses the change; the owner interrupts or stops it first. A Stopped, Idle, Waiting, Done, or Failed thread can be handed over.
 - **Same harness and account, another model or effort**: the harness session carries on; the next turn uses the new model and effort.
 - **Another harness or account**: a harness's session cannot be resumed by another harness or under another account, so the next turn starts a new session and its first message carries the whole conversation so far: the owner's messages, other threads' messages and results, and the thread's own replies, oldest first, under "Conversation so far".
@@ -16,7 +17,7 @@ A quest runs on one harness and model for its whole life. When a limit is reache
 - **Another harness's defaults**: choosing another harness takes its own sign-in and default model unless chosen, as when starting a quest.
 - **Replies keep their author**: each reply keeps the harness and model that wrote it, with its provider's mark and name, after a handover.
 - **The line**: each handover leaves a line in the conversation, for example "Handed over to Codex · gpt-5 · default effort · 14:02". A change that changes nothing leaves none.
-- **A message waiting** for the thread (kept while it was Stopped, or undelivered after a failed turn) runs on the new runner as soon as the thread is not Stopped: a Failed thread retries at once on the new runner.
+- **Nothing runs on the change itself** (CHG-0157): a message waiting after a failed turn runs on the new runner when the owner presses Retry on the failure notice or sends another message; a Stopped thread's messages wait until Resume. A backup's or a Ritual's fallback after a failure still retries at once.
 - **Budget**: the thread keeps drawing on its quest's budget.
 - **Account**: an account that does not exist or belongs to another harness is refused with the reason.
 - **Deleting** a thread erases its handover lines.
@@ -31,6 +32,7 @@ A quest runs on one harness and model for its whole life. When a limit is reache
 
 ## Acceptance
 
+- A failed thread handed over stays Failed until Retry, which runs its message on the new runner (`handover.test.ts`).
 - A model and effort change keeps the harness session; a harness change starts a new session with the history; a thread's first turn has no history (`handover.test.ts`).
 - Replies keep the harness and model that wrote them (`handover.test.ts`, `companionLabel.test.ts`).
 - Real Claude Code and Codex adapters on stand-ins: a thread handed over from Claude Code to Codex starts a new Codex thread whose first turn input holds the conversation (`harnesses.test.ts`).

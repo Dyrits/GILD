@@ -13,7 +13,7 @@ import {
   TokenUsage,
 } from "./budgets.ts";
 import { Crest } from "./crest.ts";
-import { HarnessName } from "./harnesses.ts";
+import { EffortChoice, HarnessName } from "./harnesses.ts";
 import { AccountId, FreeRealmId, MessageId, MissionId, SuggestionId, ThreadId, WorkspaceId } from "./ids.ts";
 import { LoreChange, LoreGauge } from "./lore.ts";
 import { ApprovalLevel, Question } from "./questions.ts";
@@ -45,10 +45,6 @@ export type ModelChoice = typeof ModelChoice.Type;
 
 /** The model a new quest starts on until the owner picks another (Claude Code's Sonnet 5.5). */
 export const startingModel: ModelChoice = "claude-sonnet-5-5";
-
-/** The effort a thread runs with; default is the harness's own. */
-export const EffortChoice = Schema.Literals(["default", "low", "medium", "high", "xhigh", "max"]);
-export type EffortChoice = typeof EffortChoice.Type;
 
 /** How an owner message reaches a running thread: joining its current turn, or waiting for its next (thread-messaging, Delivery; CHG-0039). */
 export const MessageDelivery = Schema.Literals(["Steer", "Queue"]);

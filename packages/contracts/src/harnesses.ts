@@ -7,8 +7,17 @@ import { AccountId } from "./ids.ts";
 export const HarnessName = Schema.Literals(["claude", "codex", "opencode"]);
 export type HarnessName = typeof HarnessName.Type;
 
+/** The effort a thread runs with, by the provider's own names; default is the model's own. */
+export const EffortChoice = Schema.Literals(["default", "low", "medium", "high", "xhigh", "max", "ultra"]);
+export type EffortChoice = typeof EffortChoice.Type;
+
 /** One model a harness offers, by the identifier the harness takes. */
 export const ModelOption = Schema.Struct({
+  /**
+   * The effort levels the provider offers for this model, lowest first, without "default"; absent or empty when the
+   * model takes no effort or the harness does not say, and only the model's own default is offered.
+   */
+  efforts: Schema.optionalKey(Schema.Array(EffortChoice)),
   id: Schema.String,
   /** Whether the model reads images, when the harness says; absent when it does not (message-attachments). */
   inputsImages: Schema.optionalKey(Schema.Boolean),

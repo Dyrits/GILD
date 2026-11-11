@@ -47,8 +47,8 @@ When adding a handoff, keep only the three newest current handoffs linked below;
 
 Latest handoffs:
 
+- To resume the handover without auto-retry, the pickers under the message box, and provider effort levels (not driven in the app), read the [current handoff](.agents/handoffs/2026-11-11-1500-handover-pickers-efforts.md). Handoffs are shared and committed.
+
 - To resume the sidebar and icon adjustments, read the [current handoff](.agents/handoffs/2026-11-11-1436-sidebar-icons.md). Handoffs are shared and committed.
 
 - To resume the sidebar documentation review and its pending acceptance, read the [current handoff](.agents/handoffs/2026-11-11-1348-documentation-review.md). Handoffs are shared and committed.
-
-- To resume the right panel handle, the minimum sidebar width, and the realm panel on the quest list page (not driven in the Electron app), read the [current handoff](.agents/handoffs/2026-11-11-1330-panel-handles.md). Handoffs are shared and committed.

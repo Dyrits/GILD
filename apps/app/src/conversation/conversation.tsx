@@ -193,7 +193,18 @@ function ThreadPane({
       {thread.failure != null && (
         <View style={styles.failure}>
           <Text style={styles.error}>The last turn failed: {thread.failure}</Text>
-          <Text style={styles.muted}>Your next message retries it.</Text>
+          <Text style={styles.muted}>
+            Retry runs it again on the Companion chosen below; your next message retries it too.
+          </Text>
+          {!isInTurn && thread.state !== "Stopped" && (
+            <Pressable
+              accessibilityRole="button"
+              onPress={() => act(client.request({ _tag: "RetryThread", threadId: thread.id }))}
+              style={styles.button}
+            >
+              <Text style={styles.buttonText}>Retry</Text>
+            </Pressable>
+          )}
         </View>
       )}
       <FlatList<Entry>
@@ -251,7 +262,8 @@ function ThreadPane({
           attachments={{ client, refusal: imageRefusalOf(harnesses, thread.harness, thread.model) }}
           mentions={{ client, workspacePath: thread.workspace?.path ?? null }}
           skills={skills}
-          // The harness, account, Companion, and effort can change between turns: a handover (thread-handover).
+          // The harness, account, Companion, and effort can change between turns: a handover (thread-handover). It
+          // starts no turn: the next message, or Retry after a failed turn, runs on it.
           {...(isInTurn
             ? {}
             : {

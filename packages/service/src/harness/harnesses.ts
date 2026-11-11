@@ -1,5 +1,5 @@
 import { tmpdir } from "node:os";
-import type { HarnessName, ModelOption } from "@iskios/contracts";
+import { EffortChoice, type HarnessName, type ModelOption } from "@iskios/contracts";
 import { type Duration, Effect, Queue, type Scope } from "effect";
 import { fieldOf, type HarnessAdapter, routeHarnesses, textFieldOf } from "../core/index.ts";
 import { makeClaudeHarness } from "./claude.ts";
@@ -35,6 +35,17 @@ export interface HarnessDefinition extends HarnessFacts {
 const unknownSignIn: SignInStatus = { detail: null, signIn: "Unknown" };
 const signedOut: SignInStatus = { detail: null, signIn: "SignedOut" };
 
+/** The effort levels Codex offers for one model, as its list says, lowest first; those Iskios does not know are left out. */
+const codexEffortsOf = (model: unknown): Array<EffortChoice> => {
+  const supported = fieldOf(model, "supportedReasoningEfforts");
+  if (!Array.isArray(supported)) return [];
+  const known: ReadonlyArray<string> = EffortChoice.literals;
+  return supported.flatMap((option): Array<EffortChoice> => {
+    const level = textFieldOf(option, "reasoningEffort");
+    return level !== null && level !== "default" && known.includes(level) ? [level as EffortChoice] : [];
+  });
+};
+
 /** Codex's models, read from its app server's own list. */
 const listCodexModels = (command: string, configDirectory: string | null) =>
   Effect.gen(function* () {
@@ -61,7 +72,7 @@ const listCodexModels = (command: string, configDirectory: string | null) =>
           const id = textFieldOf(model, "id");
           return id === null || fieldOf(model, "hidden") === true
             ? []
-            : [{ id, label: textFieldOf(model, "displayName") ?? id }];
+            : [{ efforts: codexEffortsOf(model), id, label: textFieldOf(model, "displayName") ?? id }];
         })
       : [];
   }).pipe(Effect.catch(() => Effect.succeed<ReadonlyArray<ModelOption>>([])));

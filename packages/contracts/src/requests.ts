@@ -2,7 +2,7 @@ import { Schema } from "effect";
 import { AttachmentCard, AttachmentContent, maxAttachmentsPerMessage } from "./attachments.ts";
 import { AccountBudget, BudgetLimits, BudgetPeriod, BudgetWindow, PriceStatus } from "./budgets.ts";
 import { Crest } from "./crest.ts";
-import { HarnessList, HarnessName } from "./harnesses.ts";
+import { EffortChoice, HarnessList, HarnessName } from "./harnesses.ts";
 import {
   AccountId,
   AttachmentId,
@@ -25,7 +25,6 @@ import { LoreHistory, LoreScope, LoreStateFilter, LoreView } from "./lore.ts";
 import { PermissionsView, Question } from "./questions.ts";
 import {
   BackupCompanion,
-  EffortChoice,
   EndingPreview,
   GuildmasterPlace,
   MessageDelivery,
@@ -366,7 +365,7 @@ export const SetThreadBackups = Schema.TaggedStruct("SetThreadBackups", {
   backups: Schema.Array(BackupCompanion).check(Schema.isMaxLength(5)),
   threadId: ThreadId,
 });
-/** Tries again a thread waiting in Attention on its missing workspace folder (Retry). */
+/** Tries again a thread's failed turn, or a thread waiting in Attention on its missing workspace folder (Retry). */
 export const RetryThread = Schema.TaggedStruct("RetryThread", { threadId: ThreadId });
 /** Reads the standing permissions, for one mission or all. */
 export const ReadPermissions = Schema.TaggedStruct("ReadPermissions", { missionId: Schema.NullOr(MissionId) });

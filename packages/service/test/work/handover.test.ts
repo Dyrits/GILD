@@ -236,7 +236,7 @@ describe("handover: changing a thread's harness, account, model, or effort mid-t
     ),
   );
 
-  it.live("a failed thread retries its message at once on the new runner", () =>
+  it.live("a failed thread waits for Retry, then runs its message on the new runner", () =>
     withService(
       Effect.gen(function* () {
         const started = yield* start("fail claude not signed in\nrunner");
@@ -249,6 +249,11 @@ describe("handover: changing a thread's harness, account, model, or effort mid-t
           model: "default",
           threadId: failed.thread.id,
         });
+        // The change alone starts no turn.
+        yield* Effect.sleep("150 millis");
+        const changed = yield* read(started.missionId);
+        expect(changed.thread).toMatchObject({ harness: "codex", state: "Failed", waitingCount: 1 });
+        yield* call({ _tag: "RetryThread", threadId: failed.thread.id });
         const after = yield* settle(started.missionId, (d) => d.thread.state === "Idle");
         expect(lastReplyOf(after)).toContain("codex");
       }),

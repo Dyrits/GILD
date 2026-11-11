@@ -27,9 +27,10 @@ const handoverTextOf = (runner: Runner, accountLabel: string | null, fellBackAft
 
 /**
  * Changes the thread's runner. Refused while the thread is in a turn. A change of harness or account forgets the
- * harness session, so the thread's next turn starts a new one with the conversation so far; a message already
- * waiting for the thread runs on the new runner at once. A Ritual's fallback (rituals) passes the failure that caused it,
- * which the line then gives after the new runner.
+ * harness session, so the thread's next turn starts a new one with the conversation so far. The owner's change starts
+ * no turn: a message waiting after a failed turn runs on the new runner when the owner retries or writes again. A
+ * fallback (backups, rituals) passes the failure that caused it, which the line then gives after the new runner, and
+ * runs the waiting messages at once.
  */
 export const changeThreadRunner = (threadId: string, runner: Runner, fellBackAfter: string | null = null) =>
   Effect.gen(function* () {
@@ -60,7 +61,9 @@ export const changeThreadRunner = (threadId: string, runner: Runner, fellBackAft
         : yield* sql<{ label: string }>`SELECT label FROM accounts WHERE id = ${runner.accountId}`;
     yield* sql`INSERT INTO handovers (id, thread_id, text, at)
       VALUES (${crypto.randomUUID()}, ${threadId}, ${handoverTextOf(runner, account?.label ?? null, fellBackAfter)}, ${now})`;
-    return changed(null, { threadsToWake: [threadId] });
+    // The owner's change waits for the owner: their next message, or Retry after a failed turn, runs on it. A
+    // fallback after a failure runs the waiting messages on the new runner at once.
+    return fellBackAfter === null ? changed(null) : changed(null, { threadsToWake: [threadId] });
   });
 
 /** The thread's handover lines, oldest first. */

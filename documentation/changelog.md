@@ -2199,3 +2199,21 @@ Scope: Interface
 
 Summary: At the owner's request, replies and the owner's own messages no longer share the page's navy: a reply is a step lighter (`bubble`, #1d2b3d), the owner's message a step bluer (`bubbleUser`, #24384f), and a terminal snapshot in a message a clear blue (`terminal`, #2a4562), after the owner's supplied example. A trial of the owner's "something this color"; the values are one place in `theme.ts`.
 Validation: typecheck and Biome pass; seen in a conversation on the fake harness ([conversation](verification/2026-11-11-iskios-sidebar/95-bubbles.png)). The terminal snapshot's new color was not seen on screen.
+
+## CHG-0157 · 2026-11-11 · Handover waits for the owner; pickers under the message box; provider effort levels
+
+Type: Code
+Event: Delivery
+Scope: Interface, Service
+
+Summary: At the owner's request a change of harness, account, model, or effort no longer starts a turn: a failed turn runs again on the new runner only when the owner presses the new Retry on the failure notice (`RetryThread` now also retries a failed turn) or sends a message; fallbacks of backups and Rituals still retry at once. The runner pickers moved out of the message box to a row under it, at its right. The effort picker offers only the levels the provider gives for the chosen model (`ModelOption.efforts`): Codex's from `model/list` (`supportedReasoningEfforts`, which adds `ultra` to the effort choices), Claude Code's fixed from its own model list (low to max, read on 2026-11-11); no picker for a model with none (OpenCode), and a model change drops a level the new model lacks.
+Validation: typecheck and Biome pass; `handover.test.ts` passes with the new Retry case. The full suite had timeouts under a machine load of 35 to 55, and one account-folder test fails because the running session's `CLAUDE_CONFIG_DIR` leaks into it; none touches these changes. Not seen in the running app.
+
+## CHG-0158 · 2026-11-11 · Light mode
+
+Type: Code
+Event: Delivery
+Scope: Interface
+
+Summary: At the owner's request the app has a light look, inspired by the owner's parchment mock-up: warm cream surfaces, ink-navy text, the blue accent a step deeper. `foundation/theme.ts` now holds a `dark` and a `light` palette under the same names, and `colors` is the one in use; `foundation/colorScheme.ts` reads the owner's choice (System, Light, or Dark, kept in the browser's storage, System by default) once at load. Styles are cut when modules load, so a change in the Workshop's new Appearance card, or of the system's look while System is chosen, reloads the window. Two tokens were added for what had no neutral name: `shadow` (the large titles' text shadow) and `cornerButton`. Only the web build keeps a choice until native builds exist.
+Validation: typecheck and Biome pass; the app tests pass (159), including `colorSchemeRules.test.ts`; the service tests that failed in the run belong to the unfinished harness and lore changes of another session, not to this change. Driven in a throwaway Electron instance on the web export: Guild Hall, Workshop, Rituals, and Library in light; the Appearance control switches to Dark and back and reloads. The conversation, quest, Lore, crest, and terminal screens were not seen in light.

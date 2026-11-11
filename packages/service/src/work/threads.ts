@@ -281,9 +281,16 @@ export const threadsLayer = Layer.effect(
       commands
         .run(
           Effect.gen(function* () {
-            const [thread] = yield* sql<{ blocker: string | null }>`SELECT blocker FROM threads WHERE id = ${threadId}`;
+            const [thread] = yield* sql<{ blocker: string | null; failure: string | null; state: string }>`
+              SELECT blocker, failure, state FROM threads WHERE id = ${threadId} AND is_deleting = 0`;
+            // After a failed turn, its messages wait undelivered: Retry runs them again, on the current runner.
+            if (thread !== undefined && thread.blocker === null && thread.failure !== null) {
+              if (thread.state === "Running" || thread.state === "Attention" || thread.state === "Stopped")
+                return yield* invalid("This thread is in a turn or stopped; it cannot retry now.");
+              return changed(null, { threadsToWake: [threadId] });
+            }
             if (thread?.blocker !== "MissingWorkspace")
-              return yield* invalid("This thread is not waiting on its workspace folder.");
+              return yield* invalid("This thread has no failed turn and is not waiting on its workspace folder.");
             yield* local(releaseThread(threadId));
             // Still missing: admit sends it back to Attention.
             return changed(null, { threadsToWake: [threadId] });

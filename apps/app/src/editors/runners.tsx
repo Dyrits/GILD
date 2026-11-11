@@ -1,12 +1,4 @@
-import {
-  type AccountId,
-  type EffortChoice,
-  EffortChoice as EffortChoices,
-  type HarnessInfo,
-  type HarnessList,
-  type HarnessName,
-  type ModelChoice,
-} from "@iskios/contracts";
+import type { AccountId, EffortChoice, HarnessInfo, HarnessList, HarnessName, ModelChoice } from "@iskios/contracts";
 import { useCallback, useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { messageOf, type ServiceClient } from "../foundation/client";
@@ -55,6 +47,22 @@ const modelIdsOf = (harness: HarnessInfo | undefined, model: ModelChoice) => {
 };
 
 /**
+ * The efforts a model offers, as its provider lists them, after the model's own default; only the default when the
+ * provider lists none. The chosen effort stays in the list when the model no longer offers it, so the picker says it.
+ */
+const effortsOf = (harness: HarnessInfo | undefined, model: ModelChoice, effort: EffortChoice) => {
+  const levels: ReadonlyArray<EffortChoice> = [
+    "default",
+    ...(harness?.models.find((option) => option.id === model)?.efforts ?? []),
+  ];
+  return levels.includes(effort) ? levels : [...levels, effort];
+};
+
+/** The effort kept when the model changes: the same when the new model offers it, else the model's own default. */
+const effortFor = (harness: HarnessInfo | undefined, model: ModelChoice, effort: EffortChoice): EffortChoice =>
+  harness?.models.find((option) => option.id === model)?.efforts?.includes(effort) === true ? effort : "default";
+
+/**
  * Pickers for a runner: harness, account when the harness has more than one, model, and effort. Choosing
  * another harness takes its own sign-in and default model, as the service does when they are left out.
  */
@@ -81,18 +89,18 @@ export function RunnerPickers({
     const problem = harnesses?.harnesses.find((candidate) => candidate.name === name)?.problem ?? null;
     return problem === null ? harnessLabels[name] : `${harnessLabels[name]} (not installed)`;
   };
-  const chooseHarness = (harnessName: HarnessName) =>
-    onChange(
-      harnessName === value.harness
-        ? value
-        : {
-            accountId: null,
-            effort: value.effort,
-            harness: harnessName,
-            // The harness's first listed model; "default" only while its list is not read yet.
-            model: harnesses?.harnesses.find((candidate) => candidate.name === harnessName)?.models[0]?.id ?? "default",
-          },
-    );
+  const chooseHarness = (harnessName: HarnessName) => {
+    if (harnessName === value.harness) return onChange(value);
+    const next = harnesses?.harnesses.find((candidate) => candidate.name === harnessName);
+    // The harness's first listed model; "default" only while its list is not read yet.
+    const model = next?.models[0]?.id ?? "default";
+    onChange({ accountId: null, effort: effortFor(next, model, value.effort), harness: harnessName, model });
+  };
+  const chooseModel = (model: ModelChoice) =>
+    onChange({ ...value, effort: effortFor(harness, model, value.effort), model });
+  const effortOptions = effortsOf(harness, value.model, value.effort);
+  // A model that offers no level of effort has nothing to choose.
+  const isEffortChosen = effortOptions.length > 1;
   const accountLabel = (id: AccountId | null) => {
     const account = accounts.find((candidate) => candidate.id === id);
     return account === undefined
@@ -127,17 +135,19 @@ export function RunnerPickers({
         <Menu
           accessibilityLabel="Companion (model)"
           label={(id: ModelChoice) => modelLabelOf(id, models)}
-          onChange={(model: ModelChoice) => onChange({ ...value, model })}
+          onChange={chooseModel}
           options={modelOptions}
           value={value.model}
         />
-        <Menu
-          accessibilityLabel="Effort"
-          label={effortLabel}
-          onChange={(effort: EffortChoice) => onChange({ ...value, effort })}
-          options={EffortChoices.literals}
-          value={value.effort}
-        />
+        {isEffortChosen && (
+          <Menu
+            accessibilityLabel="Effort"
+            label={effortLabel}
+            onChange={(effort: EffortChoice) => onChange({ ...value, effort })}
+            options={effortOptions}
+            value={value.effort}
+          />
+        )}
       </>
     );
   }
@@ -173,21 +183,23 @@ export function RunnerPickers({
           accessibilityLabel="Companion (model)"
           isField
           label={(id: ModelChoice) => modelLabelOf(id, models)}
-          onChange={(model: ModelChoice) => onChange({ ...value, model })}
+          onChange={chooseModel}
           options={modelOptions}
           value={value.model}
         />
       </View>
-      <View style={styles.field}>
-        <Text style={styles.fieldName}>Effort</Text>
-        <Steps
-          accessibilityLabel="Effort"
-          label={(effort: EffortChoice) => (effort === "default" ? "default" : effort)}
-          onChange={(effort: EffortChoice) => onChange({ ...value, effort })}
-          options={EffortChoices.literals}
-          value={value.effort}
-        />
-      </View>
+      {isEffortChosen && (
+        <View style={styles.field}>
+          <Text style={styles.fieldName}>Effort</Text>
+          <Steps
+            accessibilityLabel="Effort"
+            label={(effort: EffortChoice) => (effort === "default" ? "default" : effort)}
+            onChange={(effort: EffortChoice) => onChange({ ...value, effort })}
+            options={effortOptions}
+            value={value.effort}
+          />
+        </View>
+      )}
     </View>
   );
 }

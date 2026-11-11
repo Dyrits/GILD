@@ -1,17 +1,23 @@
-import type { HarnessName, ModelOption } from "@iskios/contracts";
+import type { EffortChoice, HarnessName, ModelOption } from "@iskios/contracts";
 
 // What Iskios knows of each harness without running it (provider-accounts). The registry (harnesses.ts)
 // adds how each one runs; these facts stay apart so the modules a harness's adapter needs can read them.
+
+/**
+ * The effort levels Claude Code offers for each model below, as its own model list says (`supportedEffortLevels` in
+ * its initialize reply, read on 2026-11-11, matching its `--effort` values); check again when adding a model.
+ */
+const claudeEfforts: ReadonlyArray<EffortChoice> = ["low", "medium", "high", "xhigh", "max"];
 
 /**
  * Claude Code's models, each by its full identifier so the owner picks a version, newest family first. The
  * aliases (`opus`, `sonnet`) stay valid for threads that already use them but are no longer offered.
  */
 export const claudeModels: ReadonlyArray<ModelOption> = [
-  { id: "claude-fable-5-2", label: "Fable 5.2" },
-  { id: "claude-opus-5-5", label: "Opus 5.5" },
-  { id: "claude-sonnet-5-5", label: "Sonnet 5.5" },
-  { id: "claude-haiku-5-5", label: "Haiku 5.5" },
+  { efforts: claudeEfforts, id: "claude-fable-5-2", label: "Fable 5.2" },
+  { efforts: claudeEfforts, id: "claude-opus-5-5", label: "Opus 5.5" },
+  { efforts: claudeEfforts, id: "claude-sonnet-5-5", label: "Sonnet 5.5" },
+  { efforts: claudeEfforts, id: "claude-haiku-5-5", label: "Haiku 5.5" },
 ];
 
 /** The cheapest model Iskios knows for Claude Code, where the Guildmaster, which only routes, starts. */

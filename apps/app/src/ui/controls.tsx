@@ -107,7 +107,7 @@ export function Composer({
   onInterrupt?: () => Promise<unknown>;
   /** Hears the text as it is typed and cleared, such as to preview what it would send. */
   onChangeText?: (text: string) => void;
-  /** Controls shown at the bottom left of the box, such as pickers for what the message starts. */
+  /** Controls shown under the box, at its right, such as pickers for what the message runs on. */
   accessory?: ReactNode;
   /** The skills a slash offers; a slash-name matching one is highlighted. */
   skills?: ReadonlyArray<Skill>;
@@ -231,7 +231,6 @@ export function Composer({
             ref={editor}
           />
         </View>
-        {accessory !== undefined && <View style={styles.composerAccessory}>{accessory}</View>}
         <View style={styles.composerActions}>
           {onInterrupt !== undefined && (
             <Pressable onPress={() => interrupt(onInterrupt)} style={styles.buttonSecondary}>
@@ -258,6 +257,7 @@ export function Composer({
           </Pressable>
         </View>
       </View>
+      {accessory !== undefined && <View style={styles.composerAccessory}>{accessory}</View>}
       {refusal !== null && <Text style={styles.error}>{refusal}</Text>}
       {files.error !== null && <Text style={styles.error}>{files.error}</Text>}
       {error !== null && <Text style={styles.error}>{error}</Text>}

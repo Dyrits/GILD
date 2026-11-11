@@ -73,7 +73,15 @@ export const styles = StyleSheet.create({
   code: { color: colors.textSecondary, fontFamily: fonts.mono, fontSize: fontSizes.md },
   /** The message box: one pill-shaped row that holds the text, the accessories, and the send button, and grows only as the text gains lines. */
   composer: { gap: 4 },
-  composerAccessory: { alignItems: "center", flexDirection: "row", flexShrink: 0, gap: 4 },
+  /** The pickers under the message box, at its right. */
+  composerAccessory: {
+    alignItems: "center",
+    columnGap: 12,
+    flexDirection: "row",
+    flexWrap: "wrap",
+    justifyContent: "flex-end",
+    paddingHorizontal: 16,
+  },
   composerActions: { alignItems: "center", flexDirection: "row", flexShrink: 0, gap: 8 },
   composerField: { flex: 1, flexBasis: 200, justifyContent: "center", minWidth: 160 },
   composerInput: {
