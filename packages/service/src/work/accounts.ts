@@ -85,6 +85,20 @@ export const updateHarness = (harness: HarnessName) =>
     yield* tools.update(harness);
   });
 
+/** Installs a missing harness and verifies that its configured executable can run. */
+export const installHarness = Effect.fn("installHarness")(function* (harness: HarnessName) {
+  const tools = yield* HarnessTools;
+  const before = yield* tools.inspect(harness);
+  if (before.problem === null)
+    return yield* invalid(`${harnessLabels[harness]} is already installed. Use Update instead.`);
+  yield* tools.install(harness);
+  const after = yield* tools.inspect(harness);
+  if (after.problem !== null)
+    return yield* invalid(
+      `Installation finished, but ${after.problem} Check your PATH or configured harness path, then press Refresh.`,
+    );
+});
+
 const readAccount = (accountId: string) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;

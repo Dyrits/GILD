@@ -2032,3 +2032,23 @@ Reason: the owner wanted one comparable view of use and cost across subscription
 References: [specifications](capabilities/budget-control/specifications.md), [blueprint](capabilities/budget-control/blueprint.md), [decision record 0014](architecture-decision-record/0014-model-prices-from-a-public-table.md) (proposed), proofs [step 1](verification/2026-11-10-consumption-and-cost.md), [step 2](verification/2026-11-11-account-budgets.md), [step 3](verification/2026-11-11-reply-usage-and-plan-limits.md).
 Validation: typecheck and Biome pass; the full suite passes apart from two to five timing tests that time out under parallel load and pass alone; every claim's checks were shown able to fail by mutation (10, 9, and 10 mutations, all caught after one test was strengthened); the screens were driven in the web build on throwaway data. Codex's `account/read` and `account/rateLimits/read` were probed live without a model call.
 Not done: live probes of Claude Code's `apiKeySource` and `rate_limit_event`, its `total_cost_usd` as a running total, OpenCode's sign-in and usage, and usage per model call on any harness (each needs a paid model call); Claude Code's and OpenCode's plan limits show "Limits not reported". The owner's look at every new screen. Decision record 0014 and the provisional API-key rule await the owner's acceptance.
+
+## CHG-0147 · 2026-11-11 · Install missing harnesses from Charter
+
+Type: Code
+Event: Delivery
+Scope: Provider accounts
+
+Summary: Missing harnesses offer Install in Charter. Installation uses each official npm package, shows progress, refreshes harnesses and accounts, and reports failures for retry. Working harnesses retain Update. Node.js and npm with a writable global prefix on PATH are prerequisites.
+References: [Provider accounts](capabilities/provider-accounts/specifications.md), [verification](verification/2026-11-11-harness-install.md).
+Validation: 739 tests passed, 10 skipped; workspace typecheck, Biome, and Expo web export pass. Driven in Aside with fake installation: missing Codex becomes Ready and its accounts appear; OpenCode keeps Install and Claude keeps Update. Real package installation, Windows/Linux execution, packaged desktop, and owner appearance acceptance remain unverified.
+
+## CHG-0148 · 2026-11-11 · Simplify harness version labels
+
+Type: Code
+Event: Delivery
+Scope: Provider accounts
+
+Summary: Harness titles show only the name and version: `Claude Code · 2.1.302`, `Codex · 0.160.1`, and `OpenCode · v2.2.0`. CLI prefixes and repeated names are removed from the displayed version; an existing `v` is preserved.
+References: `apps/app/src/settings/accounts.tsx`.
+Validation: Owner's explicit label examples; workspace typecheck and Biome pass.

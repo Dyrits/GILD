@@ -6,6 +6,7 @@ import { Clock, Context, Effect, Layer } from "effect";
 import { invalid, type ServiceFailure, textFieldOf } from "../core/index.ts";
 import { accountEnvironmentOf, harnessFacts } from "./harnessCatalog.ts";
 import { harnesses } from "./harnesses.ts";
+import { installHarnessPackage } from "./harnessInstallation.ts";
 import { updateOf } from "./harnessVersions.ts";
 import { runHarnessCommand } from "./lineProcess.ts";
 
@@ -30,6 +31,8 @@ export class HarnessTools extends Context.Service<
   HarnessTools,
   {
     readonly inspect: (harness: HarnessName) => Effect.Effect<Installation>;
+    /** Installs the harness's official npm package. */
+    readonly install: (harness: HarnessName) => Effect.Effect<void, ServiceFailure>;
     /** The newer version a harness can update to, given its installed version text; null when up to date or unknown. */
     readonly findUpdate: (harness: HarnessName, installed: string | null) => Effect.Effect<string | null>;
     readonly listModels: (
@@ -71,7 +74,7 @@ export const liveHarnessToolsLayer = (commands: HarnessCommands) =>
           return code === 0 && version !== ""
             ? { problem: null, version }
             : {
-                problem: `${harnessFacts[harness].label} was not found at "${commands[harness]}". Install it, then reopen the Charter.`,
+                problem: `${harnessFacts[harness].label} was not found at "${commands[harness]}". Choose Install, or install it yourself and press Refresh.`,
                 version: null,
               };
         }),
@@ -164,7 +167,7 @@ export const liveHarnessToolsLayer = (commands: HarnessCommands) =>
         if (opened.code !== 0) return yield* invalid(`Could not open a terminal. Run this yourself: ${line}`);
       });
 
-    return { findUpdate, inspect, listModels, openSignIn, readSignIn, update };
+    return { findUpdate, inspect, install: installHarnessPackage, listModels, openSignIn, readSignIn, update };
   });
 
 /** Which harnesses the fake offers an update to, by newer version, and the harnesses it has updated since. */
@@ -177,10 +180,18 @@ export interface FakeUpdates {
 export const fakeHarnessToolsLayer = (
   signIns: Array<string> = [],
   updates: FakeUpdates = { available: {}, updated: [] },
+  missing: Set<HarnessName> = new Set(),
 ) =>
   Layer.succeed(HarnessTools, {
     findUpdate: (harness) => Effect.succeed(updates.available[harness] ?? null),
-    inspect: () => Effect.succeed({ problem: null, version: "fake" }),
+    inspect: (harness) =>
+      Effect.succeed(
+        missing.has(harness) ? { problem: "Not installed", version: null } : { problem: null, version: "fake" },
+      ),
+    install: (harness) =>
+      Effect.sync(() => {
+        missing.delete(harness);
+      }),
     listModels: (harness) =>
       Effect.succeed(
         harnessFacts[harness].fixedModels ?? [{ id: `${harness}-fake-model`, label: `${harness} fake model` }],

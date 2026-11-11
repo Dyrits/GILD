@@ -18,12 +18,13 @@ const signInLabels = {
 
 /** A harness as its provider's logo and its name with the installed version, as titles and rows both show it. */
 function HarnessTitle({ harness }: { harness: HarnessInfo }) {
+  const version = harness.version?.match(/\bv?\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?/)?.[0] ?? harness.version;
   return (
     <View style={local.name}>
       <ProviderMark harness={harness.name} size={40} />
       <Text style={local.nameText}>
         {harnessLabels[harness.name]}
-        {harness.version === null ? "" : ` · ${harness.version}`}
+        {version === null ? "" : ` · ${version}`}
       </Text>
     </View>
   );
@@ -135,26 +136,34 @@ function HarnessAccounts({
 function HarnessState({
   harness,
   isUpdating,
+  isBusy,
   onUpdate,
 }: {
   harness: HarnessInfo;
   isUpdating: boolean;
+  isBusy: boolean;
   onUpdate: () => void;
 }) {
-  if (harness.problem !== null) return <Text style={[styles.error, styles.flex]}>{harness.problem}</Text>;
-  if (isUpdating) return <Text style={styles.muted}>Updating…</Text>;
+  if (isUpdating) return <Text style={styles.muted}>{harness.problem === null ? "Updating…" : "Installing…"}</Text>;
+  if (harness.problem !== null)
+    return (
+      <>
+        <Text style={[styles.error, styles.flex]}>{harness.problem}</Text>
+        <GoldButton isDisabled={isBusy} label="Install" onPress={onUpdate} />
+      </>
+    );
   if (harness.update === null) return <Text style={styles.muted}>Ready</Text>;
   return (
     <>
       <Text style={styles.muted}>Ready · {harness.update} is available</Text>
-      <GoldButton label="Update" onPress={onUpdate} />
+      <GoldButton isDisabled={isBusy} label="Update" onPress={onUpdate} />
     </>
   );
 }
 
 /**
  * The installed harnesses, each with its logo, version, and whether it can run; Refresh asks each one again.
- * A harness with a newer version on offer has Update, which runs the harness's own update command.
+ * Missing harnesses offer Install; installed ones with a newer version offer Update.
  */
 export function HarnessesCard({
   client,
@@ -169,19 +178,22 @@ export function HarnessesCard({
 }) {
   const [updating, setUpdating] = useState<HarnessName | null>(null);
   const [error, setError] = useState<string | null>(null);
-  const update = (harness: HarnessName) => {
-    setUpdating(harness);
+  const update = (harness: HarnessInfo) => {
+    if (updating !== null) return;
+    setUpdating(harness.name);
     setError(null);
-    return client.request({ _tag: "UpdateHarness", harness }).then(
-      (list) => {
-        setUpdating(null);
-        onChanged(list);
-      },
-      (reason: Error) => {
-        setUpdating(null);
-        setError(reason.message);
-      },
-    );
+    return client
+      .request({ _tag: harness.problem === null ? "UpdateHarness" : "InstallHarness", harness: harness.name })
+      .then(
+        (list) => {
+          setUpdating(null);
+          onChanged(list);
+        },
+        (reason: Error) => {
+          setUpdating(null);
+          setError(reason.message);
+        },
+      );
   };
   return (
     <SettingsCard
@@ -204,8 +216,9 @@ export function HarnessesCard({
               <HarnessTitle harness={harness} />
               <HarnessState
                 harness={harness}
+                isBusy={updating !== null}
                 isUpdating={updating === harness.name}
-                onUpdate={() => update(harness.name)}
+                onUpdate={() => update(harness)}
               />
             </View>
           </View>

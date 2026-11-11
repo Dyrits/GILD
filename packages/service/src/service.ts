@@ -44,6 +44,7 @@ import {
 import { addCredit, readAccountBudgets, setAccountBudget } from "./work/accountBudgets.ts";
 import {
   addAccount,
+  installHarness,
   listHarnesses,
   removeAccount,
   renameAccount,
@@ -279,6 +280,12 @@ const make = Effect.gen(function* () {
         DismissMissionPrompt: (given) => commands.run(dismissPrompt(given.missionId, given.prompt)),
         EditIntel: (given) => change(editLoreEntryByOwner(given.loreEntryId, given.text)),
         EndMission: (given) => commands.run(endMission(given.missionId, given.ending, given.snapshot)),
+        InstallHarness: (given) =>
+          installHarness(given.harness).pipe(
+            Effect.andThen(listHarnesses),
+            Effect.provideService(HarnessTools, harnessTools),
+            Effect.provideService(AccountsRoot, accountsRoot),
+          ),
         InterruptThread: (given) =>
           threads
             .interrupt(given.threadId)

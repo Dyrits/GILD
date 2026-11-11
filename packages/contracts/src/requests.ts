@@ -391,6 +391,9 @@ export const RenameAccount = Schema.TaggedStruct("RenameAccount", { accountId: A
 /** Updates a harness to its latest version through the harness's own update command, then lists the harnesses again. */
 export const UpdateHarness = Schema.TaggedStruct("UpdateHarness", { harness: HarnessName });
 
+/** Installs a missing harness from its official npm package, then lists the harnesses again. */
+export const InstallHarness = Schema.TaggedStruct("InstallHarness", { harness: HarnessName });
+
 /** Removes a provider account and its folder; refused while a thread that is not ended uses it. */
 export const RemoveAccount = Schema.TaggedStruct("RemoveAccount", { accountId: AccountId });
 
@@ -481,6 +484,7 @@ export const Request = Schema.Union([
   RemoveAccount,
   SignInAccount,
   UpdateHarness,
+  InstallHarness,
 ]);
 export type Request = typeof Request.Type;
 /** The name of one kind of request. */
@@ -517,6 +521,7 @@ export const Results = {
   DismissMissionPrompt: Schema.Null,
   EditIntel: Schema.Null,
   EndMission: Schema.Null,
+  InstallHarness: HarnessList,
   InterruptThread: Schema.Null,
   ListHarnesses: HarnessList,
   ListIntel: LoreView,

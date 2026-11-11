@@ -2,7 +2,15 @@ import { mkdtempSync, readFileSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
-import type { AccountId, MissionDetail, MissionId, Request, RequestTag, ResultOf } from "@gild/contracts";
+import type {
+  AccountId,
+  HarnessName,
+  MissionDetail,
+  MissionId,
+  Request,
+  RequestTag,
+  ResultOf,
+} from "@gild/contracts";
 import { type Duration, Effect, Layer } from "effect";
 import { afterEach } from "vitest";
 import { Endpoints, HarnessFailure } from "../../src/core/index.ts";
@@ -47,6 +55,7 @@ const withHarnesses = (idleTimeout: Duration.Input = "10 minutes") => {
   process.env.STAND_IN_LOG = log;
   const signIns: Array<string> = [];
   const updates: FakeUpdates = { available: {}, updated: [] };
+  const missing = new Set<HarnessName>();
   const accountsRoot = join(directory, "accounts");
   const harness = Layer.effect(
     Harness,
@@ -77,7 +86,7 @@ const withHarnesses = (idleTimeout: Duration.Input = "10 minutes") => {
     accountsRoot,
     filename: join(directory, "gild.sqlite"),
     harness,
-    harnessTools: fakeHarnessToolsLayer(signIns, updates),
+    harnessTools: fakeHarnessToolsLayer(signIns, updates, missing),
     homeFolder: directory,
     scratchRoot: join(directory, "missions"),
   });
@@ -92,7 +101,7 @@ const withHarnesses = (idleTimeout: Duration.Input = "10 minutes") => {
     }
   };
   const requests = (method: string) => logged().filter((entry) => entry.method === method);
-  return { accountsRoot, directory, layer, logged, requests, signIns, updates };
+  return { accountsRoot, directory, layer, logged, missing, requests, signIns, updates };
 };
 
 const call = <R extends Request>(request: R) =>
@@ -649,6 +658,26 @@ describe("managing provider accounts", () => {
       const after = yield* call({ _tag: "UpdateHarness", harness: "codex" });
       expect(updates.updated).toEqual(["codex"]);
       expect(after.harnesses.map((harness) => harness.update)).toEqual([null, null, null]);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("installs a missing harness and returns its refreshed status", () => {
+    const { layer, missing } = withHarnesses();
+    missing.add("codex");
+    return Effect.gen(function* () {
+      const before = yield* call({ _tag: "ListHarnesses" });
+      expect(before.harnesses[1]?.problem).toBe("Not installed");
+      const result = yield* call({ _tag: "InstallHarness", harness: "codex" });
+      expect(missing.has("codex")).toBe(false);
+      expect(result.harnesses[1]).toMatchObject({ problem: null, version: "fake" });
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("refuses installation over a working harness", () => {
+    const { layer } = withHarnesses();
+    return Effect.gen(function* () {
+      const result = yield* call({ _tag: "InstallHarness", harness: "codex" }).pipe(Effect.flip);
+      expect(result.message).toContain("already installed");
     }).pipe(Effect.provide(layer));
   });
 

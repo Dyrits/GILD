@@ -48,5 +48,5 @@ When adding a handoff, keep only the three newest current handoffs linked below;
 Latest handoffs:
 
 - To resume app icon packaging and acceptance, read the [current handoff](.agents/handoffs/2026-11-11-1114-app-icon.md). Handoffs are shared and committed.
-- To resume the sidebar and quest lifecycle implementation preparation, read the [current handoff](.agents/handoffs/2026-11-11-0023-sidebar-specification.md). Handoffs are shared and committed.
 - To resume consumption, estimated cost, account budgets, and plan limits (built and pushed; the owner's review and the live probes remain), read the [current handoff](.agents/handoffs/2026-11-11-1118-consumption-and-cost.md). Handoffs are shared and committed.
+- To resume Charter harness installation, version labels, and the Dock-name diagnosis, read the [current handoff](.agents/handoffs/2026-11-11-1200-harness-installation.md). Handoffs are shared and committed.

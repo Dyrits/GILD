@@ -731,3 +731,7 @@ The owner requested integration onto local main, without pushing to the remote.
 Terminal follow-up: the owner confirmed successful live use and requested a handoff and publication.
 CHG-0120 keeps the soft blue throughout the live and saved terminal; the latest appearance awaits an explicit look.
 The shared handoff is `.agents/handoffs/2026-11-10-1538-conversation-terminal.md`.
+
+## Charter harness installation · 2026-11-11 · built and checked, owner look pending
+
+The owner requested Install beside missing harnesses. Charter now offers it, shows Installing… during work, refreshes status/accounts afterward, and reports failures for retry. Installation uses the computer's npm and the official package's latest release; Node.js/npm and a writable global prefix on PATH are prerequisites. Existing Update remains. Full suite: 739 passed, 10 skipped; typecheck, Biome, and Expo web export pass. Driven in Aside against fake installations; real installs and Windows/Linux runs remain unverified. [Proof and screenshots](verification/2026-11-11-harness-install.md). The harness work is recorded in the [current handoff](../.agents/handoffs/2026-11-11-1200-harness-installation.md); the pre-existing rebrand/sidebar work is separate.

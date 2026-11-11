@@ -101,7 +101,7 @@ chmod +x Gild-*.AppImage
 
 ### First launch
 
-The installer includes the interface and local service; install and sign in to at least one harness separately.
+The installer includes the interface and local service. In Charter, choose Install beside a missing harness, then sign in to it. Installing through Charter requires Node.js and npm with a writable global installation folder; you can also install harnesses yourself.
 Gild looks for `claude`, `codex`, and `opencode` on your `PATH`.
 You only need the harnesses you intend to use.
 

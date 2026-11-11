@@ -14,7 +14,7 @@ The owner works with several harnesses and, for some, several subscriptions: two
 - A thread keeps its harness until the owner hands it over to another between turns ([thread-handover](../thread-handover/specifications.md)).
 - Each harness offers its own models: Claude Code its four families by version (Fable 5.2, Opus 5.5, Sonnet 5.5, Haiku 5.5), Codex the models its app server lists for the signed-in account, OpenCode the models `opencode models` lists. No list offers a "Default model": a model is always chosen. A new quest starts on Sonnet 5.5 until the owner picks another, and on another harness than its opener's a thread takes that harness's first listed model unless one is chosen. A thread that began with the harness's own default (`default`) keeps running on it and shows as "Default model".
 - Effort applies to Claude Code and Codex. OpenCode takes no effort.
-- A harness that is not installed shows as "(not installed)" in the pickers and says why in Settings.
+- A harness that is not installed shows as "(not installed)" in the pickers and says why in Settings. The Charter offers **Install** on its row. Install runs `npm install --global <official-package>@latest` using the computer's npm configuration, shows "Installing…", and refreshes harnesses when done. Node.js and npm must already be installed, and npm's global prefix must be writable. Failures show a reason and allow retry; an installation whose configured executable still cannot run reports the PATH or configured-path issue. Installed harnesses retain Update. Installation never signs the owner in.
 
 ### Accounts
 
