@@ -2,13 +2,14 @@
 
 ## Iskios, simple art direction, and the left sidebar · 2026-11-11 · built and checked, owner review pending
 
-The owner asked to rename the app Iskios, simplify the art direction a lot, and organize the sidebar like the supplied Guild Hall image; CHG-0143 records it. Starting revision `37e8c0a`; uncommitted.
+The owner asked to rename the app Iskios, simplify the art direction a lot, and organize the sidebar like the supplied Guild Hall image; CHG-0143 records it. Starting revision `37e8c0a`; committed in `2a75c4e`.
 Built: the rename as in CHG-0072 with the data move from a `Gild` profile; one flat dark navy theme in place of the guild board; the sidebar in the agreed order with nested, collapsible quests and side-quests (`shell/sidebar.tsx`, `shell/questTree.ts`), which is now the quest's one tree on a wide window.
 Checks: typecheck, Biome, and the full suite pass (731 passed, 10 skipped); the sidebar was driven in the web export on the fake harness ([proof](verification/2026-11-11-iskios-sidebar.md)).
-Awaiting the owner: the look in the running window; the unbuilt pages (Craft, Library, Workshop, Reserves detail); Free Realms showing empty until Free Realms exist; whether the "+" buttons, the Iskios logo, and the Guild Hall page's own redesign come next.
-Still to build from the specification: Free Realm placement, direct creation, and confirmed quest moves; the quest lifecycle without Done and Mark as done (CHG-0135, CHG-0136); the Reserves usage page; Library, Workshop, and Craft. The Guild Hall page, quest board, and Charter keep their earlier layouts in the new theme.
+Follow-ups committed in `f21e768` and `931aed5`: empty quests can be created in a realm, Free Realm, or Realmless; the sidebar caps realms at three and Realmless at five, with full quest lists. The realm list has a right panel; the wide quest panel has an edge handle and the sidebar a 236 px minimum. The former realm page was withdrawn; Charter is a placeholder, and realm counts now say Side-quests. See the [sidebar follow-up handoff](../.agents/handoffs/2026-11-11-1310-quest-list-page-pushed.md) and [panel handoff](../.agents/handoffs/2026-11-11-1330-panel-handles.md).
+Checks recorded: 743 tests passed, 10 skipped for the sidebar follow-ups ([proof](verification/2026-11-11-sidebar-follow-ups.md), which predates the quest list); the panel batch passed typecheck, Biome, and 155 app tests, and was driven in a web export ([proof](verification/2026-11-11-panel-handles.md)). These checks were not rerun for this documentation update. Desktop appearance awaits the owner; the lore link and rename were not driven. The sword icon, Realmless cap, sort and refresh, and panels for Free Realm and Realmless remain open questions.
+Still to build: confirmed quest moves, the quest lifecycle changes (CHG-0135, CHG-0136), the Reserves usage page, Library, the separate resource-management Workshop, and Craft.
 
-## Left navigation structure · 2026-11-11 · specified, not implemented
+## Left navigation structure · 2026-11-11 · specified; implementation in progress
 
 The owner explicitly requested specification only, with no application update.
 CHG-0134 records the ten sidebar entries, nested quest presentation using the supplied image, Library's artifact purpose, Workshop's resource management location, and Reserves' detailed usage destination.
@@ -19,7 +20,7 @@ CHG-0137 removes the migration requirement because development data may be reset
 The sidebar scope is specified; [deferred capability work](capabilities/mission-tracking/draft.md) does not block its agreement.
 Library collection and lifecycle, connector operations, and Craft execution require their own specifications.
 Starting revision: `5b4e2a9`; unrelated uncommitted account-budget work is preserved.
-No implementation, runtime checks, or visual acceptance are claimed.
+This entry records the original specification; later implementation and checks are described above. Visual acceptance remains pending.
 Documentation whitespace validation passes; no data reset was performed.
 
 ## Release launch recovery · 2026-11-10 · repaired locally, CI gate implemented

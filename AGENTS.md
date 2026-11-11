@@ -47,6 +47,7 @@ When adding a handoff, keep only the three newest current handoffs linked below;
 
 Latest handoffs:
 
+- To resume the sidebar documentation review and its pending acceptance, read the [current handoff](.agents/handoffs/2026-11-11-1348-documentation-review.md). Handoffs are shared and committed.
+
 - To resume the right panel handle, the minimum sidebar width, and the realm panel on the quest list page (not driven in the Electron app), read the [current handoff](.agents/handoffs/2026-11-11-1330-panel-handles.md). Handoffs are shared and committed.
 - To resume the sidebar follow-ups, the quest list page, and the sidebar caps (committed and pushed, not driven in the app; the changelog entries remain), read the [current handoff](.agents/handoffs/2026-11-11-1310-quest-list-page-pushed.md). Handoffs are shared and committed.
-- To resume Charter harness installation, version labels, and the Dock-name diagnosis, read the [current handoff](.agents/handoffs/2026-11-11-1200-harness-installation.md). Handoffs are shared and committed.

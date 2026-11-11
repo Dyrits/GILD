@@ -19,14 +19,13 @@ When work runs in many threads across harnesses, the user loses track of which m
 - A new mission's top thread starts as **Open as new mission** does in [thread-tree](../thread-tree/specifications.md#off-topic-requests): with global skills and intel, and nothing from another mission.
 - The owner can create a quest directly from a Realm or Free Realm without going through Guildmaster.
   The quest belongs to that realm and receives its lore; a workspace-backed Realm also supplies its workspace.
-- Proposed sidebar control: a `+` button beside each Realm and Free Realm opens a new quest there.
-  The owner suggested this placement; its final appearance remains to be decided.
+- A new-quest button beside each Realm and Free Realm creates an empty quest there; Realmless also has one. It uses the last quest's harness and model and is named "New quest" until its first message names it.
 
-Direct realm creation was agreed on 2026-11-10 (CHG-0133); implementation and verification remain pending.
+Direct realm creation was agreed on 2026-11-10 (CHG-0133) and implemented in `f21e768`; its appearance awaits the owner.
 
 ### Quest placement and moves
 
-Agreed on 2026-11-10 (CHG-0130); implementation and verification remain pending.
+Agreed on 2026-11-10 (CHG-0130). Creation in a Free Realm is implemented; moving existing quests remains pending.
 
 - A quest belongs to a Realm tied to a workspace, to a Free Realm with no workspace, or to no realm (realmless).
 - Lore access follows [lore scopes](../scoped-intel/specifications.md#scopes).
@@ -97,14 +96,14 @@ Sidebar drag-and-drop and confirmation were agreed on 2026-11-10 (CHG-0133); imp
 ### Compact left navigation
 
 - The owner agreed on 2026-11-10 to a narrower main left menu with smaller icons, tighter rows, readable labels, and the existing collapse and resize controls.
-- The starting proportions are about 220px wide and 15px labels instead of 17px, with less space around crests and the Guild styling retained.
+- The original compact proportions used a width around 220 px and 15 px labels. The current sidebar minimum is 236 px, an estimate intended to keep “Free Realms” on one line; its appearance awaits the owner.
 - The owner judges the final proportions in the running app.
 - The quest tree lives within the main sidebar, following [quest tree visibility](../thread-tree/specifications.md#quest-tree-visibility).
 - Agent validation checks navigation, collapse, resizing, and readable access to long labels at the reduced width; human acceptance checks the proportions in the running app.
 
 ### Left navigation structure
 
-Agreed on 2026-11-11 (CHG-0134). The owner then asked for the sidebar to be built (CHG-0143); Free Realm placement, direct creation, quest moves, and the lifecycle changes are still to build.
+Agreed on 2026-11-11 (CHG-0134). The owner then asked for the sidebar to be built (CHG-0143); direct creation is built (`f21e768`); confirmed quest moves and lifecycle changes remain to build.
 This navigation scope is specified; [related capability work](draft.md) is deferred to the relevant capability's implementation preparation.
 
 The expanded left sidebar uses this order:
@@ -119,20 +118,21 @@ The expanded left sidebar uses this order:
 | 6 | Craft | Workflows |
 | 7 | The Keep | Library, Lore, Archive, in that order |
 | 8 | Reserves | Compact usage summary leading to a detailed usage page |
-| 9 | Workshop | Application settings, accounts, permissions, and defaults (the former Charter; CHG-0146) |
+| 9 | Charter | Placeholder page |
+| 10 | Workshop | Application settings, accounts, permissions, and defaults (the former Charter; CHG-0146) |
 
 The separate Workshop for MCP servers, connectors, and skills (position 8 of CHG-0134) is withdrawn for now; the owner will ask for a dedicated menu for them later.
 
 - Each Realm and Free Realm can expand or collapse its quests; each quest and side-quest can expand or collapse its children at every supported depth.
 - Realmless has no intermediate realm grouping.
-- All non-archived quests are reachable in their placement without a recent-quests cutoff or a finished-quest visibility setting.
-  The sidebar reveals the selected thread and its ancestors.
+- Each Realm and Free Realm shows its three newest quests, and Realmless its five newest; the open quest remains visible beyond the cap. A "Show all N quests" link opens the corresponding full list, most recent first. The Realmless cap awaits confirmation.
+- A workspace-backed Realm's quest list offers its realm panel, including crest, lore, and rename controls. Free Realm and Realmless panel content remains undecided.
 - The sidebar is the only left quest tree; the conversation retains its details sidebar on the right, following [quest tree visibility](../thread-tree/specifications.md#quest-tree-visibility).
 - The owner's supplied Guild Hall image is the reference for the nested quest presentation: visible parent-child relationships, indentation, branch guides, expansion controls, and state indicators.
   The image does not authorize its other Guild Hall contents, footer, wording, or new actions.
 - Library holds generated and uploaded artifacts, especially artifacts from quests without a workspace; it is not limited to workspace-free quests.
   Artifact collection, supported types, storage, retention, and file actions need a separate Library specification before implementation.
-- Workshop is the management destination for MCP servers, connectors, and skills, moving those controls out of Charter.
+- A separate future resource-management destination is intended for MCP servers, connectors, and skills.
   Resource scope, inheritance, loading, and failures remain governed by [tool and skill loading](../tool-and-skill-loading/specifications.md).
   Additional Workshop categories and connector behavior are not settled by this navigation agreement.
 - Reserves opens the [detailed usage page](../budget-control/specifications.md#reserves-usage-page); its name is retained.
@@ -140,7 +140,7 @@ The separate Workshop for MCP servers, connectors, and skills (position 8 of CHG
 
 Navigation acceptance, once the draft decisions are settled:
 
-- **Agent validation**: check the nine entries and their order; the three Keep destinations; and Reserves access to the usage page.
+- **Agent validation**: check the ten entries and their order; the three Keep destinations; and Reserves access to the usage page.
 - **Agent validation**: use quests in all three placements with multiple side-quest depths; expand and collapse parents, open descendants, and check that selection reaches the intended conversation.
 - **Human acceptance**: compare the nesting with the supplied reference in the running desktop app and judge readability at the compact sidebar width.
 - Agent validation includes more quests than the former recent-quests cutoff, an idle quest after reporting a result, archive and reopen, long titles, empty groups, and collapsed and narrow-screen navigation.
@@ -156,7 +156,7 @@ Threads use this thread tool (see [0005](../../architecture-decision-record/0005
 ## Acceptance and validation
 
 - **Automated, with a fake harness**:
-  - direct creation from a Realm or Free Realm placing the quest there with the correct lore and workspace, without a Guildmaster turn;
+  - direct creation from a Realm, Free Realm, and Realmless without a Guildmaster turn, checking placement, lore and workspace, the last harness and model, the initial title, and naming on the first message;
   - dragging quests between sidebar placements opening the move confirmation, with no placement change before confirmation and none on Cancel;
   - confirming a move refused if any descendant starts running while confirmation is open;
   - quests in a workspace-backed Realm, a Free Realm, and no realm, with the correct shared lore;
