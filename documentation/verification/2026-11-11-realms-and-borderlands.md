@@ -18,3 +18,16 @@
 | The look | screenshots above | awaiting the owner |
 
 Regressions: typecheck and Biome pass; the full suite has 3 failures outside this change (see CHG-0164). Cleaned up: the scratch service and web server were stopped and `packages/service/serve-cl.ts` removed.
+
+## Follow-up (CHG-0170, CHG-0171): folder icon, realm grouping, hover-only counts, whole-row hover, even spacing
+
+Re-run on the tree after `eaacc55` (web export, same throwaway service; screenshots above replaced).
+
+| Claim | Check | Result |
+| --- | --- | --- |
+| Folder icon after Atlas only, path as title; realms tied to a folder above a hairline, then Ideas | [dark](2026-11-11-realms-and-borderlands/dark-01-rest.png), [light](2026-11-11-realms-and-borderlands/light-01-rest.png), `cue.py` | observed |
+| Counts hidden at rest, shown with the marks on hover | [rest](2026-11-11-realms-and-borderlands/dark-01-rest.png), [hover](2026-11-11-realms-and-borderlands/light-03-hover-realm-row.png) | observed |
+| Whole-row hover: name, blank middle, count, hidden buttons, extreme right of Atlas, Ideas, Realms, Borderlands, from outside and by sweeping | [`rowhover.py`](2026-11-11-realms-and-borderlands/rowhover.py): FAIL before the fix (buttons area of Atlas and Ideas, count and buttons of Borderlands, middle and buttons of Realms), PASS after at default, minimum, and 360 px widths | observed |
+| Same in a throwaway Electron window on the Expo dev server | [`rowhover.py`](2026-11-11-realms-and-borderlands/rowhover.py) via CDP, 3 runs: 2 PASS, 1 FAIL (Atlas middle and buttons); the dev window logs repeated "Maximum update depth exceeded" from `useServiceQuery`, also seen with the app of `10684a9` | inconclusive |
+| Even spacing: folded headings 37 px apart in every block, labels at x 50 | [`spacing.py`](2026-11-11-realms-and-borderlands/spacing.py), [dark](2026-11-11-realms-and-borderlands/dark-40-spacing-folded.png), [light](2026-11-11-realms-and-borderlands/light-40-spacing-folded.png) | observed |
+| Click then pointer away hides the marks; Tab shows them; no heading overflow at 284 px; rail 284 to a quarter | `hover.py`, `drive.py`, `measure.py`, `drag.py` | observed |
