@@ -3,7 +3,7 @@ import { useState } from "react";
 import { Text, TextInput, View } from "react-native";
 import { BudgetEditor } from "../editors/budgets";
 import { messageOf, type ServiceClient } from "../foundation/client";
-import { accountBudgetTextOf } from "../foundation/labels";
+import { accountBudgetTextOf, planLimitsSummaryOf } from "../foundation/labels";
 import { styles } from "../foundation/styles";
 import { useServiceQuery } from "../foundation/useServiceQuery";
 import { GoldButton } from "../ui/parchment";
@@ -72,6 +72,7 @@ function AccountBudgetRow({ budget, client }: { budget: AccountBudget; client: S
         {budget.label}
       </Text>
       <Text style={styles.muted}>{accountBudgetTextOf(budget)}</Text>
+      <Text style={styles.muted}>{planLimitsSummaryOf(budget.planLimits)}</Text>
       {budget.lastChange !== null && <Text style={styles.muted}>{budget.lastChange}</Text>}
       <Choice label={(value) => kindLabels[value]} onChange={setKind} options={kinds} value={kind} />
       {kind === "Credits" && (

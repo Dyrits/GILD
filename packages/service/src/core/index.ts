@@ -11,6 +11,8 @@ export {
   type ImageAttachment,
   interruptedOutcomeOf,
   interruptGraceMillis,
+  type PlanLimitReport,
+  type PlanLimitsReport,
   type PromptAnswer,
   readImages,
   routeHarnesses,

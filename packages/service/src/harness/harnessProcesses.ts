@@ -230,5 +230,6 @@ export const makeHarnessProcesses = <Connection extends HarnessConnection>(
         return true;
       });
 
-    return { interrupt, runTurn, steer } satisfies HarnessAdapter;
+    // A harness reports no plan limits unless its adapter says how to ask (codex.ts).
+    return { interrupt, readPlanLimits: () => Effect.succeed(null), runTurn, steer } satisfies HarnessAdapter;
   });

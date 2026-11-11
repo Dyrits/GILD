@@ -294,6 +294,25 @@ describe("running Claude Code threads", () => {
     }).pipe(Effect.provide(layer));
   });
 
+  it.live("shows the reply's own call under it, and the rest of the turn's usage with it, so the lines add up", () => {
+    const { layer } = withClaude();
+    return Effect.gen(function* () {
+      const started = yield* call({
+        _tag: "StartMission",
+        effort: "low",
+        model: "haiku",
+        requestId: "r1",
+        text: "One",
+        workspacePath: null,
+      });
+      const detail = yield* settle(started.missionId, idleWith(1));
+      const usage = detail.messages.filter((message) => message.sender === "agent").at(-1)?.usage;
+      // The call used 3 input, 7 output, 60 cache read, and 5 cache write tokens; the turn, 2, 10, 100, and 50 in all.
+      // What the turn used beyond the call (3 output, 40 cache read, 45 cache write) joins it.
+      expect(usage?.tokens).toEqual({ cacheCreation: 50, cacheRead: 100, input: 3, output: 10 });
+    }).pipe(Effect.provide(layer));
+  });
+
   it.live("records no model for a reply under Claude Code's own `<synthetic>` placeholder", () => {
     process.env.STAND_IN_MODEL = "<synthetic>";
     const { layer } = withClaude();

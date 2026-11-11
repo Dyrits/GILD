@@ -258,3 +258,83 @@ describe("consumption on the quest and thread panels", () => {
     }).pipe(Effect.provide(layer));
   });
 });
+
+describe("cost on each agent reply", () => {
+  const lastReplyOf = (detail: MissionDetail) => detail.messages.filter((message) => message.sender === "agent").at(-1);
+
+  it.live("shows the turn's use under its last reply when the harness reports only per turn", () => {
+    const { layer } = setup();
+    return Effect.gen(function* () {
+      const detail = yield* startOn("test-model", "spend 1000000");
+      expect(lastReplyOf(detail)?.usage).toEqual({
+        estimated: 3,
+        reported: null,
+        tokens: { cacheCreation: 0, cacheRead: 0, input: 1000000, output: 0 },
+      });
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("shows the reported cost of an API-key turn, not an estimate", () => {
+    const { layer } = setup();
+    return Effect.gen(function* () {
+      const detail = yield* startOn("test-model", "billing ApiKey\nspend 1000 2.5");
+      expect(lastReplyOf(detail)?.usage).toMatchObject({ estimated: null, reported: 2.5 });
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("shows a reply's own call and gives it what the turn used beyond its calls, so the lines add up", () => {
+    const { layer } = setup();
+    return Effect.gen(function* () {
+      // The reply's call used 100,000 input and 10,000 output tokens; the turn used 300,000 and 30,000 in all.
+      const detail = yield* startOn("test-model", "callusage 100000 10000 0 0\nusage 300000 30000 0 0");
+      const usage = lastReplyOf(detail)?.usage;
+      expect(usage?.tokens).toEqual({ cacheCreation: 0, cacheRead: 0, input: 300000, output: 30000 });
+      // $3 and $15 per million tokens: 0.9 + 0.45.
+      expect(usage?.estimated).toBeCloseTo(1.35, 6);
+      expect(detail.mission.consumption.estimated).toBeCloseTo(1.35, 6);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("shows no price for a reply whose model has none", () => {
+    const { layer } = setup();
+    return Effect.gen(function* () {
+      const detail = yield* startOn("model-nobody-prices", "spend 1000");
+      expect(lastReplyOf(detail)?.usage).toMatchObject({ estimated: null, reported: null });
+      expect(lastReplyOf(detail)?.usage?.tokens.input).toBe(1000);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("shows nothing under a reply of a turn that reported no usage, and under the owner's messages", () => {
+    const { layer } = setup();
+    return Effect.gen(function* () {
+      const started = yield* call({
+        _tag: "StartMission",
+        effort: "default",
+        model: "test-model",
+        requestId: crypto.randomUUID(),
+        text: "Hello",
+        workspacePath: null,
+      });
+      const detail = yield* settle(
+        started.missionId,
+        (d) => d.thread.state === "Idle" && d.messages.some((message) => message.sender === "agent"),
+      );
+      expect(lastReplyOf(detail)?.usage).toBeNull();
+      expect(detail.messages.find((message) => message.sender === "user")?.usage).toBeNull();
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("gives each turn's last reply its own turn's use", () => {
+    const { layer } = setup();
+    return Effect.gen(function* () {
+      const first = yield* startOn("test-model", "spend 1000000");
+      yield* send(first.thread.id, "spend 2000000");
+      const second = yield* settle(
+        first.mission.id,
+        (d) => d.mission.consumption.turns >= 2 && d.thread.state === "Idle",
+      );
+      const replies = second.messages.filter((message) => message.sender === "agent");
+      expect(replies.map((reply) => reply.usage?.estimated)).toEqual([3, 6]);
+    }).pipe(Effect.provide(layer));
+  });
+});

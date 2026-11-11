@@ -70,6 +70,7 @@ import { toolServerLayer } from "./work/mcp.ts";
 import { insertUserMessage } from "./work/messaging.ts";
 import { readMission } from "./work/missionDetail.ts";
 import { insertMission } from "./work/missions.ts";
+import { PlanLimits, planLimitsLayer } from "./work/planLimits.ts";
 import { priceRefreshLayer } from "./work/priceRefresh.ts";
 import {
   createRitual,
@@ -131,6 +132,7 @@ const make = Effect.gen(function* () {
   const problem = yield* sandboxProblem;
   const harnessTools = yield* HarnessTools;
   const prices = yield* PriceTable;
+  const planLimits = yield* PlanLimits;
   const accountsRoot = yield* AccountsRoot;
   const attachmentsRoot = yield* AttachmentsRoot;
   /** Runs a step that stores or reads attached files. */
@@ -338,7 +340,7 @@ const make = Effect.gen(function* () {
             { harness: given.harness ?? null, model: given.model },
             given.text,
           ).pipe(Effect.provideService(ScratchRoot, scratchRoot)),
-        ReadAccountBudgets: () => readAccountBudgets,
+        ReadAccountBudgets: () => readAccountBudgets.pipe(Effect.provideService(PlanLimits, planLimits)),
         ReadAttachment: (read) => withFiles(readAttachment(read.attachmentId)),
         ReadBudget: (read) => readBudgetWindow(read.missionId),
         ReadGuildmaster: () => change(readGuildmaster),
@@ -359,7 +361,11 @@ const make = Effect.gen(function* () {
         ReadRitual: (read) => readRitual(read.missionId),
         ReadSettings: () => readSettings,
         ReadStartChoices: () => readStartChoices,
-        ReadThreadPanel: (read) => readThreadPanel(read.threadId).pipe(Effect.provideService(ScratchRoot, scratchRoot)),
+        ReadThreadPanel: (read) =>
+          readThreadPanel(read.threadId).pipe(
+            Effect.provideService(ScratchRoot, scratchRoot),
+            Effect.provideService(PlanLimits, planLimits),
+          ),
         RefreshPrices: () =>
           prices.refresh.pipe(
             Effect.catchTag("PriceReadFailed", (failure) =>
@@ -562,6 +568,7 @@ export const serviceLayer = (options: ServiceOptions) => {
         autoArchiveLayer,
         budgetPeriodsLayer,
         guildmasterReportsLayer,
+        planLimitsLayer,
         priceRefreshLayer,
         ritualsLayer,
         toolServerLayer,

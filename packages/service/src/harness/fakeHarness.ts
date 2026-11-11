@@ -24,7 +24,7 @@ export const callThreadTool = (mcpUrl: string, name: string, args: unknown) =>
 // owner about a harness action, and `call <tool> <json>` calls any thread tool, each answered before
 // the echo; `wait <millis>` keeps the turn running; `fail <harness> <reason>` fails the turn on that harness; `cwd`, `context`, and `runner` report the working folder, the
 // starting context, and the harness, model, effort, and session; `spend <tokens> [cost]` reports spending at the turn's end,
-// `usage <input> <output> <cacheRead> <cacheWrite>` reports tokens by kind, and `billing <Subscription|ApiKey|Unknown>` names how the turn was billed (a turn that reports a cost and names none is API-key, as before).
+// `usage <input> <output> <cacheRead> <cacheWrite>` reports tokens by kind, `callusage <input> <output> <cacheRead> <cacheWrite>` gives the reply's own call its usage, and `billing <Subscription|ApiKey|Unknown>` names how the turn was billed (a turn that reports a cost and names none is API-key, as before).
 const scriptedCall = (request: TurnRequest, line: string, turn: FakeTurn) => {
   const access = request.access;
   const spend = /^spend (\d+)(?: (\d+(?:\.\d+)?))?$/.exec(line);
@@ -34,6 +34,18 @@ const scriptedCall = (request: TurnRequest, line: string, turn: FakeTurn) => {
       if (spend[2] !== undefined) turn.spent.cost = (turn.spent.cost ?? 0) + Number(spend[2]);
       turn.spent.isReported = true;
       return `spent ${spend[1]}`;
+    });
+  }
+  const call = /^callusage (\d+) (\d+) (\d+) (\d+)$/.exec(line);
+  if (call !== null) {
+    return Effect.sync(() => {
+      turn.spent.callUsage = {
+        cacheCreation: Number(call[4]),
+        cacheRead: Number(call[3]),
+        input: Number(call[1]),
+        output: Number(call[2]),
+      };
+      return "call used tokens";
     });
   }
   const kinds = /^usage (\d+) (\d+) (\d+) (\d+)$/.exec(line);
@@ -97,6 +109,7 @@ interface FakeTurn {
     isReported: boolean;
     billing: BillingKind | null;
     kinds: TokenUsage | null;
+    callUsage: TokenUsage | null;
   };
   readonly steered: Array<string>;
 }
@@ -126,7 +139,7 @@ export const fakeHarnessLayer = (replyDelay: Duration.Input) =>
           echo += ` + ${yield* echoOf(turn.steered[index] ?? "")}`;
         }
         running.delete(request.threadId);
-        yield* request.onEvent({ _tag: "Reply", text: `Echo: ${echo}` });
+        yield* request.onEvent({ _tag: "Reply", text: `Echo: ${echo}`, usage: turn.spent.callUsage });
         return false;
       });
     return {
@@ -135,12 +148,13 @@ export const fakeHarnessLayer = (replyDelay: Duration.Input) =>
           const turn = running.get(threadId);
           return turn === undefined ? Effect.succeed(false) : Deferred.succeed(turn.interrupted, void 0);
         }),
+      readPlanLimits: () => Effect.succeed(null),
       runTurn: (request) =>
         Effect.gen(function* () {
           const turn: FakeTurn = {
             interrupted: yield* Deferred.make<void>(),
             onEvent: request.onEvent,
-            spent: { billing: null, cost: null, isReported: false, kinds: null, tokens: 0 },
+            spent: { billing: null, callUsage: null, cost: null, isReported: false, kinds: null, tokens: 0 },
             steered: [],
           };
           running.set(request.threadId, turn);

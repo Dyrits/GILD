@@ -125,6 +125,34 @@ export const BudgetWindow = Schema.Struct({
 });
 export type BudgetWindow = typeof BudgetWindow.Type;
 
+/**
+ * What an agent reply's model call used, shown under it: its tokens, the cost an API-key turn reported (only for a
+ * whole turn), or an estimate; both null when no price is known (budget-control, Seeing budget use and consumption).
+ */
+export const ReplyUsage = Schema.Struct({
+  estimated: Schema.NullOr(Schema.Number),
+  reported: Schema.NullOr(Schema.Number),
+  tokens: TokenUsage,
+});
+export type ReplyUsage = typeof ReplyUsage.Type;
+
+/** One limit a harness reports for a subscription, such as its 5-hour or weekly window. */
+export const PlanLimitWindow = Schema.Struct({
+  /** For example "5-hour" or "Weekly". */
+  label: Schema.String,
+  /** When the window starts over, in milliseconds. */
+  resetsAt: Schema.Number,
+  usedPercent: Schema.Number,
+});
+export type PlanLimitWindow = typeof PlanLimitWindow.Type;
+
+/** A plan's limits as a harness last reported them, with when they were read (budget-control, Plan limits). */
+export const PlanLimitReading = Schema.Struct({
+  readAt: Schema.Number,
+  windows: Schema.Array(PlanLimitWindow),
+});
+export type PlanLimitReading = typeof PlanLimitReading.Type;
+
 /** What one provider account has used, with the budget the owner set on it (budget-control, Account budgets and credits). */
 export const AccountBudget = Schema.Struct({
   /** Null for the harness's own sign-in on this computer. */
@@ -140,6 +168,8 @@ export const AccountBudget = Schema.Struct({
   nextStart: Schema.NullOr(Schema.Number),
   /** Null for credits: a budget counted from `since` with no period. */
   period: Schema.NullOr(BudgetPeriod),
+  /** The subscription's plan limits as last reported; null when the harness reports none ("Limits not reported"). */
+  planLimits: Schema.NullOr(PlanLimitReading),
   /** What is left of each limit, null for a limit not set; never below zero. */
   remaining: Schema.Struct({ cost: Schema.NullOr(Schema.Number), tokens: Schema.NullOr(Schema.Number) }),
   /** When counting began: the period's start, or the day the credits were bought. */

@@ -107,6 +107,26 @@ createInterface({ input: process.stdin }).on("line", (line) => {
   const { id, method, params } = message;
   if (method === "initialize") return send({ id, result: { userAgent: "stand-in" } });
   if (method === "initialized") return;
+  // STAND_IN_CODEX_ACCOUNT: the sign-in kind `account/read` reports ("chatgpt" by default, or "apiKey").
+  if (method === "account/read")
+    return send({
+      id,
+      result: { account: { planType: "plus", type: process.env.STAND_IN_CODEX_ACCOUNT ?? "chatgpt" } },
+    });
+  // STAND_IN_CODEX_LIMITS: "fail" answers with an error; otherwise a 5-hour window at 40% and a weekly one at 93%.
+  if (method === "account/rateLimits/read") {
+    if (process.env.STAND_IN_CODEX_LIMITS === "fail")
+      return send({ error: { code: -32000, message: "no limits" }, id });
+    return send({
+      id,
+      result: {
+        rateLimits: {
+          primary: { resetsAt: 1794405450, usedPercent: 40, windowDurationMins: 300 },
+          secondary: { resetsAt: 1794412621, usedPercent: 93, windowDurationMins: 10080 },
+        },
+      },
+    });
+  }
   if (method === "thread/start" || method === "thread/resume") mcpUrl = params.config["mcp_servers.gild.url"];
   if (method === "thread/start") {
     threadId = `codex-thread-${process.pid}`;

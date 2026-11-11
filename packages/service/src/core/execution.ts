@@ -18,6 +18,8 @@ export type HarnessEvent =
       /** The model that wrote it as the harness names it (such as `claude-sonnet-5-5`), when it reports one. */
       readonly model?: string | null;
       readonly text: string;
+      /** What the model call behind this reply used, when the harness reports usage per call; null otherwise. */
+      readonly usage?: TokenUsage | null;
     }
   /** The assistant message written so far, never saved. */
   | { readonly _tag: "Draft"; readonly text: string }
@@ -132,10 +134,34 @@ export const interruptedOutcomeOf = (sessionId: string, usage: TokenUsage | null
 /** A turn the harness could not run, with the reason the owner reads. */
 export class HarnessFailure extends Schema.TaggedError<HarnessFailure>()("HarnessFailure", { reason: Schema.String }) {}
 
+/** One plan limit as a harness reports it: a window of so many minutes, how much is used, and when it resets (seconds). */
+export interface PlanLimitReport {
+  readonly resetsAtSeconds: number;
+  readonly usedPercent: number;
+  readonly windowMinutes: number;
+}
+
+/**
+ * What a harness reports of the plan behind an account: how it is billed, and the limits of a subscription (none for
+ * an API key). Never read with a token or credential: the harness's own tool answers (requirements, Comply with provider terms).
+ */
+export interface PlanLimitsReport {
+  readonly billing: BillingKind;
+  readonly windows: ReadonlyArray<PlanLimitReport>;
+}
+
 /** What one harness adapter offers: one turn of a thread at a time, which can be steered and interrupted. */
 export interface HarnessAdapter {
   /** Ends the thread's running turn, whose `runTurn` then returns as interrupted; false when none runs. */
   readonly interrupt: (threadId: string) => Effect.Effect<boolean>;
+  /**
+   * Asks the harness's own tool for the limits of the plan behind an account (null: the computer's own sign-in): null
+   * when this harness reports none, and a failure when it could not answer, which the caller waits out before asking again.
+   */
+  readonly readPlanLimits: (
+    harness: HarnessName,
+    configDirectory: string | null,
+  ) => Effect.Effect<PlanLimitsReport | null, HarnessFailure>;
   readonly runTurn: (request: TurnRequest) => Effect.Effect<TurnOutcome, HarnessFailure>;
   /**
    * Writes a message into the thread's running turn; false when no turn runs or the harness cannot take one
@@ -156,6 +182,7 @@ export const routeHarnesses = (adapters: Record<HarnessName, HarnessAdapter>): H
   const running = new Map<string, HarnessAdapter>();
   return {
     interrupt: (threadId) => running.get(threadId)?.interrupt(threadId) ?? Effect.succeed(false),
+    readPlanLimits: (harness, configDirectory) => adapters[harness].readPlanLimits(harness, configDirectory),
     runTurn: (request) =>
       Effect.suspend(() => {
         const adapter = adapters[request.harness];

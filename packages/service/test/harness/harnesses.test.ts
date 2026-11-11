@@ -25,6 +25,8 @@ const fixtures = join(import.meta.dirname, "..", "fixtures");
 const directories: string[] = [];
 afterEach(() => {
   delete process.env.STAND_IN_LOG;
+  delete process.env.STAND_IN_CODEX_ACCOUNT;
+  delete process.env.STAND_IN_CODEX_LIMITS;
   for (const directory of directories.splice(0)) rmSync(directory, { force: true, recursive: true });
 });
 
@@ -249,6 +251,81 @@ describe("running Codex threads", () => {
       expect(String(thread?.params?.developerInstructions)).not.toContain("dangerouslyDisableSandbox");
       expect(requests("turn/start")[0]?.params).toMatchObject({ effort: "high", model: "gpt-x" });
       expect(logged().find((entry) => entry.pid !== undefined)?.env).toEqual([]);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("counts a ChatGPT sign-in's turn as subscription tokens", () => {
+    const { layer } = withHarnesses();
+    return Effect.gen(function* () {
+      const started = yield* start({ harness: "codex", text: "Hello" });
+      const detail = yield* settle(started.missionId, idleWith(1));
+      expect(detail.mission.budget.spent).toEqual({ cost: 0, tokens: 107 });
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("counts an API-key sign-in's turn as cost, which Codex reports none for, so no tokens count", () => {
+    process.env.STAND_IN_CODEX_ACCOUNT = "apiKey";
+    const { layer } = withHarnesses();
+    return Effect.gen(function* () {
+      const started = yield* start({ harness: "codex", text: "Hello" });
+      const detail = yield* settle(started.missionId, idleWith(1));
+      expect(detail.mission.budget.spent).toEqual({ cost: 0, tokens: 0 });
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("reads an account's plan limits from the app server, once, and keeps the reading", () => {
+    const { layer, requests } = withHarnesses();
+    return Effect.gen(function* () {
+      const own = () =>
+        call({ _tag: "ReadAccountBudgets" }).pipe(
+          Effect.map((budgets) => budgets.find((budget) => budget.harness === "codex" && budget.accountId === null)),
+        );
+      // The first answer carries none yet and starts the read; the reading arrives with the next.
+      yield* own();
+      let reading = yield* own();
+      for (let attempt = 0; attempt < 100 && (reading?.planLimits ?? null) === null; attempt++) {
+        yield* Effect.sleep("50 millis");
+        reading = yield* own();
+      }
+      expect(reading?.planLimits?.windows).toEqual([
+        { label: "5-hour", resetsAt: 1794405450000, usedPercent: 40 },
+        { label: "Weekly", resetsAt: 1794412621000, usedPercent: 93 },
+      ]);
+      yield* own();
+      yield* own();
+      expect(requests("account/rateLimits/read")).toHaveLength(1);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("gives an API-key account no plan limits, and asks for none", () => {
+    process.env.STAND_IN_CODEX_ACCOUNT = "apiKey";
+    const { layer, requests } = withHarnesses();
+    return Effect.gen(function* () {
+      for (let attempt = 0; attempt < 5; attempt++) {
+        yield* call({ _tag: "ReadAccountBudgets" });
+        yield* Effect.sleep("100 millis");
+      }
+      expect(requests("account/rateLimits/read")).toHaveLength(0);
+      const own = (yield* call({ _tag: "ReadAccountBudgets" })).find(
+        (budget) => budget.harness === "codex" && budget.accountId === null,
+      );
+      expect(own?.planLimits).toBeNull();
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("shows no plan limits when the app server cannot give them, and does not ask again at once", () => {
+    process.env.STAND_IN_CODEX_LIMITS = "fail";
+    const { layer, requests } = withHarnesses();
+    return Effect.gen(function* () {
+      for (let attempt = 0; attempt < 6; attempt++) {
+        yield* call({ _tag: "ReadAccountBudgets" });
+        yield* Effect.sleep("100 millis");
+      }
+      expect(requests("account/rateLimits/read")).toHaveLength(1);
+      const own = (yield* call({ _tag: "ReadAccountBudgets" })).find(
+        (budget) => budget.harness === "codex" && budget.accountId === null,
+      );
+      expect(own?.planLimits).toBeNull();
     }).pipe(Effect.provide(layer));
   });
 

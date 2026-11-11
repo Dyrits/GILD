@@ -3,7 +3,9 @@ import { Effect, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { missionLimitsOf, missionSpendingOf, notFound, spendingColumns } from "../core/index.ts";
 import { contextWindowOf } from "../lore/index.ts";
+import { accountOfThread } from "./budgetScopes.ts";
 import { readThreadConsumption } from "./consumption.ts";
+import { PlanLimits } from "./planLimits.ts";
 import { readSentContextSize } from "./startingContext.ts";
 
 // What the thread panel shows beyond the thread itself (thread-panel).
@@ -49,6 +51,13 @@ const readContextGauge = (threadId: string, model: string) =>
     } satisfies ContextGauge;
   });
 
+/** The plan limits of the account the thread runs on, as last reported. */
+const readThreadPlanLimits = (threadId: string) =>
+  Effect.gen(function* () {
+    const account = yield* accountOfThread(threadId);
+    return account === null ? null : yield* (yield* PlanLimits).latest(account);
+  });
+
 /** What the panel shows of a thread: its context gauge, its own spending, and its quest's budget. */
 export const readThreadPanel = (threadId: string) =>
   Effect.gen(function* () {
@@ -63,6 +72,7 @@ export const readThreadPanel = (threadId: string) =>
       budget: { limits: yield* missionLimitsOf(thread.missionId), spent: yield* missionSpendingOf(thread.missionId) },
       consumption: yield* readThreadConsumption(threadId),
       context: yield* readContextGauge(threadId, thread.model),
+      planLimits: yield* readThreadPlanLimits(threadId),
       spending: { cost: spent?.cost ?? 0, tokens: spent?.tokens ?? 0 },
       turnCount: spent?.turnCount ?? 0,
     } satisfies ThreadPanel;

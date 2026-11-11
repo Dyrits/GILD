@@ -3,6 +3,7 @@ import { type ComponentRef, createContext, useContext, useRef, useState } from "
 import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { CrestBadge } from "../crest/crest";
 import { ReserveRows } from "../editors/budgets";
+import { PlanLimitLines } from "../editors/planLimitLines";
 import type { ServiceClient } from "../foundation/client";
 import { Emblem, type EmblemName } from "../foundation/emblems";
 import { usedTextOf } from "../foundation/labels";
@@ -532,6 +533,7 @@ function Spending({ client }: { client: ServiceClient }) {
     <View style={local.spending}>
       <Section emblem="gem" label="Reserves" />
       {hasLimits ? <ReserveRows use={global} /> : <Text style={local.empty}>{usedTextOf(global.consumption)}</Text>}
+      <PlanLimitLines client={client} />
     </View>
   );
 }

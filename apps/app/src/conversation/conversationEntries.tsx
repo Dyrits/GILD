@@ -1,11 +1,11 @@
-import type { HarnessName, Message, MissionId, Skill, ThreadId } from "@gild/contracts";
+import type { HarnessName, Message, MissionId, ReplyUsage, Skill, ThreadId } from "@gild/contracts";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { MessageImages } from "../attachments/attachmentViews";
 import type { ServiceClient } from "../foundation/client";
 import { Emblem } from "../foundation/emblems";
 import { clockOf, replyWriterOf, spanOf } from "../foundation/formatting";
-import { countedOf } from "../foundation/labels";
+import { countedOf, replyUsageTextOf } from "../foundation/labels";
 import { styles } from "../foundation/styles";
 import { colors } from "../foundation/theme";
 import { LoreChangeCard, LoreChangeLine } from "../lore/lore";
@@ -57,12 +57,15 @@ export function AgentReply({
   label,
   text,
   time,
+  usage = null,
 }: {
   harness: HarnessName;
   isDraft?: boolean;
   label: string;
   text: string;
   time: string | null;
+  /** What the model call behind the reply used, with its cost, shown small under it; null shows nothing. */
+  usage?: ReplyUsage | null;
 }) {
   return (
     <View style={[styles.messageRow, isDraft && styles.draft]}>
@@ -75,6 +78,7 @@ export function AgentReply({
           {time !== null && <Text style={styles.senderTime}>{time}</Text>}
         </View>
         <Markdown text={text} />
+        {usage !== null && <Text style={styles.muted}>{replyUsageTextOf(usage)}</Text>}
       </View>
     </View>
   );
@@ -147,7 +151,13 @@ function MessageBubble({
   if (message.sender === "agent") {
     const writer = replyWriterOf(message, harness);
     return (
-      <AgentReply harness={writer.harness} label={writer.label} text={message.text} time={clockOf(message.sentAt)} />
+      <AgentReply
+        harness={writer.harness}
+        label={writer.label}
+        text={message.text}
+        time={clockOf(message.sentAt)}
+        usage={message.usage}
+      />
     );
   }
   const sender = senderLabelOf(message);

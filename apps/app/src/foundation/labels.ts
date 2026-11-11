@@ -12,7 +12,10 @@ import type {
   LoreHistoryKind,
   LoreOrigin,
   LoreProposal,
+  PlanLimitReading,
+  PlanLimitWindow,
   PriceStatus,
+  ReplyUsage,
   StartingContext,
   StartingContextParts,
   SuggestionOutcome,
@@ -117,7 +120,9 @@ export const contextUseTextOf = (gauge: Pick<ContextGauge, "tokens" | "windowTok
 export const costTextOf = (consumption: Pick<Consumption, "estimated" | "reported">) => {
   const total = consumption.reported + consumption.estimated;
   if (total <= 0) return null;
-  return `${consumption.estimated > 0 ? "≈ " : ""}$${total.toFixed(2)}`;
+  // A cost under half a cent would read $0.00, as if nothing was spent.
+  const amount = total < 0.005 ? "< $0.01" : `$${total.toFixed(2)}`;
+  return `${consumption.estimated > 0 ? "≈ " : ""}${amount}`;
 };
 
 /** How much of a cost was reported and how much estimated, and which turns have no price; empty when nothing says more. */
@@ -161,6 +166,25 @@ export const accountBudgetTextOf = (
   ];
   return `${parts.length === 0 ? "No budget" : parts.join(" · ")} · counted by Gild`;
 };
+
+const clockTextOf = (at: number) => new Date(at).toLocaleTimeString("en-GB", { hour: "2-digit", minute: "2-digit" });
+
+/** The line under an agent reply, for example "1,240 tokens · ≈ $0.02"; the cost only when a price is known. */
+export const replyUsageTextOf = (usage: ReplyUsage) => {
+  const cost = costTextOf({ estimated: usage.estimated ?? 0, reported: usage.reported ?? 0 });
+  const tokens = usage.tokens.input + usage.tokens.output + usage.tokens.cacheRead + usage.tokens.cacheCreation;
+  return `${tokenCountOf(tokens)} tokens${cost === null ? "" : ` · ${cost}`}`;
+};
+
+/** A plan limit in words, for example "5-hour · 40% used · resets 19:30". */
+export const planLimitTextOf = (window: PlanLimitWindow) =>
+  `${window.label} · ${Math.round(window.usedPercent)}% used · resets ${clockTextOf(window.resetsAt)}`;
+
+/** A plan's limits on one line, for example "5-hour 40% · Weekly 93% · as of 14:02"; none are never guessed. */
+export const planLimitsSummaryOf = (reading: PlanLimitReading | null) =>
+  reading === null || reading.windows.length === 0
+    ? "Limits not reported"
+    : `${reading.windows.map((window) => `${window.label} ${Math.round(window.usedPercent)}%`).join(" · ")} · as of ${clockTextOf(reading.readAt)}`;
 
 /** Where the price table in use came from, for example "Prices from models.dev · fetched 10 Nov". */
 export const priceStatusTextOf = (status: PriceStatus) => {

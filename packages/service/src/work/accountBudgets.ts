@@ -20,6 +20,7 @@ import {
 } from "./budgetScopes.ts";
 import { applyAccountBudget } from "./budgets.ts";
 import { type ConsumptionRow, consumptionOf } from "./consumption.ts";
+import { PlanLimits } from "./planLimits.ts";
 
 // The owner's limits and credits on provider accounts (budget-control, Account budgets and credits). An account budget
 // counts only what Gild's own turns used on the account, and says so.
@@ -88,6 +89,7 @@ const remainingOf = (limit: number | null, spent: number) => (limit === null ? n
 /** Every provider account's use and budget: each harness's own sign-in, then the added accounts. */
 export const readAccountBudgets = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
+  const planLimits = yield* PlanLimits;
   const now = yield* Clock.currentTimeMillis;
   const added = yield* sql<{ harness: HarnessName; id: string; label: string }>`
     SELECT id, harness, label FROM accounts ORDER BY created_at`;
@@ -116,6 +118,7 @@ export const readAccountBudgets = Effect.gen(function* () {
         limits,
         nextStart: row === null ? null : accountNextStartOf(row, now),
         period: row?.period ?? null,
+        planLimits: yield* planLimits.latest(ref),
         remaining: { cost: remainingOf(limits.cost, spent.cost), tokens: remainingOf(limits.tokens, spent.tokens) },
         since,
         spent,

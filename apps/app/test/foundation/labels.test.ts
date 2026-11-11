@@ -19,9 +19,12 @@ import {
   loreOriginLabelOf,
   loreProposalLineOf,
   meterLevelOf,
+  planLimitsSummaryOf,
+  planLimitTextOf,
   priceStatusTextOf,
   promptQuestionOf,
   raisedLimitsOf,
+  replyUsageTextOf,
   reserveOf,
   startingContextPartsOf,
   startingContextWarningOf,
@@ -316,6 +319,11 @@ describe("a cost marked as reported or estimated", () => {
     expect(costTextOf({ estimated: 0.8, reported: 2 })).toBe("≈ $2.80");
   });
 
+  it("shows a cost under half a cent as less than a cent, never as $0.00", () => {
+    expect(costTextOf({ estimated: 0.0008, reported: 0 })).toBe("≈ < $0.01");
+    expect(costTextOf({ estimated: 0, reported: 0.001 })).toBe("< $0.01");
+  });
+
   it("shows no cost when nothing is priced", () => {
     expect(costTextOf({ estimated: 0, reported: 0 })).toBeNull();
   });
@@ -409,5 +417,48 @@ describe("an account's budget in one line", () => {
         spent: { cost: 0, tokens: 2_000 },
       }),
     ).toBe("2,000 of 10,000 tokens · 80% left this month · counted by Gild");
+  });
+});
+
+describe("a plan's limits in words", () => {
+  const at = new Date(2026, 10, 10, 14, 2).getTime();
+  const reset = new Date(2026, 10, 10, 19, 30).getTime();
+
+  it("says a window's use and when it resets", () => {
+    expect(planLimitTextOf({ label: "5-hour", resetsAt: reset, usedPercent: 40 })).toBe(
+      "5-hour · 40% used · resets 19:30",
+    );
+  });
+
+  it("sums a plan up as its windows with the time of the reading", () => {
+    expect(
+      planLimitsSummaryOf({
+        readAt: at,
+        windows: [
+          { label: "5-hour", resetsAt: reset, usedPercent: 40 },
+          { label: "Weekly", resetsAt: reset, usedPercent: 93 },
+        ],
+      }),
+    ).toBe("5-hour 40% · Weekly 93% · as of 14:02");
+  });
+
+  it("says the limits are not reported, never guessing them", () => {
+    expect(planLimitsSummaryOf(null)).toBe("Limits not reported");
+  });
+});
+
+describe("the line under an agent reply", () => {
+  const tokens = { cacheCreation: 200, cacheRead: 800, input: 100, output: 140 };
+
+  it("says every token of the call and an estimate marked with ≈", () => {
+    expect(replyUsageTextOf({ estimated: 0.02, reported: null, tokens })).toBe("1,240 tokens · ≈ $0.02");
+  });
+
+  it("says a cost the turn reported as it is", () => {
+    expect(replyUsageTextOf({ estimated: null, reported: 1.25, tokens })).toBe("1,240 tokens · $1.25");
+  });
+
+  it("says only the tokens when no price is known", () => {
+    expect(replyUsageTextOf({ estimated: null, reported: null, tokens })).toBe("1,240 tokens");
   });
 });

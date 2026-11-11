@@ -1,0 +1,81 @@
+import { mkdirSync } from "node:fs";
+import { join } from "node:path";
+import { Effect, Layer } from "effect";
+import { Harness, PriceSource } from "./src/core/index.ts";
+import {
+  fakeHarnessToolsLayer,
+  makeClaudeHarness,
+  makeCodexHarness,
+  makeOpenCodeHarness,
+  routeHarnesses,
+  Service,
+  serveLoopback,
+  serviceLayer,
+} from "./src/index.ts";
+
+// A throwaway service whose three harnesses are the test stand-ins (Codex's reports a ChatGPT sign-in with a 5-hour
+// window at 40% and a weekly one at 93%), with a stand-in price table. One Claude Code quest and one Codex quest.
+const dir = process.env.GILD_DATA_DIR ?? "/tmp/gild-limits";
+const fixtures = join(process.cwd(), "test", "fixtures");
+mkdirSync(join(dir, "app"), { recursive: true });
+const prices = Layer.succeed(PriceSource, {
+  read: Effect.succeed([
+    { cacheRead: 0.3, cacheWrite: 3.75, input: 3, model: "claude-sonnet-5-5", output: 15, provider: "test" },
+    { cacheRead: 0.3, cacheWrite: 3.75, input: 3, model: "gpt-x", output: 15, provider: "test" },
+  ]),
+});
+const harness = Layer.effect(
+  Harness,
+  Effect.gen(function* () {
+    const idleTimeout = "10 minutes";
+    return routeHarnesses({
+      claude: yield* makeClaudeHarness({
+        command: process.execPath,
+        idleTimeout,
+        prefixArgs: [join(fixtures, "stand-in-claude.mjs")],
+        sandboxProblem: null,
+        userSettingsPath: join(dir, "no-settings.json"),
+      }),
+      codex: yield* makeCodexHarness({
+        command: process.execPath,
+        idleTimeout,
+        prefixArgs: [join(fixtures, "stand-in-codex.mjs")],
+      }),
+      opencode: yield* makeOpenCodeHarness({
+        command: process.execPath,
+        idleTimeout,
+        instructionsFolder: join(dir, "instructions"),
+        prefixArgs: [join(fixtures, "stand-in-opencode.mjs")],
+      }),
+    });
+  }),
+);
+const layer = serviceLayer({
+  accountsRoot: join(dir, "accounts"),
+  filename: join(dir, "gild.sqlite"),
+  harness,
+  harnessTools: fakeHarnessToolsLayer([], { available: {}, updated: [] }),
+  homeFolder: dir,
+  priceSource: prices,
+  scratchRoot: join(dir, "missions"),
+});
+const program = Effect.gen(function* () {
+  const service = yield* Service;
+  const start = (harness: "claude" | "codex", model: string, text: string) =>
+    service.handle({
+      _tag: "StartMission",
+      effort: "default",
+      harness,
+      model,
+      requestId: crypto.randomUUID(),
+      text,
+      workspacePath: join(dir, "app"),
+    });
+  yield* start("claude", "claude-sonnet-5-5", "Summarize the checkout flow");
+  yield* start("codex", "gpt-x", "Hello from Codex");
+  yield* Effect.sleep("2500 millis");
+  const { port } = yield* serveLoopback({ port: 0, token: "t" });
+  console.log(`ENDPOINT ws://127.0.0.1:${port}/?token=t`);
+  return yield* Effect.never;
+}).pipe(Effect.scoped, Effect.provide(Layer.fresh(layer)));
+Effect.runFork(program);

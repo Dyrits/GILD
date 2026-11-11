@@ -65,13 +65,24 @@ export const readMission = (missionId: string, threadId: string | null) =>
     if (thread === undefined) return yield* notFound("No such thread in this mission.");
     const workspace = yield* readThreadWorkspace(selected.id);
     const messages = yield* sql<
-      Omit<Message, "attachments" | "isResult" | "isQueued"> & { isResult: number; isQueued: number }
+      Omit<Message, "attachments" | "isResult" | "isQueued" | "usage"> & {
+        isResult: number;
+        isQueued: number;
+        usageCacheCreation: number | null;
+        usageCacheRead: number | null;
+        usageEstimate: number | null;
+        usageInput: number | null;
+        usageOutput: number | null;
+        usageReported: number | null;
+      }
     >`
       SELECT m.id, m.thread_id AS threadId, m.sender_kind AS sender, m.model, m.harness, m.text, m.sequence, m.sent_at AS sentAt,
         m.sender_thread_id AS fromThreadId, COALESCE(s.title, m.sender_title) AS fromTitle, m.is_result AS isResult,
         CASE WHEN sm.is_guildmaster = 0 THEN s.mission_id END AS fromMissionId,
-        (m.is_queued = 1 AND m.delivered_turn_id IS NULL) AS isQueued
-      FROM messages m LEFT JOIN threads s ON s.id = m.sender_thread_id LEFT JOIN missions sm ON sm.id = s.mission_id
+        (m.is_queued = 1 AND m.delivered_turn_id IS NULL) AS isQueued,
+        ru.input AS usageInput, ru.output AS usageOutput, ru.cache_read AS usageCacheRead,
+        ru.cache_creation AS usageCacheCreation, ru.estimate AS usageEstimate, ru.reported AS usageReported
+      FROM messages m LEFT JOIN reply_usage ru ON ru.message_id = m.id LEFT JOIN threads s ON s.id = m.sender_thread_id LEFT JOIN missions sm ON sm.id = s.mission_id
       WHERE m.thread_id = ${selected.id} ORDER BY m.sequence`;
     const cards = yield* readCards(messages.map((message) => message.id));
     const questions = yield* listThreadQuestions(selected.id);
@@ -83,12 +94,35 @@ export const readMission = (missionId: string, threadId: string | null) =>
       handovers: yield* listHandovers(selected.id),
       loreChanges: yield* listThreadLoreChanges(selected.id),
       loreGauge: yield* readGauge(selected.id),
-      messages: messages.map((message) => ({
-        ...message,
-        attachments: cards.get(message.id) ?? [],
-        isQueued: message.isQueued === 1,
-        isResult: message.isResult === 1,
-      })),
+      messages: messages.map(
+        ({
+          usageCacheCreation,
+          usageCacheRead,
+          usageEstimate,
+          usageInput,
+          usageOutput,
+          usageReported,
+          ...message
+        }) => ({
+          ...message,
+          attachments: cards.get(message.id) ?? [],
+          isQueued: message.isQueued === 1,
+          isResult: message.isResult === 1,
+          usage:
+            usageInput === null
+              ? null
+              : {
+                  estimated: usageEstimate,
+                  reported: usageReported,
+                  tokens: {
+                    cacheCreation: usageCacheCreation ?? 0,
+                    cacheRead: usageCacheRead ?? 0,
+                    input: usageInput,
+                    output: usageOutput ?? 0,
+                  },
+                },
+        }),
+      ),
       mission: summary,
       questions,
       suggestions,

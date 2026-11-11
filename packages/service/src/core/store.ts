@@ -525,6 +525,29 @@ const migrations = {
     )`;
     yield* sql`ALTER TABLE budget_stops ADD COLUMN account_key TEXT`;
   }),
+  // The plan limits a harness last reported for an account, kept so a reading outlives a restart (budget-control, Plan limits).
+  "0035_plan_limits": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE plan_limits (
+      account_key TEXT PRIMARY KEY,
+      windows TEXT NOT NULL,
+      read_at INTEGER NOT NULL
+    )`;
+  }),
+  // What each agent reply's call used and its cost, for the line under it; a turn's use beyond its replies' calls is added to
+  // its last reply when the turn ends, so the lines add up to the turn (budget-control, Seeing budget use and consumption).
+  "0036_reply_usage": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE reply_usage (
+      message_id TEXT PRIMARY KEY,
+      input INTEGER NOT NULL,
+      output INTEGER NOT NULL,
+      cache_read INTEGER NOT NULL,
+      cache_creation INTEGER NOT NULL,
+      estimate REAL,
+      reported REAL
+    )`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

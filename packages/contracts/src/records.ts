@@ -7,6 +7,8 @@ import {
   BudgetStop,
   BudgetUse,
   Consumption,
+  PlanLimitReading,
+  ReplyUsage,
   Spending,
   TokenUsage,
 } from "./budgets.ts";
@@ -226,6 +228,8 @@ export const Message = Schema.Struct({
   sequence: Schema.Number,
   text: Schema.String,
   threadId: ThreadId,
+  /** What the model call behind an agent reply used, with its cost; null for other messages and when no usage was reported. */
+  usage: Schema.NullOr(ReplyUsage),
 });
 export type Message = typeof Message.Type;
 
@@ -414,6 +418,8 @@ export const ThreadPanel = Schema.Struct({
   consumption: Consumption,
   /** Null until a turn reported usage: shown as "Not measured yet", never guessed. */
   context: Schema.NullOr(ContextGauge),
+  /** The plan limits of the account this thread runs on, as last reported, or null. */
+  planLimits: Schema.NullOr(PlanLimitReading),
   /** What this thread alone spent. */
   spending: Spending,
   /** Turns this thread has run with usage reported. */

@@ -165,14 +165,20 @@ const claudeProtocolOf = (options: ClaudeOptions): HarnessProtocol<ClaudeConnect
         } else if (type === "assistant") {
           const text = textOf(fieldOf(fieldOf(event, "message"), "content"));
           const error = fieldOf(event, "error");
-          const call = contextOf(usageOf(fieldOf(fieldOf(event, "message"), "usage")));
+          const callUsage = usageOf(fieldOf(fieldOf(event, "message"), "usage"));
+          const call = contextOf(callUsage);
           // A synthetic message reports zeros, which are no measure.
           if (call !== null && call > 0) context = call;
           draft = "";
           // A synthetic assistant message carrying `error` reports a failure, not a reply.
           if (error !== undefined && error !== null) reportedError = text || String(error);
           else if (text.trim() !== "")
-            yield* request.onEvent({ _tag: "Reply", model: reportedModelOf(fieldOf(event, "message")), text });
+            yield* request.onEvent({
+              _tag: "Reply",
+              model: reportedModelOf(fieldOf(event, "message")),
+              text,
+              usage: callUsage !== null && call !== null && call > 0 ? callUsage : null,
+            });
         } else if (type === "result") {
           // An interrupted turn ends with an error result, which is no failure (probe of 2026-11-06).
           const usage = usageOf(fieldOf(event, "usage"));

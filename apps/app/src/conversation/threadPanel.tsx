@@ -10,6 +10,7 @@ import {
   contextPartLabels,
   contextUseTextOf,
   loreGaugeValueOf,
+  planLimitsSummaryOf,
   threadSpendingTextOf,
   tokenCountOf,
 } from "../foundation/labels";
@@ -145,6 +146,7 @@ export function ThreadPanel({
   const companions = (
     <>
       <Row icon="chip" label="Harness" value={harnessValue} />
+      {panel !== null && <Row icon="chart" label="Plan limits" value={planLimitsSummaryOf(panel.planLimits)} />}
       <Row icon="model" label="Model" value={modelValue} />
       <Row
         icon="shield"

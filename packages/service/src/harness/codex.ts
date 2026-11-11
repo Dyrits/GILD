@@ -1,10 +1,12 @@
-import type { EffortChoice, TokenUsage } from "@gild/contracts";
+import { tmpdir } from "node:os";
+import type { BillingKind, EffortChoice, HarnessName, TokenUsage } from "@gild/contracts";
 import { type Duration, Effect, Queue } from "effect";
 import {
   fieldOf,
   HarnessFailure,
   type ImageAttachment,
   numberFieldOf,
+  type PlanLimitsReport,
   type ThreadAccess,
   type TurnRequest,
   textFieldOf,
@@ -35,6 +37,8 @@ export interface CodexOptions {
 }
 
 interface CodexConnection extends HarnessConnection {
+  /** How the account is billed, from Codex's own `account/read` at start; Unknown when it did not say. */
+  readonly billing: BillingKind;
   readonly rpc: RpcProcess;
   /** Codex's id of the running turn, once Codex started it; null between turns. */
   turnId: string | null;
@@ -95,6 +99,67 @@ const contextOf = (calls: ReadonlyArray<unknown>): number | null => {
   const last = calls.at(-1);
   return last === undefined ? null : numberFieldOf(last, "inputTokens") + numberFieldOf(last, "outputTokens");
 };
+
+/**
+ * How Codex's account is billed, from its own `account/read`: a ChatGPT sign-in is a subscription and an API key is
+ * an API key. A server that does not answer in a few seconds, or answers otherwise, says Unknown (probe of 2026-11-11, Codex 0.167).
+ */
+const billingOf = (rpc: RpcProcess): Effect.Effect<BillingKind> =>
+  rpc.request("account/read", { refreshToken: false }).pipe(
+    Effect.timeout("5 seconds"),
+    Effect.map((result): BillingKind => {
+      const type = textFieldOf(fieldOf(result, "account"), "type");
+      return type === "chatgpt" ? "Subscription" : type === "apiKey" ? "ApiKey" : "Unknown";
+    }),
+    Effect.catch(() => Effect.succeed<BillingKind>("Unknown")),
+  );
+
+/** A window of Codex's rate limits as reported, or none when it carries no use. */
+const windowOf = (window: unknown) =>
+  typeof fieldOf(window, "usedPercent") === "number" && typeof fieldOf(window, "windowDurationMins") === "number"
+    ? [
+        {
+          resetsAtSeconds: numberFieldOf(window, "resetsAt"),
+          usedPercent: numberFieldOf(window, "usedPercent"),
+          windowMinutes: numberFieldOf(window, "windowDurationMins"),
+        },
+      ]
+    : [];
+
+/**
+ * The limits of the plan behind an account, asked of a short `codex app-server` run in the account's own folder:
+ * `account/rateLimits/read` answers with the plan's windows (probe of 2026-11-11). An API key has no plan limits. Null
+ * when Codex cannot answer. The server's own sign-in is used; no token is read here.
+ */
+const readCodexPlanLimits = (options: CodexOptions, configDirectory: string | null) =>
+  Effect.gen(function* () {
+    const rpc = yield* startRpcProcess({
+      args: [...(options.prefixArgs ?? []), "app-server"],
+      command: options.command,
+      cwd: tmpdir(),
+      env: harnessEnvironmentOf(accountEnvironmentOf("codex", configDirectory)),
+      isJsonRpc2: false,
+      label: "Codex",
+    });
+    return yield* Effect.gen(function* () {
+      yield* rpc.request("initialize", {
+        capabilities: { experimentalApi: true, requestAttestation: false },
+        clientInfo: { name: "gild", title: "Gild", version: "0.0.0" },
+      });
+      rpc.notify("initialized", {});
+      const billing = yield* billingOf(rpc);
+      if (billing === "ApiKey") return { billing, windows: [] } satisfies PlanLimitsReport;
+      const limits = fieldOf(yield* rpc.request("account/rateLimits/read", {}), "rateLimits");
+      return {
+        billing,
+        windows: [...windowOf(fieldOf(limits, "primary")), ...windowOf(fieldOf(limits, "secondary"))],
+      } satisfies PlanLimitsReport;
+    }).pipe(
+      Effect.timeout("15 seconds"),
+      Effect.mapError((error) => new HarnessFailure({ reason: `Codex gave no plan limits: ${String(error)}` })),
+      Effect.ensuring(Effect.sync(() => rpc.close())),
+    );
+  });
 
 /** The files of a file change item, for its approval question. */
 const changedPathsOf = (item: unknown) => {
@@ -185,13 +250,13 @@ const readTurn = (connection: CodexConnection, request: TurnRequest, turn: Poole
         if (textFieldOf(completed, "id") !== codexTurnId) continue;
         const status = textFieldOf(completed, "status");
         if (status === "interrupted" || turn.isInterrupting())
-          return { context: contextOf(calls), isInterrupted: true, usage: usageOf(calls) };
+          return { billing: connection.billing, context: contextOf(calls), isInterrupted: true, usage: usageOf(calls) };
         if (status === "failed") {
           return yield* new HarnessFailure({
             reason: textFieldOf(fieldOf(completed, "error"), "message") ?? "Codex reported a failed turn.",
           });
         }
-        return { context: contextOf(calls), isInterrupted: false, usage: usageOf(calls) };
+        return { billing: connection.billing, context: contextOf(calls), isInterrupted: false, usage: usageOf(calls) };
       }
     }
   });
@@ -240,6 +305,7 @@ const codexProtocolOf = (options: CodexOptions): HarnessProtocol<CodexConnection
         isJsonRpc2: false,
         label: "Codex",
       });
+      let billing: BillingKind = "Unknown";
       const started = yield* Effect.gen(function* () {
         yield* rpc.request("initialize", {
           capabilities: { experimentalApi: true, requestAttestation: false },
@@ -247,6 +313,7 @@ const codexProtocolOf = (options: CodexOptions): HarnessProtocol<CodexConnection
         });
         rpc.notify("initialized", {});
         const settings = threadSettingsOf(request);
+        billing = yield* billingOf(rpc);
         return request.sessionId === null
           ? yield* rpc.request("thread/start", settings)
           : yield* rpc.request("thread/resume", { ...settings, threadId: request.sessionId });
@@ -257,6 +324,7 @@ const codexProtocolOf = (options: CodexOptions): HarnessProtocol<CodexConnection
         return yield* new HarnessFailure({ reason: "Codex started no thread." });
       }
       return {
+        billing,
         close: rpc.close,
         hasExited: rpc.hasExited,
         rpc,
@@ -285,4 +353,11 @@ const codexProtocolOf = (options: CodexOptions): HarnessProtocol<CodexConnection
 });
 
 /** Runs each thread in one long-lived `codex app-server` process, closed with the scope that made it. */
-export const makeCodexHarness = (options: CodexOptions) => makeHarnessProcesses(codexProtocolOf(options), options);
+export const makeCodexHarness = (options: CodexOptions) =>
+  makeHarnessProcesses(codexProtocolOf(options), options).pipe(
+    Effect.map((adapter) => ({
+      ...adapter,
+      readPlanLimits: (_harness: HarnessName, configDirectory: string | null) =>
+        readCodexPlanLimits(options, configDirectory),
+    })),
+  );
