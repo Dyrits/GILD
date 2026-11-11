@@ -143,6 +143,15 @@ export const EndMission = Schema.TaggedStruct("EndMission", {
 });
 /** Returns a Done or archived mission to the state worked out from its threads. */
 export const ReopenMission = Schema.TaggedStruct("ReopenMission", { missionId: MissionId });
+/**
+ * Moves a quest, with every side-quest at every depth, to a realm or to the Borderlands (mission-tracking, Quest placement
+ * and moves). Refused while any thread of the quest is in a turn; the app asks the owner to confirm before it sends this.
+ */
+export const MoveQuest = Schema.TaggedStruct("MoveQuest", {
+  missionId: MissionId,
+  /** The realm to move it to, or null for the Borderlands. */
+  realmId: Schema.NullOr(WorkspaceId),
+});
 /** Not now on a dashboard question; the inactivity question comes back after another inactive period. */
 export const DismissMissionPrompt = Schema.TaggedStruct("DismissMissionPrompt", {
   missionId: MissionId,
@@ -443,6 +452,7 @@ export const Request = Schema.Union([
   PreviewEnding,
   EndMission,
   ReopenMission,
+  MoveQuest,
   DismissMissionPrompt,
   ReadMission,
   ReadThreadPanel,
@@ -556,6 +566,7 @@ export const Results = {
   ListSkills: Schema.Array(Skill),
   ListWorkspaceEntries: Schema.Array(WorkspaceEntry),
   MarkThreadDone: Schema.Null,
+  MoveQuest: Schema.Null,
   OpenThread: OpenThreadResult,
   PinIntel: Schema.Null,
   PreviewDeletion: DeletionPreview,

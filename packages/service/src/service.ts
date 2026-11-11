@@ -74,6 +74,7 @@ import { readMission } from "./work/missionDetail.ts";
 import { insertMission, insertQuest } from "./work/missions.ts";
 import { PlanLimits, planLimitsLayer } from "./work/planLimits.ts";
 import { priceRefreshLayer } from "./work/priceRefresh.ts";
+import { moveQuest } from "./work/questMoves.ts";
 import {
   createRitual,
   deleteRitual,
@@ -312,6 +313,7 @@ const make = Effect.gen(function* () {
         ListSkills: (given) => listSkills(given.workspacePath),
         ListWorkspaceEntries: (given) => listWorkspaceEntries(given.workspacePath, given.query),
         MarkThreadDone: (given) => commands.run(markThreadDone(given.threadId)),
+        MoveQuest: (move) => commands.run(moveQuest(move.missionId, move.realmId)),
         OpenThread: (open) =>
           Effect.gen(function* () {
             const attachmentIds = open.attachmentIds ?? [];

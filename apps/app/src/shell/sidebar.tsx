@@ -13,7 +13,10 @@ import { allMissions } from "../foundation/queries";
 import { colors, fontSizes, fonts, radii, stateTones } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
 import { NewRealmModal } from "../realms/newRealmModal";
+import { MoveQuestModal } from "./moveQuestModal";
 import { NavIcon, type NavIconName } from "./navIcons";
+import { DragSource, DropTarget } from "./questDrag";
+import { borderlandsDestination, type Destination, type MoveConfirmation, moveConfirmationOf } from "./questMove";
 import {
   ancestorIdsOf,
   areActionsShown,
@@ -523,18 +526,21 @@ function Quest({
   const isHere = openMission === mission.id;
   return (
     <>
-      <Row
-        accessory={<StateDot state={mission.state} />}
-        fold={{
-          isOpen,
-          label: mission.title,
-          onPress: mission.threadCount > 1 ? () => onToggle(mission.id) : null,
-        }}
-        indent={chevronWidth}
-        isSelected={isHere && (openThread === null || openThread === mission.topThreadId)}
-        label={mission.title}
-        onPress={() => onOpenMission(mission.id)}
-      />
+      {/* Only the quest's own row is picked up; its side-quests go with it. */}
+      <DragSource missionId={mission.id}>
+        <Row
+          accessory={<StateDot state={mission.state} />}
+          fold={{
+            isOpen,
+            label: mission.title,
+            onPress: mission.threadCount > 1 ? () => onToggle(mission.id) : null,
+          }}
+          indent={chevronWidth}
+          isSelected={isHere && (openThread === null || openThread === mission.topThreadId)}
+          label={mission.title}
+          onPress={() => onOpenMission(mission.id)}
+        />
+      </DragSource>
       {isOpen && mission.threadCount > 1 && (
         <View style={{ paddingLeft: chevronWidth }}>
           <SideQuests
@@ -714,6 +720,19 @@ export function Sidebar({
   const failureUnder = (groupId: string) =>
     newQuestFailure?.groupId === groupId && <Text style={local.newQuestFailure}>{newQuestFailure.message}</Text>;
 
+  // A quest dropped on another place waits here for the owner's confirmation; nothing moves before it.
+  const [pendingMove, setPendingMove] = useState<{
+    confirmation: MoveConfirmation;
+    destination: Destination;
+    missionId: MissionId;
+  } | null>(null);
+  const dropOn = (destination: Destination) => (missionId: string) => {
+    const mission = data?.missions.find((each) => each.id === missionId);
+    const confirmation = mission === undefined ? null : moveConfirmationOf(mission, destination);
+    if (mission !== undefined && confirmation !== null)
+      setPendingMove({ confirmation, destination, missionId: mission.id });
+  };
+
   /**
    * A realm: its crest, its name with the folder mark when it is tied to a folder, its quests beneath it while it is
    * unfolded, and the button for a new quest.
@@ -727,32 +746,34 @@ export function Sidebar({
   }) => {
     const isClosed = closedRealms.set.has(realm.id);
     return (
-      <View key={realm.id} style={{ paddingLeft: realmIndent }}>
-        <RealmHeader
-          crest={realm.crest}
-          id={realm.id}
-          isOpen={!isClosed}
-          name={realm.name}
-          onNewQuest={() => startQuest(realm.id, realm.id)}
-          onOverview={() => onOpenRealmQuests({ id: realm.id, name: realm.name })}
-          onToggle={() => closedRealms.toggle(realm.id)}
-          path={realm.path}
-          questCount={realm.quests.length}
-        />
-        {failureUnder(realm.id)}
-        {!isClosed && realm.quests.length === 0 && <Text style={local.emptyRealm}>No quest in this realm yet.</Text>}
-        {!isClosed &&
-          shownOf(realm.quests, realmShown).map((mission) => (
-            <Quest {...questProps} isOpen={openQuests.set.has(mission.id)} key={mission.id} mission={mission} />
-          ))}
-        {!isClosed && realm.quests.length > realmShown && (
-          <ShowAll
-            count={realm.quests.length}
-            onPress={() => onOpenRealmQuests({ id: realm.id, name: realm.name })}
-            subject={realm.name}
+      <DropTarget key={realm.id} onDropQuest={dropOn({ id: realm.id, name: realm.name })}>
+        <View style={{ paddingLeft: realmIndent }}>
+          <RealmHeader
+            crest={realm.crest}
+            id={realm.id}
+            isOpen={!isClosed}
+            name={realm.name}
+            onNewQuest={() => startQuest(realm.id, realm.id)}
+            onOverview={() => onOpenRealmQuests({ id: realm.id, name: realm.name })}
+            onToggle={() => closedRealms.toggle(realm.id)}
+            path={realm.path}
+            questCount={realm.quests.length}
           />
-        )}
-      </View>
+          {failureUnder(realm.id)}
+          {!isClosed && realm.quests.length === 0 && <Text style={local.emptyRealm}>No quest in this realm yet.</Text>}
+          {!isClosed &&
+            shownOf(realm.quests, realmShown).map((mission) => (
+              <Quest {...questProps} isOpen={openQuests.set.has(mission.id)} key={mission.id} mission={mission} />
+            ))}
+          {!isClosed && realm.quests.length > realmShown && (
+            <ShowAll
+              count={realm.quests.length}
+              onPress={() => onOpenRealmQuests({ id: realm.id, name: realm.name })}
+              subject={realm.name}
+            />
+          )}
+        </View>
+      </DropTarget>
     );
   };
 
@@ -806,32 +827,34 @@ export function Sidebar({
             );
           })()}
 
-        <Heading
-          icon="borderlands"
-          isOpen={!foldedSections.set.has("Borderlands")}
-          isSelected={isHere("Borderlands")}
-          label="Borderlands"
-          note="Autonomous quests, with no workspace and no shared lore"
-          onNewQuest={() => startQuest("Borderlands", null)}
-          onOverview={() => onPlace("Borderlands")}
-          onPress={() => foldedSections.toggle("Borderlands")}
-          onToggle={() => foldedSections.toggle("Borderlands")}
-        />
-        {failureUnder("Borderlands")}
-        {!foldedSections.set.has("Borderlands") && placements.borderlands.length === 0 && (
-          <Text style={local.empty}>No quest yet.</Text>
-        )}
-        {!foldedSections.set.has("Borderlands") &&
-          shownOf(placements.borderlands, borderlandsShown).map((mission) => (
-            <Quest {...questProps} isOpen={openQuests.set.has(mission.id)} key={mission.id} mission={mission} />
-          ))}
-        {!foldedSections.set.has("Borderlands") && placements.borderlands.length > borderlandsShown && (
-          <ShowAll
-            count={placements.borderlands.length}
-            onPress={() => onPlace("Borderlands")}
-            subject="the Borderlands"
+        <DropTarget onDropQuest={dropOn(borderlandsDestination)}>
+          <Heading
+            icon="borderlands"
+            isOpen={!foldedSections.set.has("Borderlands")}
+            isSelected={isHere("Borderlands")}
+            label="Borderlands"
+            note="Autonomous quests, with no workspace and no shared lore"
+            onNewQuest={() => startQuest("Borderlands", null)}
+            onOverview={() => onPlace("Borderlands")}
+            onPress={() => foldedSections.toggle("Borderlands")}
+            onToggle={() => foldedSections.toggle("Borderlands")}
           />
-        )}
+          {failureUnder("Borderlands")}
+          {!foldedSections.set.has("Borderlands") && placements.borderlands.length === 0 && (
+            <Text style={local.empty}>No quest yet.</Text>
+          )}
+          {!foldedSections.set.has("Borderlands") &&
+            shownOf(placements.borderlands, borderlandsShown).map((mission) => (
+              <Quest {...questProps} isOpen={openQuests.set.has(mission.id)} key={mission.id} mission={mission} />
+            ))}
+          {!foldedSections.set.has("Borderlands") && placements.borderlands.length > borderlandsShown && (
+            <ShowAll
+              count={placements.borderlands.length}
+              onPress={() => onPlace("Borderlands")}
+              subject="the Borderlands"
+            />
+          )}
+        </DropTarget>
 
         <Divider />
         <Row icon="rituals" isMain isSelected={isHere("Rituals")} label="Rituals" onPress={() => onPlace("Rituals")} />
@@ -880,6 +903,15 @@ export function Sidebar({
           onPress={() => onPlace("Settings")}
         />
       </View>
+      {pendingMove !== null && (
+        <MoveQuestModal
+          confirmation={pendingMove.confirmation}
+          onCancel={() => setPendingMove(null)}
+          onConfirm={() =>
+            client.request({ _tag: "MoveQuest", missionId: pendingMove.missionId, realmId: pendingMove.destination.id })
+          }
+        />
+      )}
       {isCreating && (
         <NewRealmModal
           initial={{ crest: null, name: "", path: "" }}

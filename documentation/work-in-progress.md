@@ -1,5 +1,12 @@
 # Work in progress
 
+## Quest moves · 2026-11-11 · built and checked, owner review pending
+
+The owner chose confirmed quest moves as the next unbuilt feature from the backlog; agreed earlier in CHG-0130, CHG-0133, and CHG-0161, built in CHG-0172. Starting commit `2fb5af5`; nothing committed.
+Built: request `MoveQuest` and `packages/service/src/work/questMoves.ts`; in the sidebar, drag a quest's row onto a realm or the Borderlands, with a confirmation (`shell/questDrag.web.tsx`, `moveQuestModal.tsx`, `questMove.ts`).
+Checks: typecheck, Biome, 7 service and 4 app tests added, the app suite passes; driven with real drags in a throwaway Electron window, dark and light ([proof](verification/2026-11-11-quest-moves.md)).
+Open: the owner's look; no run through the app's own harness process after a move (sessions are kept and a journal entry tells the thread; probed with `claude -p`, CHG-0172); no menu or keyboard way to move; the Guildmaster cannot move a quest; the Guildmaster and realm chooser still do not offer realms tied to no folder.
+
 ## Only Realms and Borderlands · 2026-11-11 · built and checked in the web export, owner review pending
 
 CHG-0161 (placements) and CHG-0163 (sidebar hover marks, folding headings, scroll cue, widths, nested full list) are built and recorded in CHG-0164; storage in [ADR 0015](architecture-decision-record/0015-realms-tied-or-not-and-one-borderlands.md). Starting commit `10684a9`.

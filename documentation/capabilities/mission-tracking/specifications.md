@@ -25,7 +25,7 @@ Direct realm creation was agreed on 2026-11-10 (CHG-0133) and implemented in `f2
 
 ### Quest placement and moves
 
-Agreed on 2026-11-10 (CHG-0130). On 2026-11-11 (CHG-0161) the placements were reduced to Realms and the Borderlands, and that change is built (CHG-0164; storage in [0015](../../architecture-decision-record/0015-realms-tied-or-not-and-one-borderlands.md)): creation in a Realm, with or without a workspace, and in the Borderlands is implemented; moving existing quests remains pending, as no move code existed to adapt.
+Agreed on 2026-11-10 (CHG-0130). On 2026-11-11 (CHG-0161) the placements were reduced to Realms and the Borderlands, and that change is built (CHG-0164; storage in [0015](../../architecture-decision-record/0015-realms-tied-or-not-and-one-borderlands.md)): creation in a Realm, with or without a workspace, and in the Borderlands is implemented; moving existing quests by dragging is built (CHG-0172).
 
 - A quest belongs to a Realm, which may be tied to a workspace or not and shares lore across its quests, or to the Borderlands, which have no workspace and no shared lore.
 - Lore access follows [lore scopes](../scoped-intel/specifications.md#scopes).
@@ -39,6 +39,7 @@ Agreed on 2026-11-10 (CHG-0130). On 2026-11-11 (CHG-0161) the placements were re
   The running-thread check applies when the owner confirms, even if no thread was running when the drag began.
 - Moving into a Realm tied to a workspace changes the workspace of every thread in the tree to that Realm's workspace.
 - Moving into the Borderlands, or into a Realm tied to no workspace, removes workspace attachments throughout the tree; its threads then use the quest's scratch folder.
+  Threads keep their harness sessions; the journal gets an entry saying the quest moved, which each turn's note carries (CHG-0172).
 - The conversation, journal, and thread-scoped lore stay with the quest; shared lore access follows the destination, without copying lore between realms.
 - Earlier conversation content can still refer to the former realm or workspace; a move does not rewrite that history.
 - A quest is independent of the artifacts it produces or modifies; moving it does not move, copy, or delete files, edits, branches, or existing own copies.
@@ -46,7 +47,7 @@ Agreed on 2026-11-10 (CHG-0130). On 2026-11-11 (CHG-0161) the placements were re
 - A move does not merge old own copies into the destination workspace or use them as its working folder.
 - Moving changes future turns' workspace context; relocating a workspace's folder is a separate operation in [workspace attachment](../workspace-attachment/specifications.md#missing-folder).
 
-Sidebar drag-and-drop and confirmation were agreed on 2026-11-10 (CHG-0133); implementation and verification remain pending.
+Sidebar drag-and-drop and confirmation were agreed on 2026-11-10 (CHG-0133) and built on 2026-11-11 for the web build (CHG-0172, [verification](../../verification/2026-11-11-quest-moves.md)); the owner's review of the look is pending.
 
 ### Title
 
