@@ -70,6 +70,19 @@ export const threadTools = {
       tool_use_id: Schema.optionalKey(Schema.String),
     }),
   }),
+  change_setting: definitionOf({
+    description:
+      "Only Iskios uses it, and only because the owner asked in their latest message: change one of the owner's settings (read_settings lists them). The approval level, the budgets, and price fetching are the owner's alone and are refused. Pass the owner's exact words asking for it as quote; Iskios checks them.",
+    invalid: invalid("Invalid arguments: give setting, value, and quote."),
+    isUnasked: true,
+    schema: Schema.Struct({
+      quote: text("The owner's exact words from their latest message that ask for this, copied verbatim."),
+      setting: text("The setting's name, as read_settings gives it, for example shouldShowFinishedQuests."),
+      value: text(
+        'The new value as JSON text, whole and in the shape read_settings shows for that setting, for example true, 14, "Steer", or {"cost":null,"tokens":null}.',
+      ),
+    }),
+  }),
   create_realm: definitionOf({
     description:
       "Only Iskios uses it, and only because the owner asked in their latest message: make a realm, tied to a folder or to none. Pass the owner's exact words asking for it as quote; Iskios checks them.",
@@ -183,6 +196,13 @@ export const threadTools = {
         "The id of another quest whose journal to read: Iskios reads any; another thread only one the owner mentioned with @ in this turn.",
       ),
     }),
+  }),
+  read_settings: definitionOf({
+    description:
+      "Only Iskios uses it. Read the owner's settings as JSON, to answer a question about them or before you change one.",
+    invalid: invalid("Invalid arguments: read_settings takes none."),
+    isUnasked: true,
+    schema: Schema.Struct({}),
   }),
   relied_on_intel: definitionOf({
     description:

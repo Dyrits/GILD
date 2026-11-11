@@ -611,6 +611,12 @@ export const migrations = {
     yield* sql`UPDATE threads SET title = 'Iskios'
       WHERE title = 'Guildmaster' AND mission_id IN (SELECT id FROM missions WHERE is_guildmaster = 1)`;
   }),
+  // Where the owner had Iskios open from when they wrote to it (quest coordination, Context), as the line Iskios reads
+  // with the message; null for every other message.
+  "0042_message_viewing": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE messages ADD COLUMN viewing TEXT`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

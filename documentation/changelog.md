@@ -2477,3 +2477,67 @@ Summary: Behaviour kept; no agreement changed. Review and refactor of `9f85d0e..
 Reason: The review and the audit found one rule spread over several call sites (who may reach whom), a list whose state lived in a screen no test reaches, and a theme name copied by hand across the app and the desktop shell.
 References: [architecture audit](architecture-audit/architecture-audit-2026-11-11-2256.html), [CHG-0181](#chg-0181), [CHG-0182](#chg-0182), [CHG-0183](#chg-0183)
 Validation: typecheck (4 of 4) and Biome pass. Full suite on the loaded machine (load 14): 842 passed, 14 skipped, 8 failed with timeouts in `prices`, lore, and `harnesses` suites that import none of the changed modules; run again together, one `prices` test failed, and `prices.test.ts` alone passed twice (24 of 24). Not verified: the composer in a window (the list's logic is tested through its functions, the hook's wiring to the field is not driven), the Dock icon, and the Gild screens. Left for the owner, since each changes behaviour: the review's P1 (category lists capped at 12), P2 (mixed list files from 8 to 5), P4 (a deleted sender), P5 (reply rule wider than agreed), P6 (title from a raw `@quest:` token), P7 (wording of a closed chip), and S3 (a failed mention read is ignored in silence).
+
+## CHG-0188 · 2026-11-11 · Guild Hall hub
+
+Type: Code
+Event: Delivery
+Scope: Quest coordination, Interface
+
+Summary: The Guild Hall page is a hub: a line saying how many quests wait for the owner; those quests as cards whose edge and tint give the reason (failed, needs an answer, result to confirm); the five quests touched last as a list of rows with their realm, state, and how long ago, and a "View all" link; and a band of figures (quests waiting, quests underway, and the recap since the owner's last visit, 24 hours at the first: quests finished, what the turns used, Ritual runs), with the latest five finished quests named (reshaped in CHG-0191). Each card and row opens its quest. Iskios's conversation left the page for a panel (CHG-0189): the top bar's "Iskios" button opens it as a card floating over the hub, or as a column beside any other screen, an expand button fills the content area with it, and the owner folds it back; it is remembered, and a realm chosen on a realm's page opens it. Agreed with the owner, for this batch: period since the last visit; the three recap figures; five recent quests; floating folding menu. Mine, within the agreement: the visit is recorded when the owner arrives (a `settings` row `guildHallVisitedAt`, no migration), the recap keeps its start while they stay; a quest may appear both as waiting and as recent; Ritual runs are counted from the messages that start them; the column opens beside screens and the card floats on a narrow window; the hub has room at its foot for the card's corner; a window with no top bar keeps a pill.
+References: CHG-0176, CHG-0189, CHG-0190, [quest coordination](capabilities/mission-coordination/specifications.md), [verification](verification/2026-11-11-guild-hall-hub.md).
+Validation: typecheck and Biome pass; 6 service and 9 app tests added; full suite 816 passed, 1 failed (pre-existing, see the proof); driven in a throwaway Electron window on the fake harness (light). Owner's review of the look pending.
+
+## CHG-0189 · 2026-11-11 · Iskios's conversation is a foldable panel on every screen
+
+Type: Documentation
+Event: Agreement
+
+Summary: The owner asked that Iskios's conversation no longer replace the Guild Hall page, and chose a floating menu that folds back over the hub, and an Iskios panel on every screen. This lifts the exclusion of "Iskios as a side panel on every screen" in CHG-0176 and of any side panel in CHG-0179, and sets the hub's design direction: more relief, density, and hierarchy.
+References: CHG-0176, CHG-0179, CHG-0188, [quest coordination](capabilities/mission-coordination/specifications.md#place).
+Validation: Authorized by the owner's answers, 2026-11-11.
+
+## CHG-0190 · 2026-11-11 · Iskios opens from the top bar and can fill the content area
+
+Type: Documentation
+Event: Agreement
+
+Summary: The pill "Ask Iskios" covered the composer's pickers on a quest page. The owner chose a button in the top bar that opens the column on the right (replacing the pill, which stays only where there is no top bar), and an expand button that fills the whole content area, the sidebar staying. An Iskios tab in the sidebar or in the quest panel was considered and not chosen.
+References: CHG-0189, CHG-0188, [quest coordination](capabilities/mission-coordination/specifications.md#place).
+Validation: Authorized by the owner's answers, 2026-11-11.
+
+## CHG-0191 · 2026-11-11 · The hub takes a band of figures and a dense list of recent quests
+
+Type: Documentation
+Event: Agreement
+
+Summary: The owner looked at the hub again and showed a reference picture: a band of figure tiles with icons, and the recent quests as dense rows with a state and "5 min ago". They found its quick access useless and asked to mix its ideas with ours. Agreed: a band of five figures with an icon each, two about now (quests waiting for the owner, quests underway) and three from the recap (quests finished, what the turns used, Ritual runs), a caption over each group; the recent quests as one list of rows (crest, title and realm, state, how long ago) with a "View all" link to the quest board; the waiting cards stay; the quests finished in the period get their own list beside the rest on a wide window. Quick access is not built. Mine, within the agreement: the waiting tile takes the warning's tint while quests wait; "how long ago" uses the quest list's wording; on a narrow window it moves under the title.
+References: CHG-0188, [quest coordination](capabilities/mission-coordination/specifications.md).
+Validation: Authorized by the owner's message, 2026-11-11.
+
+## CHG-0192 · 2026-11-11 · Iskios's column stands at the window's far right
+
+Type: Documentation
+Event: Agreement
+
+Summary: Beside a quest, Iskios's column stood between the quest and its panel. The owner felt it belonged at the far right, so it now stands past the quest panel, at the window's right edge. The quest panel's handle moves with it.
+References: CHG-0189, CHG-0190, [quest coordination](capabilities/mission-coordination/specifications.md#place).
+Validation: Authorized by the owner's message, 2026-11-11.
+
+## CHG-0193 · 2026-11-11 · Iskios knows where it was opened from, changes settings on request, and its column stays in the Guild Hall
+
+Type: Documentation
+Event: Agreement
+
+Summary: The owner asked that Iskios always know where it was opened from (a quest, the settings page), so it can read the context when the request is about it; that it could update the settings when asked; and that its column stay beside the Guild Hall's hub too, not float over it as a card (the card stays only on a narrow window). Built: each message to Iskios carries the quest open, or the screen's name (a message column `viewing`, migration 0042; the note stands after the message and not in the owner's message); `read_settings` and `change_setting`, on the owner's quoted words like the realm tools; the Guild Hall's column; the hub's wide layout from 1000 px, since the column narrows it. The owner did not answer the three questions put for the settings batch, so these choices are mine, to confirm: Iskios reads details only when needed, by tools, not by a full snapshot on each message; it may change every setting except the approval level, the budgets, and price fetching, which set what agents may do or spend and which a quest's text could otherwise talk it into widening; the change is made on the quoted words and told in a sentence and the action's own line, with no proposal card to confirm and no undo.
+References: CHG-0189, CHG-0190, CHG-0192, [quest coordination](capabilities/mission-coordination/specifications.md).
+Validation: The column and the two features are authorized by the owner's message, 2026-11-11; the choices above await their confirmation.
+
+## CHG-0194 · 2026-11-11 · The top bar spans the window; the quest panel and Iskios's column are resizable and have no ✕
+
+Type: Documentation
+Event: Agreement
+
+Summary: With the sidebar, the screen, the quest panel, and Iskios's column, four panes can stand at once. The owner asked that: the ✕ of Iskios's panel and of the quest panel go (the top bar's button and icon already hide them); each of the two can be dragged wider, up to a quarter of the window, like the sidebar; and the top bar span the whole window up to the "Iskios" button, with the separations only below it, between the panes. Built: one drag strip for all three panes (the sidebar by its right edge, the other two by their left, each between the width it opens at and a quarter of the window; the width is remembered); the quest panel loses its own header on a wide window; the top bar is above the whole window. Mine, within the agreement: the ✕ stays where no top bar offers a way to close (the card of a narrow window with no top bar, the quest panel taking a narrow window's place); each pane's least width is the one it opens at, so on a window under four times that width a pane cannot grow.
+References: CHG-0189, CHG-0190, CHG-0192, CHG-0193, [quest coordination](capabilities/mission-coordination/specifications.md).
+Validation: Authorized by the owner's message, 2026-11-11.

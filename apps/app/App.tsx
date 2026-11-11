@@ -131,12 +131,7 @@ export default function App() {
         onPermissions={() => setIsPermissionsOpen(true)}
       />
     ) : place === "Guildmaster" ? (
-      <GuildmasterScreen
-        client={client}
-        onOpenMission={openMissionFromAnywhere}
-        onRealm={setGuildmasterRealm}
-        realmPath={guildmasterRealm}
-      />
+      <GuildmasterScreen client={client} onOpenMission={openMissionFromAnywhere} onViewAll={() => goTo("Quests")} />
     ) : place === "Borderlands" ? (
       <QuestListScreen client={client} listing={null} onOpen={openMissionFromAnywhere} onOpenThread={openSideQuest} />
     ) : place === "RealmQuests" ? (
@@ -183,6 +178,7 @@ export default function App() {
             ? null
             : { isOpen: areDetailsOpen, onToggle: () => setAreDetailsOpen(!areDetailsOpen) }
       }
+      iskios={{ onRealm: setGuildmasterRealm, realmPath: guildmasterRealm }}
       listedRealm={listedRealm}
       onOpenMission={openMissionFromAnywhere}
       onOpenRealmQuests={(listing) => {

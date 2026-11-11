@@ -26,6 +26,7 @@ import { PermissionsView, Question } from "./questions.ts";
 import {
   BackupCompanion,
   EndingPreview,
+  GuildHallRecap,
   GuildmasterPlace,
   MessageDelivery,
   MissionDetail,
@@ -40,6 +41,7 @@ import {
   StartingContext,
   Suggestion,
   ThreadPanel,
+  Viewing,
 } from "./records.ts";
 import {
   CreateRitual,
@@ -119,6 +121,8 @@ export const SendMessage = Schema.TaggedStruct("SendMessage", {
   requestId: RequestId,
   text: OwnerMessageText,
   threadId: ThreadId,
+  /** Where the owner has Iskios open from, for Iskios: the screen, and its quest when it is one. */
+  viewing: Schema.optionalKey(Schema.NullOr(Viewing)),
 });
 /** The dashboard (not archived) or the Archived view, filtered by state and workspace and searched. */
 export const ListMissions = Schema.TaggedStruct("ListMissions", {
@@ -130,6 +134,10 @@ export const ListMissions = Schema.TaggedStruct("ListMissions", {
 });
 /** Where the Guildmaster's conversation is; the service makes it on first use. */
 export const ReadGuildmaster = Schema.TaggedStruct("ReadGuildmaster", {});
+/** The Guild Hall's recap since `since`, or since the last visit when null (24 hours before the first). */
+export const ReadGuildHallRecap = Schema.TaggedStruct("ReadGuildHallRecap", { since: Schema.NullOr(Schema.Number) });
+/** Records that the owner is at the Guild Hall now, so the next recap starts here. */
+export const VisitGuildHall = Schema.TaggedStruct("VisitGuildHall", {});
 /** Asks for the new-mission choices prefilled from the last mission started. */
 export const ReadStartChoices = Schema.TaggedStruct("ReadStartChoices", {});
 /** The owner renames a mission; `set_mission_title` is refused afterwards. */
@@ -453,6 +461,8 @@ export const Request = Schema.Union([
   ListMissions,
   ReadStartChoices,
   ReadGuildmaster,
+  ReadGuildHallRecap,
+  VisitGuildHall,
   RenameMission,
   PreviewEnding,
   EndMission,
@@ -582,6 +592,7 @@ export const Results = {
   ReadAccountBudgets: Schema.Array(AccountBudget),
   ReadAttachment: AttachmentContent,
   ReadBudget: BudgetWindow,
+  ReadGuildHallRecap: GuildHallRecap,
   ReadGuildmaster: GuildmasterPlace,
   ReadIntelHistory: LoreHistory,
   ReadJournal: JournalView,
@@ -622,6 +633,7 @@ export const Results = {
   UpdateHarness: HarnessList,
   UpdateRitual: Schema.Null,
   UpdateSettings: Settings,
+  VisitGuildHall: Schema.Null,
   WidenPermission: Schema.Null,
 } as const;
 /** What the service answers to one kind of request. */

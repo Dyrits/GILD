@@ -15,6 +15,7 @@ import {
   refusedRitual,
 } from "./guildmaster.ts";
 import { createRealmByGuildmaster, renameRealmByGuildmaster } from "./guildmasterRealms.ts";
+import { changeSettingByGuildmaster, readSettingsByGuildmaster } from "./guildmasterSettings.ts";
 import { journalToolsOf } from "./journalTools.ts";
 import { loreToolsOf } from "./loreTools.ts";
 import { insertMessage } from "./messaging.ts";
@@ -172,6 +173,7 @@ export const makeToolHandlers = (dependencies: {
             ),
           ),
         ),
+    change_setting: (threadId, args) => runTool(changeSettingByGuildmaster(threadId, args)),
     create_realm: (threadId, args) => runTool(createRealmByGuildmaster(threadId, args)),
     create_ritual: (threadId, args) =>
       runTool(
@@ -210,6 +212,7 @@ export const makeToolHandlers = (dependencies: {
         ),
       ),
     read_control_history: (threadId, args) => commit(readControlHistory(threadId, args)),
+    read_settings: (threadId) => runTool(readSettingsByGuildmaster(threadId)),
     rename_realm: (threadId, args) => runTool(renameRealmByGuildmaster(threadId, args)),
     report_result: (threadId, { journal, result }) =>
       journal.trim() === ""

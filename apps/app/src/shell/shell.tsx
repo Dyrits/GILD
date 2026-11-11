@@ -1,13 +1,30 @@
 import type { ReactNode } from "react";
 import { useCallback, useEffect, useRef, useState } from "react";
-import { PanResponder, Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
+import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
+import { IskiosConversation } from "../conversation/guildmaster";
 import { allMissions } from "../foundation/queries";
 import { QuestPanelSetter, SidebarShown, TopBarShown } from "../foundation/shellContext";
 import { colors, radii } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
 import { useRituals } from "../rituals/rituals";
+import { EdgeResizer } from "./edgeResizer";
+import { IskiosColumn, IskiosFloating, IskiosLauncher, iskiosColumnWidth } from "./iskiosDock";
 import type { RealmListing } from "./questTree";
-import { clampRailWidth, readHidden, readRailWidth, rememberHidden, rememberRailWidth } from "./railStorage";
+import {
+  clampPaneWidth,
+  clampRailWidth,
+  iskiosWidthKey,
+  minRailWidth,
+  questPanelWidthKey,
+  readHidden,
+  readIskiosOpen,
+  readPaneWidth,
+  readRailWidth,
+  rememberHidden,
+  rememberIskiosOpen,
+  rememberPaneWidth,
+  rememberRailWidth,
+} from "./railStorage";
 import { Sidebar } from "./sidebar";
 import {
   crumbsOf,
@@ -18,64 +35,13 @@ import {
   questColumnWidth,
   TopBar,
 } from "./topBar";
+import { viewingOf } from "./viewing";
 
 /** The window width from which the sidebar shows beside the content; narrower windows keep the screens' own links. */
 const sidebarBreakpoint = 820;
 
 /** The size of the round handle on the rail's edge that collapses and expands it. */
 const handleSize = 26;
-
-/** The height of the top bar, which the frame's vertical center is measured from. */
-const topBarHeight = 40;
-
-// The pointer shows it can be dragged sideways.
-const resizeCursor = { cursor: "col-resize" } as object;
-
-/**
- * A thin strip on the open rail's edge that the owner drags to widen or narrow it, between a least and a most width; the
- * width is remembered.
- */
-function RailResizer({
-  onChange,
-  width,
-  windowWidth,
-}: {
-  onChange: (width: number) => void;
-  width: number;
-  windowWidth: number;
-}) {
-  const start = useRef(width);
-  const latest = useRef(width);
-  latest.current = width;
-  const windowNow = useRef(windowWidth);
-  windowNow.current = windowWidth;
-  const responder = useRef(
-    PanResponder.create({
-      onMoveShouldSetPanResponder: () => true,
-      onPanResponderGrant: () => {
-        start.current = latest.current;
-        // No text is picked up by the pointer while the rail is dragged.
-        if (typeof document !== "undefined") document.body.style.userSelect = "none";
-      },
-      onPanResponderMove: (_, gesture) => onChange(clampRailWidth(start.current + gesture.dx, windowNow.current)),
-      onPanResponderRelease: () => {
-        if (typeof document !== "undefined") document.body.style.userSelect = "";
-        rememberRailWidth(latest.current);
-      },
-      onPanResponderTerminate: () => {
-        if (typeof document !== "undefined") document.body.style.userSelect = "";
-      },
-      onStartShouldSetPanResponder: () => true,
-    }),
-  ).current;
-  return (
-    <View
-      accessibilityLabel="Resize the sidebar"
-      {...responder.panHandlers}
-      style={[local.resizer, { left: width - 4 }, resizeCursor]}
-    />
-  );
-}
 
 /**
  * The window's frame: on a wide window the sidebar, which collapses to icons, beside a top bar over the content; on
@@ -87,6 +53,8 @@ export function Shell(
     details: DetailsToggle | null;
     /** The realm whose quest list is open, named in the top bar. */
     listedRealm: RealmListing | null;
+    /** The realm chosen for Iskios's next message, from a realm's page, and how to clear it. */
+    iskios: { onRealm: (path: string | null) => void; realmPath: string | null };
   },
 ) {
   const { width } = useWindowDimensions();
@@ -94,6 +62,28 @@ export function Shell(
   const [storedRailWidth, setRailWidth] = useState(readRailWidth);
   // Held to a quarter of the window again whenever the window changes size; the remembered width stays as dragged.
   const railWidth = clampRailWidth(storedRailWidth, width);
+  // The quest panel's and Iskios's columns, each dragged between its own width and a quarter of the window, as the rail.
+  const [storedQuestWidth, setQuestWidth] = useState(() => readPaneWidth(questPanelWidthKey, questColumnWidth));
+  const questWidth = clampPaneWidth(storedQuestWidth, width, questColumnWidth);
+  const [storedIskiosWidth, setIskiosWidth] = useState(() => readPaneWidth(iskiosWidthKey, iskiosColumnWidth));
+  const iskiosWidth = clampPaneWidth(storedIskiosWidth, width, iskiosColumnWidth);
+  // Iskios's panel: folded to a pill or open, remembered; a realm chosen for its next message opens it.
+  const [isIskiosOpen, setIsIskiosOpen] = useState(readIskiosOpen);
+  // Opened to the whole content area, in place of the screen, until the owner restores it; not remembered.
+  const [isIskiosFull, setIsIskiosFull] = useState(false);
+  const setIskiosOpen = (isOpen: boolean) => {
+    rememberIskiosOpen(isOpen);
+    setIsIskiosOpen(isOpen);
+    if (!isOpen) setIsIskiosFull(false);
+  };
+  const iskiosToggle = { isOpen: isIskiosOpen, onToggle: () => setIskiosOpen(!isIskiosOpen) };
+  const { realmPath: iskiosRealmPath } = props.iskios;
+  useEffect(() => {
+    if (iskiosRealmPath !== null) {
+      rememberIskiosOpen(true);
+      setIsIskiosOpen(true);
+    }
+  }, [iskiosRealmPath]);
   const [questPanel, setQuestPanel] = useState<ReactNode>(null);
   const [panelTitle, setPanelTitle] = useState("Quest");
   const setPanel = useCallback((panel: ReactNode, title: string) => {
@@ -135,10 +125,53 @@ export function Shell(
   const { details } = props;
   const isPanelShown = details?.isOpen === true && questPanel !== null;
   const panelColumn = isPanelShown && details !== null && (
-    <QuestColumn isWide={hasRail} onClose={details.isPinned === true ? null : details.onToggle} title={panelTitle}>
+    <QuestColumn
+      edge={
+        <EdgeResizer
+          label="Resize the quest panel"
+          leastWidth={questColumnWidth}
+          onChange={setQuestWidth}
+          onRelease={(next) => rememberPaneWidth(questPanelWidthKey, next)}
+          side="start"
+          width={questWidth}
+          windowWidth={width}
+        />
+      }
+      isWide={hasRail}
+      onClose={details.isPinned === true ? null : details.onToggle}
+      title={panelTitle}
+      width={questWidth}
+    >
       {questPanel}
     </QuestColumn>
   );
+  // Beside every screen, the Guild Hall's hub included, Iskios is a column; only a narrow window floats it as a card (CHG-0193).
+  const isIskiosFloating = !hasRail;
+  // Iskios's column stands at the window's far right, past the quest panel, which its handle then clears.
+  const isIskiosColumn = isIskiosOpen && !isIskiosFloating && !isIskiosFull;
+  const iskiosOffset = isIskiosColumn ? iskiosWidth : 0;
+  const iskiosChat = (
+    <IskiosConversation
+      client={props.client}
+      isFull={isIskiosFull}
+      onFold={hasRail || hasOwnTitleBar ? null : () => setIskiosOpen(false)}
+      onOpenMission={props.onOpenMission}
+      onRealm={props.iskios.onRealm}
+      onToggleFull={() => setIsIskiosFull(!isIskiosFull)}
+      realmPath={props.iskios.realmPath}
+      viewing={viewingOf(props.place, props.openMission, props.listedRealm?.name ?? null)}
+    />
+  );
+  // The top bar's button opens it; a window with no top bar (narrow, not macOS) has a pill in its stead.
+  const hasLauncherPill = !hasRail && !hasOwnTitleBar;
+  const iskiosFull = isIskiosOpen && isIskiosFull && <View style={local.fill}>{iskiosChat}</View>;
+  const iskiosDock = isIskiosOpen ? (
+    isIskiosFloating && !isIskiosFull ? (
+      <IskiosFloating>{iskiosChat}</IskiosFloating>
+    ) : null
+  ) : hasLauncherPill ? (
+    <IskiosLauncher onPress={() => setIskiosOpen(true)} />
+  ) : null;
   // Narrow windows keep the screens' own links; as the macOS title bar the top bar stays, over the content alone. An
   // open quest panel takes the content's place; the content stays mounted, so the open thread is kept.
   if (!hasRail) {
@@ -146,8 +179,10 @@ export function Shell(
       <QuestPanelSetter.Provider value={setPanel}>
         <TopBarShown.Provider value={hasOwnTitleBar}>
           <View style={local.narrow}>
-            {hasOwnTitleBar && <TopBar client={props.client} crumbs={crumbs} details={details} />}
+            {hasOwnTitleBar && <TopBar client={props.client} crumbs={crumbs} details={details} iskios={iskiosToggle} />}
             <View style={[local.narrowContent, isPanelShown && local.hidden]}>{props.children}</View>
+            {!isPanelShown && iskiosDock}
+            {!isPanelShown && iskiosFull}
             {panelColumn}
           </View>
         </TopBarShown.Provider>
@@ -159,11 +194,21 @@ export function Shell(
       <SidebarShown.Provider value={true}>
         <TopBarShown.Provider value={true}>
           <View style={local.window}>
-            <View style={local.windowMain}>
-              <TopBar client={props.client} crumbs={crumbs} details={null} />
+            <TopBar client={props.client} crumbs={crumbs} details={null} iskios={iskiosToggle} />
+            <View style={local.body}>
               <View style={local.frame}>
                 {!isHidden && <Sidebar {...props} width={railWidth} />}
-                {!isHidden && <RailResizer onChange={setRailWidth} width={railWidth} windowWidth={width} />}
+                {!isHidden && (
+                  <EdgeResizer
+                    label="Resize the sidebar"
+                    leastWidth={minRailWidth}
+                    onChange={setRailWidth}
+                    onRelease={rememberRailWidth}
+                    side="end"
+                    width={railWidth}
+                    windowWidth={width}
+                  />
+                )}
                 <Pressable
                   accessibilityLabel={isHidden ? "Show sidebar (⌘B)" : "Hide sidebar (⌘B)"}
                   accessibilityRole="button"
@@ -176,25 +221,48 @@ export function Shell(
                 >
                   <PanelIcon />
                 </Pressable>
-                <View style={local.panel}>{props.children}</View>
+                <View style={local.panel}>
+                  {props.children}
+                  {iskiosFull}
+                </View>
+                {iskiosDock}
               </View>
+              {panelColumn}
+              {isIskiosColumn && (
+                <IskiosColumn
+                  edge={
+                    <EdgeResizer
+                      label="Resize Iskios"
+                      leastWidth={iskiosColumnWidth}
+                      onChange={setIskiosWidth}
+                      onRelease={(next) => rememberPaneWidth(iskiosWidthKey, next)}
+                      side="start"
+                      width={iskiosWidth}
+                      windowWidth={width}
+                    />
+                  }
+                  width={iskiosWidth}
+                >
+                  {iskiosChat}
+                </IskiosColumn>
+              )}
+              {details !== null && details.isPinned !== true && (
+                <Pressable
+                  accessibilityLabel={details.isOpen ? "Hide quest panel" : "Show quest panel"}
+                  accessibilityRole="button"
+                  onPress={details.onToggle}
+                  style={({ pressed }) => [
+                    local.handle,
+                    isPanelShown
+                      ? { right: questWidth - handleSize / 2 + iskiosOffset }
+                      : [local.endHandleTab, { right: iskiosOffset }],
+                    pressed && local.handlePressed,
+                  ]}
+                >
+                  <PanelIcon side="right" />
+                </Pressable>
+              )}
             </View>
-            {panelColumn}
-            {details !== null && details.isPinned !== true && (
-              <Pressable
-                accessibilityLabel={details.isOpen ? "Hide quest panel" : "Show quest panel"}
-                accessibilityRole="button"
-                onPress={details.onToggle}
-                style={({ pressed }) => [
-                  local.handle,
-                  local.endHandle,
-                  isPanelShown ? { right: questColumnWidth - handleSize / 2 } : local.endHandleTab,
-                  pressed && local.handlePressed,
-                ]}
-              >
-                <PanelIcon side="right" />
-              </Pressable>
-            )}
           </View>
         </TopBarShown.Provider>
       </SidebarShown.Provider>
@@ -203,20 +271,22 @@ export function Shell(
 }
 
 const local = StyleSheet.create({
-  // The quest panel's handle sits on the window, not the frame, so it can straddle the panel's edge. It is centered on the
-  // frame, which starts below the top bar.
-  endHandle: { marginTop: topBarHeight / 2 - handleSize / 2 },
+  // The window below the top bar: the frame, then the quest panel and Iskios's column, which the quest panel's handle
+  // straddles; the handle is centered on this body.
+  body: { flex: 1, flexDirection: "row" },
   // Closed, the handle is the half of a circle against the window's right edge.
   endHandleTab: {
     borderBottomRightRadius: 0,
     borderRightWidth: 0,
     borderTopRightRadius: 0,
     height: handleSize * 1.5,
-    marginTop: topBarHeight / 2 - handleSize * 0.75,
+    marginTop: -handleSize * 0.75,
     paddingLeft: 3,
     right: 0,
     width: handleSize * 0.75,
   },
+  // Iskios restored to the whole content area: over the screen, which stays mounted beneath, and the sidebar stays.
+  fill: { backgroundColor: colors.page, bottom: 0, left: 0, position: "absolute", right: 0, top: 0, zIndex: 7 },
   frame: { backgroundColor: colors.ground, flex: 1, flexDirection: "row", overflow: "hidden" },
   handle: {
     alignItems: "center",
@@ -255,7 +325,5 @@ const local = StyleSheet.create({
     flex: 1,
     overflow: "hidden",
   },
-  resizer: { bottom: 0, position: "absolute", top: 0, width: 8, zIndex: 3 },
-  window: { backgroundColor: colors.ground, flex: 1, flexDirection: "row" },
-  windowMain: { flex: 1 },
+  window: { backgroundColor: colors.ground, flex: 1 },
 });

@@ -6,6 +6,7 @@ import type {
   ModelChoice,
   Settings,
   TierName,
+  Viewing,
 } from "@iskios/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
@@ -78,6 +79,31 @@ export const isGuildmasterQuest = (missionId: string) =>
     const sql = yield* SqlClient.SqlClient;
     const rows = yield* sql<{ id: string }>`SELECT id FROM missions WHERE id = ${missionId} AND is_guildmaster = 1`;
     return rows.length > 0;
+  });
+
+/**
+ * The line Iskios reads with a message, saying where the owner had Iskios open from: the quest when the screen is one
+ * (named from the stored title, not the app's), else the screen's name. Null for a message to any other thread.
+ */
+export const viewingLineOf = (threadId: string, viewing: Viewing | null | undefined) =>
+  Effect.gen(function* () {
+    if (viewing === null || viewing === undefined || !(yield* isGuildmasterThread(threadId))) return null;
+    const sql = yield* SqlClient.SqlClient;
+    const [quest] =
+      viewing.missionId === null || viewing.missionId === undefined
+        ? []
+        : yield* sql<{ id: string; title: string }>`
+            SELECT id, title FROM missions WHERE id = ${viewing.missionId} AND is_guildmaster = 0`;
+    // The screen's name is the app's words: kept to one plain line, so it cannot pose as an instruction.
+    const screen = viewing.screen
+      .replace(/[[\]"]/g, " ")
+      .replace(/\s+/g, " ")
+      .trim();
+    return quest === undefined
+      ? screen === ""
+        ? null
+        : `the ${screen} screen`
+      : `the quest "${quest.title}" (id ${quest.id})`;
   });
 
 /** Refuses to end, delete, or rename the Guildmaster's quest: it is permanent (quest coordination, Place). */

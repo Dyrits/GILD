@@ -53,11 +53,14 @@ export function TopBar({
   client,
   crumbs,
   details,
+  iskios,
 }: {
   client: ServiceClient;
   crumbs: readonly Crumb[];
   /** The icon that shows or hides the quest's side panel; none outside a quest. */
   details: DetailsToggle | null;
+  /** The button that opens or folds Iskios's panel (quest coordination, Iskios everywhere). */
+  iskios: { isOpen: boolean; onToggle: () => void };
 }) {
   return (
     // As the macOS title bar the bar drags the window, and leaves room for the traffic lights at its start.
@@ -88,6 +91,16 @@ export function TopBar({
         })}
       </View>
       <SpendingLine client={client} />
+      <Pressable
+        accessibilityLabel={iskios.isOpen ? "Fold Iskios" : "Ask Iskios"}
+        accessibilityRole="button"
+        accessibilityState={{ expanded: iskios.isOpen }}
+        onPress={iskios.onToggle}
+        style={({ pressed }) => [local.iskiosButton, (pressed || iskios.isOpen) && local.topIconActive, noDragRegion]}
+      >
+        <Text style={local.iskiosMark}>✦</Text>
+        <Text style={local.iskiosText}>Iskios</Text>
+      </Pressable>
       {details !== null && details.isPinned !== true && (
         <Pressable
           accessibilityLabel={details.isOpen ? "Hide quest panel" : "Show quest panel"}
@@ -165,24 +178,38 @@ function SpendingLine({ client }: { client: ServiceClient }) {
 }
 
 /**
- * The quest panel's column: a header with the close button, level with the top bar, over the panel. On a wide window
- * it spans the window's height beside the top bar; on a narrow one it takes the content's place.
+ * The quest panel's column. On a wide window it stands below the top bar, which spans the window, with no header of its
+ * own (the top bar's icon hides it) and an `edge` strip the owner drags to widen it; on a narrow one it takes the
+ * content's place, under a header with the close button.
  */
 export function QuestColumn({
   children,
+  edge,
   isWide,
   onClose,
   title,
+  width,
 }: {
   children: ReactNode;
+  /** The strip on the column's left edge that resizes it; wide windows only. */
+  edge?: ReactNode;
   isWide: boolean;
   /** Hides the panel; none when the panel is pinned open. */
   onClose: (() => void) | null;
   /** The panel's name in its top bar: Quest, or what another screen gave it. */
   title: string;
+  /** The column's width on a wide window. */
+  width: number;
 }) {
+  if (isWide)
+    return (
+      <View style={[local.questColumn, { width }]}>
+        {edge}
+        <View style={local.questBody}>{children}</View>
+      </View>
+    );
   return (
-    <View style={isWide ? local.questColumn : local.questColumnNarrow}>
+    <View style={local.questColumnNarrow}>
       <View style={local.topBar}>
         {onClose !== null && (
           <Pressable
@@ -212,6 +239,16 @@ const local = StyleSheet.create({
   crumbSeparator: { color: colors.edge, fontFamily: fonts.sans, fontSize: fontSizes.lg },
   crumbs: { alignItems: "center", flex: 1, flexDirection: "row", gap: 8, overflow: "hidden" },
   crumbText: { fontFamily: fonts.sans, fontSize: fontSizes.lg },
+  iskiosButton: {
+    alignItems: "center",
+    borderRadius: radii.sm,
+    flexDirection: "row",
+    gap: 6,
+    height: 28,
+    paddingHorizontal: 9,
+  },
+  iskiosMark: { color: colors.accentText, fontSize: fontSizes.md },
+  iskiosText: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.md, fontWeight: "600" },
   panelIcon: {
     borderColor: colors.onGround,
     borderRadius: 3,
@@ -226,7 +263,7 @@ const local = StyleSheet.create({
   panelIconRight: { justifyContent: "flex-end" },
   questBody: { backgroundColor: colors.page, flex: 1 },
   questClose: { color: colors.highlight, fontSize: fontSizes.base, paddingHorizontal: 4 },
-  questColumn: { borderColor: colors.edge, borderLeftWidth: 1, width: questColumnWidth },
+  questColumn: { borderColor: colors.edge, borderLeftWidth: 1 },
   questColumnNarrow: { flex: 1 },
   topBar: {
     alignItems: "center",

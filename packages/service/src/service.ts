@@ -63,7 +63,8 @@ import { Commands, changed, commandsLayer, type FollowUps, noFollowUps, type Wit
 import { listMissions } from "./work/dashboard.ts";
 import { deleteThread, previewDeletion } from "./work/deleting.ts";
 import { autoArchiveLayer, dismissPrompt, endMission, previewEnding, reopenMission } from "./work/ending.ts";
-import { readGuildmaster } from "./work/guildmaster.ts";
+import { readGuildHallRecap, visitGuildHall } from "./work/guildHall.ts";
+import { readGuildmaster, viewingLineOf } from "./work/guildmaster.ts";
 import { guildmasterReportsLayer } from "./work/guildmasterReports.ts";
 import { changeThreadRunner } from "./work/handover.ts";
 import { type JournalOutcome, readJournalView, updateJournal } from "./work/journal.ts";
@@ -360,6 +361,7 @@ const make = Effect.gen(function* () {
         ReadAccountBudgets: () => readAccountBudgets.pipe(Effect.provideService(PlanLimits, planLimits)),
         ReadAttachment: (read) => withFiles(readAttachment(read.attachmentId)),
         ReadBudget: (read) => readBudgetWindow(read.missionId),
+        ReadGuildHallRecap: (read) => readGuildHallRecap(read.since),
         ReadGuildmaster: () => commands.run(readGuildmaster),
         ReadIntelHistory: (read) => readLoreHistory(read.loreEntryId),
         ReadJournal: (read) => readJournalView(read.missionId),
@@ -428,6 +430,7 @@ const make = Effect.gen(function* () {
             const text = yield* textWith(send.text, attachmentIds);
             yield* refuseUnreadableImages(attachmentIds, readThreadRunner(send.threadId));
             const delivery = send.delivery ?? (yield* readSettings).defaultDelivery;
+            const viewing = yield* viewingLineOf(send.threadId, send.viewing);
             return yield* commands.run(
               once(
                 send.requestId,
@@ -438,6 +441,7 @@ const make = Effect.gen(function* () {
                   delivery === "Queue",
                   attachmentIds,
                   send.realmPath ?? null,
+                  viewing,
                 ).pipe(
                   Effect.tap(() => nameNewQuest(send.threadId, text)),
                   Effect.map((sent) => changed(sent, { threadsToWake: [send.threadId] })),
@@ -553,6 +557,7 @@ const make = Effect.gen(function* () {
               Effect.tap(() => commands.run(applyGlobalBudget(before))),
             );
           }),
+        VisitGuildHall: () => commands.run(visitGuildHall),
         WidenPermission: (widen) => change(widenPermission(widen.permissionId)),
       },
     );

@@ -25,6 +25,8 @@ const appendMessage = (message: {
   readonly model?: string | null;
   /** The realm's folder the owner attached to the message, for the Guildmaster; null otherwise. */
   readonly realmPath?: string | null;
+  /** Where the owner had Iskios open from, as the line Iskios reads with the message; null otherwise. */
+  readonly viewing?: string | null;
   readonly text: string;
   readonly now: number;
 }) =>
@@ -34,11 +36,11 @@ const appendMessage = (message: {
     const [next] = yield* sql<{ sequence: number }>`
       SELECT COALESCE(MAX(sequence), 0) + 1 AS sequence FROM messages WHERE thread_id = ${message.threadId}`;
     yield* sql`INSERT INTO messages
-        (id, mission_id, thread_id, sender_kind, sender_thread_id, is_result, is_queued, text, sequence, sent_at, sender_title, model, harness, realm_path)
+        (id, mission_id, thread_id, sender_kind, sender_thread_id, is_result, is_queued, text, sequence, sent_at, sender_title, model, harness, realm_path, viewing)
       VALUES (${messageId}, ${message.missionId}, ${message.threadId}, ${message.senderKind}, ${message.fromThreadId},
         ${message.isResult ? 1 : 0}, ${message.isQueued ? 1 : 0}, ${message.text}, ${next?.sequence ?? 1}, ${message.now},
         (SELECT title FROM threads WHERE id = ${message.fromThreadId}), ${message.model ?? null}, ${message.harness ?? null},
-        ${message.realmPath ?? null})`;
+        ${message.realmPath ?? null}, ${message.viewing ?? null})`;
     yield* touchMission(message.missionId, message.now);
     return messageId;
   });
@@ -89,9 +91,10 @@ export const listPending = (threadId: string, isSteering: boolean) =>
       isResult: number;
       realmName: string | null;
       realmPath: string | null;
+      viewing: string | null;
     }>`
       SELECT m.id, m.text, m.sender_thread_id AS fromThreadId, COALESCE(s.title, m.sender_title) AS fromTitle,
-        m.is_result AS isResult, m.realm_path AS realmPath, w.name AS realmName
+        m.is_result AS isResult, m.realm_path AS realmPath, w.name AS realmName, m.viewing AS viewing
       FROM messages m LEFT JOIN threads s ON s.id = m.sender_thread_id LEFT JOIN workspaces w ON w.path = m.realm_path
       WHERE m.thread_id = ${threadId} AND m.sender_kind IN ('user', 'thread') AND m.delivered_turn_id IS NULL
         AND ${isSteering ? sql`m.is_queued = 0` : sql`1 = 1`}
@@ -113,6 +116,7 @@ export const listPending = (threadId: string, isSteering: boolean) =>
             isResult: row.isResult === 1,
             realm: row.realmPath === null ? null : { name: row.realmName ?? row.realmPath, path: row.realmPath },
             text: row.fromThreadId === null ? `${withSkillInstructions(row.text, skills)}${note}` : row.text,
+            viewing: row.viewing,
           }),
         } satisfies PendingMessage;
       }),
@@ -164,6 +168,8 @@ interface NewMessage {
   readonly realmPath?: string | null;
   readonly text: string;
   readonly threadId: string;
+  /** Where the owner had Iskios open from, as the line Iskios reads with the message. */
+  readonly viewing?: string | null;
 }
 
 /** Records a message for a thread, after the thread's existing messages. Callers run it in a transaction. */
@@ -198,10 +204,18 @@ export const insertUserMessage = (
   isQueued: boolean,
   attachmentIds: ReadonlyArray<string> = [],
   realmPath: string | null = null,
+  viewing: string | null = null,
 ) =>
-  insertMessage({ attachmentIds, fromThreadId: null, isQueued, isResult: false, realmPath, text, threadId }).pipe(
-    Effect.map((messageId) => ({ messageId }) satisfies SendMessageResult),
-  );
+  insertMessage({
+    attachmentIds,
+    fromThreadId: null,
+    isQueued,
+    isResult: false,
+    realmPath,
+    text,
+    threadId,
+    viewing,
+  }).pipe(Effect.map((messageId) => ({ messageId }) satisfies SendMessageResult));
 
 /** A message as the receiving thread's harness reads it: a thread message names its sender. */
 const deliveredTextOf = (message: {
@@ -210,9 +224,18 @@ const deliveredTextOf = (message: {
   readonly isResult: boolean;
   readonly realm: { readonly name: string; readonly path: string } | null;
   readonly text: string;
+  readonly viewing: string | null;
 }) =>
   message.fromThreadId === null && message.fromTitle === null
-    ? message.realm === null
-      ? message.text
-      : `${message.text}\n\n[The owner chose the realm "${message.realm.name}" (${message.realm.path}) for this message: any new quest opens there.]`
+    ? [
+        message.text,
+        ...(message.realm === null
+          ? []
+          : [
+              `[The owner chose the realm "${message.realm.name}" (${message.realm.path}) for this message: any new quest opens there.]`,
+            ]),
+        ...(message.viewing === null
+          ? []
+          : [`[The owner wrote this with ${message.viewing} open: "this quest" or "this page" means it.]`]),
+      ].join("\n\n")
     : `${message.isResult ? "Result" : "Message"} from thread "${message.fromTitle ?? ""}" (${message.fromThreadId ?? "deleted"}):\n${message.text}`;

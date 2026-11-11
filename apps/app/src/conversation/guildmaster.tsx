@@ -1,5 +1,5 @@
-import type { AttachmentId, GuildmasterPlace, MissionId } from "@iskios/contracts";
-import { useState } from "react";
+import type { AttachmentId, GuildHallRecap, GuildmasterPlace, MissionId, Viewing } from "@iskios/contracts";
+import { useEffect, useState } from "react";
 import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { imageRefusalOf } from "../attachments/attachmentRules";
 import { BudgetScreen, BudgetStopCard } from "../editors/budgets";
@@ -17,6 +17,7 @@ import { Composer, StateBadge } from "../ui/controls";
 import { useDraft, useFollowNewest } from "./conversation";
 import { AgentReply, EntryView, WorkingIndicator } from "./conversationEntries";
 import { type Entry, entriesOf, workingLabelOf } from "./entries";
+import { GuildHallHub } from "./guildHallHub";
 
 /** The realm chosen for the next message, shown over the message box and cleared with its ×. */
 function RealmNote({ name, onClear }: { name: string; onClear: () => void }) {
@@ -33,40 +34,122 @@ function RealmNote({ name, onClear }: { name: string; onClear: () => void }) {
 }
 
 /**
- * Iskios: one permanent conversation that takes any request, looks for a quest that already fits, offers to continue
- * it or proposes a new one as a card for the owner to open, and shows each action as a card (quest coordination). A
- * realm chosen on a realm's page is attached to the next message.
+ * The Guild Hall page: the hub, with what waits for the owner, the quests touched last, and the recap of the period.
+ * Iskios's conversation is not here but in the panel every screen offers (`shell/iskiosDock.tsx`).
  */
-export function GuildmasterScreen(props: {
+export function GuildmasterScreen({
+  client,
+  onOpenMission,
+  onViewAll,
+}: {
   client: ServiceClient;
   onOpenMission: (id: MissionId) => void;
-  /** Chooses the realm of the next message, or none. */
-  onRealm: (path: string | null) => void;
-  /** The folder of the realm chosen for the next message, or null. */
-  realmPath: string | null;
+  onViewAll: () => void;
 }) {
-  const { data: place, error } = useServiceQuery(props.client, { _tag: "ReadGuildmaster" }, "guildmaster");
+  const recap = useVisitRecap(client);
+  const { data: known } = useServiceQuery(client, allMissions.request, allMissions.key);
+  return (
+    <View style={local.hubPage}>
+      <GuildHallHub
+        missions={known?.missions ?? null}
+        onOpenMission={onOpenMission}
+        onViewAll={onViewAll}
+        recap={recap}
+      />
+    </View>
+  );
+}
+
+/**
+ * The recap of the period since the owner's last visit, read when the owner arrives and kept on that start while they
+ * stay; arriving also records the visit, so the next recap starts here (quest coordination, Guild Hall as a hub).
+ */
+function useVisitRecap(client: ServiceClient): GuildHallRecap | null {
+  const [start, setStart] = useState<{ isFirstVisit: boolean; since: number } | null>(null);
+  const { data: recap } = useServiceQuery(
+    client,
+    { _tag: "ReadGuildHallRecap", since: start?.since ?? null },
+    `guild-hall-recap:${start?.since ?? "arriving"}`,
+  );
+  useEffect(() => {
+    if (recap === null || start !== null) return;
+    setStart({ isFirstVisit: recap.isFirstVisit, since: recap.since });
+    client.request({ _tag: "VisitGuildHall" }).catch(() => {});
+  }, [client, recap, start]);
+  // Later reads give the start back, so only the first read knows it was the owner's first visit.
+  return recap === null || start === null ? recap : { ...recap, isFirstVisit: start.isFirstVisit };
+}
+
+/**
+ * Iskios: one permanent conversation that takes any request, looks for a quest that already fits, offers to continue
+ * it or proposes a new one as a card for the owner to open, and shows each action as a card (quest coordination). A
+ * realm chosen on a realm's page is attached to the next message. It sits in a panel the owner folds (`onFold`).
+ */
+export function IskiosConversation({
+  client,
+  isFull,
+  onFold,
+  onOpenMission,
+  onRealm,
+  onToggleFull,
+  realmPath,
+  viewing,
+}: {
+  client: ServiceClient;
+  /** Whether the panel fills the whole content area. */
+  isFull: boolean;
+  /** Folds the panel this conversation sits in; none when the top bar's button folds it, so no ✕ is shown. */
+  onFold: (() => void) | null;
+  /** Fills the content area with the panel, or restores it. */
+  onToggleFull: () => void;
+  onOpenMission: (id: MissionId) => void;
+  onRealm: (path: string | null) => void;
+  realmPath: string | null;
+  /** The screen the panel is open beside, which Iskios reads with each message. */
+  viewing: Viewing;
+}) {
+  const { data: place, error } = useServiceQuery(client, { _tag: "ReadGuildmaster" }, "guildmaster");
   if (place === null)
     return (
       <View style={local.page}>
         <Text style={styles.muted}>{error ?? "Calling Iskios…"}</Text>
       </View>
     );
-  return <GuildmasterChat {...props} place={place} />;
+  return (
+    <IskiosChat
+      client={client}
+      isFull={isFull}
+      onFold={onFold}
+      onOpenMission={onOpenMission}
+      onRealm={onRealm}
+      onToggleFull={onToggleFull}
+      place={place}
+      realmPath={realmPath}
+      viewing={viewing}
+    />
+  );
 }
 
-function GuildmasterChat({
+function IskiosChat({
   client,
+  isFull,
+  onFold,
   onOpenMission,
   onRealm,
+  onToggleFull,
   place,
   realmPath,
+  viewing,
 }: {
   client: ServiceClient;
+  isFull: boolean;
+  onFold: (() => void) | null;
   onOpenMission: (id: MissionId) => void;
   onRealm: (path: string | null) => void;
+  onToggleFull: () => void;
   place: GuildmasterPlace;
   realmPath: string | null;
+  viewing: Viewing;
 }) {
   const { data: known } = useServiceQuery(client, allMissions.request, allMissions.key);
   const { data: harnesses } = useHarnesses(client);
@@ -115,6 +198,7 @@ function GuildmasterChat({
       requestId: newRequestId(),
       text: prepared,
       threadId: thread.id,
+      viewing,
     });
     terminal.sent();
   };
@@ -125,7 +209,7 @@ function GuildmasterChat({
       (reason) => setActionError(messageOf(reason)),
     );
   return (
-    <View style={local.page}>
+    <View style={[local.page, isFull && local.pageFull]}>
       <View style={styles.header}>
         <Text numberOfLines={1} style={[local.title, styles.flex]}>
           Iskios
@@ -134,6 +218,18 @@ function GuildmasterChat({
           <Text style={local.link}>Budget · {budgetValueOf(detail.mission.budget)}</Text>
         </Pressable>
         <StateBadge state={thread.state} />
+        <Pressable
+          accessibilityLabel={isFull ? "Restore Iskios" : "Expand Iskios"}
+          accessibilityRole="button"
+          onPress={onToggleFull}
+        >
+          <Text style={local.link}>{isFull ? "⤡" : "⤢"}</Text>
+        </Pressable>
+        {onFold !== null && (
+          <Pressable accessibilityLabel="Fold Iskios" accessibilityRole="button" onPress={onFold}>
+            <Text style={local.link}>✕</Text>
+          </Pressable>
+        )}
         {canStop && (
           <Pressable onPress={() => act(client.request({ _tag: "StopThread", threadId: thread.id }))}>
             <Text style={local.link}>Stop</Text>
@@ -229,9 +325,7 @@ function GuildmasterChat({
         attachments={{ client, refusal: imageRefusalOf(harnesses, thread.harness, thread.model) }}
         mentions={{ client, workspacePath: realm?.path ?? null }}
         onSend={send}
-        placeholder={
-          isInTurn ? "Iskios is working; Send joins its turn…" : "Ask for anything: it finds a quest or proposes one…"
-        }
+        placeholder={isInTurn ? "Iskios is working; Send joins its turn…" : "Ask Iskios for anything…"}
         skills={skills}
         {...(isInTurn ? { onInterrupt: () => client.request({ _tag: "InterruptThread", threadId: thread.id }) } : {})}
       />
@@ -294,12 +388,14 @@ const local = StyleSheet.create({
   },
   emptyTitle: { color: colors.onGround, fontFamily: fonts.sans, fontSize: fontSizes.lg, fontWeight: "700" },
   handoff: { gap: 6 },
+  hubPage: { backgroundColor: colors.page, flex: 1 },
   link: { color: colors.highlight, fontFamily: fonts.sans, fontSize: fontSizes.md },
   note: { alignItems: "center", flexDirection: "row", gap: 8 },
   noteClear: { color: colors.highlight, fontFamily: fonts.sans, fontSize: fontSizes.lg, paddingHorizontal: 4 },
   noteName: { color: colors.highlight, fontFamily: fonts.sans, fontWeight: "700" },
   noteText: { color: colors.onGround, fontFamily: fonts.sans, fontSize: fontSizes.md },
-  page: { backgroundColor: colors.page, flex: 1, gap: 8, paddingBottom: 18, paddingHorizontal: 28, paddingTop: 20 },
+  page: { backgroundColor: colors.page, flex: 1, gap: 8, paddingBottom: 14, paddingHorizontal: 16, paddingTop: 12 },
+  pageFull: { alignSelf: "center", maxWidth: 900, width: "100%" },
   sub: { color: colors.onGround, fontFamily: fonts.sans, fontSize: fontSizes.md, opacity: 0.8 },
   title: { color: colors.onGround, fontFamily: fonts.sans, fontSize: fontSizes.lg, fontWeight: "700" },
 });
