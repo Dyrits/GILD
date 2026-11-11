@@ -33,9 +33,11 @@ Verification: actionlint and seven offline shell scenarios pass; see [tagged rel
 Next: inspect the first check-only run after publication, then push a version tag when the owner chooses to release and verify the direct release downloads.
 Trusted signing, notarization, auto-updates, and runtime portability fixes remain outside this batch.
 
-## Consumption and cost · 2026-11-10 · specified, not built
+## Consumption and cost · 2026-11-11 · built, owner review pending
 
-Agreed in CHG-0126: billing kind per turn, estimated cost (`≈`), a models.dev price table with a snapshot and a Charter switch, account budgets and credits, per-answer lines, and plan limits ([budget-control](capabilities/budget-control/specifications.md)). Blueprint written ([blueprint](capabilities/budget-control/blueprint.md), awaiting review) with decision record 0014 (proposed). Next: the owner's review, then the build in the order of the [backlog entry](backlog.md). Open: the live probes (usage per model call, Claude Code's `rate_limit_event`, billing kind per harness, Claude's `total_cost_usd` as a running total), the OpenCode HTTP probe, and the subscription-through-CLI terms question.
+Agreed in CHG-0126 and built in three steps, recorded in CHG-0141: billing kind per turn, estimated cost (`≈`), the models.dev price table with its snapshot and Charter switch, account budgets and credits, a line under each agent reply, and plan limits (Codex). Starting revision `4589394` (step 1 `4724ebc`, step 2 `93e7f10`, step 3 `97e0457`); proofs in [verification](verification/2026-11-10-consumption-and-cost.md), [step 2](verification/2026-11-11-account-budgets.md), and [step 3](verification/2026-11-11-reply-usage-and-plan-limits.md).
+Awaiting the owner: the look of every new screen; decision record 0014 (the price read, proposed; `architecture.md` changes on acceptance); the API-key rule ("I guess") and the requirement "Price table read carries no owner data"; whether the account budgets belong on each account's row in the Accounts card instead of their own Charter card.
+Not probed, since each needs a paid model call: Claude Code's `apiKeySource`, `rate_limit_event`, and `total_cost_usd`; OpenCode's sign-in and usage; usage per model call live. The open terms question on subscription use through the `claude` tool is in the [backlog](backlog.md).
 
 ## Compact left navigation specification · 2026-11-10
 
