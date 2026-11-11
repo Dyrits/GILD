@@ -47,10 +47,8 @@ When adding a handoff, keep only the three newest current handoffs linked below;
 
 Latest handoffs:
 
+- To resume Iskios, the assistant formerly called Guildmaster (the Guild Hall hub, Iskios's panel on every screen, its context and settings tools built and checked; owner review pending; the code renaming and four older owner decisions remain), read the [current handoff](.agents/handoffs/2026-11-11-2346-iskios-guild-hall-hub.md). Handoffs are shared and committed.
+
 - To resume the architecture deepening of the @ menu and Gild work (done and checked; owner decisions on seven behaviour points pending), read the [current handoff](.agents/handoffs/2026-11-11-2343-architecture-deepening.md). Handoffs are shared and committed.
 
 - To resume the @ menu with quests, side-quests, and realms (built and checked; owner review pending), read the [current handoff](.agents/handoffs/2026-11-11-2156-at-mentions.md). Handoffs are shared and committed.
-
-- To resume the Gild theme beside Iskios (built and driven in a throwaway Electron window on the web export; the owner finds the icons too much and wants a matte rework; the Dock icon and most screens in Gild not yet seen), read the [current handoff](.agents/handoffs/2026-11-11-2154-gild-theme-icons-matte.md). Handoffs are shared and committed.
-
-
