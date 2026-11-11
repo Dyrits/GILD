@@ -17,7 +17,7 @@ User-authored text and historical service messages are not rewritten.
 | Grouping of missions with shared lore, tied or not to a workspace | Realm |
 | Home of autonomous missions, with no workspace and no shared lore | Borderlands |
 | Control conversation | Guild Hall |
-| Entity the user talks with in Control | Guildmaster |
+| Entity the user talks with in Control | Iskios (formerly Guildmaster, CHG-0173) |
 | Workflow | Craft |
 | Workflow run | Craft run |
 | Routine | Ritual |
@@ -77,10 +77,10 @@ The one overview of all missions with their state, threads, spending, and the st
 _Avoid_: Mission dashboard, index, mission list, board, kanban
 
 **Guild Hall** (technical term: Control conversation):
-The place where the user talks with Guildmaster, containing the one permanent thread outside every quest.
+The place where the user talks with Iskios, containing the one permanent thread outside every quest.
 
-**Guildmaster**:
-The app-wide assistant the user talks with in the Guild Hall to find information, manage Iskios, and coordinate quests.
+**Iskios** (the assistant; formerly **Guildmaster**, CHG-0173):
+The app-wide assistant the user talks with in the Guild Hall to learn how the app works and to manage realms and quests. It proposes quests and never opens one without the user's confirmation.
 _Avoid_: Coordinator, dispatcher, orchestrator, main thread, Mission control
 
 **The Keep**:

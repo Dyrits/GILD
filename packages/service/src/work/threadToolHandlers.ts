@@ -8,14 +8,14 @@ import { type CommandRunner, changed, unchanged, type WithFollowUps } from "./co
 import { readWorkingIds } from "./ending.ts";
 import {
   actOnMission,
+  createRealmByGuildmaster,
   createRitualByGuildmaster,
   isGuildmasterThread,
-  openedAnswerOf,
-  openMissionByGuildmaster,
   readControlHistory,
   refusedAction,
-  refusedOpening,
+  refusedRealm,
   refusedRitual,
+  renameRealmByGuildmaster,
 } from "./guildmaster.ts";
 import { journalToolsOf } from "./journalTools.ts";
 import { loreToolsOf } from "./loreTools.ts";
@@ -169,6 +169,12 @@ export const makeToolHandlers = (dependencies: {
             ),
           ),
         ),
+    create_realm: (threadId, args) =>
+      runTool(
+        createRealmByGuildmaster(threadId, args).pipe(
+          Effect.catchTag("ServiceFailure", (failure) => Effect.succeed(refusedRealm(failure.message))),
+        ),
+      ).pipe(Effect.map((outcome) => answer(outcome.text, outcome._tag === "Refused"))),
     create_ritual: (threadId, args) =>
       runTool(
         createRitualByGuildmaster(threadId, args).pipe(
@@ -192,20 +198,13 @@ export const makeToolHandlers = (dependencies: {
         ),
         Effect.catch((reason: string) => Effect.succeed(answer(reason, true))),
       ),
-    open_mission: (threadId, args) =>
-      runTool(
-        openMissionByGuildmaster(threadId, args).pipe(
-          // A refused account or a reached budget comes back to the Guildmaster as a refusal.
-          Effect.catchTag("ServiceFailure", (failure) => Effect.succeed(refusedOpening(failure.message))),
-        ),
-      ).pipe(Effect.map(openedAnswerOf)),
     open_thread: (threadId, args) =>
       commit(isGuildmasterThread(threadId)).pipe(
         Effect.flatMap((isGuildmaster) =>
           isGuildmaster
             ? Effect.succeed(
                 answer(
-                  "Not opened: the Guildmaster opens no threads. Open a quest with open_mission, or continue one with suggest_mission.",
+                  "Not opened: Iskios opens no threads. Propose a quest, or continue one, with suggest_mission.",
                   true,
                 ),
               )
@@ -213,6 +212,12 @@ export const makeToolHandlers = (dependencies: {
         ),
       ),
     read_control_history: (threadId, args) => commit(readControlHistory(threadId, args)),
+    rename_realm: (threadId, args) =>
+      runTool(
+        renameRealmByGuildmaster(threadId, args).pipe(
+          Effect.catchTag("ServiceFailure", (failure) => Effect.succeed(refusedRealm(failure.message))),
+        ),
+      ).pipe(Effect.map((outcome) => answer(outcome.text, outcome._tag === "Refused"))),
     report_result: (threadId, { journal, result }) =>
       journal.trim() === ""
         ? Effect.succeed(toolCatalogue.report_result.invalid)

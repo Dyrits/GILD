@@ -1,5 +1,10 @@
 # Work in progress
 
+## Iskios, the assistant · 2026-11-11 · batches 1 and 2 built and checked, owner review pending
+
+Agreed in CHG-0173 and CHG-0174, delivered in CHG-0175; starting commit `f492434`, nothing committed. The Guildmaster becomes Iskios: proposes quests on a card, makes and renames realms.
+CHG-0177 added the rename of every visible text and the card's realm choice (not yet seen in the app). Next: the hub of the Guild Hall (CHG-0176: recent activity, what waits for the owner, a recap of the period, Iskios's box at the foot); realms tied to no folder in proposals; delete realms; moving quests by Iskios (CHG-0172 not built); explaining the app; a live run with a real harness.
+
 ## Quest moves · 2026-11-11 · built and checked, owner review pending
 
 The owner chose confirmed quest moves as the next unbuilt feature from the backlog; agreed earlier in CHG-0130, CHG-0133, and CHG-0161, built in CHG-0172. Starting commit `2fb5af5`; nothing committed.

@@ -331,6 +331,8 @@ export const SuggestionAnswer = Schema.Union([
     effort: EffortChoice,
     harness: Schema.optionalKey(HarnessName),
     model: ModelChoice,
+    /** The folder of the realm to open it in, or null for the Borderlands; absent keeps the realm proposed. */
+    realmPath: Schema.optionalKey(Schema.NullOr(Schema.String)),
   }),
   Schema.TaggedStruct("Aside", {}),
 ]);

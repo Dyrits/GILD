@@ -46,7 +46,7 @@ const scopeHelp =
 export const threadTools = {
   act_on_mission: definitionOf({
     description:
-      "Only the Guildmaster uses it, and only because the owner asked in their latest message: stop a quest's threads, mark it Done, archive it, or rename it. Pass the owner's exact words asking for it as quote; Iskios checks them. When threads are still running, marking Done or archiving first answers with the question to put to the owner; when they agree in their next message, call again with the same arguments, the snapshot you were given, and their words as quote.",
+      "Only Iskios uses it, and only because the owner asked in their latest message: stop a quest's threads, mark it Done, archive it, or rename it. Pass the owner's exact words asking for it as quote; Iskios checks them. When threads are still running, marking Done or archiving first answers with the question to put to the owner; when they agree in their next message, call again with the same arguments, the snapshot you were given, and their words as quote.",
     invalid: invalid("Invalid arguments: give mission, action (Stop, Done, Archive, or Rename), and quote."),
     isUnasked: true,
     schema: Schema.Struct({
@@ -70,9 +70,22 @@ export const threadTools = {
       tool_use_id: Schema.optionalKey(Schema.String),
     }),
   }),
+  create_realm: definitionOf({
+    description:
+      "Only Iskios uses it, and only because the owner asked in their latest message: make a realm, tied to a folder or to none. Pass the owner's exact words asking for it as quote; Iskios checks them.",
+    invalid: invalid("Invalid arguments: give name and quote; folder is optional."),
+    isUnasked: true,
+    schema: Schema.Struct({
+      folder: optionalText(
+        "The folder's full path, when the realm is tied to a folder; left out for a realm tied to none.",
+      ),
+      name: text("The realm's name, at most 80 characters."),
+      quote: text("The owner's exact words from their latest message that ask for this, copied verbatim."),
+    }),
+  }),
   create_ritual: definitionOf({
     description:
-      "Only the Guildmaster uses it. Create a Ritual: an instruction that runs by itself on a schedule, in a quest of its own, for anything the owner wants done repeatedly (every hour, every morning, weekly). Use it instead of open_mission for a repeating request. Pick the preset that fits; there is no cron. Check the Rituals in your context first, so the same one is not made twice. The Ritual starts on and runs when next due.",
+      "Only Iskios uses it. Create a Ritual: an instruction that runs by itself on a schedule, in a quest of its own, for anything the owner wants done repeatedly (every hour, every morning, weekly). Use it, not a quest, for a repeating request. Pick the preset that fits; there is no cron. Check the Rituals in your context first, so the same one is not made twice. The Ritual starts on and runs when next due.",
     invalid: invalid(
       "Invalid arguments: give instruction, title, and schedule (Daily, Weekdays, Weekly, Monthly, or Hourly).",
     ),
@@ -119,32 +132,6 @@ export const threadTools = {
     isUnasked: true,
     schema: Schema.Struct({ thread: text("The id of the thread beneath you to interrupt.") }),
   }),
-  open_mission: definitionOf({
-    description:
-      "Only the Guildmaster uses it. Open a new quest for a request, after find_missions found no quest that fits or the owner chose a new quest. The quest's top thread starts on the request alone, in the realm you name, with your harness, model, and effort unless you choose others. The owner sees the new quest as a card in your conversation.",
-    invalid: invalid("Invalid arguments: give request."),
-    isUnasked: true,
-    schema: Schema.Struct({
-      effort: Schema.optionalKey(
-        EffortChoice.annotate({ description: "How hard the quest's thread works, low to max. Yours when left out." }),
-      ),
-      harness: Schema.optionalKey(
-        HarnessName.annotate({ description: "The harness: claude, codex, or opencode. Yours when left out." }),
-      ),
-      model: Schema.optionalKey(ModelChoice.annotate({ description: "The model. Yours when left out." })),
-      realm: optionalText(
-        "The name or folder of one of the realms listed in your context, when the request belongs in it, or the realm the owner chose for the message; none when left out.",
-      ),
-      request: text("The owner's request, complete enough to act on: the new quest sees none of your conversation."),
-      tier: Schema.optionalKey(
-        TierName.annotate({
-          description:
-            "How demanding the work is, as the owner set their Companions for it: Light (small, well-scoped, checkable), Balanced (ordinary work), Heavy (ambiguous, architectural, or risky). Left out, the default Companion; a tier the owner did not set also falls back to it.",
-        }),
-      ),
-      title: optionalText("A short title for the quest, a few words."),
-    }),
-  }),
   open_thread: definitionOf({
     description:
       "Open a thread beneath you to work on one request on its own, in parallel with you. It starts with your request, in your working folder, with your harness, account, model, and effort unless you choose others, and reports its result to you as a message. Use it instead of subagents. A harness other than yours (claude for Claude Code, codex, opencode) runs on its own sign-in and default model unless you name one of its models.",
@@ -172,7 +159,7 @@ export const threadTools = {
   }),
   read_control_history: definitionOf({
     description:
-      "Only the Guildmaster uses it. Read your own older messages with the owner, newest first, when they ask about something said earlier, for example 'Remember what we did about X?'.",
+      "Only Iskios uses it. Read your own older messages with the owner, newest first, when they ask about something said earlier, for example 'Remember what we did about X?'.",
     invalid: invalid("Invalid arguments: query is text; before and count are whole numbers."),
     isUnasked: true,
     schema: Schema.Struct({
@@ -192,7 +179,7 @@ export const threadTools = {
           description: `How many entries, ${latestEntryCount} by default.`,
         }),
       ),
-      mission: optionalText("Only the Guildmaster uses it: the id of the quest whose journal to read."),
+      mission: optionalText("Only Iskios uses it: the id of the quest whose journal to read."),
     }),
   }),
   relied_on_intel: definitionOf({
@@ -204,6 +191,17 @@ export const threadTools = {
       ids: Schema.Array(Schema.String)
         .check(Schema.isMinLength(1))
         .annotate({ description: "The ids of the lore entries you relied on, as your context lists them." }),
+    }),
+  }),
+  rename_realm: definitionOf({
+    description:
+      "Only Iskios uses it, and only because the owner asked in their latest message: rename a realm. Pass the owner's exact words asking for it as quote; Iskios checks them.",
+    invalid: invalid("Invalid arguments: give realm, name, and quote."),
+    isUnasked: true,
+    schema: Schema.Struct({
+      name: text("The realm's new name, at most 80 characters."),
+      quote: text("The owner's exact words from their latest message that ask for this, copied verbatim."),
+      realm: text("The name or folder of one of the realms listed in your context."),
     }),
   }),
   report_result: definitionOf({
@@ -268,7 +266,7 @@ export const threadTools = {
   }),
   send_thread_message: definitionOf({
     description:
-      "Send a message to your parent thread or to a thread directly beneath you, by its id. Any thread may also message the Guildmaster by its id, to ask it to find the right quest, and the Guildmaster may message any quest's top thread. It joins that thread's current turn if it is running, and wakes it if it is idle.",
+      "Send a message to your parent thread or to a thread directly beneath you, by its id. Any thread may also message Iskios by its id, to ask it to find the right quest, and Iskios may message any quest's top thread. It joins that thread's current turn if it is running, and wakes it if it is idle.",
     invalid: invalid("Invalid arguments: give to and text."),
     isUnasked: true,
     schema: Schema.Struct({
@@ -285,7 +283,7 @@ export const threadTools = {
   }),
   suggest_mission: definitionOf({
     description:
-      "Ask the owner where an off-topic message goes: continue in a matching mission, open a new mission, or keep it as an aside beneath you. Wait for the answer, then carry on as if the message had not been sent to you. The Guildmaster uses it when a quest fits a request: the owner chooses Continue in or Open a new quest, and it offers no aside.",
+      "Ask the owner where an off-topic message goes: continue in a matching mission, open a new mission, or keep it as an aside beneath you. Wait for the answer, then carry on as if the message had not been sent to you. Iskios uses it for every request that calls for a quest, with the ids of the quests that fit, or none: the owner chooses Continue in or Open a new quest, and it offers no aside. Iskios opens no quest without that choice.",
     invalid: invalid("Invalid arguments: give text, title, and missions."),
     isUnasked: true,
     schema: Schema.Struct({
@@ -294,7 +292,7 @@ export const threadTools = {
           description: "The ids of the missions from find_missions that fit, best first, at most 3.",
         }),
       ),
-      realm: optionalText("The Guildmaster only: the realm for a new quest, when the owner chose or named one."),
+      realm: optionalText("Iskios only: the realm for a new quest, when the owner chose or named one."),
       text: text("The off-topic part of the owner's message, as written."),
       tier: Schema.optionalKey(
         TierName.annotate({

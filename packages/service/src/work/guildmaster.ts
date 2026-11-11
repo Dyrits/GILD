@@ -6,6 +6,7 @@ import type {
   ModelChoice,
   Settings,
   TierName,
+  WorkspaceId,
 } from "@iskios/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
@@ -15,17 +16,18 @@ import { changed, unchanged } from "./commands.ts";
 import { endMission, previewEnding, readWorkingIds } from "./ending.ts";
 import { timeOf } from "./journal.ts";
 import { insertMessage, readOwnerTextsOfTurn } from "./messaging.ts";
-import { insertMission, insertQuest, listMissionSummaries } from "./missions.ts";
+import { insertQuest, listMissionSummaries } from "./missions.ts";
 import { createRitual } from "./rituals.ts";
 import type { ArgumentsOf } from "./threadTools.ts";
-import { proposeTitle, renameMission, titleOf } from "./titles.ts";
+import { renameMission, titleOf } from "./titles.ts";
+import { createRealm, renameRealm } from "./workspaces.ts";
 
 // The Guildmaster (quest coordination): one permanent thread the owner talks to, which looks for a quest that fits a
 // request, offers to continue it, or opens a new one. It is stored as a hidden quest so its turns, messages, usage, and
 // cards are the quests' own; every list, search, and ending leaves it out.
 
-/** The Guildmaster's title, in its thread tree and its usage. */
-export const guildmasterTitle = "Guildmaster";
+/** Iskios's title, in its thread tree and its usage; the stored name of older data was "Guildmaster". */
+export const guildmasterTitle = "Iskios";
 
 /** How many quests the Guildmaster's dashboard text lists at most; the latest ones. */
 const maxListedQuests = 60;
@@ -41,7 +43,12 @@ export const ensureGuildmaster = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const [existing] = yield* sql<{ missionId: string; threadId: string }>`
     SELECT id AS missionId, top_thread_id AS threadId FROM missions WHERE is_guildmaster = 1`;
-  if (existing !== undefined) return { ...existing, isCreated: false } as const;
+  if (existing !== undefined) {
+    // The assistant was renamed Iskios (CHG-0177); data made under the old name takes the new one.
+    yield* sql`UPDATE missions SET title = ${guildmasterTitle} WHERE id = ${existing.missionId} AND title = 'Guildmaster'`;
+    yield* sql`UPDATE threads SET title = ${guildmasterTitle} WHERE id = ${existing.threadId} AND title = 'Guildmaster'`;
+    return { ...existing, isCreated: false } as const;
+  }
   const settings = yield* readSettings;
   const started = yield* insertQuest(
     { firstMessage: null, isTitleByOwner: true, realm: null, shouldRememberChoices: false, title: guildmasterTitle },
@@ -78,8 +85,7 @@ export const isGuildmasterQuest = (missionId: string) =>
 /** Refuses to end, delete, or rename the Guildmaster's quest: it is permanent (quest coordination, Place). */
 export const refuseGuildmaster = (missionId: string, action: string) =>
   Effect.gen(function* () {
-    if (yield* isGuildmasterQuest(missionId))
-      return yield* invalid(`The Guildmaster is permanent: it cannot be ${action}.`);
+    if (yield* isGuildmasterQuest(missionId)) return yield* invalid(`Iskios is permanent: it cannot be ${action}.`);
   });
 
 /** A realm the owner or the Guildmaster named, by its folder or its name; null when none matches. */
@@ -98,15 +104,18 @@ export const findRealm = (given: string) =>
     return byName ?? null;
   });
 
-/** The realms known, one line each, so the Guildmaster can name one when it opens a quest. */
+/** The realms known, one line each, so the Guildmaster can name one when it proposes a quest or manages a realm. */
 const realmLinesOf = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
-  // The Guildmaster places a quest by its realm's folder, so a realm tied to no folder is not offered yet.
-  const realms = yield* sql<{ name: string; path: string }>`
-    SELECT name, path FROM workspaces WHERE path IS NOT NULL ORDER BY name`;
+  const realms = yield* sql<{ name: string; path: string | null }>`
+    SELECT name, path FROM workspaces ORDER BY name`;
   return realms.length === 0
     ? ["No realm exists yet; a quest opens with no realm."]
-    : realms.map((realm) => `- ${realm.name}: ${realm.path}`);
+    : realms.map((realm) =>
+        realm.path === null
+          ? `- ${realm.name}: tied to no folder (a quest cannot be proposed in it from here yet)`
+          : `- ${realm.name}: ${realm.path}`,
+      );
 });
 
 const firstSentenceOf = (text: string) => {
@@ -161,7 +170,7 @@ export const guildmasterContextOf = Effect.gen(function* () {
     "# Realms",
     ...(yield* realmLinesOf),
     "",
-    "# Tiers (pass tier to open_mission, suggest_mission, or create_ritual by how demanding the work is)",
+    "# Tiers (pass tier to suggest_mission or create_ritual by how demanding the work is)",
     ...tierLines,
     "",
     "# Rituals (instructions that run by themselves on a schedule; create one with create_ritual)",
@@ -197,36 +206,6 @@ export const companionOf = (
 export const companionLineOf = (tier: TierName | undefined, runner: Runner) =>
   `${tier === undefined ? "" : `${tier}: `}${runner.harness}, model ${runner.model}, effort ${runner.effort}`;
 
-/** What `open_mission` came to: the new quest's top thread, or why it was refused. */
-export type OpenedByGuildmaster =
-  | { readonly _tag: "Opened"; readonly text: string; readonly threadId: string }
-  | { readonly _tag: "Refused"; readonly reason: string };
-
-/** A refused `open_mission`, which changes nothing. */
-export const refusedOpening = (reason: string) => unchanged<OpenedByGuildmaster>({ _tag: "Refused", reason });
-
-/**
- * Records the quest the Guildmaster opened or the owner's choice opened, in a realm or none, with the Guildmaster's
- * runner unless chosen. Callers run it in a transaction; the caller wakes the new top thread.
- */
-export const openQuestFor = (quest: {
-  readonly choice: Parameters<typeof runnerOf>[1];
-  readonly realmPath: string | null;
-  readonly request: string;
-  readonly tier?: TierName | undefined;
-  readonly title: string | null;
-}) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    const runner = companionOf(yield* readSettings, quest.tier, quest.choice);
-    const started = yield* insertMission(quest.request, runner, quest.realmPath, false);
-    // It hears of this quest's result, Summons, and failure from now on (hearing back).
-    yield* sql`UPDATE missions SET opened_by_guildmaster = 1 WHERE id = ${started.missionId}`;
-    if (quest.title !== null && titleOf(quest.title) !== "") yield* proposeTitle(started.missionId, quest.title);
-    const [mission] = yield* sql<{ title: string }>`SELECT title FROM missions WHERE id = ${started.missionId}`;
-    return { runner, started, title: mission?.title ?? titleOf(quest.request) };
-  });
-
 /** Where a quest or a Ritual the Guildmaster made is, in the words it is told. */
 const placeOf = (realm: { readonly name: string } | null) =>
   realm === null ? "with no realm" : `in the realm ${realm.name}`;
@@ -255,50 +234,6 @@ export const recordResolvedCard = (card: ResolvedCard) =>
       VALUES (${crypto.randomUUID()}, ${caller?.missionId ?? ""}, ${card.callerId}, ${card.text}, ${card.title}, '[]', ${now},
         'MovedToMission', 1, ${card.isRitual ? 1 : 0}, ${card.target.missionId}, ${card.target.threadId}, ${card.target.title}, ${now}, ${card.realmPath})`;
   });
-
-/**
- * `open_mission`: the Guildmaster opens a new quest with the request, in a realm it names or none, on its own runner
- * unless it chooses one. The owner sees it as a card with a link. Only the Guildmaster calls it.
- */
-export const openMissionByGuildmaster = (callerId: string, args: ArgumentsOf<"open_mission">) =>
-  Effect.gen(function* () {
-    if (!(yield* isGuildmasterThread(callerId))) return refusedOpening("Only the Guildmaster opens quests.");
-    if (args.request.trim() === "") return refusedOpening("The request is empty.");
-    const realm = args.realm === undefined || args.realm.trim() === "" ? null : yield* findRealm(args.realm);
-    if (args.realm !== undefined && args.realm.trim() !== "" && realm === null)
-      return refusedOpening(
-        `Not opened: no realm "${args.realm}". Name one of the realms listed in your context, or leave it out.`,
-      );
-    const opened = yield* openQuestFor({
-      choice: { effort: args.effort, harness: args.harness, model: args.model },
-      realmPath: realm?.path ?? null,
-      request: args.request,
-      tier: args.tier,
-      title: args.title ?? null,
-    });
-    // The conversation shows the new quest as a card with a link, as it shows a resolved suggestion.
-    yield* recordResolvedCard({
-      callerId,
-      isRitual: false,
-      realmPath: realm?.path ?? null,
-      target: { missionId: opened.started.missionId, threadId: opened.started.threadId, title: opened.title },
-      text: args.request,
-      title: opened.title,
-    });
-    const where = placeOf(realm);
-    return changed<OpenedByGuildmaster>(
-      {
-        _tag: "Opened",
-        text: `Opened the quest "${opened.title}" (id ${opened.started.missionId}) ${where}, on ${companionLineOf(args.tier, opened.runner)}. Its top thread starts on the request at once. Tell the owner in a sentence what you opened and why; do not repeat the request.`,
-        threadId: opened.started.threadId,
-      },
-      { threadsToWake: [opened.started.threadId] },
-    );
-  });
-
-/** The answer `open_mission` gives the Guildmaster. */
-export const openedAnswerOf = (opened: OpenedByGuildmaster): ToolAnswer =>
-  opened._tag === "Opened" ? { isError: false, text: opened.text } : { isError: true, text: opened.reason };
 
 // ----- Hearing back: the quests the Guildmaster opened tell it when they report, need the owner, or fail -----
 
@@ -405,7 +340,7 @@ export const refusedAction = (text: string) => unchanged<ActedOnQuest>({ _tag: "
 export const actOnMission = (callerId: string, args: ArgumentsOf<"act_on_mission">) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    if (!(yield* isGuildmasterThread(callerId))) return refusedAction("Only the Guildmaster acts on quests.");
+    if (!(yield* isGuildmasterThread(callerId))) return refusedAction("Only Iskios acts on quests.");
     const [quest] = yield* sql<{ title: string }>`
       SELECT m.title FROM missions m JOIN threads top ON top.id = m.top_thread_id
       WHERE m.id = ${args.mission} AND m.is_guildmaster = 0 AND top.is_deleting = 0`;
@@ -450,7 +385,7 @@ export const readControlHistory = (callerId: string, args: ArgumentsOf<"read_con
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     if (!(yield* isGuildmasterThread(callerId)))
-      return { isError: true, text: "Only the Guildmaster reads this." } satisfies ToolAnswer;
+      return { isError: true, text: "Only Iskios reads this." } satisfies ToolAnswer;
     const count = Math.min(Math.max(args.count ?? 10, 1), 40);
     const query = (args.query ?? "").trim().toLowerCase();
     const rows = yield* sql<{ sequence: number; sender: string; text: string }>`
@@ -485,7 +420,7 @@ export const refusedRitual = (reason: string) => unchanged<RitualCreatedByGuildm
  */
 export const createRitualByGuildmaster = (callerId: string, args: ArgumentsOf<"create_ritual">) =>
   Effect.gen(function* () {
-    if (!(yield* isGuildmasterThread(callerId))) return refusedRitual("Only the Guildmaster creates Rituals.");
+    if (!(yield* isGuildmasterThread(callerId))) return refusedRitual("Only Iskios creates Rituals.");
     if (args.instruction.trim() === "" || titleOf(args.title) === "")
       return refusedRitual("Give an instruction and a title.");
     const realm = args.realm === undefined || args.realm.trim() === "" ? null : yield* findRealm(args.realm);
@@ -521,4 +456,63 @@ export const createRitualByGuildmaster = (callerId: string, args: ArgumentsOf<"c
       _tag: "Created",
       text: `Created the Ritual "${title}" ${where}, ${JSON.stringify(args.schedule)}, on ${companionLineOf(args.tier, runner)}. It runs by itself in its own quest when due and is on. Tell the owner in a sentence what it will do and when; do not repeat the instruction.`,
     });
+  });
+
+/** What `create_realm` and `rename_realm` came to. */
+export type RealmManaged =
+  | { readonly _tag: "Done"; readonly text: string }
+  | { readonly _tag: "Refused"; readonly text: string };
+
+/** A refused realm operation, which changes nothing. */
+export const refusedRealm = (text: string) => unchanged<RealmManaged>({ _tag: "Refused", text });
+
+/** A realm by its folder or its name, whether or not it is tied to a folder; null when none matches. */
+const findAnyRealm = (given: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const wanted = given.trim();
+    const [row] = yield* sql<{ id: string; name: string }>`
+      SELECT id, name FROM workspaces WHERE path = ${wanted} OR lower(name) = lower(${wanted})
+      ORDER BY created_at LIMIT 1`;
+    return row ?? null;
+  });
+
+/**
+ * `create_realm`: at the owner's request, which their own words prove, the Guildmaster makes a realm, tied to a folder
+ * or to none. Only the Guildmaster calls it, and never on its own.
+ */
+export const createRealmByGuildmaster = (callerId: string, args: ArgumentsOf<"create_realm">) =>
+  Effect.gen(function* () {
+    if (!(yield* isGuildmasterThread(callerId))) return refusedRealm("Only Iskios makes realms here.");
+    if (!(yield* isQuotedByOwner(callerId, args.quote)))
+      return refusedRealm(
+        "Not done: make a realm only when the owner asks for it in their latest message. Quote their exact words as quote, or ask them first.",
+      );
+    const name = args.name.trim();
+    if (name === "") return refusedRealm("Not done: a realm needs a name.");
+    if ((yield* findAnyRealm(name)) !== null)
+      return refusedRealm(`Not done: a realm "${name}" already exists. Tell the owner, or pick another name.`);
+    const folder = args.folder === undefined || args.folder.trim() === "" ? null : args.folder.trim();
+    yield* createRealm(folder, name, null);
+    return changed<RealmManaged>({
+      _tag: "Done",
+      text: `Made the realm "${name}" ${folder === null ? "tied to no folder" : `tied to ${folder}`}. Tell the owner in a sentence.`,
+    });
+  });
+
+/** `rename_realm`: at the owner's request, which their own words prove, the Guildmaster renames a realm. */
+export const renameRealmByGuildmaster = (callerId: string, args: ArgumentsOf<"rename_realm">) =>
+  Effect.gen(function* () {
+    if (!(yield* isGuildmasterThread(callerId))) return refusedRealm("Only Iskios renames realms here.");
+    if (!(yield* isQuotedByOwner(callerId, args.quote)))
+      return refusedRealm(
+        "Not done: rename a realm only when the owner asks for it in their latest message. Quote their exact words as quote, or ask them first.",
+      );
+    const realm = yield* findAnyRealm(args.realm);
+    if (realm === null)
+      return refusedRealm(`Not done: no realm "${args.realm}". Name one of the realms in your context.`);
+    const name = args.name.trim();
+    if (name === "") return refusedRealm("Not done: a realm needs a name.");
+    yield* renameRealm(realm.id as WorkspaceId, name);
+    return changed<RealmManaged>({ _tag: "Done", text: `Renamed the realm "${realm.name}" to "${name}".` });
   });

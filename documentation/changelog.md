@@ -2359,3 +2359,53 @@ Summary: The move agreed in CHG-0130 and CHG-0133 and left unbuilt by CHG-0164 i
 Decision (mine, within the agreement; first built the other way, changed on the owner's question): threads keep their harness sessions, and a move writes one journal entry ("Moved by the user from X to Y", with the new folder), which every turn's note already carries, so the thread learns it without a replay. Probe, 2026-11-11, Claude Code 2.1.322, `claude -p` with Haiku: a session begun in folder A and resumed from folder B kept its conversation, answered from it, read 21,834 tokens from the prompt cache, and reported B as its working folder. An earlier version of this change forgot the session and replayed the conversation, on an assumption the probe disproved.
 Not built: a menu or keyboard way to move a quest (only dragging, as agreed); moving from the Guildmaster or by `act_on_mission`; drag and drop in native builds; a menu entry for the journal line. A mission-scoped standing permission, given where a quest had no realm, stops applying once the quest stands in a realm, as the permission rules already read it.
 Validation: [verification](verification/2026-11-11-quest-moves.md). `questMoves.test.ts` 7 of 7, `questMove.test.ts` 4 of 4, the app suite 181 tests, typecheck and Biome pass; driven with real drags in a throwaway Electron window, dark and light. The owner has not seen it; no real harness ran after a move.
+
+## CHG-0173 · 2026-11-11 · Guildmaster becomes Iskios, an assistant that proposes quests
+
+Type: Documentation
+Event: Agreement
+Scope: Quest coordination
+
+Summary: The owner changed the Guildmaster's role: it is renamed Iskios and becomes a janitor of the app that explains how it works and manages realms and quests. It no longer opens a quest on its own: it proposes one as a card (title, realm and folder, Companion) with a Create button, the realm changeable first. Decided in the same session: the Guild Hall keeps its name; matching, tiers, and reports from opened quests are kept behind the confirmation; the batch covers behavior and specification, explaining the app from its documentation comes later. Specification and glossary updated; code and interface still say Guildmaster.
+Reason: A new user should keep control of what starts; supersedes "opens a new quest directly" of CHG-0106.
+References: [quest coordination](capabilities/mission-coordination/specifications.md), [glossary](glossary.md).
+Validation: Authorized by the owner's answers in this session, 2026-11-11.
+
+## CHG-0174 · 2026-11-11 · Iskios's reach: everything in the app over time; realms deletable, quests only archived
+
+Type: Documentation
+Event: Agreement
+Scope: Quest coordination
+
+Summary: Iskios is to be able to do everything within the app, generally asking the owner to delegate tasks to quests. Realms can be deleted; quests can never be deleted, only archived. First batch: Iskios creates and renames realms, and proposes quests (CHG-0173); deleting realms and the other operations come later.
+References: [quest coordination](capabilities/mission-coordination/specifications.md), CHG-0173.
+Validation: Authorized by the owner, 2026-11-11.
+
+## CHG-0175 · 2026-11-11 · Iskios proposes quests and makes and renames realms
+
+Type: Code
+Event: Delivery
+Scope: Service
+
+Summary: Delivers the first batch of CHG-0173 and CHG-0174. The tool `open_mission` is removed (with `openMissionByGuildmaster`): the assistant's only way to a new quest is `suggest_mission`, with no ids when nothing fits, which shows the card and waits for the owner's choice. New tools `create_realm` (with or without a folder) and `rename_realm`, each only on the owner's quoted words as `act_on_mission` is, and refused for a quest's thread, a blank or duplicate name, or an unknown realm. The realm list in the assistant's context now includes realms tied to no folder, marked as unable to hold a proposed quest yet. The instructions open with "You are Iskios, the app's assistant".
+Not built: renaming Guildmaster in the interface and code (names, settings, labels); deleting realms; explaining the app from its documentation; the card's realm change before creating; proposing a quest in a realm tied to no folder.
+Validation: typecheck and Biome pass; `guildmaster.test.ts` 33 of 33 (proposal with no match, nothing opened before the choice, no `open_mission`, tiers read on the card, hearing back through the card path, realm tools); full suite 783 passed, 2 failed in `harnesses.test.ts` (Codex account folder, outside this change; 1 failed on a rerun of the file). No live run of a harness: whether it proposes instead of answering, and uses the realm tools, is unchecked.
+
+## CHG-0176 · 2026-11-11 · Guild Hall becomes a hub; this batch is the rename and the card's realm choice
+
+Type: Documentation
+Event: Agreement
+Scope: Quest coordination
+
+Summary: The owner wants the Guild Hall to be more than a conversation: a hub above Iskios's message box showing recent activity, what waits for the owner, and a recap of the period. Quick links and Iskios as a panel in the sidebar are left for later. The next batch is only the rename of Guildmaster to Iskios everywhere and a realm choice on the proposal card; the hub follows as its own batch.
+References: [quest coordination](capabilities/mission-coordination/specifications.md), CHG-0173, CHG-0175.
+Validation: Authorized by the owner's answers, 2026-11-11.
+
+## CHG-0177 · 2026-11-11 · Iskios in the interface and in what the assistant reads; a realm choice on the proposal card
+
+Type: Code
+Event: Delivery
+Scope: Interface, Service, Contract
+
+Summary: Every text the owner or the assistant reads now says Iskios instead of Guildmaster: Charter card ("Iskios", "Show the Guild Hall in the rail"), conversation labels and placeholders, budget title, tool descriptions and refusals, the instructions every thread receives. The stored title of an existing assistant ("Guildmaster", in its quest and thread) is changed to "Iskios" when the place is next read. Decision (mine, within the agreement): identifiers, the `is_guildmaster` and `opened_by_guildmaster` columns, the request `ReadGuildmaster`, the `shouldShowGuildmaster` setting key, and the sidebar place name stay, since renaming them is a storage and wire migration with no visible gain; a later batch can do it with a decision record. The proposal card now shows the realm: `Suggestion.realmPath` carries the proposed folder, and the answer `NewMission` takes an optional `realmPath` (a folder, or null for the Borderlands; absent keeps the proposal; a folder no realm is tied to is refused). Realms tied to no folder are not offered. The card's wording no longer says "anyway" when nothing matched. Recorded in CHG-0176: the hub is the next batch.
+Validation: typecheck and Biome pass; `guildmaster.test.ts` and the lore tests 120 of 120 including a new test of the realm choice (other realm, Borderlands, unknown folder refused); app tests run. In `harnesses.test.ts` between 1 and 4 tests fail or time out at 5 s from run to run (Codex and OpenCode processes; the added Codex account's folder fails without this change, as recorded before). The card was not seen in the running app.

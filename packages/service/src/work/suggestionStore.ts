@@ -15,7 +15,7 @@ type SuggestionRow = Omit<Suggestion, "isAutomatic" | "isFromGuildmaster" | "isR
 
 const selectSuggestions = (sql: SqlClient.SqlClient) => sql`
   SELECT s.id, s.thread_id AS threadId, s.text, s.title, s.matches, s.asked_at AS askedAt, s.outcome,
-    s.is_automatic AS isAutomatic, m.is_guildmaster AS isFromGuildmaster, s.is_ritual AS isRitual, s.tier AS tier, s.target_mission_id AS targetMissionId, s.target_thread_id AS targetThreadId,
+    s.is_automatic AS isAutomatic, m.is_guildmaster AS isFromGuildmaster, s.is_ritual AS isRitual, s.tier AS tier, s.realm_path AS realmPath, s.target_mission_id AS targetMissionId, s.target_thread_id AS targetThreadId,
     s.target_title AS targetTitle, s.resolved_at AS resolvedAt, t.model, t.effort, t.harness,
     t.account_id AS accountId
   FROM suggestions s JOIN threads t ON t.id = s.thread_id JOIN missions m ON m.id = t.mission_id`;

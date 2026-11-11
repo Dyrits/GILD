@@ -336,6 +336,8 @@ export const Suggestion = Schema.Struct({
   /** The suggesting thread's model, prefilled for Open as new mission. */
   model: ModelChoice,
   outcome: Schema.NullOr(SuggestionOutcome),
+  /** The folder of the realm Iskios proposed for a new quest, or null for none (the owner may change it on the card). */
+  realmPath: Schema.NullOr(Schema.String),
   resolvedAt: Schema.NullOr(Schema.Number),
   targetMissionId: Schema.NullOr(MissionId),
   targetThreadId: Schema.NullOr(ThreadId),

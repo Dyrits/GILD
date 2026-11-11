@@ -51,7 +51,7 @@ export function GuildmasterScreen(props: {
   if (place === null)
     return (
       <View style={local.page}>
-        <Text style={styles.muted}>{error ?? "Calling the Guildmaster…"}</Text>
+        <Text style={styles.muted}>{error ?? "Calling Iskios…"}</Text>
       </View>
     );
   return <GuildmasterChat {...props} place={place} />;
@@ -107,7 +107,7 @@ function GuildmasterChat({
   if (detail === null) {
     return (
       <View style={local.page}>
-        <Text style={styles.muted}>Calling the Guildmaster…</Text>
+        <Text style={styles.muted}>Calling Iskios…</Text>
       </View>
     );
   }
@@ -117,7 +117,7 @@ function GuildmasterChat({
         client={client}
         missionId={place.missionId}
         onBack={() => setIsBudgetOpen(false)}
-        title="Budget · Guildmaster"
+        title="Budget · Iskios"
       />
     );
   }
@@ -179,7 +179,7 @@ function GuildmasterChat({
       </Text>
       {entries.length === 0 && draft === "" && terminal.panel === null ? (
         <View style={local.empty}>
-          <Text style={local.emptyTitle}>Tell the Guildmaster what you need.</Text>
+          <Text style={local.emptyTitle}>Tell Iskios what you need.</Text>
           <Text style={local.emptyText}>
             It looks for a quest that already covers it and offers to continue that one, or opens a new quest. Choose a
             realm on the right to start the next quest there.
@@ -249,7 +249,7 @@ function GuildmasterChat({
         mentions={{ client, workspacePath: realm?.path ?? null }}
         onSend={send}
         placeholder={
-          isInTurn ? "The Guildmaster is working; Send joins its turn…" : "Ask for anything: it finds or opens a quest…"
+          isInTurn ? "Iskios is working; Send joins its turn…" : "Ask for anything: it finds a quest or proposes one…"
         }
         skills={skills}
         {...(isInTurn ? { onInterrupt: () => client.request({ _tag: "InterruptThread", threadId: thread.id }) } : {})}
@@ -296,7 +296,7 @@ export function GuildmasterHandoff({
           });
           onSent();
         }}
-        placeholder={`Ask the Guildmaster for something in ${realm.name}…`}
+        placeholder={`Ask Iskios for something in ${realm.name}…`}
         skills={skills}
       />
     </View>

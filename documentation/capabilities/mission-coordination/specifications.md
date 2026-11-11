@@ -3,7 +3,18 @@
 ## Problem and outcome
 
 A user who is new to agents does not know which harness, model, or quest fits a request, and loses track of what is running.
-In the Guild Hall, the user talks with Guildmaster to find information, manage Iskios, and coordinate quests.
+In the Guild Hall, the user talks with Iskios, the app's assistant, to learn how the app works, find information, and manage realms and quests.
+
+### Iskios, the assistant (CHG-0173)
+
+From 2026-11-11 the entity formerly called Guildmaster is **Iskios**, a janitor of the app more than a dispatcher; the Guild Hall keeps its name. Everywhere below, "Guildmaster" reads as Iskios; the interface and the text the assistant reads say Iskios (CHG-0177); only the code identifiers, stored columns, request names, and settings keys keep the old name.
+
+- Iskios never opens a quest on its own. When a request calls for one, it proposes it in the conversation as a card: title, realm (and its folder), and the Companion it would use, with a **Create** button; the owner picks the realm on the card (the proposed one preselected, or the Borderlands) before creating; realms tied to no folder are not offered yet. Nothing starts until the owner presses it.
+- Iskios explains how the app works, and manages realms and quests at the owner's request, each operation under its existing rules and confirmations.
+- The delegation below (matching with `find_missions`, tiers, hearing back from a quest it opened) is kept, but the opening of a quest follows the proposal above.
+- Scope over time: Iskios is meant to be able to do everything the app does, usually asking the owner to delegate the work to a quest. Realms can be deleted; quests are never deleted, only archived. First batch: Iskios creates and renames realms, and proposes quests; deleting realms and the rest follow in later batches.
+- Guild Hall as a hub (agreed 2026-11-11, CHG-0176; not built): one page with the hub above and Iskios's message box fixed at the foot, the conversation opening when the owner writes. The hub shows recent activity (the latest quests touched, with their state), what waits for the owner (quests in Attention, failed, or with a result to confirm), and a recap of the period (to define: quests finished, spending, Rituals run, since the last visit or today). Quick links and Iskios as a side panel on every screen are set aside for later.
+- Not in this batch: explaining the app from its own documentation (to settle in a later batch).
 
 ## Agreed behavior
 
@@ -44,7 +55,7 @@ The additional search and management operations still need design, implementatio
   Guildmaster checks for matching quests and places any new quest in that realm.
   The selected realm determines the initial placement; later changes follow the [quest move confirmation](../mission-tracking/specifications.md#quest-placement-and-moves).
 
-- Guildmaster first looks for quests that fit the request with `find_missions`, which searches each quest's title, briefing, and opening request, and weighs an exact ticket key or link above plain words, so two requests about one ticket meet and offers **Continue in** for up to 3 matches, as the [off-topic suggestion](../thread-tree/specifications.md#off-topic-requests) does. When nothing matches, it opens a new quest directly.
+- Guildmaster first looks for quests that fit the request with `find_missions`, which searches each quest's title, briefing, and opening request, and weighs an exact ticket key or link above plain words, so two requests about one ticket meet and offers **Continue in** for up to 3 matches, as the [off-topic suggestion](../thread-tree/specifications.md#off-topic-requests) does. When nothing matches, it still proposes a new quest as a card (CHG-0173); it opens none itself.
 - Settings hold a default model and up to three optional tiers (Light, Balanced, Heavy), each a harness, model, and effort. Guildmaster picks a tier from how complex the request is, or the default when no tiers are set.
 - Guildmaster picks the workspace the request implies, for example "fix the login bug in Iskios" picks the Iskios workspace, or none. Given a repository link, it clones the repository with `clone_repository`, or reuses its earlier clone, and opens the quest there (see [workspace-attachment](../workspace-attachment/specifications.md#cloning-a-repository)).
 - Its reply links to the quest and names the tier, harness, model, effort, and workspace it chose, for example "Opened on Balanced: Codex, GPT-5, medium".

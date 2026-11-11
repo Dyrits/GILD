@@ -17,7 +17,7 @@ export const journalToolsOf = (
           return { isError: false, text: yield* readJournalText(threadId, before ?? null, count ?? null) };
         // Another quest's journal is the Guildmaster's to read, whatever the quest.
         if (!(yield* isGuildmasterThread(threadId)))
-          return { isError: true, text: "Only the Guildmaster reads another quest's journal." };
+          return { isError: true, text: "Only Iskios reads another quest's journal." };
         const sql = yield* SqlClient.SqlClient;
         const rows = yield* sql<{ id: string }>`SELECT m.id FROM missions m JOIN threads top ON top.id = m.top_thread_id
           WHERE m.id = ${mission} AND m.is_guildmaster = 0 AND top.is_deleting = 0`;

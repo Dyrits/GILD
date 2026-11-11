@@ -119,7 +119,7 @@ export const suggestionsLayer = Layer.effect(
         Aside: () =>
           Effect.gen(function* () {
             if (suggestion.isFromGuildmaster)
-              return yield* invalid("The Guildmaster keeps no asides: continue in a quest or open a new one.");
+              return yield* invalid("Iskios keeps no asides: continue in a quest or open a new one.");
             const { value: opened } = yield* openAside(suggestion.threadId, suggestion.text, suggestion.title);
             const [row] = yield* sql<{ title: string }>`SELECT title FROM threads WHERE id = ${opened.threadId}`;
             return {
@@ -149,6 +149,12 @@ export const suggestionsLayer = Layer.effect(
           Effect.gen(function* () {
             const [stored] = yield* sql<{ realmPath: string | null }>`
               SELECT realm_path AS realmPath FROM suggestions WHERE id = ${suggestion.id}`;
+            // The realm the owner chose on the card (null for the Borderlands) over the one proposed.
+            const chosenPath = chosen.realmPath === undefined ? (stored?.realmPath ?? null) : chosen.realmPath;
+            if (chosenPath !== null) {
+              const [known] = yield* sql<{ id: string }>`SELECT id FROM workspaces WHERE path = ${chosenPath}`;
+              if (known === undefined) return yield* invalid("No realm is tied to that folder.");
+            }
             // Left out, the harness and account are the suggesting thread's, as Open as new mission prefills them.
             return yield* openMission(
               suggestion.text,
@@ -162,7 +168,7 @@ export const suggestionsLayer = Layer.effect(
                 harness: chosen.harness ?? suggestion.harness,
                 model: chosen.model,
               },
-              stored?.realmPath ?? null,
+              chosenPath,
               suggestion.isFromGuildmaster,
             );
           }),

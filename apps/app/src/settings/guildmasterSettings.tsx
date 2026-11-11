@@ -83,13 +83,13 @@ export function GuildmasterSettings({
   settings: Settings;
 }) {
   return (
-    <SettingsCard icon="people" title="The Guildmaster">
+    <SettingsCard icon="people" title="Iskios">
       <View style={local.toggleRow}>
         <Toggle
           onValueChange={(shouldShowGuildmaster) => onSave({ shouldShowGuildmaster })}
           value={settings.shouldShowGuildmaster}
         />
-        <Text style={[styles.body, local.toggleLabel]}>Show the Guildmaster in the rail</Text>
+        <Text style={[styles.body, local.toggleLabel]}>Show the Guild Hall in the rail</Text>
       </View>
       <SettingsRule />
       <Text style={styles.body}>
