@@ -19,6 +19,7 @@ import {
   type FakeUpdates,
   fakeHarnessToolsLayer,
   Harness,
+  listOpenCodeEfforts,
   makeClaudeHarness,
   makeCodexHarness,
   makeOpenCodeHarness,
@@ -516,6 +517,26 @@ describe("running OpenCode threads", () => {
       });
     }).pipe(Effect.provide(layer));
   });
+
+  it.live("sets the chosen effort on OpenCode's session after its model", () => {
+    const { layer, requests } = withHarnesses();
+    return Effect.gen(function* () {
+      const started = yield* start({ effort: "high", harness: "opencode", model: "provider/model-a", text: "Hello" });
+      yield* settle(started.missionId, idleWith(1));
+      expect(requests("session/set_config_option").map((request) => request.params)).toMatchObject([
+        { configId: "model", value: "provider/model-a" },
+        { configId: "effort", value: "high" },
+      ]);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("reads a model's effort levels from OpenCode, none for a model without them", () =>
+    Effect.gen(function* () {
+      const standIn = [join(fixtures, "stand-in-opencode.mjs")];
+      expect(yield* listOpenCodeEfforts(process.execPath, null, "provider/model-a", standIn)).toEqual(["none", "high"]);
+      expect(yield* listOpenCodeEfforts(process.execPath, null, "provider/plain", standIn)).toEqual([]);
+    }),
+  );
 
   it.live("carries on in the same turn after the owner's refusal cancels OpenCode's prompt", () => {
     const { layer, requests } = withHarnesses();

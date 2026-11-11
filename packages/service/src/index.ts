@@ -8,6 +8,7 @@ export {
   fakeHarnessToolsLayer,
   HarnessTools,
   harnesses,
+  listOpenCodeEfforts,
   liveHarnessToolsLayer,
   makeClaudeHarness,
   makeCodexHarness,

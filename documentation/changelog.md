@@ -2209,6 +2209,15 @@ Scope: Interface, Service
 Summary: At the owner's request a change of harness, account, model, or effort no longer starts a turn: a failed turn runs again on the new runner only when the owner presses the new Retry on the failure notice (`RetryThread` now also retries a failed turn) or sends a message; fallbacks of backups and Rituals still retry at once. The runner pickers moved out of the message box to a row under it, at its right. The effort picker offers only the levels the provider gives for the chosen model (`ModelOption.efforts`): Codex's from `model/list` (`supportedReasoningEfforts`, which adds `ultra` to the effort choices), Claude Code's fixed from its own model list (low to max, read on 2026-11-11); no picker for a model with none (OpenCode), and a model change drops a level the new model lacks.
 Validation: typecheck and Biome pass; `handover.test.ts` passes with the new Retry case. The full suite had timeouts under a machine load of 35 to 55, and one account-folder test fails because the running session's `CLAUDE_CONFIG_DIR` leaks into it; none touches these changes. Not seen in the running app.
 
+## CHG-0158 · 2026-11-11 · OpenCode effort levels
+
+Type: Code
+Event: Delivery
+Scope: Interface, Service
+
+Summary: At the owner's request OpenCode threads can choose an effort. OpenCode gives a model's levels (its variants) only for a session's current model, so the pickers ask the new `ListModelEfforts` request when a model is picked; the service opens a short ACP session, sets the model, and reads its `thought_level` option, keeping the answer as long as the model list. The OpenCode adapter sets the chosen level after the model (`session/set_config_option`, `effort`). `EffortChoice` became the provider's own level name (a bounded string), since OpenCode's include `none`. The pickers that ask are the quest's message box, the Guildmaster's, a new side-quest, and an off-topic suggestion; Settings, Rituals, backups, and Guildmaster tiers still offer no OpenCode effort (their files were being changed by another session, or hold no client).
+Validation: typecheck and Biome pass; the OpenCode stand-in tests pass (13), with the effort set after the model and the levels read per model; read against OpenCode 2.2.0 on this computer: `opencode-go/claude-haiku-5-5` none to max, `opencode-go/deepseek-v4-pro` high and max. Not seen in the running app.
+
 ## CHG-0158 · 2026-11-11 · Light mode
 
 Type: Code

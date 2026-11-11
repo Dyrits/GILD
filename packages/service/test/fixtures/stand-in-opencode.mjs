@@ -123,7 +123,24 @@ createInterface({ input: process.stdin }).on("line", (line) => {
     update(params.sessionId, { content: { text: "old reply", type: "text" }, sessionUpdate: "agent_message_chunk" });
     return send({ id, result: {} });
   }
-  if (method === "session/set_config_option") return send({ id, result: { configOptions: [] } });
+  // A chosen model answers with its effort levels, as OpenCode's `thought_level` option; "provider/plain" has none.
+  if (method === "session/set_config_option")
+    return send({
+      id,
+      result: {
+        configOptions:
+          params.configId === "model" && params.value !== "provider/plain"
+            ? [
+                {
+                  category: "thought_level",
+                  currentValue: "default",
+                  id: "effort",
+                  options: ["none", "high", "default"].map((value) => ({ name: value, value })),
+                },
+              ]
+            : [],
+      },
+    });
   if (method === "session/prompt") {
     current = { id, sessionId: params.sessionId, timer: null };
     return void runPrompt(

@@ -46,6 +46,7 @@ import {
   addAccount,
   installHarness,
   listHarnesses,
+  listModelEfforts,
   removeAccount,
   renameAccount,
   signInAccount,
@@ -310,6 +311,11 @@ const make = Effect.gen(function* () {
           ),
         ListIntel: (list) => readLoreView(list.scope, list.state, list.threadId, list.workspaceId ?? null),
         ListMissions: (filters) => listMissions(filters),
+        ListModelEfforts: (list) =>
+          listModelEfforts(list.harness, list.accountId, list.model).pipe(
+            Effect.provideService(HarnessTools, harnessTools),
+            Effect.provideService(AccountsRoot, accountsRoot),
+          ),
         ListOpenQuestions: () => listOpenQuestions,
         ListRituals: () => listRituals,
         ListSkills: (given) => listSkills(given.workspacePath),

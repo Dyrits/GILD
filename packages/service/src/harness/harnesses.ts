@@ -1,5 +1,5 @@
 import { tmpdir } from "node:os";
-import { EffortChoice, type HarnessName, type ModelOption } from "@iskios/contracts";
+import type { EffortChoice, HarnessName, ModelOption } from "@iskios/contracts";
 import { type Duration, Effect, Queue, type Scope } from "effect";
 import { fieldOf, type HarnessAdapter, routeHarnesses, textFieldOf } from "../core/index.ts";
 import { makeClaudeHarness } from "./claude.ts";
@@ -7,7 +7,7 @@ import { makeCodexHarness } from "./codex.ts";
 import { accountEnvironmentOf, claudeModels, type HarnessFacts, harnessFacts } from "./harnessCatalog.ts";
 import type { SignInStatus } from "./harnessTools.ts";
 import { harnessEnvironmentOf, runHarnessCommand, startRpcProcess } from "./lineProcess.ts";
-import { makeOpenCodeHarness } from "./opencode.ts";
+import { listOpenCodeEfforts, makeOpenCodeHarness } from "./opencode.ts";
 
 // The harness registry (provider-accounts): each harness defined once, by its facts, its turn adapter, and
 // what Iskios asks its own tool about sign-in and models. Adding a harness adds one entry here.
@@ -26,6 +26,15 @@ export interface AdapterOptions {
 export interface HarnessDefinition extends HarnessFacts {
   /** The adapter running the harness's turns, whose processes close with the scope that made it. */
   readonly makeAdapter: (options: AdapterOptions) => Effect.Effect<HarnessAdapter, never, Scope.Scope>;
+  /**
+   * The effort levels the harness offers for one model, for a harness whose model list does not hold them; the
+   * others give them with each model (`ModelOption.efforts`).
+   */
+  readonly readEfforts?: (
+    command: string,
+    configDirectory: string | null,
+    model: string,
+  ) => Effect.Effect<ReadonlyArray<EffortChoice>>;
   /** The models the harness offers with an account's sign-in, its default first. */
   readonly readModels: (command: string, configDirectory: string | null) => Effect.Effect<ReadonlyArray<ModelOption>>;
   /** Who the harness's tool says is signed in, given the account's environment; never a credential. */
@@ -35,14 +44,13 @@ export interface HarnessDefinition extends HarnessFacts {
 const unknownSignIn: SignInStatus = { detail: null, signIn: "Unknown" };
 const signedOut: SignInStatus = { detail: null, signIn: "SignedOut" };
 
-/** The effort levels Codex offers for one model, as its list says, lowest first; those Iskios does not know are left out. */
+/** The effort levels Codex offers for one model, as its list says, lowest first. */
 const codexEffortsOf = (model: unknown): Array<EffortChoice> => {
   const supported = fieldOf(model, "supportedReasoningEfforts");
   if (!Array.isArray(supported)) return [];
-  const known: ReadonlyArray<string> = EffortChoice.literals;
   return supported.flatMap((option): Array<EffortChoice> => {
     const level = textFieldOf(option, "reasoningEffort");
-    return level !== null && level !== "default" && known.includes(level) ? [level as EffortChoice] : [];
+    return level !== null && level !== "default" ? [level] : [];
   });
 };
 
@@ -120,6 +128,7 @@ const codex: HarnessDefinition = {
 const opencode: HarnessDefinition = {
   ...harnessFacts.opencode,
   makeAdapter: ({ command, idleTimeout }) => makeOpenCodeHarness({ command, idleTimeout }),
+  readEfforts: listOpenCodeEfforts,
   readModels: (command, configDirectory) =>
     runHarnessCommand(command, ["models"], accountEnvironmentOf("opencode", configDirectory)).pipe(
       Effect.map(({ stdout }) =>

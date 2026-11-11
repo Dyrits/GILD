@@ -397,6 +397,16 @@ export const AddBrowsableRoot = Schema.TaggedStruct("AddBrowsableRoot", { path: 
 
 /** Every harness with its accounts, sign-in states, and models (provider-accounts). */
 export const ListHarnesses = Schema.TaggedStruct("ListHarnesses", {});
+/**
+ * The effort levels the provider offers for one model, lowest first, without "default"; empty when it offers none.
+ * OpenCode says them only for a model once chosen, so its pickers ask when a model is picked.
+ */
+export const ListModelEfforts = Schema.TaggedStruct("ListModelEfforts", {
+  /** The provider account, or null for the harness's own sign-in on this computer. */
+  accountId: Schema.NullOr(AccountId),
+  harness: HarnessName,
+  model: ModelChoice,
+});
 
 const AccountLabel = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(80));
 
@@ -500,6 +510,7 @@ export const Request = Schema.Union([
   CreateFolder,
   AddBrowsableRoot,
   ListHarnesses,
+  ListModelEfforts,
   AddAccount,
   RenameAccount,
   RemoveAccount,
@@ -552,6 +563,7 @@ export const Results = {
   ListHarnesses: HarnessList,
   ListIntel: LoreView,
   ListMissions: MissionList,
+  ListModelEfforts: Schema.Array(EffortChoice),
   ListOpenQuestions: Schema.Array(Question),
   ListRituals: Schema.Array(Ritual),
   ListSkills: Schema.Array(Skill),

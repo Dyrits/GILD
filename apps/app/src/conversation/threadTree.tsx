@@ -140,7 +140,7 @@ export function OpenThreadForm({
           <Text style={styles.link}>Cancel</Text>
         </Pressable>
       </View>
-      <RunnerPickers harnesses={harnesses} isCompact={false} onChange={setRunner} value={runner} />
+      <RunnerPickers client={client} harnesses={harnesses} isCompact={false} onChange={setRunner} value={runner} />
       {context != null && isOverWarning && (
         <View style={styles.failure}>
           <Text style={styles.error}>{startingContextWarningOf(context)}</Text>

@@ -66,6 +66,23 @@ const readHarness = (harness: HarnessName, rows: ReadonlyArray<AccountRow>) =>
     } satisfies HarnessInfo;
   });
 
+/** The effort levels the provider offers for one model under an account's sign-in (ListModelEfforts). */
+export const listModelEfforts = (harness: HarnessName, accountId: AccountId | null, model: string) =>
+  Effect.gen(function* () {
+    const tools = yield* HarnessTools;
+    const accountsRoot = yield* AccountsRoot;
+    if (accountId !== null) {
+      const sql = yield* SqlClient.SqlClient;
+      const [account] = yield* sql<{ harness: string }>`SELECT harness FROM accounts WHERE id = ${accountId}`;
+      if (account?.harness !== harness) return yield* notFound(`No such ${harnessLabels[harness]} account.`);
+    }
+    return yield* tools.listEfforts(
+      harness,
+      accountId === null ? null : accountFolderOf(accountsRoot, accountId),
+      model,
+    );
+  });
+
 /** Every harness, with its accounts and models (ListHarnesses). */
 export const listHarnesses = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;

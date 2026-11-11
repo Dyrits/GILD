@@ -269,6 +269,7 @@ function ThreadPane({
             : {
                 accessory: (
                   <RunnerPickers
+                    client={client}
                     harnesses={harnesses}
                     isCompact={true}
                     onChange={(next) =>

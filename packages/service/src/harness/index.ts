@@ -24,6 +24,6 @@ export {
   type ThreadPosition,
   threadInstructionsOf,
 } from "./instructions.ts";
-export { makeOpenCodeHarness, type OpenCodeOptions } from "./opencode.ts";
+export { listOpenCodeEfforts, makeOpenCodeHarness, type OpenCodeOptions } from "./opencode.ts";
 export { checkAccount, type Runner, type RunnerChoice, removedAccountReasonOf, runnerOf } from "./runners.ts";
 export { toolServerName } from "./toolNames.ts";

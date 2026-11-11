@@ -1,7 +1,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { TokenUsage } from "@iskios/contracts";
+import type { EffortChoice, TokenUsage } from "@iskios/contracts";
 import { Deferred, type Duration, Effect, Option, Queue, Result } from "effect";
 import {
   fieldOf,
@@ -29,6 +29,60 @@ import { toolServerName } from "./toolNames.ts";
 
 // OpenCode through the Agent Client Protocol (ADR 0008; `opencode acp` of OpenCode 2.2.0, probed 2026-11-07):
 // one process per thread, one ACP session per Iskios thread.
+
+/**
+ * The session option holding the model's effort levels (ACP category `thought_level`, id `effort` in OpenCode 2.2.0),
+ * with the levels it offers for the session's current model, without "default"; null when the model has none.
+ */
+const effortOptionOf = (configOptions: unknown): { id: string; levels: Array<EffortChoice> } | null => {
+  if (!Array.isArray(configOptions)) return null;
+  const option = configOptions.find((candidate) => textFieldOf(candidate, "category") === "thought_level");
+  const id = textFieldOf(option, "id");
+  const values = fieldOf(option, "options");
+  if (id === null || !Array.isArray(values)) return null;
+  return {
+    id,
+    levels: values.flatMap((value): Array<EffortChoice> => {
+      const level = textFieldOf(value, "value");
+      return level === null || level === "default" ? [] : [level];
+    }),
+  };
+};
+
+/**
+ * The effort levels OpenCode offers for one model: it says them only for a session's current model, so a short-lived
+ * ACP session is opened, given the model, and asked. Empty when it cannot say.
+ */
+export const listOpenCodeEfforts = (
+  command: string,
+  configDirectory: string | null,
+  model: string,
+  prefixArgs: ReadonlyArray<string> = [],
+) =>
+  Effect.gen(function* () {
+    const rpc = yield* startRpcProcess({
+      args: [...prefixArgs, "acp"],
+      command,
+      cwd: tmpdir(),
+      env: harnessEnvironmentOf(accountEnvironmentOf("opencode", configDirectory)),
+      isJsonRpc2: true,
+      label: "OpenCode",
+    });
+    return yield* Effect.gen(function* () {
+      yield* rpc.request("initialize", {
+        clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false },
+        protocolVersion: 1,
+      });
+      const created = yield* rpc.request("session/new", { cwd: tmpdir(), mcpServers: [] });
+      const sessionId = textFieldOf(created, "sessionId");
+      if (sessionId === null) return [];
+      const chosen =
+        model === "default"
+          ? created
+          : yield* rpc.request("session/set_config_option", { configId: "model", sessionId, value: model });
+      return effortOptionOf(fieldOf(chosen, "configOptions"))?.levels ?? [];
+    }).pipe(Effect.timeout("20 seconds"), Effect.ensuring(Effect.sync(() => rpc.close())));
+  }).pipe(Effect.catch(() => Effect.succeed<ReadonlyArray<EffortChoice>>([])));
 
 /** How the OpenCode adapter starts its harness. */
 export interface OpenCodeOptions {
@@ -323,10 +377,17 @@ const openCodeProtocolOf = (options: OpenCodeOptions): HarnessProtocol<OpenCodeC
         return true;
       }),
 
-    // A changed level, set of permissions, context, model, folder, or account restarts the process, loading
-    // its session; OpenCode takes no effort.
+    // A changed level, set of permissions, context, model, effort, folder, or account restarts the process,
+    // loading its session.
     restartKeyOf: (request) =>
-      JSON.stringify([request.context, request.access, request.configDirectory, request.model, request.cwd]),
+      JSON.stringify([
+        request.context,
+        request.access,
+        request.configDirectory,
+        request.model,
+        request.effort,
+        request.cwd,
+      ]),
 
     runTurn: runPrompts,
 
@@ -357,6 +418,18 @@ const openCodeProtocolOf = (options: OpenCodeOptions): HarnessProtocol<OpenCodeC
                 new HarnessFailure({ reason: `OpenCode refused the model ${request.model}: ${failure.reason}` }),
             ),
           );
+        }
+        // The effort is an option of the session's model, chosen after it (its variant).
+        if (request.effort !== "default") {
+          yield* rpc
+            .request("session/set_config_option", { configId: "effort", sessionId, value: request.effort })
+            .pipe(
+              Effect.tapError(() => Effect.sync(() => rpc.close())),
+              Effect.mapError(
+                (failure) =>
+                  new HarnessFailure({ reason: `OpenCode refused the effort ${request.effort}: ${failure.reason}` }),
+              ),
+            );
         }
         return { close: rpc.close, hasExited: rpc.hasExited, rpc, sessionId } satisfies OpenCodeConnection;
       }),

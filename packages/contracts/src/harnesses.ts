@@ -7,8 +7,11 @@ import { AccountId } from "./ids.ts";
 export const HarnessName = Schema.Literals(["claude", "codex", "opencode"]);
 export type HarnessName = typeof HarnessName.Type;
 
-/** The effort a thread runs with, by the provider's own names; default is the model's own. */
-export const EffortChoice = Schema.Literals(["default", "low", "medium", "high", "xhigh", "max", "ultra"]);
+/**
+ * The effort a thread runs with, by the provider's own name for the level, such as "low", "xhigh", or OpenCode's
+ * "none"; "default" leaves the model's own. The pickers offer only the levels the provider lists for the model.
+ */
+export const EffortChoice = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(40));
 export type EffortChoice = typeof EffortChoice.Type;
 
 /** One model a harness offers, by the identifier the harness takes. */

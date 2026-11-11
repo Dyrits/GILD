@@ -90,7 +90,7 @@ export function SuggestionCard({ client, suggestion }: { client: ServiceClient; 
             {suggestion.isFromGuildmaster ? "Open a new quest anyway" : "Open as new quest"} "{suggestion.title}"
           </Text>
         </Pressable>
-        <RunnerPickers harnesses={harnesses} isCompact={false} onChange={setRunner} value={runner} />
+        <RunnerPickers client={client} harnesses={harnesses} isCompact={false} onChange={setRunner} value={runner} />
       </View>
       {!suggestion.isFromGuildmaster && (
         <Pressable onPress={() => send({ _tag: "Aside" })} style={styles.answer}>

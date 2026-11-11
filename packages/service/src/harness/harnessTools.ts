@@ -1,7 +1,7 @@
 import { chmodSync, mkdirSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { HarnessName, ModelOption, SignInState } from "@iskios/contracts";
+import type { EffortChoice, HarnessName, ModelOption, SignInState } from "@iskios/contracts";
 import { Clock, Context, Effect, Layer } from "effect";
 import { invalid, type ServiceFailure, textFieldOf } from "../core/index.ts";
 import { accountEnvironmentOf, harnessFacts } from "./harnessCatalog.ts";
@@ -39,6 +39,12 @@ export class HarnessTools extends Context.Service<
       harness: HarnessName,
       configDirectory: string | null,
     ) => Effect.Effect<ReadonlyArray<ModelOption>>;
+    /** The effort levels the provider offers for one model, lowest first, without "default"; empty when none. */
+    readonly listEfforts: (
+      harness: HarnessName,
+      configDirectory: string | null,
+      model: string,
+    ) => Effect.Effect<ReadonlyArray<EffortChoice>>;
     /** Opens the harness's own sign-in in a terminal window, pointed at the account's folder. */
     readonly openSignIn: (harness: HarnessName, configDirectory: string | null) => Effect.Effect<void, ServiceFailure>;
     readonly readSignIn: (harness: HarnessName, configDirectory: string | null) => Effect.Effect<SignInStatus>;
@@ -138,6 +144,22 @@ export const liveHarnessToolsLayer = (commands: HarnessCommands) =>
         return options;
       });
 
+    const efforts = new Map<string, { at: number; levels: ReadonlyArray<EffortChoice> }>();
+    const listEfforts = (harness: HarnessName, configDirectory: string | null, model: string) =>
+      Effect.gen(function* () {
+        const readEfforts = harnesses[harness].readEfforts;
+        if (readEfforts === undefined)
+          return (yield* listModels(harness, configDirectory)).find((option) => option.id === model)?.efforts ?? [];
+        const key = `${harness}:${configDirectory ?? ""}:${model}`;
+        const now = yield* Clock.currentTimeMillis;
+        const cached = efforts.get(key);
+        if (cached !== undefined && now - cached.at < modelsLifetimeMillis) return cached.levels;
+        const levels = yield* readEfforts(commands[harness], configDirectory, model);
+        // An empty answer may be a failed read: not kept, so the next pick asks again.
+        if (levels.length > 0) efforts.set(key, { at: now, levels });
+        return levels;
+      });
+
     const openSignIn = (harness: HarnessName, configDirectory: string | null) =>
       Effect.gen(function* () {
         const command = [quoted(commands[harness]), ...harnessFacts[harness].signInArgs].join(" ");
@@ -167,7 +189,16 @@ export const liveHarnessToolsLayer = (commands: HarnessCommands) =>
         if (opened.code !== 0) return yield* invalid(`Could not open a terminal. Run this yourself: ${line}`);
       });
 
-    return { findUpdate, inspect, install: installHarnessPackage, listModels, openSignIn, readSignIn, update };
+    return {
+      findUpdate,
+      inspect,
+      install: installHarnessPackage,
+      listEfforts,
+      listModels,
+      openSignIn,
+      readSignIn,
+      update,
+    };
   });
 
 /** Which harnesses the fake offers an update to, by newer version, and the harnesses it has updated since. */
@@ -192,6 +223,8 @@ export const fakeHarnessToolsLayer = (
       Effect.sync(() => {
         missing.delete(harness);
       }),
+    listEfforts: (harness, _configDirectory, model) =>
+      Effect.succeed(harnessFacts[harness].fixedModels?.find((option) => option.id === model)?.efforts ?? []),
     listModels: (harness) =>
       Effect.succeed(
         harnessFacts[harness].fixedModels ?? [{ id: `${harness}-fake-model`, label: `${harness} fake model` }],

@@ -231,6 +231,7 @@ function GuildmasterChat({
         accessory={
           isInTurn ? undefined : (
             <RunnerPickers
+              client={client}
               harnesses={harnesses}
               isCompact={true}
               onChange={(next) => act(client.request({ _tag: "ChangeThreadRunner", ...next, threadId: thread.id }))}

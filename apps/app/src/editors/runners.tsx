@@ -46,33 +46,69 @@ const modelIdsOf = (harness: HarnessInfo | undefined, model: ModelChoice) => {
   return ids.includes(model) ? ids : [...ids, model];
 };
 
+/** The effort levels a harness's model list gives for a model; undefined when the list does not say (OpenCode). */
+const listedEffortsOf = (harness: HarnessInfo | undefined, model: ModelChoice) =>
+  harness?.models.find((option) => option.id === model)?.efforts;
+
 /**
- * The efforts a model offers, as its provider lists them, after the model's own default; only the default when the
- * provider lists none. The chosen effort stays in the list when the model no longer offers it, so the picker says it.
+ * The effort levels of the chosen model: from the harness's model list, or, when the list does not say (OpenCode),
+ * asked of the provider each time a model is picked. Empty while unknown or without a client to ask.
  */
-const effortsOf = (harness: HarnessInfo | undefined, model: ModelChoice, effort: EffortChoice) => {
-  const levels: ReadonlyArray<EffortChoice> = [
-    "default",
-    ...(harness?.models.find((option) => option.id === model)?.efforts ?? []),
-  ];
-  return levels.includes(effort) ? levels : [...levels, effort];
+function useModelEfforts(client: ServiceClient | undefined, harness: HarnessInfo | undefined, value: Runner) {
+  const listed = listedEffortsOf(harness, value.model);
+  const [asked, setAsked] = useState<{ key: string; levels: ReadonlyArray<EffortChoice> } | null>(null);
+  const key = `${value.harness}:${value.accountId ?? ""}:${value.model}`;
+  const shouldAsk = client !== undefined && harness !== undefined && listed === undefined;
+  useEffect(() => {
+    if (!shouldAsk) return;
+    let isCurrent = true;
+    client
+      .request({ _tag: "ListModelEfforts", accountId: value.accountId, harness: value.harness, model: value.model })
+      .then(
+        (levels) => {
+          if (isCurrent) setAsked({ key, levels });
+        },
+        () => {
+          if (isCurrent) setAsked({ key, levels: [] });
+        },
+      );
+    return () => {
+      isCurrent = false;
+    };
+  }, [client, key, shouldAsk, value.accountId, value.harness, value.model]);
+  return listed ?? (asked?.key === key ? asked.levels : []);
+}
+
+/**
+ * The efforts offered: the model's own default, then the levels its provider gives. The chosen effort stays in the
+ * list when the model no longer offers it, so the picker says it.
+ */
+const effortsOf = (levels: ReadonlyArray<EffortChoice>, effort: EffortChoice): ReadonlyArray<EffortChoice> => {
+  const offered = ["default", ...levels];
+  return offered.includes(effort) ? offered : [...offered, effort];
 };
 
-/** The effort kept when the model changes: the same when the new model offers it, else the model's own default. */
+/**
+ * The effort kept when the model changes: the same when the new model's list offers it, else the model's own
+ * default, also when its levels are only known once asked (OpenCode).
+ */
 const effortFor = (harness: HarnessInfo | undefined, model: ModelChoice, effort: EffortChoice): EffortChoice =>
-  harness?.models.find((option) => option.id === model)?.efforts?.includes(effort) === true ? effort : "default";
+  listedEffortsOf(harness, model)?.includes(effort) === true ? effort : "default";
 
 /**
  * Pickers for a runner: harness, account when the harness has more than one, model, and effort. Choosing
  * another harness takes its own sign-in and default model, as the service does when they are left out.
  */
 export function RunnerPickers({
+  client,
   harnesses,
   isAccountShown = true,
   isCompact,
   onChange,
   value,
 }: {
+  /** Asks the provider for a model's effort levels when its model list does not give them (OpenCode); without it, none are offered there. */
+  client?: ServiceClient;
   harnesses: HarnessList | null;
   /** Whether the account can be chosen; Settings' defaults have none. */
   isAccountShown?: boolean;
@@ -98,7 +134,7 @@ export function RunnerPickers({
   };
   const chooseModel = (model: ModelChoice) =>
     onChange({ ...value, effort: effortFor(harness, model, value.effort), model });
-  const effortOptions = effortsOf(harness, value.model, value.effort);
+  const effortOptions = effortsOf(useModelEfforts(client, harness, value), value.effort);
   // A model that offers no level of effort has nothing to choose.
   const isEffortChosen = effortOptions.length > 1;
   const accountLabel = (id: AccountId | null) => {
