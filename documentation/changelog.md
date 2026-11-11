@@ -2006,3 +2006,14 @@ Converted the 1254-pixel source to matching 1024-pixel PNG icons for Expo and El
 References: [app icon](../apps/app/assets/icon.png), [desktop icon](../apps/desktop/assets/icon.png), [favicon](../apps/app/assets/favicon.png).
 Validation: Visually inspected the converted icon, checked all output formats and dimensions, and confirmed the app and desktop PNGs have identical SHA-256 hashes.
 No installer rebuild or installed-app verification was performed.
+
+## CHG-0142 · 2026-11-11 · Trimmed transparent app icon
+
+Type: Configuration
+Event: Delivery
+Scope: App identity
+
+Summary: Adopted the owner's replacement transparent PNG and cropped its outer margin to the silver frame before producing the 1024-pixel app and desktop icons and 64-pixel favicon.
+Preserved the supplied artwork and alpha channel without regeneration.
+Validation: Visually inspected the cropped app icon and checked output dimensions and transparency; no installer was rebuilt.
+The earlier icon handoff describes the superseded opaque assets; use this entry and the current assets for the latest state.
