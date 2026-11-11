@@ -3,7 +3,7 @@ import { SqlClient } from "effect/sql";
 import { invalid, notFound } from "../core/index.ts";
 import { changed, unchanged } from "./commands.ts";
 import { updateJournal } from "./journal.ts";
-import { waitsInTurn } from "./lifecycle.ts";
+import { releaseThread, waitsInTurn } from "./lifecycle.ts";
 
 // Quest moves (mission-tracking, Quest placement and moves): a quest's realm is its top thread's workspace, inherited
 // by its side-quests, so a move rewrites that one column across the whole tree. Realm lore and standing permissions
@@ -13,6 +13,9 @@ import { waitsInTurn } from "./lifecycle.ts";
  * Moves a quest, with every thread of its tree, to a realm or, with null, to the Borderlands. Refused for an unknown
  * quest or realm, and while any thread of the tree is in a turn: a move never stops threads. A move to where the quest
  * already is changes nothing.
+ *
+ * A thread held only for its missing folder (workspace-attachment, Missing folder) is freed and woken: the folder it
+ * waited on is no longer its own, and its kept messages run at the destination, or return it to Attention there.
  *
  * Threads keep their harness sessions: a resumed Claude Code session keeps its conversation and its cached prefix when
  * the folder changes (probe, 2026-11-11, Claude Code 2.1.322) and takes the new folder from the system part of the
@@ -42,6 +45,9 @@ export const moveQuest = Effect.fn("moveQuest")(function* (missionId: string, re
     JOIN threads top ON top.id = m.top_thread_id LEFT JOIN workspaces w ON w.id = top.workspace_id
     WHERE m.id = ${missionId}`;
   yield* sql`UPDATE threads SET workspace_id = ${realmId} WHERE mission_id = ${missionId}`;
+  const held = yield* sql<{ id: string }>`SELECT id FROM threads
+    WHERE mission_id = ${missionId} AND state = 'Attention' AND blocker = 'MissingWorkspace' AND is_deleting = 0`;
+  for (const thread of held) yield* releaseThread(thread.id);
   const where = destination.path === null ? "no folder: it works in its own scratch folder" : destination.path;
   yield* updateJournal(
     missionId,
@@ -49,5 +55,5 @@ export const moveQuest = Effect.fn("moveQuest")(function* (missionId: string, re
     `Moved by the user from ${source?.name ?? "the Borderlands"} to ${destination.name ?? "the Borderlands"} (${where}). Earlier messages may refer to the former place; the realm lore available now is the destination's.`,
     null,
   );
-  return changed(null);
+  return changed(null, { threadsToWake: held.map((thread) => thread.id) });
 });

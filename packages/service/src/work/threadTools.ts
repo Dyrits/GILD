@@ -22,9 +22,12 @@ const definitionOf = <S extends Schema.ConstraintDecoder<unknown> & Schema.Top>(
   /** Whether a thread uses it without asking the owner; false for the approval tools themselves. */
   readonly isUnasked: boolean;
 }) => {
+  const schema: Record<string, unknown> = Schema.toJsonSchemaDocument(definition.schema).schema;
   return {
     ...definition,
-    inputSchema: Schema.toJsonSchemaDocument(definition.schema).schema,
+    // MCP asks every input schema to be an object schema, and Claude Code drops the whole listing when one is
+    // not. A struct with no fields encodes as `{ "not": { "type": "null" } }`, so it is written out here.
+    inputSchema: schema.type === "object" ? schema : { properties: {}, type: "object" },
   };
 };
 

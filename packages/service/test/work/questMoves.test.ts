@@ -1,4 +1,4 @@
-import { mkdirSync, realpathSync } from "node:fs";
+import { mkdirSync, realpathSync, rmSync } from "node:fs";
 import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
 import type { MissionId, Request } from "@iskios/contracts";
@@ -167,6 +167,29 @@ describe("moving a quest between realms and the Borderlands", () => {
           expect(lastReplyOf(context)).toContain("Moved by the user from the Borderlands to Garden");
         }),
       ),
+  );
+
+  // A quest held in Attention because its realm's folder is gone stayed held after a move out of that realm, with its
+  // message waiting and nothing to say so (the owner's quest moved from a realm whose folder had been deleted).
+  it.live("frees a quest held for its missing folder, which then runs its waiting message at the destination", () =>
+    withService(({ garden, workshop }) =>
+      Effect.gen(function* () {
+        const gardenId = yield* makeRealm("Garden", garden);
+        const workshopId = yield* makeRealm("Workshop", workshop);
+        const quest = yield* call({ _tag: "StartEmptyQuest", realmId: gardenId, requestId: "q1" });
+        yield* send(quest.threadId, "Hello");
+        yield* settle(quest.missionId, (detail) => detail.messages.length === 2 && idle(detail));
+        rmSync(garden, { recursive: true });
+        yield* send(quest.threadId, "Again");
+        const held = yield* settle(quest.missionId, (detail) => detail.thread.state === "Attention");
+        expect(held.thread.blocker).toBe("MissingWorkspace");
+
+        yield* call({ _tag: "MoveQuest", missionId: quest.missionId, realmId: workshopId });
+
+        const after = yield* settle(quest.missionId, (detail) => lastReplyOf(detail).includes("Again") && idle(detail));
+        expect(after.thread.blocker).toBeNull();
+      }),
+    ),
   );
 
   it.live("reads the same threads at the destination: a moved quest lists under its new realm", () =>

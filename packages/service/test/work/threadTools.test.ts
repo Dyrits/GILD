@@ -23,6 +23,16 @@ describe("listing the thread tools", () => {
     expect(toolListing.map((tool) => tool.name).sort()).toEqual(Object.keys(threadTools).sort());
   });
 
+  // MCP asks each tool's input schema to be an object schema; Claude Code drops the whole listing when one is not,
+  // so every permission prompt then fails with "MCP tool ... not found. Available MCP tools: none" (read_settings,
+  // whose empty struct encoded as `{ "not": { "type": "null" } }`).
+  it("gives every tool an object input schema, which Claude Code needs to accept the listing", () => {
+    const notObjects = toolListing
+      .filter((tool) => (tool.inputSchema as { type?: string }).type !== "object")
+      .map((tool) => tool.name);
+    expect(notObjects).toEqual([]);
+  });
+
   it("runs every tool unasked except the approval tools themselves", () => {
     const names = unaskedToolNamesOf("iskios");
     expect(names).toContain("mcp__iskios__open_thread");
