@@ -1,6 +1,7 @@
 import { randomBytes } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { type NodeRelay, startNodeRelay } from "../src/index.ts";
+import { readClosingFrame } from "../src/roomCore.ts";
 import { clientPath, connect, hostPath, open, room, type Session } from "./fixtures/wsClient.ts";
 
 let relay: NodeRelay;
@@ -270,5 +271,33 @@ describe("rules on frames", () => {
     await bad.closed;
     host.socket.send(Buffer.concat([Buffer.from([1]), joinedId(host, 1), Buffer.from("still here")]));
     expect((await good.messagesAfter(1))[0]?.data.toString()).toBe("still here");
+  });
+});
+
+describe("saying why a connection is closed", () => {
+  const closingsOf = (session: Session) =>
+    session.messages.filter((message) => !message.isBinary).map((message) => readClosingFrame(message.data.toString()));
+
+  it("sends the reason as a frame ahead of the close to a client with no host", async () => {
+    const client = await track(relay.port, clientPath());
+    await client.closed;
+    expect(closingsOf(client)).toEqual([{ code: 1013, reason: "host offline" }]);
+  });
+
+  it("sends it to a host with another claim", async () => {
+    await track(relay.port, hostPath());
+    const other = await track(relay.port, hostPath(room, randomBytes(24).toString("base64url")));
+    await other.closed;
+    expect(closingsOf(other)).toEqual([{ code: 1008, reason: "claim mismatch" }]);
+  });
+
+  it("sends it to the clients when the host leaves, and the host is told nothing", async () => {
+    const host = await track(relay.port, hostPath());
+    const client = await track(relay.port, clientPath());
+    await host.messagesAfter(1);
+    host.socket.close();
+    await client.closed;
+    expect(closingsOf(client)).toEqual([{ code: 1001, reason: "host left" }]);
+    expect(closingsOf(host)).toEqual([]);
   });
 });

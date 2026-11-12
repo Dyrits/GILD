@@ -1,5 +1,5 @@
 import { DurableObject } from "cloudflare:workers";
-import { type Member, RoomCore, type RoomPorts } from "./roomCore.ts";
+import { closeWithReason, type Member, RoomCore, type RoomPorts } from "./roomCore.ts";
 import { parseConnect } from "./route.ts";
 
 /** The Worker's bindings. */
@@ -59,7 +59,7 @@ export class Room extends DurableObject<Env> {
       this.#core.open(server, connect.role);
     } else {
       this.ctx.acceptWebSocket(server);
-      server.close(rejection.code, rejection.reason);
+      closeWithReason(server, rejection.code, rejection.reason);
     }
     return new Response(null, { status: 101, webSocket: client });
   }

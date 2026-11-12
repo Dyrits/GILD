@@ -2,7 +2,7 @@ import { createServer, type IncomingMessage } from "node:http";
 import type { AddressInfo } from "node:net";
 import type { Duplex } from "node:stream";
 import { type WebSocket, WebSocketServer } from "ws";
-import { defaultRoomLimits, type Member, RoomCore, type RoomLimits } from "./roomCore.ts";
+import { closeWithReason, defaultRoomLimits, type Member, RoomCore, type RoomLimits } from "./roomCore.ts";
 import { parseConnect } from "./route.ts";
 
 /** What `startNodeRelay` accepts. */
@@ -79,7 +79,7 @@ export const startNodeRelay = async (options: NodeRelayOptions = {}): Promise<No
     wss.handleUpgrade(request, socket, head, (peer) => {
       // ws closes an oversized frame with 1009 itself and reports it here; the close event does the rest.
       peer.on("error", () => null);
-      if (rejection !== null) return peer.close(rejection.code, rejection.reason);
+      if (rejection !== null) return closeWithReason(peer, rejection.code, rejection.reason);
       peer.on("message", (data, isBinary) => {
         if (isBinary && Buffer.isBuffer(data)) core.receive(peer, data);
         else if (!isBinary) core.receive(peer, data.toString());

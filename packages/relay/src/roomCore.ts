@@ -102,6 +102,36 @@ const attempt = (action: () => void): void => {
 };
 
 /**
+ * The text frame the relay sends just before it closes a connection for a reason of its own. A client reads why from
+ * it at once, where the close itself can reach it late: Node's own WebSocket waits about ten seconds for the
+ * connection to end after a close. The words are the close's own code and reason, which the relay would send anyway.
+ */
+export const closingFrame = (code: number, reason: string): string => JSON.stringify({ closing: { code, reason } });
+
+/** The code and reason in a closing frame, or null when the text is anything else (a pong, say, or garbage). */
+export const readClosingFrame = (text: string): Rejection | null => {
+  if (!text.startsWith("{")) return null;
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(text);
+  } catch {
+    return null;
+  }
+  if (typeof parsed !== "object" || parsed === null || !("closing" in parsed)) return null;
+  const closing = parsed.closing;
+  if (typeof closing !== "object" || closing === null || !("code" in closing) || !("reason" in closing)) return null;
+  const { code, reason } = closing;
+  if (typeof code !== "number" || !Number.isInteger(code) || code < 1000 || code > 4999) return null;
+  return typeof reason === "string" ? { code, reason } : null;
+};
+
+/** Closes a connection after telling it why, in a frame it can read before the close; neither step may throw. */
+export const closeWithReason = (peer: RoomPeer, code: number, reason: string): void => {
+  attempt(() => peer.send(closingFrame(code, reason)));
+  attempt(() => peer.close(code, reason));
+};
+
+/**
  * The rules of one room: who may be its host, who may join, and what is forwarded to whom. A frame is passed on
  * untouched and never read, logged, stored or queued. The core holds no connection state of its own.
  */
@@ -192,7 +222,7 @@ export class RoomCore<P extends RoomPeer> {
     const old = this.#hostOf();
     if (old !== null) {
       this.#ports.retire(old.peer);
-      attempt(() => old.peer.close(closeCodes.replaced, "replaced"));
+      closeWithReason(old.peer, closeCodes.replaced, "replaced");
       this.#endClients();
     }
     this.#ports.enroll({ peer, role: "host" });
@@ -200,12 +230,12 @@ export class RoomCore<P extends RoomPeer> {
 
   #openClient(peer: P): void {
     if (this.#hostOf() === null) {
-      attempt(() => peer.close(closeCodes.hostOffline, "host offline"));
+      closeWithReason(peer, closeCodes.hostOffline, "host offline");
       return;
     }
     const clients = this.#clients();
     if (clients.length >= this.#limits.maxClients) {
-      attempt(() => peer.close(closeCodes.roomFull, "room full"));
+      closeWithReason(peer, closeCodes.roomFull, "room full");
       return;
     }
     const id = crypto.getRandomValues(new Uint8Array(clientIdBytes));
@@ -226,7 +256,7 @@ export class RoomCore<P extends RoomPeer> {
   #endClients(): void {
     for (const client of this.#clients()) {
       this.#ports.retire(client.peer);
-      attempt(() => client.peer.close(closeCodes.hostLeft, "host left"));
+      closeWithReason(client.peer, closeCodes.hostLeft, "host left");
     }
   }
 
@@ -238,7 +268,7 @@ export class RoomCore<P extends RoomPeer> {
 
   // Closes a connection for breaking a rule; it leaves the room now rather than when its close arrives.
   #drop(member: Member<P>, code: number, reason: string): void {
-    attempt(() => member.peer.close(code, reason));
+    closeWithReason(member.peer, code, reason);
     this.#leave(member);
   }
 

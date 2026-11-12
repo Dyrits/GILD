@@ -1,12 +1,15 @@
-import { type Member, RoomCore, type RoomLimits, type RoomPeer } from "../../src/roomCore.ts";
+import { closeWithReason, type Member, RoomCore, type RoomLimits, type RoomPeer } from "../../src/roomCore.ts";
 import type { Role } from "../../src/route.ts";
 
 /** A stand-in connection that records what the room sent and how it was closed. */
 export class FakePeer implements RoomPeer {
   closed: { code: number; reason: string } | null = null;
+  /** How many frames had been sent when the connection was closed; null while it is open. */
+  sentWhenClosed: number | null = null;
   readonly sent: (string | Uint8Array)[] = [];
 
   close(code: number, reason: string): void {
+    if (this.closed === null) this.sentWhenClosed = this.sent.length;
     this.closed ??= { code, reason };
   }
 
@@ -48,7 +51,7 @@ export const createFakeRoom = (limits: Partial<RoomLimits> = {}) => {
     const claim = secret === null ? null : new TextEncoder().encode(secret.padEnd(16, "."));
     const rejection = await core.screen(role, claim);
     if (rejection === null) core.open(peer, role);
-    else peer.close(rejection.code, rejection.reason);
+    else closeWithReason(peer, rejection.code, rejection.reason);
     return peer;
   };
 

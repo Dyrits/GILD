@@ -1,5 +1,5 @@
 import { encodeBase64Url } from "./base64url.ts";
-import { clientIdBytes, hostFrame, relayFrame } from "./roomCore.ts";
+import { clientIdBytes, hostFrame, readClosingFrame, relayFrame } from "./roomCore.ts";
 
 // The relay as its users see it: a host keeps one connection and hears from its clients by their identifiers; a client
 // (a paired device) has one connection that carries its own frames only. Isomorphic: the standard WebSocket only.
@@ -88,7 +88,22 @@ export async function connectHost(options: {
   const closed: Array<(code: number, reason: string) => void> = [];
   let ended: { code: number; reason: string } | null = null;
 
+  // The relay's closing frame says why it is about to close; acting on it does not wait for the close itself.
+  const end = (code: number, reason: string) => {
+    if (ended !== null) return;
+    ended = { code, reason };
+    for (const listener of closed) listener(code, reason);
+  };
+
   socket.addEventListener("message", (event) => {
+    if (typeof event.data === "string") {
+      const closing = readClosingFrame(event.data);
+      if (closing !== null) {
+        end(closing.code, closing.reason);
+        socket.close();
+      }
+      return;
+    }
     const frame = bytesOf(event.data);
     if (frame === null || frame.length < 1 + clientIdBytes) return;
     const clientId = hex(frame.subarray(1, 1 + clientIdBytes));
@@ -97,10 +112,7 @@ export async function connectHost(options: {
     else if (frame[0] === relayFrame.joined) for (const listener of joined) listener(clientId);
     else if (frame[0] === relayFrame.left) for (const listener of left) listener(clientId);
   });
-  socket.addEventListener("close", (event) => {
-    ended = { code: event.code, reason: event.reason };
-    for (const listener of closed) listener(event.code, event.reason);
-  });
+  socket.addEventListener("close", (event) => end(event.code, event.reason));
 
   const framed = (type: number, clientId: string, payload: Uint8Array) => {
     const frame = new Uint8Array(1 + clientIdBytes + payload.length);
@@ -151,16 +163,28 @@ export async function connectClient(options: {
   const early: Uint8Array[] = [];
   let code: number | null = null;
 
+  // The relay's closing frame says why it is about to close; acting on it does not wait for the close itself.
+  const end = (endCode: number) => {
+    if (code !== null) return;
+    code = endCode;
+    for (const listener of closed) listener();
+  };
+
   socket.addEventListener("message", (event) => {
+    if (typeof event.data === "string") {
+      const closing = readClosingFrame(event.data);
+      if (closing !== null) {
+        end(closing.code);
+        socket.close();
+      }
+      return;
+    }
     const frame = bytesOf(event.data);
     if (frame === null) return;
     if (messages.length === 0) early.push(frame);
     else for (const listener of messages) listener(frame);
   });
-  socket.addEventListener("close", (event) => {
-    code = event.code;
-    for (const listener of closed) listener();
-  });
+  socket.addEventListener("close", (event) => end(event.code));
 
   return {
     ok: true,

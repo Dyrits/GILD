@@ -51,5 +51,5 @@ Latest handoffs:
 
 - To resume the sidebar icons (the owner's flat matte set built, checked, reviewed, and committed in CHG-0207; the owner's look in the running app and the main-row icon size remain), read the [current handoff](.agents/handoffs/2026-11-12-1402-sidebar-flat-icons-reviewed.md). Handoffs are shared and committed.
 
-- To resume device pairing (relay, secure channel, service and screens built and checked; the relay not deployed yet; folder picker and terminal on a host, the direct path and the deployment remain), read the [current handoff](.agents/handoffs/2026-11-12-0940-device-pairing.md). Handoffs are shared and committed.
+- To resume device pairing (relay deployed and checked live, closing frame added; a real pairing between two apps through it not yet seen; folder picker and terminal on a host, the direct path and the usage measurement remain), read the [current handoff](.agents/handoffs/2026-11-12-2043-device-pairing-relay-deployed.md). Handoffs are shared and committed.
 

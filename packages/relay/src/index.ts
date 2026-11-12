@@ -6,4 +6,4 @@ export {
   type HostConnection,
 } from "./client.ts";
 export { type NodeRelay, type NodeRelayOptions, startNodeRelay } from "./nodeRelay.ts";
-export { closeCodes } from "./roomCore.ts";
+export { closeCodes, closeWithReason, closingFrame, readClosingFrame } from "./roomCore.ts";
