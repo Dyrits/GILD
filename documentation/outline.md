@@ -24,6 +24,7 @@ The first build serves one user. The [architecture](architecture.md#future-multi
 - **[conversation-terminal](capabilities/conversation-terminal/specifications.md)**: opening the owner's shell inside a desktop message with `!` and sending its visible output as context.
 - **thread-handover**: changing a thread's harness, agent, model, or effort mid-thread, with the full history given to the new one.
 - **[workspace-attachment](capabilities/workspace-attachment/specifications.md)**: attaching threads to one workspace browsed under the allowed roots or cloned from a repository, or to none; with an optional own copy of a git workspace, and changing the workspace of a whole quest tree when moving it while no thread is running.
+- **[companion-presets](capabilities/companion-presets/specifications.md)**: naming a choice of Companion, with its backups, as a preset to choose anywhere a Companion is chosen, the Light, Balanced, and Heavy tiers among them (specified, not built).
 - **routine-running**: running a routine on its trigger, in its own thread or by opening new threads.
 - **workflow-running**: running a workflow, each step as a thread.
 - **[provider-accounts](capabilities/provider-accounts/specifications.md)**: running each thread on the harness and provider account chosen for it, with several accounts per harness, each signed in through the harness's own sign-in.

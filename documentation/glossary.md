@@ -168,6 +168,10 @@ _Avoid_: Vendor
 One sign-in a harness runs with: the computer's own, or one added in Iskios with its own folder, such as a second Claude account named "Work".
 _Avoid_: Profile, login, credential
 
+**Companion preset**:
+A name for a choice of Companion (harness, provider account, model, effort), with optionally its backup Companions, that the owner picks instead of choosing each part by hand; the interface says preset. Light, Balanced, and Heavy are presets ([companion presets](capabilities/companion-presets/specifications.md), not built).
+_Avoid_: Profile, template, tier (a tier is one of the three presets Iskios picks among)
+
 **Handover**:
 A change of harness, agent, model, or effort in the middle of a thread, giving the new one the thread's full history.
 _Avoid_: Switch, transfer
