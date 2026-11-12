@@ -12,11 +12,11 @@ import {
   readSettings,
   type ServiceFailure,
 } from "../core/index.ts";
-import { folderEscapeOf, resolvedFolderOf } from "../harness/threadFolder.ts";
+import { folderEscapeOf, resolvedFolderOf } from "../harness/index.ts";
 import {
   capabilities,
   changedFilesOf,
-  consequenceOf,
+  consequences,
   findCoveringPermission,
   insertPermission,
   isFileWriting,
@@ -371,7 +371,7 @@ export const approvalsLayer = Layer.effect(
           pattern: target,
           permission: capability ?? plain,
           source: "Harness",
-          summary: capability === null ? `${reason ?? plain}.` : `${reason ?? plain}. ${consequenceOf[capability]}`,
+          summary: capability === null ? `${reason ?? plain}.` : `${reason ?? plain}. ${consequences[capability]}`,
           threadId,
         };
         const covering = yield* findCoveringPermission(threadId, target, capability);

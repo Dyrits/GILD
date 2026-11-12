@@ -1,7 +1,8 @@
+export { isNamedByOwner, type NamedAction } from "./ownerRequests.ts";
 export {
   capabilities,
   changedFilesOf,
-  consequenceOf,
+  consequences,
   isFileWriting,
   plainActionOf,
   reasonOf,

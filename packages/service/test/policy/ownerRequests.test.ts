@@ -1,5 +1,5 @@
 import { describe, expect, it } from "@effect/vitest";
-import { isNamedByOwner, type NamedAction } from "../../src/policy/ownerRequests.ts";
+import { isNamedByOwner, type NamedAction } from "../../src/policy/index.ts";
 
 const archive: NamedAction = {
   operation: "Archive",

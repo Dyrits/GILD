@@ -1,8 +1,8 @@
-import { type RitualScope, RitualScope as RitualScopeSchema, Settings } from "@iskios/contracts";
+import { RitualScope as RitualScopeSchema, Settings } from "@iskios/contracts";
 import { Context, Effect, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { readSettings, realFolderOf, type ToolAnswer } from "../core/index.ts";
-import { isNamedByOwner, type NamedAction } from "../policy/ownerRequests.ts";
+import { isNamedByOwner, type NamedAction } from "../policy/index.ts";
 import type { Approvals } from "./approvals.ts";
 import { previewEnding, readWorkingIds } from "./ending.ts";
 import { companionOf, findRealm, isGuildmasterThread } from "./guildmaster.ts";
@@ -21,7 +21,7 @@ import { titleOf } from "./titles.ts";
 export type StructuralTool = "act_on_mission" | "change_setting" | "create_realm" | "rename_realm" | "create_ritual";
 
 /** A structural action as the service derived it from a tool call. */
-interface Derived {
+interface DerivedAction {
   readonly details: string;
   /** Everything the action depends on, compared again when it runs: the turn, the target, the threads at work. */
   readonly fingerprint: string;
@@ -167,7 +167,7 @@ const deriveAction = (callerId: string, tool: StructuralTool, args: object) =>
       readonly summary: string;
       readonly mustAsk: boolean;
       readonly details?: object;
-    }): Derived => ({
+    }): DerivedAction => ({
       details: JSON.stringify({ action: found.named.operation, ...(found.details ?? {}), state: found.state }, null, 2),
       fingerprint: JSON.stringify({ ...base, state: found.state }),
       mustAsk: found.mustAsk,
@@ -264,7 +264,7 @@ type Authority =
 const clip = (text: string, length: number) => (text.length <= length ? text : `${text.slice(0, length - 1)}…`);
 
 /** The owner's own words of this turn naming the action exactly, or the Ritual's reviewed scope in a run; else ask. */
-const authorityOf = (callerId: string, derived: Derived) =>
+const authorityOf = (callerId: string, derived: DerivedAction) =>
   Effect.gen(function* () {
     const turnId = yield* runningTurnOf(callerId);
     if (turnId === null || derived.mustAsk) return { _tag: "Ask" } satisfies Authority;
@@ -273,7 +273,7 @@ const authorityOf = (callerId: string, derived: Derived) =>
     if (derived.scoped !== null) {
       const ritual = yield* ritualOfThread(callerId);
       if (ritual !== null && (yield* isRitualRunTurn(callerId, turnId))) {
-        const entry = coveringEntryOf(ritual.scope as RitualScope, derived.scoped);
+        const entry = coveringEntryOf(ritual.scope, derived.scoped);
         if (entry !== null)
           return {
             _tag: "Scope",

@@ -16,6 +16,7 @@ import { join } from "node:path";
 import { DatabaseSync } from "node:sqlite";
 import { describe, expect, it } from "@effect/vitest";
 import { afterEach } from "vitest";
+import { folderEscapeOf } from "../../src/harness/index.ts";
 import {
   detectOpenCodeSandbox,
   type OpenCodeSandbox,
@@ -27,7 +28,6 @@ import {
 } from "../../src/harness/openCodeSandbox.ts";
 import { copyOpenCodeConfig, seedOpenCodeSignIn } from "../../src/harness/openCodeSeed.ts";
 import { hasExecutorBelow, killProcessTree, markedProcessesOf, sweepOrphans } from "../../src/harness/processTree.ts";
-import { folderEscapeOf } from "../../src/harness/threadFolder.ts";
 
 const directories: string[] = [];
 const temporary = () => {
@@ -58,7 +58,8 @@ const isAlive = (pid: number) => {
   }
 };
 const waitFor = async (check: () => boolean, millis = 5000) => {
-  for (let waited = 0; waited < millis && !check(); waited += 25) await new Promise((r) => setTimeout(r, 25));
+  for (let waited = 0; waited < millis && !check(); waited += 25)
+    await new Promise((resolve) => setTimeout(resolve, 25));
   return check();
 };
 
@@ -86,6 +87,34 @@ describe("wrapping OpenCode in the host's sandbox", () => {
     expect(profile).toContain('(regex #"^/dev/(fd|ttys)")');
     expect(profile).not.toContain("network");
   });
+
+  it("lets a Seatbelt-wrapped process signal only the processes of its own sandbox", () => {
+    const args = wrappedCommandOf(seatbelt, ["/work/app"], "opencode", ["acp"]).args;
+    const profile = args[args.indexOf("-p") + 1] ?? "";
+    expect(profile).toContain("(deny signal)");
+    expect(profile).toContain("(allow signal (target same-sandbox))");
+    // The signal rules come after `(allow default)`: in a Seatbelt profile the last matching rule wins.
+    expect(profile.indexOf("(deny signal)")).toBeGreaterThan(profile.indexOf("(allow default)"));
+  });
+
+  it.runIf(process.platform === "darwin" && existsSync("/usr/bin/sandbox-exec"))(
+    "stops a Seatbelt-wrapped process from killing one outside, and lets it kill its own child",
+    async () => {
+      const outside = spawn("sleep", ["60"], { stdio: "ignore" });
+      try {
+        const wrapped = wrappedCommandOf(seatbelt, [], "/bin/sh", [
+          "-c",
+          `kill -TERM ${outside.pid}; sleep 30 & kill $!`,
+        ]);
+        const result = spawnSync(wrapped.command, [...wrapped.args], { encoding: "utf8", timeout: 10_000 });
+        expect(result.stderr).toContain("Operation not permitted");
+        expect(outside.exitCode).toBeNull();
+        expect(outside.signalCode).toBeNull();
+      } finally {
+        outside.kill("SIGKILL");
+      }
+    },
+  );
 
   it("starts it under bubblewrap with the system read-only, its folders writable, and the network shared", () => {
     const wrapped = wrappedCommandOf(bwrap, ["/work/app", "/caches/bun"], "opencode", ["acp"]);
@@ -324,7 +353,7 @@ describe("ending a harness's whole process tree", () => {
        require("node:fs").writeFileSync(${JSON.stringify(pidFile)}, String(child.pid));
        setInterval(() => {}, 1000);`,
     ]);
-    for (let i = 0; i < 100 && !existsSync(pidFile); i++) await new Promise((r) => setTimeout(r, 20));
+    for (let i = 0; i < 100 && !existsSync(pidFile); i++) await new Promise((resolve) => setTimeout(resolve, 20));
     const grandchild = Number(readFileSync(pidFile, "utf8"));
     const isAlive = (pid: number) => {
       try {
@@ -351,7 +380,7 @@ describe("confirming that OpenCode's executor runs below the wrapped process", (
        setInterval(() => {}, 1000);`,
     ]);
     try {
-      for (let i = 0; i < 100 && !existsSync(pidFile); i++) await new Promise((r) => setTimeout(r, 20));
+      for (let i = 0; i < 100 && !existsSync(pidFile); i++) await new Promise((resolve) => setTimeout(resolve, 20));
       check(parent.pid ?? -1);
     } finally {
       await killProcessTree(parent.pid ?? -1);

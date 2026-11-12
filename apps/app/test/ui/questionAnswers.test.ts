@@ -2,7 +2,7 @@ import type { Question } from "@iskios/contracts";
 import { describe, expect, it } from "vitest";
 import { answersOf } from "../../src/ui/questionAnswers";
 
-const question = (fields: Pick<Question, "pattern" | "permission">) => fields as Question;
+const question = (fields: Pick<Question, "pattern" | "permission">) => fields;
 
 describe("the answers a question card offers", () => {
   it("offers Always allow when the answer can save a standing permission", () => {

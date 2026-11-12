@@ -419,7 +419,7 @@ const openCodeProtocolOf = (options: OpenCodeOptions): HarnessProtocol<OpenCodeC
   let queue: Promise<unknown> = Promise.resolve();
   const exclusive = <A>(work: () => Promise<A>) => {
     const next = queue.then(work, work);
-    queue = next.catch(() => undefined);
+    queue = next.catch(() => void 0);
     return next;
   };
 

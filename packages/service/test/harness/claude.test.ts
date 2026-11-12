@@ -188,7 +188,7 @@ describe("running Claude Code threads", () => {
           ]),
         );
         // Claude Code 2.1.322 refuses "*" and a bare top-level wildcard such as "*.com": a broad allowlist, not open egress.
-        for (const domain of allowedDomains as Array<string>) {
+        for (const domain of allowedDomains) {
           expect(
             domain === "*" || /^\*\.[^.]+$/.test(domain) || domain.slice(domain.startsWith("*.") ? 2 : 0).includes("*"),
             domain,

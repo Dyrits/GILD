@@ -3,16 +3,10 @@
 // service picks the owner's messages (current turn only) and the target. Anything short of an unambiguous naming
 // returns false, which costs one question, never a grant.
 
+import type { RitualScopeOperation } from "@iskios/contracts";
+
 /** The structural actions the service derives from Iskios's tool calls. */
-export type StructuralOperation =
-  | "Stop"
-  | "Done"
-  | "Archive"
-  | "Rename"
-  | "ChangeSetting"
-  | "CreateRealm"
-  | "RenameRealm"
-  | "CreateRitual";
+export type StructuralOperation = RitualScopeOperation | "CreateRealm" | "RenameRealm" | "CreateRitual";
 
 /** One structural action as the owner would name it: what, on which target, and to what new value. */
 export interface NamedAction {
@@ -153,7 +147,9 @@ const spansOf = (text: string, names: ReadonlyArray<string>): Array<Span> =>
   names
     .map((name) => name.trim())
     .filter((name) => name.length >= 3)
-    .flatMap((name) => [...text.matchAll(phraseOf(name))].map((m) => ({ end: m.index + m[0].length, start: m.index })));
+    .flatMap((name) =>
+      [...text.matchAll(phraseOf(name))].map((match) => ({ end: match.index + match[0].length, start: match.index })),
+    );
 
 /** Whether a span lies inside a strictly longer one. */
 const isWithin = (inner: Span, outer: Span) =>

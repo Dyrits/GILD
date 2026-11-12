@@ -80,15 +80,18 @@ export const capabilities = {
   widenSandbox: "Widen the sandbox",
 } as const;
 
+/** The name of one capability a harness prompt may need. */
+export type Capability = (typeof capabilities)[keyof typeof capabilities];
+
 /** What each capability lets an action do, in plain words, after its reason in the question. */
-export const consequenceOf = {
+export const consequences = {
   [capabilities.outsideSandbox]:
     "This runs outside the sandbox, with your full access to this computer's files and programs.",
   [capabilities.fileOutsideWorkspace]:
     "This changes a file outside the workspace that other programs on this computer may rely on.",
   [capabilities.widenSandbox]: "This widens what the sandbox allows for the rest of the turn.",
   [capabilities.unsandboxed]: "No sandbox protects this computer here, so this runs with your full access.",
-} as const satisfies Record<string, string>;
+} as const satisfies Record<Capability, string>;
 
 const capabilityNames = new Set<string>(Object.values(capabilities));
 

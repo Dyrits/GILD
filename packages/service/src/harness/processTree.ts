@@ -48,6 +48,10 @@ const commandsOf = (pids: ReadonlyArray<number>) => {
   }
 };
 
+/** Whether a command line is the `serve ... --stdio` executor OpenCode's `acp` starts for itself. */
+const isExecutorCommand = (command: string) =>
+  /(?:^|\s)serve(?:\s|$)/.test(command) && /(?:^|\s)--stdio(?:\s|$)/.test(command);
+
 /**
  * Whether the root's own process tree holds OpenCode's executor: a descendant running `serve --stdio`, which `acp`
  * starts for itself (probe of 2026-11-12). An `acp` that served from a process outside its tree, such as an existing
@@ -56,9 +60,7 @@ const commandsOf = (pids: ReadonlyArray<number>) => {
  */
 export const hasExecutorBelow = (root: number) => {
   const below = processTreeOf(root).slice(1);
-  const isExecutor = (command: string) =>
-    /(?:^|\s)serve(?:\s|$)/.test(command) && /(?:^|\s)--stdio(?:\s|$)/.test(command);
-  return [...commandsOf(below).values()].some(isExecutor);
+  return [...commandsOf(below).values()].some(isExecutorCommand);
 };
 
 const isAlive = (pid: number) => {
@@ -192,8 +194,7 @@ export const markedProcessesOf = (marker: ProcessMarker): Array<MarkedProcess> =
 
 /** Whether a command line is OpenCode's: its executable, or the `serve ... --stdio` executor its `acp` starts. */
 export const isOpenCodeCommand = (command: string) =>
-  /(?:^|[\s/])opencode(?:\s|$)/.test(command) ||
-  (/(?:^|\s)serve(?:\s|$)/.test(command) && /(?:^|\s)--stdio(?:\s|$)/.test(command));
+  /(?:^|[\s/])opencode(?:\s|$)/.test(command) || isExecutorCommand(command);
 
 /** This process and every process descending from it. */
 const ownTree = () => new Set(processTreeOf(process.pid));

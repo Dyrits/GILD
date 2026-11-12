@@ -164,11 +164,18 @@ export const ownerMarkerOf = (sandbox: OpenCodeSandbox) => {
   return { name: "ISKIOS_SANDBOX_OWNER", value: readFileSync(path, "utf8").trim() };
 };
 
-/** The Seatbelt profile: everything allowed but writing, which only the given folders and the terminal devices may. */
+/**
+ * The Seatbelt profile: everything allowed but writing, which only the given folders and the terminal devices may, and
+ * signalling, which only the processes of the sandbox itself may receive. Bubblewrap's own PID namespace already hides
+ * outside processes. `(target others)` blocks nothing on macOS, and `(target self)` also stops the sandbox's children,
+ * so the rule names the sandbox.
+ */
 const seatbeltProfileOf = (count: number) =>
   [
     "(version 1)",
     "(allow default)",
+    "(deny signal)",
+    "(allow signal (target same-sandbox))",
     "(deny file-write*)",
     `(allow file-write* ${Array.from({ length: count }, (_, index) => `(subpath (param "W${index}"))`).join(" ")} (literal "/dev/null") (literal "/dev/tty") (regex #"^/dev/(fd|ttys)"))`,
   ].join("\n");

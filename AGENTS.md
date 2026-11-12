@@ -47,9 +47,9 @@ When adding a handoff, keep only the three newest current handoffs linked below;
 
 Latest handoffs:
 
+- To resume the CHG-0208 review follow-up (sandbox and structural actions: refactors and the Seatbelt signal rule done, P1 application launch and P2 to P11 open, P8 and P9 waiting for owner decisions), read the [current handoff](.agents/handoffs/2026-11-12-1405-sandbox-review-follow-up.md). Handoffs are shared and committed.
+
 - To resume the sidebar icons (the owner's flat matte set built, checked, reviewed, and committed in CHG-0207; the owner's look in the running app and the main-row icon size remain), read the [current handoff](.agents/handoffs/2026-11-12-1402-sidebar-flat-icons-reviewed.md). Handoffs are shared and committed.
 
 - To resume device pairing (relay, secure channel, service and screens built and checked; the relay not deployed yet; folder picker and terminal on a host, the direct path and the deployment remain), read the [current handoff](.agents/handoffs/2026-11-12-0940-device-pairing.md). Handoffs are shared and committed.
-
-- To resume the Reserves usage page (built and checked, with gaps against its specification) and the rail's plan-limit rings (Codex, Claude Code, and OpenCode Go limits; owner look pending in the running app), read the [current handoff](.agents/handoffs/2026-11-12-0916-opencode-go-plan-limits.md). Handoffs are shared and committed.
 

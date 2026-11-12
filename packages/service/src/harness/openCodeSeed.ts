@@ -34,7 +34,7 @@ export interface SeedRun {
   readonly sandbox: OpenCodeSandbox;
 }
 
-interface Ran {
+interface CommandResult {
   readonly code: number | null;
   readonly stderr: string;
   readonly stdout: string;
@@ -49,7 +49,7 @@ const runOnce = (
   input = "",
   timeoutMillis = 30_000,
 ) =>
-  new Promise<Ran>((resolve) => {
+  new Promise<CommandResult>((resolve) => {
     const child = spawn(command, [...args], { cwd, detached: true, env, stdio: ["pipe", "pipe", "pipe"] });
     let stdout = "";
     let stderr = "";
@@ -75,14 +75,14 @@ const runOnce = (
   });
 
 /** One sign-in as `opencode auth export` prints it; only its id and integration are read, and whether it changed. */
-interface Exported {
+interface ExportedSignIn {
   readonly id: string;
   readonly integrationID: string;
   /** The whole entry as printed, compared with the copy's to find a changed sign-in. */
   readonly text: string;
 }
 
-const exportedOf = (stdout: string, where: string): Array<Exported> => {
+const exportedOf = (stdout: string, where: string): Array<ExportedSignIn> => {
   let entries: unknown;
   try {
     entries = JSON.parse(stdout);
@@ -99,7 +99,7 @@ const exportedOf = (stdout: string, where: string): Array<Exported> => {
 };
 
 /** What a failed command said, for the owner: its error output, never its standard output, which holds secrets. */
-const failureOf = (step: string, ran: Ran) =>
+const failureOf = (step: string, ran: CommandResult) =>
   new Error(`OpenCode could not ${step}: ${ran.stderr.trim() || `exit code ${ran.code ?? "none"}`}`);
 
 /** The wrapped form of a command for the account's copy, and the environment it runs with. */

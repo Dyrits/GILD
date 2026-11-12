@@ -2,7 +2,7 @@ import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
 import { Exit, Schema } from "effect";
-import type { ThreadAccess } from "../core/index.ts";
+import { fieldOf, type ThreadAccess, textFieldOf } from "../core/index.ts";
 import { approvalInstructionsOf } from "./instructions.ts";
 import { approvalToolName, promptToolName, toolServerName } from "./toolNames.ts";
 
@@ -169,11 +169,13 @@ export const isSandboxedOf = (access: ThreadAccess, options: AccessOptions) =>
  * name `SandboxNetworkAccess` with one plain host name in `input.host` counts; anything else is never answered here.
  */
 export const networkHostOf = (request: unknown): string | null => {
-  if (typeof request !== "object" || request === null) return null;
-  const { input, subtype, tool_name: toolName } = request as Record<string, unknown>;
-  if (subtype !== "can_use_tool" || toolName !== "SandboxNetworkAccess") return null;
-  const host = typeof input === "object" && input !== null ? (input as Record<string, unknown>).host : undefined;
-  return typeof host === "string" && /^[A-Za-z0-9.-]+(:\d{1,5})?$/.test(host) ? host : null;
+  if (
+    textFieldOf(request, "subtype") !== "can_use_tool" ||
+    textFieldOf(request, "tool_name") !== "SandboxNetworkAccess"
+  )
+    return null;
+  const host = textFieldOf(fieldOf(request, "input"), "host");
+  return host !== null && /^[A-Za-z0-9.-]+(:\d{1,5})?$/.test(host) ? host : null;
 };
 
 /** The arguments that depend on the thread's access: its endpoint, instructions, and approval level. */
