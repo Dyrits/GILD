@@ -15,6 +15,8 @@ const requests = {
   RemoveHost: { hostId: "h" },
   RenameHost: { name: "Studio" },
   SetRemoteAccess: { isEnabled: false },
+  UseOwnRelay: { token: "a-token" },
+  UseSharedRelay: {},
 } as const;
 
 const frameFor = (tag: keyof typeof requests) => JSON.stringify({ id: "1", request: { _tag: tag, ...requests[tag] } });

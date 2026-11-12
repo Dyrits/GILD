@@ -1,6 +1,14 @@
 import type { PairedDevice } from "@iskios/contracts";
 import { describe, expect, it } from "vitest";
-import { agoOf, codeLifeOf, deviceLineOf, relayStatusTextOf } from "../../src/settings/remoteAccess";
+import {
+  agoOf,
+  cloudflareTokensUrl,
+  codeLifeOf,
+  deviceLineOf,
+  ownRelayNoticeOf,
+  relayLineOf,
+  relayStatusTextOf,
+} from "../../src/settings/remoteAccess";
 
 const device = (change: Partial<PairedDevice>) =>
   ({
@@ -40,5 +48,33 @@ describe("Charter's remote access wording", () => {
     expect(codeLifeOf(10 * 60_000, 0)).toBe("Works once and expires in 10 min.");
     expect(codeLifeOf(60_000, 1_000)).toBe("Works once and expires in 1 min.");
     expect(codeLifeOf(60_000, 60_000)).toContain("expired");
+  });
+});
+
+describe("Charter's relay wording", () => {
+  it("names the shared relay by default, and the owner's own address once chosen", () => {
+    expect(relayLineOf({ isOwnRelay: false, relayOrigin: "https://iskios-relay.dyrits.workers.dev" })).toMatch(
+      /^Shared relay/,
+    );
+    expect(relayLineOf({ isOwnRelay: true, relayOrigin: "https://iskios-relay.me.workers.dev" })).toBe(
+      "Your own relay, on your Cloudflare account: iskios-relay.me.workers.dev",
+    );
+  });
+
+  it("falls back to the whole address when it cannot be read as one", () => {
+    expect(relayLineOf({ isOwnRelay: true, relayOrigin: "not a url" })).toContain("not a url");
+  });
+
+  it("tells what the deployment does and keeps, and how many paired devices will have to pair again", () => {
+    const none = ownRelayNoticeOf(0);
+    expect(none).toContain("once");
+    expect(none).toContain("does not keep it");
+    expect(none).not.toContain("pair again");
+    expect(ownRelayNoticeOf(1)).toContain("1 paired device will have to pair again");
+    expect(ownRelayNoticeOf(3)).toContain("3 paired devices will have to pair again");
+  });
+
+  it("sends the owner to Cloudflare's own token page", () => {
+    expect(cloudflareTokensUrl).toBe("https://dash.cloudflare.com/profile/api-tokens");
   });
 });

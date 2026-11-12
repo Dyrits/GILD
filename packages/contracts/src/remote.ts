@@ -41,11 +41,15 @@ export type PairedDevice = typeof PairedDevice.Type;
 export const RelayStatus = Schema.Literals(["Off", "Connecting", "Connected", "Unreachable"]);
 export type RelayStatus = typeof RelayStatus.Type;
 
-/** Charter's remote access section: the switch, the host's name, the relay, and the paired devices. */
+/**
+ * Charter's remote access section: the switch, the host's name, the relay (the shared one, or the owner's own on their
+ * Cloudflare account), and the paired devices.
+ */
 export const RemoteAccessView = Schema.Struct({
   devices: Schema.Array(PairedDevice),
   hostName: Schema.String,
   isEnabled: Schema.Boolean,
+  isOwnRelay: Schema.Boolean,
   relayOrigin: Schema.String,
   status: RelayStatus,
 });
@@ -74,6 +78,13 @@ export const SetRemoteAccess = Schema.TaggedStruct("SetRemoteAccess", { isEnable
 export const CreatePairingCode = Schema.TaggedStruct("CreatePairingCode", {});
 /** Ends a device's connection at once and forgets its pairing. */
 export const DisconnectDevice = Schema.TaggedStruct("DisconnectDevice", { deviceId: DeviceId });
+/**
+ * Deploys the relay to the Cloudflare account `token` reaches and uses it in place of the shared relay. The token is
+ * used for this deployment only and is never kept; devices paired through the old relay cannot reach the new one.
+ */
+export const UseOwnRelay = Schema.TaggedStruct("UseOwnRelay", { token: Schema.String });
+/** Goes back to the shared relay; the owner's relay on Cloudflare is left in place. */
+export const UseSharedRelay = Schema.TaggedStruct("UseSharedRelay", {});
 /** Lists the hosts this installation is paired with. */
 export const ListHosts = Schema.TaggedStruct("ListHosts", {});
 /** Pairs this installation with the host that made `code`, naming this installation `deviceName` there. */
@@ -97,4 +108,6 @@ export const hostOnlyRequestTags = [
   "ReadRemoteAccess",
   "RemoveHost",
   "SetRemoteAccess",
+  "UseOwnRelay",
+  "UseSharedRelay",
 ] as const satisfies ReadonlyArray<import("./requests.ts").RequestTag>;

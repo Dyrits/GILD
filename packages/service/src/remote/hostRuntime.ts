@@ -60,13 +60,16 @@ export const remoteHostLayer = Layer.effectDiscard(
       });
     const stopListening = state.onPoke(() => wake?.());
 
-    /** Holds one connection to the relay until it ends; the code it ended with. */
-    const hold = (connection: HostConnection, record: HostRecord) =>
+    /** Holds one connection to `relayOrigin` until it ends; the code it ended with. */
+    const hold = (connection: HostConnection, record: HostRecord, relayOrigin: string) =>
       new Promise<number>((resolve) => {
         const stopWatching = state.onPoke(() => {
-          void run(readHostRecord)
-            .then((now) => {
-              if (!isOff(now)) return;
+          void run(
+            Effect.flatMap(readHostRecord, (now) => Effect.map(relayOriginOf(now), (origin) => ({ now, origin }))),
+          )
+            .then(({ now, origin }) => {
+              // Switched off, or moved to another relay: this connection has nothing more to serve.
+              if (!isOff(now) && origin === relayOrigin) return;
               state.closeAll();
               connection.close();
             })
@@ -120,7 +123,7 @@ export const remoteHostLayer = Layer.effectDiscard(
             current = null;
             continue;
           }
-          const code = await hold(connection, record);
+          const code = await hold(connection, record, relayOrigin);
           current = null;
           if (isStopped) break;
           // Claimed by another host: wait longer than for a dropped connection. Switched off: say so at once.

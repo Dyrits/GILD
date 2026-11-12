@@ -14,11 +14,11 @@ Consequences:
 - The owner's account is a single point of failure and the owner answers for what it relays; creating a room needs a one-time pairing secret and a rate limit, so the relay cannot be used as free storage or a free proxy.
 - The relay's URL is part of every pairing code, so a later change of address or account needs a new pairing, unless an installation can be told the new address.
 - The channel between a host and a paired device is built independent of its carrier (Noise NK over any message carrier), so a direct WebRTC data channel negotiated through the relay can carry it later and leave the relay with the introductions and the fallback; the lab of 2026-11-12 found this works over IPv6 and across a carrier's NAT, and fails on some networks ([verification](../verification/2026-11-12-relay-and-direct-path-lab.md), CHG-0203).
-- A user may later deploy the same Worker to their own account through Cloudflare's temporary-account claim, for their own capacity; that needs a one-time free Cloudflare sign-up and is deferred ([backlog](../backlog.md)).
+- A user may deploy the same Worker to their own Cloudflare account with one API token, for their own capacity, and use it in place of the shared relay (CHG-0212, amended 2026-11-12); it is optional and the shared relay stays the default. The token is used once and never kept.
 
 ## Considered Options
 
 - **Void's hosting (`void deploy`)**: rejected. Its documentation says a direct deploy signs in to a Cloudflare account, and a hosted platform that needs none is not documented (read 2026-11-12); its WebSocket routes carry JSON messages only, and the relay is a plain Worker with a Durable Object either way.
-- **A relay in each user's own account, deployed with the temporary-account claim**: kept as the later option above, not the default, because the user must still sign up for a free Cloudflare account within 60 minutes of the claim, and the claim gives the app no permanent access to update it.
+- **A relay in each user's own account, deployed with the temporary-account claim**: replaced on 2026-11-12 by the optional deployment with an API token above, because the claim needs a sign-up within 60 minutes and gives the app no way to update the relay afterwards, where a token the user makes lets the app deploy and later update it at once.
 - **iroh's public relays and hole punching**: rejected for now; n0 describes its public relays as for development and hobby use, with unpublished rate limits, and the library is native code.
 - **A direct connection, Tailscale, or WebRTC with a TURN server**: as in 0003.

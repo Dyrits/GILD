@@ -49,13 +49,16 @@ import {
   forgetDevice,
   hostNameOf,
   readHostRecord,
+  relayOriginOf,
   remoteAccessView,
   renameHost,
+  setRelayOrigin,
   setRemoteAccess,
 } from "./remote/hostAccess.ts";
-import { applyRemoteAccess, createPairingCode } from "./remote/hostActions.ts";
+import { applyRelayChange, applyRemoteAccess, createPairingCode, deployOwnRelay } from "./remote/hostActions.ts";
 import { remoteHostLayer } from "./remote/hostRuntime.ts";
 import { forgetHost, listKnownHosts } from "./remote/knownHosts.ts";
+import { cloudflareApiFor, type DeployResult, deployRelayToCloudflare } from "./remote/ownRelay.ts";
 import { RemoteState, remoteStateLayer } from "./remote/state.ts";
 import { Service } from "./serviceTag.ts";
 import { addCredit, readAccountBudgets, setAccountBudget } from "./work/accountBudgets.ts";
@@ -194,6 +197,20 @@ const make = Effect.gen(function* () {
   /** Runs device-pairing storage work, which also needs to know the computer's name and the default relay. */
   const withRemote = <A, E>(work: Effect.Effect<A, E, SqlClient.SqlClient | RemoteConfig>) =>
     Effect.provideService(work, RemoteConfig, remoteConfig);
+  /** The relay this host uses now, by address. */
+  const relayInUse = withRemote(Effect.flatMap(readHostRecord, relayOriginOf));
+  /**
+   * Uses the relay at `origin` (the shared one when null). When the address changes, devices are disconnected and the
+   * host reconnects through the new relay; the same address means a relay updated where it stands, which changes nothing.
+   */
+  const switchRelay = (origin: string | null) =>
+    Effect.gen(function* () {
+      const before = yield* relayInUse;
+      yield* change(setRelayOrigin(origin));
+      if ((yield* relayInUse) === before) return;
+      const record = yield* withRemote(readHostRecord);
+      yield* applyRelayChange(record?.isEnabled ?? false, remote);
+    });
   /** Charter's remote access section as it stands. */
   const remoteView = Effect.flatMap(remote.status, (status) =>
     withRemote(remoteAccessView(status, remote.connectedDevices())),
@@ -607,6 +624,13 @@ const make = Effect.gen(function* () {
               Effect.tap(() => commands.run(applyGlobalBudget(before))),
             );
           }),
+        // The deployment takes seconds and is not a command: only its result, the new address, is stored.
+        UseOwnRelay: (given) =>
+          withRemote(deployOwnRelay(given.token)).pipe(
+            Effect.flatMap((deployed) => switchRelay(deployed.origin)),
+            Effect.andThen(remoteView),
+          ),
+        UseSharedRelay: () => switchRelay(null).pipe(Effect.andThen(remoteView)),
         VisitGuildHall: () => commands.run(visitGuildHall),
         WidenPermission: (widen) => change(widenPermission(widen.permissionId)),
       },
@@ -628,12 +652,16 @@ export interface ServiceOptions {
   readonly attachmentsRoot?: string;
   /** The computer's name, offered as the host's name until the owner chooses one; the machine's own when left out. */
   readonly computerName?: string;
+  /** Deploys the relay to the Cloudflare account a token reaches (device-pairing, own relay); the real deployment when left out. */
+  readonly deployOwnRelay?: (token: string) => Promise<DeployResult>;
   readonly filename: string;
   readonly harness: Layer.Layer<Harness>;
   /** The harnesses' own tools for sign-ins and models; every harness signed in, for checks, when left out. */
   readonly harnessTools?: Layer.Layer<HarnessTools>;
   /** The owner's home folder, the first browsable root (workspace-attachment). */
   readonly homeFolder: string;
+  /** The Worker's name on the owner's Cloudflare account; "iskios-relay" when left out. */
+  readonly ownRelayWorkerName?: string;
   /** Where the model price table is read from; none, so the snapshot alone, when left out (decision record 0014). */
   readonly priceSource?: Layer.Layer<PriceSource>;
   /** The relay a new pairing code names; the shared relay of decision record 0016 when left out. */
@@ -673,6 +701,14 @@ export const serviceLayer = (options: ServiceOptions) => {
       Layer.mergeAll(
         Layer.succeed(RemoteConfig, {
           computerName: options.computerName ?? computerNameOf(),
+          deployOwnRelay:
+            options.deployOwnRelay ??
+            ((token) =>
+              deployRelayToCloudflare({
+                api: cloudflareApiFor(token),
+                token,
+                ...(options.ownRelayWorkerName === undefined ? {} : { workerName: options.ownRelayWorkerName }),
+              })),
           relayOrigin: options.relayOrigin ?? defaultRelayOrigin,
         }),
         remoteStateLayer,

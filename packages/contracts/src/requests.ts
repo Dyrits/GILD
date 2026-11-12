@@ -56,6 +56,8 @@ import {
   RemoveHost,
   RenameHost,
   SetRemoteAccess,
+  UseOwnRelay,
+  UseSharedRelay,
 } from "./remote.ts";
 import {
   CreateRitual,
@@ -558,6 +560,8 @@ export const Request = Schema.Union([
   InstallHarness,
   ReadRemoteAccess,
   SetRemoteAccess,
+  UseOwnRelay,
+  UseSharedRelay,
   CreatePairingCode,
   DisconnectDevice,
   RenameHost,
@@ -676,6 +680,8 @@ export const Results = {
   UpdateHarness: HarnessList,
   UpdateRitual: Schema.Null,
   UpdateSettings: Settings,
+  UseOwnRelay: RemoteAccessView,
+  UseSharedRelay: RemoteAccessView,
   VisitGuildHall: Schema.Null,
   WidenPermission: Schema.Null,
 } as const;

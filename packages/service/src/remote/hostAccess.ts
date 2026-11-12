@@ -118,6 +118,14 @@ export const relayOriginOf = (record: HostRecord | null) =>
     return record?.relayOrigin ?? config.relayOrigin;
   });
 
+/** Uses the relay at `origin`, or the shared relay when it is null; the host record is made first if it never was. */
+export const setRelayOrigin = (origin: string | null) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* ensureHostRecord;
+    yield* sql`UPDATE host_identity SET relay_origin = ${origin} WHERE id = 1`;
+  });
+
 /** Makes a pairing code's secret, remembering only its hash, and returns the secret with its expiry. */
 export const makePairingSecret = (now: number) =>
   Effect.gen(function* () {
@@ -215,6 +223,7 @@ export const remoteAccessView = (status: RemoteAccessView["status"], connected: 
       devices: yield* listDevices(connected),
       hostName: yield* hostNameOf(record),
       isEnabled: record?.isEnabled ?? false,
+      isOwnRelay: record?.relayOrigin != null,
       relayOrigin: yield* relayOriginOf(record),
       status,
     } satisfies RemoteAccessView;

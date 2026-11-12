@@ -6,6 +6,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
+    "bundle": "bun scripts/bundleWorker.ts",
     "typecheck": "tsc -p . && tsc -p tsconfig.worker.json"
   },
   "dependencies": {

@@ -1,5 +1,6 @@
 import { hostname } from "node:os";
 import { Context } from "effect";
+import type { DeployResult } from "./ownRelay.ts";
 
 /**
  * The shared relay on the owner's free Cloudflare account (decision record 0016). One place names it, so the address
@@ -11,6 +12,8 @@ export const defaultRelayOrigin = "https://iskios-relay.dyrits.workers.dev";
 export interface RemoteSettings {
   /** The computer's own name, offered as the host's name until the owner chooses one. */
   readonly computerName: string;
+  /** Deploys the relay to the Cloudflare account a token reaches; never rejects, and never keeps the token. */
+  readonly deployOwnRelay: (token: string) => Promise<DeployResult>;
   /** The relay a new pairing code names, unless the owner's host record names another. */
   readonly relayOrigin: string;
 }

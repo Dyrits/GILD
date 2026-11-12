@@ -13,6 +13,8 @@ describe("the requests only a host may answer", () => {
       "ReadRemoteAccess",
       "RemoveHost",
       "SetRemoteAccess",
+      "UseOwnRelay",
+      "UseSharedRelay",
     ]);
   });
 

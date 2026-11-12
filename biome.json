@@ -25,6 +25,7 @@
       "!**/dist",
       "!**/.expo",
       "!**/*.md",
+      "!**/*.generated.ts",
       "!documentation/art-direction",
       "!**/.agents/skills/security-audit"
     ]

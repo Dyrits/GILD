@@ -27,6 +27,8 @@ const liveLayer = Layer.unwrap(
     };
     // ISKIOS_RELAY_ORIGIN points pairing at another relay, such as one run locally for checks (device-pairing).
     const relayOrigin = yield* Config.String("ISKIOS_RELAY_ORIGIN").pipe(Config.withDefault(defaultRelayOrigin));
+    // The Worker's name on the owner's own Cloudflare account, for a check that must not touch a Worker already there.
+    const ownRelayWorkerName = yield* Config.String("ISKIOS_OWN_RELAY_NAME").pipe(Config.withDefault(""));
     const problem = yield* sandboxProblem;
     const idleTimeout = "10 minutes";
     // Every thread's harness has its own adapter; turns go to the one their thread runs on (provider-accounts).
@@ -42,6 +44,7 @@ const liveLayer = Layer.unwrap(
         harnessTools: harnessName === "fake" ? fakeHarnessToolsLayer() : liveHarnessToolsLayer(commands),
         homeFolder: homedir(),
         priceSource: harnessName === "fake" ? noPriceSourceLayer : modelsDevSourceLayer(),
+        ...(ownRelayWorkerName === "" ? {} : { ownRelayWorkerName }),
         relayOrigin,
         scratchRoot: join(dataDirectory, "missions"),
       }),
