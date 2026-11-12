@@ -20,7 +20,7 @@ export const costSum = `CASE WHEN ${isApiKey} THEN COALESCE(u.cost, u.estimate, 
 export const spendingColumns = `COALESCE(SUM(${costSum}), 0) AS cost, COALESCE(SUM(${tokenSum}), 0) AS tokens`;
 
 /** Whether usage row `u` carries a cost its harness reported on an API-key turn, which is shown as reported. */
-const isReported = `(${isApiKey} AND u.cost IS NOT NULL)`;
+export const isReportedColumn = `(${isApiKey} AND u.cost IS NOT NULL)`;
 
 /**
  * The columns of what usage rows `u` used, shown rather than counted (budget-control, Estimated cost): `reported`
@@ -30,10 +30,16 @@ const isReported = `(${isApiKey} AND u.cost IS NOT NULL)`;
 export const consumptionColumns = `COUNT(u.turn_id) AS turns,
   COALESCE(SUM(u.input), 0) AS input, COALESCE(SUM(u.output), 0) AS output,
   COALESCE(SUM(u.cache_read), 0) AS cacheRead, COALESCE(SUM(u.cache_creation), 0) AS cacheCreation,
-  COALESCE(SUM(CASE WHEN ${isReported} THEN u.cost ELSE 0 END), 0) AS reported,
-  COALESCE(SUM(CASE WHEN ${isReported} THEN 0 ELSE COALESCE(u.estimate, 0) END), 0) AS estimated,
-  COALESCE(SUM(CASE WHEN u.billing IS NOT NULL AND NOT ${isReported} AND u.estimate IS NULL THEN 1 ELSE 0 END), 0) AS unpricedTurns,
-  COALESCE(SUM(CASE WHEN u.turn_id IS NOT NULL AND u.billing IS NULL AND NOT ${isReported} THEN 1 ELSE 0 END), 0) AS earlierTurns`;
+  COALESCE(SUM(CASE WHEN ${isReportedColumn} THEN u.cost ELSE 0 END), 0) AS reported,
+  COALESCE(SUM(CASE WHEN ${isReportedColumn} THEN 0 ELSE COALESCE(u.estimate, 0) END), 0) AS estimated,
+  COALESCE(SUM(CASE WHEN u.billing IS NOT NULL AND NOT ${isReportedColumn} AND u.estimate IS NULL THEN 1 ELSE 0 END), 0) AS unpricedTurns,
+  COALESCE(SUM(CASE WHEN u.turn_id IS NOT NULL AND u.billing IS NULL AND NOT ${isReportedColumn} THEN 1 ELSE 0 END), 0) AS earlierTurns`;
+
+/** The cost of usage row `u` when it has a price (the harness's reported cost on an API-key turn, else its estimate), else NULL. */
+export const knownCostColumn = `CASE WHEN ${isReportedColumn} THEN u.cost ELSE u.estimate END`;
+
+/** The turns of usage rows `u` that have a price, to tell a known zero from no price at all. */
+export const pricedTurnsColumn = `COALESCE(SUM(CASE WHEN ${knownCostColumn} IS NOT NULL THEN 1 ELSE 0 END), 0) AS pricedTurns`;
 
 /** A budget with neither limit. */
 const noLimits: BudgetLimits = { cost: null, tokens: null };

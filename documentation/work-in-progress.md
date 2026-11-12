@@ -790,3 +790,8 @@ The shared handoff is `.agents/handoffs/2026-11-10-1538-conversation-terminal.md
 ## Charter harness installation · 2026-11-11 · built and checked, owner look pending
 
 The owner requested Install beside missing harnesses. Charter now offers it, shows Installing… during work, refreshes status/accounts afterward, and reports failures for retry. Installation uses the computer's npm and the official package's latest release; Node.js/npm and a writable global prefix on PATH are prerequisites. Existing Update remains. Full suite: 739 passed, 10 skipped; typecheck, Biome, and Expo web export pass. Driven in Aside against fake installations; real installs and Windows/Linux runs remain unverified. [Proof and screenshots](verification/2026-11-11-harness-install.md). The harness work is recorded in the [current handoff](../.agents/handoffs/2026-11-11-1200-harness-installation.md); the pre-existing rebrand/sidebar work is separate.
+
+## Reserves usage page and plan-limit rings · 2026-11-12 · built and checked, owner look pending
+
+The owner asked for the next feature, the Reserves usage page (CHG-0199), then for the rail's plan limits to be graphic: concentric rings per provider in a row, with a hover card of what is left and the time to each reset; Claude Code's limits are now read from its `rate_limit_event` (CHG-0198). Both are committed with their checks; neither was seen in the running app. The usage page has gaps against its specification, listed in CHG-0199 and in the [handoff](../.agents/handoffs/2026-11-12-0726-reserves-usage-and-plan-rings.md).
+

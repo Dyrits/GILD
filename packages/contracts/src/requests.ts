@@ -54,6 +54,7 @@ import {
   UpdateRitual,
 } from "./rituals.ts";
 import { Skill } from "./skills.ts";
+import { UsageFilter, UsagePeriod, UsageReport } from "./usage.ts";
 import { WorkspaceEntry } from "./workspaceEntries.ts";
 import { Folder, FolderListing } from "./workspaces.ts";
 
@@ -329,6 +330,14 @@ export const SetRealmCrest = Schema.TaggedStruct("SetRealmCrest", {
 });
 /** Reads a mission's budget window, or the global one with null. */
 export const ReadBudget = Schema.TaggedStruct("ReadBudget", { missionId: Schema.NullOr(MissionId) });
+/**
+ * Reads the usage page: what turns used over a period of local days, narrowed to the rows selected in the breakdowns
+ * (budget-control, Reserves usage page). Several filters of different dimensions all apply.
+ */
+export const ReadUsage = Schema.TaggedStruct("ReadUsage", {
+  filters: Schema.Array(UsageFilter),
+  period: UsagePeriod,
+});
 /** The owner answers Stop (or Stop all) to a reached budget: its threads stay stopped. */
 export const StopAtBudget = Schema.TaggedStruct("StopAtBudget", { stopId: BudgetStopId });
 /** The owner's choice for an off-topic request (thread-tree, Off-topic requests). */
@@ -498,6 +507,7 @@ export const Request = Schema.Union([
   RenameRealm,
   CreateRealm,
   ReadBudget,
+  ReadUsage,
   StopAtBudget,
   ListOpenQuestions,
   StopThread,
@@ -603,6 +613,7 @@ export const Results = {
   ReadSettings: Settings,
   ReadStartChoices: StartChoices,
   ReadThreadPanel: ThreadPanel,
+  ReadUsage: UsageReport,
   RefreshPrices: PriceStatus,
   RemoveAccount: HarnessList,
   RemovePermission: Schema.Null,

@@ -1,11 +1,15 @@
+import { tmpdir } from "node:os";
 import type { BillingKind, TokenUsage } from "@iskios/contracts";
 import { type Duration, Effect, Layer, Queue } from "effect";
 import {
   fieldOf,
   Harness,
+  type HarnessAdapter,
   HarnessFailure,
   type ImageAttachment,
   numberFieldOf,
+  type PlanLimitReport,
+  type PlanLimitsReport,
   readImages,
   textFieldOf,
   turnMessageOf,
@@ -13,7 +17,12 @@ import {
 import { type AccessOptions, accessArgsOf, baseArgsOf, noTimeLimit } from "./claudeArgs.ts";
 import { accountEnvironmentOf } from "./harnessCatalog.ts";
 import { type HarnessConnection, type HarnessProtocol, makeHarnessProcesses } from "./harnessProcesses.ts";
-import { harnessEnvironmentOf, type StreamJsonProcess, startStreamJsonProcess } from "./lineProcess.ts";
+import {
+  harnessEnvironmentOf,
+  runHarnessCommand,
+  type StreamJsonProcess,
+  startStreamJsonProcess,
+} from "./lineProcess.ts";
 
 // Claude Code through `claude -p` in stream-json mode (ADR 0008; CHG-0027): one process per thread.
 
@@ -49,6 +58,35 @@ const reportedModelOf = (message: unknown): string | null => {
 const billingOf = (event: unknown, previous: BillingKind): BillingKind => {
   const source = textFieldOf(event, "apiKeySource");
   return source === null ? previous : source === "none" ? "Subscription" : "ApiKey";
+};
+
+/** The plan windows Claude Code reports in a `rate_limit_event`, by name, with their length in minutes. */
+const planWindowMinutes = { five_hour: 300, seven_day: 10_080 } as const;
+
+/**
+ * The plan limits a `rate_limit_event` carries (probe of 2026-11-12, Claude Code 2.1.322): `unifiedWindows` holds the
+ * 5-hour and weekly windows, each with `utilization` (0 to 1) and `resetsAt` (seconds). Null when the event has none.
+ */
+export const planLimitsOf = (event: unknown, billing: BillingKind): PlanLimitsReport | null => {
+  const windows = fieldOf(fieldOf(event, "rate_limit_info"), "unifiedWindows");
+  if (typeof windows !== "object" || windows === null) return null;
+  const reported = (Object.keys(planWindowMinutes) as Array<keyof typeof planWindowMinutes>).flatMap(
+    (name): Array<PlanLimitReport> => {
+      const window = fieldOf(windows, name);
+      const utilization = fieldOf(window, "utilization");
+      const resetsAt = fieldOf(window, "resetsAt");
+      return typeof utilization === "number" && typeof resetsAt === "number"
+        ? [
+            {
+              resetsAtSeconds: resetsAt,
+              usedPercent: Math.round(utilization * 1000) / 10,
+              windowMinutes: planWindowMinutes[name],
+            },
+          ]
+        : [];
+    },
+  );
+  return reported.length === 0 ? null : { billing, windows: reported };
 };
 
 /** The turn's own cost from the result's running total; a total that fell means a fresh count. */
@@ -112,7 +150,10 @@ const failureReasonOf = (event: unknown, reportedError: string | null) => {
 };
 
 /** Claude Code's protocol: a user message per turn, read until its result. */
-const claudeProtocolOf = (options: ClaudeOptions): HarnessProtocol<ClaudeConnection> => ({
+const claudeProtocolOf = (
+  options: ClaudeOptions,
+  reports: Map<string, PlanLimitsReport>,
+): HarnessProtocol<ClaudeConnection> => ({
   interrupt: (connection) =>
     Effect.sync(() => {
       connection.process.write({
@@ -149,6 +190,10 @@ const claudeProtocolOf = (options: ClaudeOptions): HarnessProtocol<ClaudeConnect
         const type = textFieldOf(event, "type");
         if (type === "system" && textFieldOf(event, "subtype") === "init") {
           connection.billing = billingOf(event, connection.billing);
+        } else if (type === "rate_limit_event") {
+          // Kept for the plan's limits, which then cost no read of their own.
+          const report = planLimitsOf(event, connection.billing);
+          if (report !== null) reports.set(request.configDirectory ?? "", report);
         } else if (type === "user") {
           // Only steered messages are tracked; the turn's own message and tool results are not.
           const uuid = textFieldOf(event, "uuid");
@@ -231,8 +276,80 @@ const claudeProtocolOf = (options: ClaudeOptions): HarnessProtocol<ClaudeConnect
     ),
 });
 
-/** The Claude Code adapter, whose processes close with the scope that made it. */
-export const makeClaudeHarness = (options: ClaudeOptions) => makeHarnessProcesses(claudeProtocolOf(options), options);
+/** The arguments of the smallest turn that makes Claude Code report the plan's limits: one word to its cheapest model. */
+const probeArgs = [
+  "-p",
+  "ok",
+  "--output-format",
+  "stream-json",
+  "--verbose",
+  "--max-turns",
+  "1",
+  "--model",
+  "haiku",
+  "--tools",
+  "",
+  "--no-session-persistence",
+  "--setting-sources",
+  "",
+  "--disable-slash-commands",
+  "--strict-mcp-config",
+];
+
+/**
+ * Asks Claude Code for an account's plan limits with one minimal turn, in an empty folder: the stream's
+ * `rate_limit_event` answers. Null when it reports none. No token or credential is read here.
+ */
+const probeClaudePlanLimits = (options: ClaudeOptions, configDirectory: string | null) =>
+  Effect.gen(function* () {
+    const run = yield* runHarnessCommand(
+      options.command,
+      [...(options.prefixArgs ?? []), ...probeArgs],
+      accountEnvironmentOf("claude", configDirectory),
+      60_000,
+      tmpdir(),
+    );
+    let billing: BillingKind = "Unknown";
+    let report: PlanLimitsReport | null = null;
+    for (const line of run.stdout.split("\n")) {
+      let event: unknown;
+      try {
+        event = JSON.parse(line);
+      } catch {
+        continue;
+      }
+      if (textFieldOf(event, "type") === "system" && textFieldOf(event, "subtype") === "init")
+        billing = billingOf(event, billing);
+      else if (textFieldOf(event, "type") === "rate_limit_event") report = planLimitsOf(event, billing) ?? report;
+    }
+    if (report === null && run.code !== 0)
+      return yield* new HarnessFailure({ reason: "Claude Code gave no plan limits." });
+    return billing === "ApiKey" ? ({ billing, windows: [] } satisfies PlanLimitsReport) : report;
+  });
+
+/**
+ * The Claude Code adapter, whose processes close with the scope that made it. Its plan limits come from the
+ * `rate_limit_event` of the account's latest turn; an account with none yet is probed once per run.
+ */
+export const makeClaudeHarness = (options: ClaudeOptions) =>
+  Effect.gen(function* () {
+    const reports = new Map<string, PlanLimitsReport>();
+    const probed = new Set<string>();
+    const adapter = yield* makeHarnessProcesses(claudeProtocolOf(options, reports), options);
+    const readPlanLimits = (_harness: unknown, configDirectory: string | null) => {
+      const key = configDirectory ?? "";
+      const known = reports.get(key);
+      if (known !== undefined) return Effect.succeed<PlanLimitsReport | null>(known);
+      if (probed.has(key)) return Effect.succeed<PlanLimitsReport | null>(null);
+      probed.add(key);
+      return probeClaudePlanLimits(options, configDirectory).pipe(
+        Effect.tap((report) => Effect.sync(() => report !== null && reports.set(key, report))),
+        // A failed probe is tried again after the caller's wait.
+        Effect.tapError(() => Effect.sync(() => probed.delete(key))),
+      );
+    };
+    return { ...adapter, readPlanLimits } satisfies HarnessAdapter;
+  });
 
 /** Runs each thread in one long-lived `claude -p` stream-json process (CHG-0027). */
 export const claudeHarnessLayer = (options: ClaudeOptions) => Layer.effect(Harness, makeClaudeHarness(options));

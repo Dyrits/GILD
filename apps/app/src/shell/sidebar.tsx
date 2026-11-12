@@ -4,11 +4,10 @@ import { Platform, Pressable, ScrollView, StyleSheet, Text, View } from "react-n
 import Svg, { Circle, Path } from "react-native-svg";
 import { CrestBadge } from "../crest/crest";
 import { ReserveRows } from "../editors/budgets";
-import { PlanLimitLines } from "../editors/planLimitLines";
+import { PlanLimitRings } from "../editors/planLimitRings";
 import { messageOf, newRequestId, type ServiceClient } from "../foundation/client";
 import { emblemPaths } from "../foundation/emblems";
 import { isKeyboardFocus } from "../foundation/inputModality";
-import { usedTextOf } from "../foundation/labels";
 import { allMissions } from "../foundation/queries";
 import { colors, fontSizes, fonts, radii, stateTones } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
@@ -938,15 +937,15 @@ function ArchiveCount({ client, isShown }: { client: ServiceClient; isShown: boo
   return <Count isShown={isShown} value={data?.missions.length ?? 0} />;
 }
 
-/** The compact usage summary under Reserves: the global budget's meters, or what is used, and the plans' limits. */
+/** The compact usage summary under Reserves: the global budget's meters, when it has limits, and the plans' limits. */
 function Spending({ client }: { client: ServiceClient }) {
   const { data: global } = useServiceQuery(client, { _tag: "ReadBudget", missionId: null }, "budget:global");
   if (global === null) return null;
   const hasLimits = global.limits.cost !== null || global.limits.tokens !== null;
   return (
     <View style={local.spending}>
-      {hasLimits ? <ReserveRows use={global} /> : <Text style={local.empty}>{usedTextOf(global.consumption)}</Text>}
-      <PlanLimitLines client={client} />
+      {hasLimits && <ReserveRows use={global} />}
+      <PlanLimitRings client={client} />
     </View>
   );
 }

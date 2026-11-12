@@ -93,6 +93,7 @@ import { readThreadPanel } from "./work/threadPanel.ts";
 import { AccountsRoot, Threads, threadsLayer } from "./work/threads.ts";
 import { nameNewQuest, newQuestTitle, renameMission } from "./work/titles.ts";
 import { openThreadByOwner } from "./work/tree.ts";
+import { readUsage } from "./work/usageReport.ts";
 import { imageRefusalOf, readThreadRunner } from "./work/vision.ts";
 import { listWorkspaceEntries } from "./work/workspaceEntries.ts";
 import { createRealm, renameRealm, ScratchRoot, setRealmCrest } from "./work/workspaces.ts";
@@ -385,6 +386,7 @@ const make = Effect.gen(function* () {
             Effect.provideService(ScratchRoot, scratchRoot),
             Effect.provideService(PlanLimits, planLimits),
           ),
+        ReadUsage: (read) => readUsage(read.period, read.filters),
         RefreshPrices: () =>
           prices.refresh.pipe(
             Effect.catchTag("PriceReadFailed", (failure) =>

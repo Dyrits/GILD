@@ -17,6 +17,7 @@ import { QuestListScreen } from "./src/shell/questListPage";
 import type { RealmListing } from "./src/shell/questTree";
 import { Shell } from "./src/shell/shell";
 import type { Place } from "./src/shell/sidebar";
+import { UsageScreen } from "./src/shell/usagePage";
 
 /** The pages a reload for a change of look returns to: those that need nothing else open to show. */
 const resumablePlaces: readonly Place[] = [
@@ -26,6 +27,7 @@ const resumablePlaces: readonly Place[] = [
   "Library",
   "Lore",
   "Quests",
+  "Reserves",
   "Rituals",
   "Settings",
 ];
@@ -143,12 +145,10 @@ export default function App() {
       />
     ) : place === "Rituals" ? (
       <RitualsScreen client={client} onOpen={openMissionFromAnywhere} />
-    ) : place === "Charter" ||
-      place === "Craft" ||
-      place === "Library" ||
-      place === "Realms" ||
-      place === "Reserves" ? (
+    ) : place === "Charter" || place === "Craft" || place === "Library" || place === "Realms" ? (
       <UnbuiltScreen place={place} />
+    ) : place === "Reserves" ? (
+      <UsageScreen client={client} />
     ) : (
       <Dashboard
         client={client}

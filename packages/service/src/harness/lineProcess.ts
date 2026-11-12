@@ -37,12 +37,13 @@ export const runHarnessCommand = (
   args: ReadonlyArray<string>,
   env: Record<string, string>,
   timeoutMillis = 20_000,
+  cwd?: string,
 ) =>
   Effect.callback<CommandRun>((resume) => {
     execFile(
       command,
       [...args],
-      { env: harnessEnvironmentOf(env), maxBuffer: 4_000_000, timeout: timeoutMillis },
+      { cwd, env: harnessEnvironmentOf(env), maxBuffer: 4_000_000, timeout: timeoutMillis },
       (error, stdout, stderr) => {
         const code = error === null ? 0 : typeof error.code === "number" ? error.code : null;
         resume(Effect.succeed({ code, output: `${stdout}\n${stderr}`, stdout: String(stdout) }));
