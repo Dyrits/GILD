@@ -1,5 +1,11 @@
 # Work in progress
 
+## Sidebar icons, flat matte · 2026-11-12 · built and checked in the window, owner review pending
+
+The owner supplied `guildmaster-flat-matte-icons` and asked for the sidebar's icons to be those. CHG-0207: the ivory drawings are used on dark looks and the slate blue ones on light looks, and both themes share them, so the metallic, gilt, and bronze sets are gone; `assets/nav/dark/` and `assets/nav/light/` hold them and `shell/navIcons.tsx` picks by look alone. Starting revision `ef103f9`.
+Checks: typecheck and Biome pass; the web export bundles them; driven in a throwaway Electron window on an empty data folder in the four theme and look combinations ([proof](verification/2026-11-12-sidebar-flat-icons.md)).
+Open: the owner's look; a sidebar filled with quests and realms, the phone build, and the packaged app were not checked.
+
 ## Device pairing · 2026-11-12 · batches 1 and 2 reviewed and checked; later batches pending
 
 The owner wants to control one Iskios from another, from any internet connection, with no account or cost for users or the owner, and asked to implement it. Agreed in CHG-0201 to CHG-0203: the shared relay Worker on the owner's free Cloudflare account on `workers.dev` ([0016](architecture-decision-record/0016-shared-relay-on-the-owners-free-cloudflare-account.md)), end-to-end encrypted; host and paired-device words; full authority; a text pairing code (single use, 10 minutes); paired devices listed in Charter with Disconnect; a host menu at the top left; the folder picker on the host. [Specifications](capabilities/device-pairing/specifications.md), [draft](capabilities/device-pairing/draft.md), [lab evidence](verification/2026-11-12-relay-and-direct-path-lab.md). Starting commit `4987773`; review, verification and publication authorized by the owner.
@@ -26,7 +32,7 @@ Open, awaiting the owner: the look of the menu and chips; the token form and the
 ## Gild theme · 2026-11-11 · built and checked, owner review pending
 
 CHG-0183: Iskios and Gild themes, each dark and light; Gild's colors come from the owner's Guild Hall image (dark) and the former parchment board (light); gilt and bronze sidebar icons are temporary recolorings; the Dock and window icon follow the theme. Starting commit `5fbfc4c`, worktree branch `worktree/gild-theme`, uncommitted. [Screens](verification/2026-11-11-gild-theme/).
-Open: the owner's look at the colors; the cream cards of the image are not reproduced; the owner finds the recolored Gild icons too much and would prefer a more matte look, kept as a separate rework in the [backlog](backlog.md); the Dock icon was not seen; other screens in Gild were not opened.
+Open: the owner's look at the colors; the cream cards of the image are not reproduced; the flat matte sidebar icons are shared with Iskios (CHG-0207); the Dock icon was not seen; other screens in Gild were not opened.
 
 ## Guild Hall hub · 2026-11-11 · built and checked, redesigned after the owner's looks, then given context and settings; owner review pending
 
@@ -53,7 +59,7 @@ Open: the owner's look; no run through the app's own harness process after a mov
 
 CHG-0161 (placements) and CHG-0163 (sidebar hover marks, folding headings, scroll cue, widths, nested full list) are built and recorded in CHG-0164; storage in [ADR 0015](architecture-decision-record/0015-realms-tied-or-not-and-one-borderlands.md). Starting commit `10684a9`.
 Evidence: [verification](verification/2026-11-11-realms-and-borderlands.md); the Electron window was not checked.
-Open: the owner's look; the assumptions in CHG-0163 (nested full list unfolded by default, "Show all N" counting quests only, the arrow's place on quest rows); the Guildmaster and the realm chooser do not offer realms tied to no folder; quest moves are still to build; the full list keeps its own small "›" fold marks; unused `assets/nav/realmless.png` files remain; three suite failures outside this change (CHG-0164).
+Open: the owner's look; the assumptions in CHG-0163 (nested full list unfolded by default, "Show all N" counting quests only, the arrow's place on quest rows); the Guildmaster and the realm chooser do not offer realms tied to no folder; quest moves are still to build; the full list keeps its own small "›" fold marks; three suite failures outside this change (CHG-0164).
 
 ## Iskios, simple art direction, and the left sidebar · 2026-11-11 · built and checked, owner review pending
 

@@ -2653,3 +2653,13 @@ Validation: Typecheck passes in all six workspaces; app tests 303 passed and the
 ## CHG-0206 · 2026-11-12 · Device pairing reviewed and refactored
 
 The owner requested review-and-refactor, verification, then commit and push to main. Independent Standards and Specifications reviews of batches 1 and 2 led to typed pairing failures, host shutdown cleanup and reconnect recovery, smaller runtime and storage modules, an app connection hook, enabled-state and closed-channel guards during authentication, and host-name editing from paired devices. Regression coverage includes offline errors, switch-off during connection, re-pairing replacement, invalidated codes and host-only request boundaries. Full suite: 1,155 passed, 14 skipped; six-workspace typecheck, Biome on apps/packages and desktop build pass. [Review and proof limits](verification/2026-11-12-device-pairing-review.md). Appearance, final UI interactions and desktop-only guards remain unproven or awaiting the owner; later batches and relay deployment remain pending. The prior device-pairing entries were renumbered CHG-0201 through CHG-0205 to preserve the concurrently published OpenCode limits CHG-0200.
+
+## CHG-0207 · 2026-11-12 · Sidebar icons: the owner's flat matte set, shared by both themes
+
+Type: Code
+Event: Delivery
+Scope: Interface
+
+Summary: At the owner's request the sidebar icons are the owner's `guildmaster-flat-matte-icons` set: 13 flat matte drawings in two colorways, ivory for a dark page and slate blue for a light one. The two colorways now serve both themes, so Iskios and Gild share them: `apps/app/assets/nav/dark/` holds the ivory set and `apps/app/assets/nav/light/` the slate blue one, replacing the metallic, gilt, and bronze sets (`assets/nav/gild/` and `gild-light/` are removed). Each 256 px source was cropped to its drawing, kept its aspect, and fitted to 192 px, as the sets before it were. `apps/app/src/shell/navIcons.tsx` now picks the set of the look alone, no longer of the theme. The Borderlands keep the `free-realms.png` file name; the supplied Realmless drawing is unused by the sidebar, and the former unused `realmless.png` files went with the replaced sets.
+References: `apps/app/src/shell/navIcons.tsx`, `apps/app/assets/nav/`, [verification](verification/2026-11-12-sidebar-flat-icons.md), backlog entry "Gild sidebar icons, matte rework" removed.
+Validation: `bun run typecheck` passes in all six workspaces and Biome passes; the web export bundles the 24 icons; driven in a throwaway Electron window on an empty data folder in the four theme and look combinations (screens in the verification record). Not checked: a sidebar filled with quests and realms, the phone build, the packaged app. The look awaits the owner's review.
