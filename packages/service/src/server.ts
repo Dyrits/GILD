@@ -5,8 +5,7 @@ import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { WebSocket, WebSocketServer } from "ws";
 import { Sessions } from "./core/index.ts";
-import { type HostChannel, openHostChannel } from "./remote/controller.ts";
-import { answerText, encodeServerFrame } from "./remote/frames.ts";
+import { answerText, encodeServerFrame, type HostChannel, openHostChannel } from "./remote/index.ts";
 import { Service } from "./service.ts";
 
 const sameToken = (given: string | null, expected: string) => {

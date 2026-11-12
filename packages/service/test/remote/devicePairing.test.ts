@@ -269,7 +269,9 @@ describe("controlling one installation from another through the relay", () => {
           const link = yield* w.bridge(host.id);
           yield* w.ask(link, "1", { _tag: "ReadHostName" });
 
-          yield* w.host({ _tag: "SetRemoteAccess", isEnabled: false });
+          // The answer already shows Off, before the runtime has closed its relay connection.
+          const off = yield* w.host({ _tag: "SetRemoteAccess", isEnabled: false });
+          expect(off).toMatchObject({ isEnabled: false, status: "Off" });
           yield* until(() => link.closed ?? undefined);
           expect((yield* w.accessOf()).status).toBe("Off");
           const refused = yield* w.bridge(host.id);

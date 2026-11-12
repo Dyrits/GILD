@@ -4,7 +4,7 @@ import { join } from "node:path";
 import { Cause, Config, Effect, Exit, Layer } from "effect";
 import { Harness, modelsDevSourceLayer, noPriceSourceLayer, sandboxProblem } from "./core/index.ts";
 import { fakeHarnessLayer, fakeHarnessToolsLayer, liveHarnessToolsLayer, makeHarnessRouter } from "./harness/index.ts";
-import { defaultRelayOrigin } from "./remote/config.ts";
+import { defaultRelayOrigin } from "./remote/index.ts";
 import { serveLoopback } from "./server.ts";
 import { serviceLayer } from "./service.ts";
 

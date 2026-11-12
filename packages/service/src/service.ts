@@ -24,7 +24,7 @@ import {
   storeLayer,
   writeSettings,
 } from "./core/index.ts";
-import { fakeHarnessToolsLayer, HarnessTools, runnerOf } from "./harness/index.ts";
+import { fakeHarnessToolsLayer, HarnessTools } from "./harness/index.ts";
 import {
   deleteLoreEntryByOwner,
   editLoreEntryByOwner,
@@ -43,23 +43,24 @@ import {
   removePermission,
   widenPermission,
 } from "./policy/index.ts";
-import { computerNameOf, defaultRelayOrigin, RemoteConfig } from "./remote/config.ts";
-import { pairWithHost } from "./remote/controller.ts";
 import {
-  forgetDevice,
+  cloudflareApiFor,
+  computerNameOf,
+  type DeployResult,
+  defaultRelayOrigin,
+  deployRelayToCloudflare,
+  forgetHost,
   hostNameOf,
+  listKnownHosts,
+  makeHostControl,
+  pairWithHost,
+  RemoteConfig,
+  RemoteState,
   readHostRecord,
-  relayOriginOf,
-  remoteAccessView,
+  remoteHostLayer,
+  remoteStateLayer,
   renameHost,
-  setRelayOrigin,
-  setRemoteAccess,
-} from "./remote/hostAccess.ts";
-import { applyRelayChange, applyRemoteAccess, createPairingCode, deployOwnRelay } from "./remote/hostActions.ts";
-import { remoteHostLayer } from "./remote/hostRuntime.ts";
-import { forgetHost, listKnownHosts } from "./remote/knownHosts.ts";
-import { cloudflareApiFor, type DeployResult, deployRelayToCloudflare } from "./remote/ownRelay.ts";
-import { RemoteState, remoteStateLayer } from "./remote/state.ts";
+} from "./remote/index.ts";
 import { Service } from "./serviceTag.ts";
 import { addCredit, readAccountBudgets, setAccountBudget } from "./work/accountBudgets.ts";
 import {
@@ -72,6 +73,14 @@ import {
   signInAccount,
   updateHarness,
 } from "./work/accounts.ts";
+import {
+  admitOwnerText,
+  nonBlank,
+  refuseUnreadableImages,
+  runnerOfOpened,
+  runnerOfStarted,
+  runnerOfThread,
+} from "./work/admission.ts";
 import { Approvals, approvalsLayer } from "./work/approvals.ts";
 import { AttachmentsRoot, addAttachment, discardAttachment, readAttachment, sweepDrafts } from "./work/attachments.ts";
 import { setThreadBackups } from "./work/backups.ts";
@@ -115,7 +124,6 @@ import { AccountsRoot, Threads, threadsLayer } from "./work/threads.ts";
 import { nameNewQuest, newQuestTitle, renameMission } from "./work/titles.ts";
 import { openThreadByOwner } from "./work/tree.ts";
 import { readUsage } from "./work/usageReport.ts";
-import { imageRefusalOf, readThreadRunner } from "./work/vision.ts";
 import { listWorkspaceEntries } from "./work/workspaceEntries.ts";
 import { createRealm, renameRealm, ScratchRoot, setRealmCrest } from "./work/workspaces.ts";
 
@@ -125,9 +133,6 @@ export { Service };
 
 const storageFailure = (error: SqlError.SqlError) =>
   new ServiceFailure({ kind: "ExecutionFailure", message: `Storage failed: ${error.message}` });
-
-const nonBlank = (text: string): Effect.Effect<string, ServiceFailure> =>
-  text.trim().length === 0 ? invalid("The message is empty.") : Effect.succeed(text);
 
 /** The owner's journal change as the app sees it: the updated journal, or the refusal as a service failure. */
 const ownerOutcomeOf = (missionId: string, outcome: JournalOutcome) =>
@@ -164,27 +169,12 @@ const make = Effect.gen(function* () {
   /** Runs a step that stores or reads attached files. */
   const withFiles = <A, E>(step: Effect.Effect<A, E, SqlClient.SqlClient | AttachmentsRoot>) =>
     Effect.provideService(step, AttachmentsRoot, attachmentsRoot);
-  /**
-   * Refuses attached images for a runner that cannot read them, before the message is recorded; a message
-   * without files is never refused (message-attachments).
-   */
-  const refuseUnreadableImages = (
-    attachmentIds: ReadonlyArray<string>,
-    runner: Effect.Effect<Parameters<typeof imageRefusalOf>[0] | null, SqlError.SqlError, SqlClient.SqlClient>,
-  ) =>
-    Effect.gen(function* () {
-      if (attachmentIds.length === 0) return;
-      const resolved = yield* runner;
-      if (resolved === null) return;
-      const reason = yield* imageRefusalOf(resolved).pipe(
-        Effect.provideService(HarnessTools, harnessTools),
-        Effect.provideService(AccountsRoot, accountsRoot),
-      );
-      if (reason !== null) return yield* invalid(reason);
-    });
-  /** An owner's text, which may be empty when files are attached. */
-  const textWith = (text: string, attachmentIds: ReadonlyArray<string>) =>
-    attachmentIds.length === 0 ? nonBlank(text) : Effect.succeed(text);
+  /** Admits an owner's text for the runner its request names: the text, or the refusal (work/admission.ts). */
+  const admit = (...given: Parameters<typeof admitOwnerText>) =>
+    admitOwnerText(...given).pipe(
+      Effect.provideService(HarnessTools, harnessTools),
+      Effect.provideService(AccountsRoot, accountsRoot),
+    );
   /** Runs storage work as a command whose only follow-up is announcing the change. */
   const change = <A, E, R>(work: Effect.Effect<A, E, R>) => commands.run(Effect.map(work, (value) => changed(value)));
   /** Runs an account change, then lists the harnesses as they stand after it. */
@@ -197,24 +187,7 @@ const make = Effect.gen(function* () {
   /** Runs device-pairing storage work, which also needs to know the computer's name and the default relay. */
   const withRemote = <A, E>(work: Effect.Effect<A, E, SqlClient.SqlClient | RemoteConfig>) =>
     Effect.provideService(work, RemoteConfig, remoteConfig);
-  /** The relay this host uses now, by address. */
-  const relayInUse = withRemote(Effect.flatMap(readHostRecord, relayOriginOf));
-  /**
-   * Uses the relay at `origin` (the shared one when null). When the address changes, devices are disconnected and the
-   * host reconnects through the new relay; the same address means a relay updated where it stands, which changes nothing.
-   */
-  const switchRelay = (origin: string | null) =>
-    Effect.gen(function* () {
-      const before = yield* relayInUse;
-      yield* change(setRelayOrigin(origin));
-      if ((yield* relayInUse) === before) return;
-      const record = yield* withRemote(readHostRecord);
-      yield* applyRelayChange(record?.isEnabled ?? false, remote);
-    });
-  /** Charter's remote access section as it stands. */
-  const remoteView = Effect.flatMap(remote.status, (status) =>
-    withRemote(remoteAccessView(status, remote.connectedDevices())),
-  );
+  const hostControl = makeHostControl({ change, config: remoteConfig, state: remote });
   const chatterDecisions = yield* Semaphore.make(1);
 
   /**
@@ -287,6 +260,9 @@ const make = Effect.gen(function* () {
             yield* refuseUnreadableImages(
               waiting.map((row) => row.id),
               Effect.succeed({ accountId: change.accountId, harness: change.harness, model: change.model }),
+            ).pipe(
+              Effect.provideService(HarnessTools, harnessTools),
+              Effect.provideService(AccountsRoot, accountsRoot),
             );
             return yield* commands.run(
               changeThreadRunner(change.threadId, {
@@ -298,7 +274,7 @@ const make = Effect.gen(function* () {
             );
           }),
         CreateFolder: (create) => createFolder(create.parent, create.name),
-        CreatePairingCode: () => withRemote(createPairingCode),
+        CreatePairingCode: () => hostControl.createPairingCode,
         CreateRealm: (create) => change(createRealm(create.path, create.name, create.crest)),
         CreateRitual: (create) =>
           commands.run(
@@ -328,11 +304,7 @@ const make = Effect.gen(function* () {
             Effect.provideService(Commands, commands),
           ),
         DiscardAttachment: (given) => withFiles(discardAttachment(given.attachmentId)).pipe(Effect.as(null)),
-        DisconnectDevice: (given) =>
-          change(forgetDevice(given.deviceId)).pipe(
-            Effect.tap(() => Effect.sync(() => remote.closeDevice(given.deviceId))),
-            Effect.andThen(remoteView),
-          ),
+        DisconnectDevice: (given) => hostControl.disconnectDevice(given.deviceId),
         DismissMissionPrompt: (given) => commands.run(dismissPrompt(given.missionId, given.prompt)),
         EditIntel: (given) => change(editLoreEntryByOwner(given.loreEntryId, given.text)),
         EndMission: (given) => commands.run(endMission(given.missionId, given.ending, given.snapshot)),
@@ -373,19 +345,14 @@ const make = Effect.gen(function* () {
         OpenThread: (open) =>
           Effect.gen(function* () {
             const attachmentIds = open.attachmentIds ?? [];
-            const text = yield* textWith(open.text, attachmentIds);
-            yield* refuseUnreadableImages(
+            const text = yield* admit(
+              open.text,
               attachmentIds,
-              readThreadRunner(open.parentThreadId).pipe(
-                Effect.map((parent) =>
-                  parent === null
-                    ? null
-                    : runnerOf(
-                        { ...parent, effort: "default" },
-                        { accountId: open.accountId, harness: open.harness, model: open.model },
-                      ),
-                ),
-              ),
+              runnerOfOpened(open.parentThreadId, {
+                accountId: open.accountId,
+                harness: open.harness,
+                model: open.model,
+              }),
             );
             return yield* commands.run(
               once(
@@ -431,7 +398,7 @@ const make = Effect.gen(function* () {
             };
           }),
         ReadPriceStatus: () => prices.status,
-        ReadRemoteAccess: () => remoteView,
+        ReadRemoteAccess: () => hostControl.view,
         ReadRitual: (read) => readRitual(read.missionId),
         ReadSettings: () => readSettings,
         ReadStartChoices: () => readStartChoices,
@@ -485,8 +452,7 @@ const make = Effect.gen(function* () {
         SendMessage: (send) =>
           Effect.gen(function* () {
             const attachmentIds = send.attachmentIds ?? [];
-            const text = yield* textWith(send.text, attachmentIds);
-            yield* refuseUnreadableImages(attachmentIds, readThreadRunner(send.threadId));
+            const text = yield* admit(send.text, attachmentIds, runnerOfThread(send.threadId));
             const delivery = send.delivery ?? (yield* readSettings).defaultDelivery;
             const viewing = yield* viewingLineOf(send.threadId, send.viewing);
             return yield* commands.run(
@@ -519,11 +485,7 @@ const make = Effect.gen(function* () {
           ),
         SetMissionBudget: (given) => commands.run(setMissionBudget(given.missionId, given.limits)),
         SetRealmCrest: (set) => change(setRealmCrest(set.workspaceId, set.crest)),
-        SetRemoteAccess: (given) =>
-          change(setRemoteAccess(given.isEnabled)).pipe(
-            Effect.tap(() => applyRemoteAccess(given.isEnabled, remote)),
-            Effect.andThen(remoteView),
-          ),
+        SetRemoteAccess: (given) => hostControl.setAccess(given.isEnabled),
         SetThreadBackups: (given) => commands.run(setThreadBackups(given.threadId, given.backups)),
         SignInAccount: (given) =>
           signInAccount(given.harness, given.accountId).pipe(
@@ -561,17 +523,10 @@ const make = Effect.gen(function* () {
         StartMission: (start) =>
           Effect.gen(function* () {
             const attachmentIds = start.attachmentIds ?? [];
-            const text = yield* textWith(start.text, attachmentIds);
-            yield* refuseUnreadableImages(
+            const text = yield* admit(
+              start.text,
               attachmentIds,
-              readSettings.pipe(
-                Effect.map((settings) =>
-                  runnerOf(
-                    { accountId: null, effort: "default", harness: settings.defaultHarness, model: "default" },
-                    { accountId: start.accountId, harness: start.harness, model: start.model },
-                  ),
-                ),
-              ),
+              runnerOfStarted({ accountId: start.accountId, harness: start.harness, model: start.model }),
             );
             return yield* commands.run(
               once(
@@ -625,12 +580,8 @@ const make = Effect.gen(function* () {
             );
           }),
         // The deployment takes seconds and is not a command: only its result, the new address, is stored.
-        UseOwnRelay: (given) =>
-          withRemote(deployOwnRelay(given.token)).pipe(
-            Effect.flatMap((deployed) => switchRelay(deployed.origin)),
-            Effect.andThen(remoteView),
-          ),
-        UseSharedRelay: () => switchRelay(null).pipe(Effect.andThen(remoteView)),
+        UseOwnRelay: (given) => hostControl.useOwnRelay(given.token),
+        UseSharedRelay: hostControl.useSharedRelay,
         VisitGuildHall: () => commands.run(visitGuildHall),
         WidenPermission: (widen) => change(widenPermission(widen.permissionId)),
       },
