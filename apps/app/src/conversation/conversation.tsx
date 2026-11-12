@@ -2,6 +2,7 @@ import type { AttachmentId, BudgetScope, MessageDelivery, MissionDetail, Mission
 import { useEffect, useRef, useState } from "react";
 import {
   FlatList,
+  Image,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Pressable,
@@ -13,22 +14,25 @@ import { imageRefusalOf } from "../attachments/attachmentRules";
 import { BudgetScreen, BudgetStopCard } from "../editors/budgets";
 import { RunnerPickers, useHarnesses } from "../editors/runners";
 import { messageOf, newRequestId, type ServiceClient } from "../foundation/client";
+import { colorScheme } from "../foundation/colorScheme";
 import { companionLabelOf, effortLabel, harnessLabels, modelLabelOf } from "../foundation/formatting";
 import { countedOf } from "../foundation/labels";
 import { useHasSidebar, useHasTopBar, useQuestPanel } from "../foundation/shellContext";
 import { styles } from "../foundation/styles";
+import { useEnding } from "../foundation/useEnding";
 import { useServiceQuery } from "../foundation/useServiceQuery";
 import { useSkills } from "../foundation/useSkills";
 import { JournalScreen } from "../lore/journal";
-import { LoreIcon, LoreScreen } from "../lore/lore";
+import { LoreScreen } from "../lore/lore";
+import { EndingConfirmation } from "../quests/missionActions";
 import { MissingFolderNotice } from "../realms/workspaces";
 import { useTerminal } from "../terminal/useTerminal";
-import { Composer, StateBadge } from "../ui/controls";
+import { Composer, StateIndicator } from "../ui/controls";
 import { messageWithComments } from "./comments";
 import { CommentTray } from "./commentViews";
 import { AgentReply, EntryView, WorkingIndicator } from "./conversationEntries";
 import { type Entry, entriesOf, workingLabelOf } from "./entries";
-import { ChatterNotices, DeleteThreadAction } from "./threadActions";
+import { ChatterNotices } from "./threadActions";
 import { ThreadPanel } from "./threadPanel";
 import { OpenThreadForm, ThreadTree } from "./threadTree";
 import { CommentsProvider, useThreadComments } from "./useComments";
@@ -81,24 +85,21 @@ function ThreadPane({
   client,
   detail,
   onSelect,
-  onDeleted,
   onOpenMission,
   onOpenBudget,
   onOpenDetails,
-  onOpenLore,
 }: {
   /** Whether this thread's header offers the link to the quest's side panel, where no top bar has the icon. */
   canOpenDetails: boolean;
   client: ServiceClient;
   onOpenDetails: () => void;
-  onDeleted: () => void;
   onOpenBudget: () => void;
-  onOpenLore: () => void;
   onOpenMission: (missionId: MissionId) => void;
   detail: MissionDetail;
   onSelect: (threadId: ThreadId) => void;
 }) {
   const { thread } = detail;
+  const ending = useEnding(client, detail.mission);
   const work = thread.parentId === null ? "quest" : "side-quest";
   const draft = useDraft(client, thread.id);
   const skills = useSkills(client, thread.workspace?.path ?? null);
@@ -144,8 +145,25 @@ function ThreadPane({
           <Text numberOfLines={1} style={[styles.paneTitle, styles.flex]}>
             {thread.title}
           </Text>
-          <LoreIcon gauge={detail.loreGauge} onPress={onOpenLore} />
-          <StateBadge state={thread.state} />
+          <StateIndicator state={thread.state} />
+          {thread.parentId === null && detail.mission.ritual === null && detail.mission.state !== "Archived" && (
+            <Pressable
+              accessibilityLabel="Archive quest"
+              accessibilityRole="button"
+              disabled={ending.isBusy}
+              onPress={() => ending.start("Archived")}
+            >
+              <Image
+                accessibilityElementsHidden
+                source={
+                  colorScheme === "dark"
+                    ? require("../../assets/nav/dark/archive.png")
+                    : require("../../assets/nav/light/archive.png")
+                }
+                style={{ height: 18, width: 18 }}
+              />
+            </Pressable>
+          )}
           {canStop && (
             <Pressable onPress={() => act(client.request({ _tag: "StopThread", threadId: thread.id }))}>
               <Text style={styles.link}>Stop</Text>
@@ -161,12 +179,9 @@ function ThreadPane({
               <Text style={styles.link}>Quest panel</Text>
             </Pressable>
           )}
-          {canOpenBeneath && !isOpening && (
-            <Pressable onPress={() => setIsOpening(true)}>
-              <Text style={styles.link}>Open side-quest</Text>
-            </Pressable>
-          )}
         </View>
+        <EndingConfirmation ending={ending} />
+        {ending.error !== null && <Text style={styles.error}>{ending.error}</Text>}
         {parent !== undefined && (
           <Pressable onPress={() => onSelect(parent.id)}>
             <Text numberOfLines={1} style={styles.link}>
@@ -174,7 +189,6 @@ function ThreadPane({
             </Text>
           </Pressable>
         )}
-        <DeleteThreadAction client={client} onDeleted={onDeleted} threadId={thread.id} />
         <ChatterNotices client={client} notices={detail.chatter} />
         {detail.budgetStop !== null && (
           <BudgetStopCard client={client} onRaise={onOpenBudget} stop={detail.budgetStop} />
@@ -268,6 +282,7 @@ function ThreadPane({
           <>
             <CommentTray />
             <Composer
+              {...(canOpenBeneath ? { onOpenSideQuest: () => setIsOpening(true) } : {})}
               hasContent={terminal.hasContent || comments.items.length > 0}
               {...(terminal.onBang === null ? {} : { onBang: terminal.onBang })}
               attachments={{ client, refusal: imageRefusalOf(harnesses, thread.harness, thread.model) }}
@@ -433,10 +448,8 @@ export function Conversation({
             client={client}
             detail={detail}
             key={detail.thread.id}
-            onDeleted={() => (detail.thread.parentId === null ? onBack() : setSelectedId(detail.thread.parentId))}
             onOpenBudget={() => setBudgetScope(detail.budgetStop?.scope ?? "Mission")}
             onOpenDetails={() => onSetDetails(true)}
-            onOpenLore={() => setLoreThread({ id: detail.thread.id, title: detail.thread.title })}
             onOpenMission={onOpenMission}
             onSelect={setSelectedId}
           />

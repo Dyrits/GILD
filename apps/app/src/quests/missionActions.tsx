@@ -9,7 +9,8 @@ import { Button } from "../ui/button";
 
 const endingLabels = { Archived: "Archive", Done: "Mark as done" } as const satisfies Record<MissionEnding, string>;
 
-function EndingConfirmation({ ending }: { ending: ReturnType<typeof useEnding> }) {
+/** The existing ending confirmation, shared with the conversation's archive action. */
+export function EndingConfirmation({ ending }: { ending: ReturnType<typeof useEnding> }) {
   if (ending.pending === null) return null;
   return (
     <View style={styles.failure}>

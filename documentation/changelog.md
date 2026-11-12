@@ -1,5 +1,15 @@
 # Changelog
 
+## 2026-11-12 · Conversation header cleanup
+
+Owner follow-up: replace the conversation Delete action with the existing Archive icon at 18px beside the status dot, only on main quests (not Rituals). This uses archive, never deletion, and preserves the existing active-work confirmation.
+
+Type: UI
+Event: Delivery, appearance pending
+Scope: Quest and Iskios conversations
+
+The owner requested fewer header controls: Lore and Iskios budget are removed, states use colored dots with accessible labels, and Open side-quest is an icon beside the input's attachment button. Sidebar state labels and budget enforcement are unchanged. Workspace typecheck and Biome pass; full suite has 1319 passes, 14 skips, and five service-test failures (four lore timeouts and one OpenCode interrupt failure). Live appearance and interaction are not verified.
+
 ## CHG-0001 · 2026-11-04 · Thread tree and thread messaging specified
 
 Type: Documentation

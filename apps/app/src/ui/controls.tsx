@@ -52,6 +52,15 @@ export function StateBadge({ state }: { state: ThreadState | MissionState }) {
   );
 }
 
+/** A conversation's state shown only by color, with its meaning available to assistive technology. */
+export function StateIndicator({ state }: { state: ThreadState | MissionState }) {
+  return (
+    <View accessibilityLabel={stateLabels[state]} accessible style={styles.badge}>
+      <View style={[styles.badgeDot, { backgroundColor: stateTones[state].color }]} />
+    </View>
+  );
+}
+
 /** The send icon: an arrow drawn in paper ink, pointing up and away from the box. */
 function SendArrow() {
   return (
@@ -83,6 +92,7 @@ export function Composer({
   onInterrupt,
   onChangeText,
   accessory,
+  onOpenSideQuest,
   skills = [],
   mentions,
   onBang,
@@ -104,6 +114,8 @@ export function Composer({
   onChangeText?: (text: string) => void;
   /** Controls shown under the box, at its right, such as pickers for what the message runs on. */
   accessory?: ReactNode;
+  /** Opens a side-quest from the icon beside the attachment button. */
+  onOpenSideQuest?: () => void;
   /** The skills a slash offers; a slash-name matching one is highlighted. */
   skills?: ReadonlyArray<Skill>;
   /**
@@ -178,6 +190,27 @@ export function Composer({
       {attachable !== undefined && <AttachmentStrip files={files.files} onRemove={files.remove} />}
       <View style={styles.composerPill}>
         {attachable !== undefined && <AttachButton onFiles={files.attach} />}
+        {onOpenSideQuest !== undefined && (
+          <Pressable
+            accessibilityLabel="Open side-quest"
+            accessibilityRole="button"
+            onPress={onOpenSideQuest}
+            style={styles.buttonSecondary}
+          >
+            <Svg
+              fill="none"
+              height={18}
+              stroke={colors.textDim}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.6}
+              viewBox="0 0 20 20"
+              width={18}
+            >
+              <Path d="M5 3v14M5 7h5a5 5 0 0 0 5-5M12 3l3-1 1 3" />
+            </Svg>
+          </Pressable>
+        )}
         <View style={styles.composerField}>
           <ChipEditor
             {...(onBang === undefined ? {} : { onBang })}

@@ -811,4 +811,11 @@ The owner requested Install beside missing harnesses. Charter now offers it, sho
 ## Reserves usage page and plan-limit rings · 2026-11-12 · built and checked, owner look pending
 
 The owner asked for the next feature, the Reserves usage page (CHG-0199), then for the rail's plan limits to be graphic: concentric rings per provider in a row, with a hover card of what is left and the time to each reset; Claude Code's limits are now read from its `rate_limit_event` (CHG-0198). Both are committed with their checks; neither was seen in the running app. The usage page has gaps against its specification, listed in CHG-0199 and in the [handoff](../.agents/handoffs/2026-11-12-0726-reserves-usage-and-plan-rings.md).
+## Conversation header cleanup · 2026-11-12
+
+Follow-up: the owner chose Archive on main quests only. The conversation's Delete action is removed; a small existing Archive image beside the state dot uses the existing ending preview and confirmation. Side-quests and Rituals do not offer this action. Typecheck, Biome, and diff whitespace checks pass after this follow-up; no live visual check or repeat full suite.
+
+Owner request, starting commit `22ac07b`: move Open side-quest to an icon beside the composer's attachment button, remove header Lore and Iskios budget, and replace conversation state labels with colored dots. Implemented without changing sidebar badges, budget enforcement, or budget-stop recovery.
+
+Checks: workspace typecheck and Biome pass. Full suite: 1319 passed, 14 skipped, 5 failed (four lore timeouts and an OpenCode interrupt reporting “This thread is not running”). These service failures have not been diagnosed in this UI batch. Browser appearance and interaction remain unverified; owner look pending.
 

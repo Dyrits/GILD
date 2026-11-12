@@ -11,9 +11,8 @@ import { styles } from "../foundation/styles";
 import { colors, fontSizes, fonts } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
 import { useSkills } from "../foundation/useSkills";
-import { budgetValueOf } from "../quests/questPanel";
 import { useTerminal } from "../terminal/useTerminal";
-import { Composer, StateBadge } from "../ui/controls";
+import { Composer, StateIndicator } from "../ui/controls";
 import { useDraft, useFollowNewest } from "./conversation";
 import { AgentReply, EntryView, WorkingIndicator } from "./conversationEntries";
 import { type Entry, entriesOf, workingLabelOf } from "./entries";
@@ -214,10 +213,7 @@ function IskiosChat({
         <Text numberOfLines={1} style={[local.title, styles.flex]}>
           Iskios
         </Text>
-        <Pressable accessibilityRole="button" onPress={() => setIsBudgetOpen(true)}>
-          <Text style={local.link}>Budget · {budgetValueOf(detail.mission.budget)}</Text>
-        </Pressable>
-        <StateBadge state={thread.state} />
+        <StateIndicator state={thread.state} />
         <Pressable
           accessibilityLabel={isFull ? "Restore Iskios" : "Expand Iskios"}
           accessibilityRole="button"
