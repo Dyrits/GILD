@@ -205,8 +205,8 @@ Actions artifacts expire after 14 days; release assets remain until removed.
 
 ## License
 
-The repository does not yet include a `LICENSE` file, so Iskios does not yet have a formal source-code license in place.
-The [architecture](documentation/architecture.md#stack) records Apache 2.0 as the intended license; the license file still needs to be added.
+Iskios's source code is licensed under the [Apache License 2.0](LICENSE).
+Third-party code that keeps its own notice, such as in [`packages/channel`](packages/channel/NOTICE), is attributed there.
 Source-code licensing is separate from the signing certificates used to distribute desktop installers.
 
 ## Contribute

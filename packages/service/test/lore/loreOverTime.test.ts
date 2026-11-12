@@ -175,7 +175,8 @@ describe("fading lore", () => {
         const pinned = idOf(yield* save(threadId, "The repository is on GitHub.", "thread", "fact"));
         const plain = idOf(yield* save(threadId, "The CI runs on Linux.", "thread", "fact"));
         yield* call({ _tag: "PinIntel", isPinned: true, loreEntryId: pinned as LoreEntryId });
-        yield* advance(1000 * day);
+        // A plain fact (45-day half-life) is archived after about 195 days; 400 is well past that.
+        yield* advance(400 * day);
         expect((yield* loreEntryOf(rule))?.state).toBe("Active");
         expect(yield* loreEntryOf(pinned)).toMatchObject({ isPinned: true, state: "Active", strength: 1 });
         expect((yield* loreEntryOf(plain))?.state).toBe("Archived");
@@ -183,8 +184,9 @@ describe("fading lore", () => {
         yield* call({ _tag: "PinIntel", isPinned: false, loreEntryId: pinned as LoreEntryId });
         expect((yield* loreEntryOf(pinned))?.state).toBe("Archived");
       }).pipe(Effect.provide(live().layer)),
-    // A thousand days on the test clock take seconds of real fading steps; the default 5 s is too tight in a full run.
-    20_000,
+    // Hundreds of days on the test clock take seconds of real fading steps; the default 5 s is too tight in a full run,
+    // and a shared CI runner under parallel workers needs more than the 20 s that failed there.
+    60_000,
   );
 
   it.effect("counts search as a use, but not being in the context", () =>

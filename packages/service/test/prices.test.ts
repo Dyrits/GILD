@@ -19,9 +19,22 @@ afterEach(() => {
 const isIdleWithTurn = (detail: MissionDetail) =>
   detail.thread.state === "Idle" && detail.mission.consumption.turns >= 1;
 
-/** Starts a mission on `model` whose first message is the script, and waits for its turn to end. */
-const startOn = (model: string, script: string) =>
+/** Waits until the table read at startup is the one in use: the service reads it in the background, so a turn that starts at once can be priced from the snapshot alone. */
+const fetchedTableInUse = Effect.gen(function* () {
+  for (let i = 0; i < 400; i++) {
+    if ((yield* call({ _tag: "ReadPriceStatus" })).source === "Fetched") return;
+    yield* Effect.sleep("10 millis");
+  }
+  return yield* Effect.die(new Error("The price table read at startup was never put in use."));
+});
+
+/**
+ * Starts a mission on `model` whose first message is the script, and waits for its turn to end. Unless `isTableRead`
+ * is false (a source that cannot be read), it first waits for the startup read, so the turn is priced from the table.
+ */
+const startOn = (model: string, script: string, isTableRead = true) =>
   Effect.gen(function* () {
+    if (isTableRead) yield* fetchedTableInUse;
     const started = yield* call({
       _tag: "StartMission",
       effort: "default",
@@ -152,7 +165,7 @@ describe("the price table", () => {
     prices.state.isFailing = true;
     return Effect.gen(function* () {
       // Claude Code's Sonnet 5.5 at the snapshot's $2 per million input tokens.
-      const detail = yield* startOn("claude-sonnet-5-5", "spend 1000000");
+      const detail = yield* startOn("claude-sonnet-5-5", "spend 1000000", false);
       expect(detail.mission.consumption.estimated).toBe(2);
       expect(yield* call({ _tag: "ReadPriceStatus" })).toMatchObject({ isFetching: true, source: "Snapshot" });
     }).pipe(Effect.provide(layer));
