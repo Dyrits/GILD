@@ -5,6 +5,7 @@ import type { ToolAnswer } from "../core/index.ts";
 import { changed, unchanged, type WithFollowUps } from "./commands.ts";
 import { isGuildmasterThread } from "./guildmaster.ts";
 import { consumeReceipt, notAuthorizedText } from "./guildmasterProvenance.ts";
+import { checkRealmCreation, checkRealmRename } from "./realmChecks.ts";
 import type { ArgumentsOf } from "./threadTools.ts";
 import { createRealm, renameRealm } from "./workspaces.ts";
 
@@ -13,17 +14,6 @@ import { createRealm, renameRealm } from "./workspaces.ts";
 
 const refused = (text: string): WithFollowUps<ToolAnswer> => unchanged({ isError: true, text });
 const done = (text: string): WithFollowUps<ToolAnswer> => changed({ isError: false, text });
-
-/** A realm by its folder or its name, tied to a folder or not (unlike `findRealm`, which only finds tied ones). */
-const findRealmOfAnyKind = (given: string) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    const wanted = given.trim();
-    const [row] = yield* sql<{ id: string; name: string }>`
-      SELECT id, name FROM workspaces WHERE path = ${wanted} OR lower(name) = lower(${wanted})
-      ORDER BY created_at LIMIT 1`;
-    return row ?? null;
-  });
 
 const countRealms = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
@@ -35,14 +25,13 @@ const countRealms = Effect.gen(function* () {
 export const createRealmByGuildmaster = (callerId: string, args: ArgumentsOf<"create_realm">) =>
   Effect.gen(function* () {
     if (!(yield* isGuildmasterThread(callerId))) return refused("Only Iskios makes realms here.");
-    const name = args.name.trim();
-    if (name === "") return refused("Not done: a realm needs a name.");
-    if ((yield* findRealmOfAnyKind(name)) !== null)
-      return refused(`Not done: a realm "${name}" already exists. Tell the owner, or pick another name.`);
+    const checked = yield* checkRealmCreation(args);
+    if (checked._tag === "Refused") return refused(checked.text);
+    const { folder, name } = checked;
     if (!(yield* consumeReceipt(callerId, "create_realm", args))) return refused(notAuthorizedText);
-    const folder = args.folder === undefined || args.folder.trim() === "" ? null : args.folder.trim();
     const before = yield* countRealms;
-    // A folder that already has a realm keeps it, whatever name is given: nothing is made then.
+    // The realm rules decide last which folder is the realm's: a folder that already has a realm keeps it, whatever
+    // name is given, and nothing is made then.
     yield* createRealm(folder, name, null);
     if ((yield* countRealms) === before)
       return refused(`Not done: the folder ${folder} already belongs to a realm. Rename that realm instead.`);
@@ -58,17 +47,11 @@ export const createRealmByGuildmaster = (callerId: string, args: ArgumentsOf<"cr
 export const renameRealmByGuildmaster = (callerId: string, args: ArgumentsOf<"rename_realm">) =>
   Effect.gen(function* () {
     if (!(yield* isGuildmasterThread(callerId))) return refused("Only Iskios renames realms here.");
-    const realm = yield* findRealmOfAnyKind(args.realm);
-    if (realm === null) return refused(`Not done: no realm "${args.realm}". Name one of the realms in your context.`);
-    const name = args.name.trim();
-    if (name === "") return refused("Not done: a realm needs a name.");
-    const sql = yield* SqlClient.SqlClient;
-    const [other] = yield* sql<{ id: string }>`
-      SELECT id FROM workspaces WHERE lower(name) = lower(${name}) AND id <> ${realm.id} LIMIT 1`;
-    if (other !== undefined) return refused(`Not done: another realm is already named "${name}".`);
+    const checked = yield* checkRealmRename(args);
+    if (checked._tag === "Refused") return refused(checked.text);
     if (!(yield* consumeReceipt(callerId, "rename_realm", args))) return refused(notAuthorizedText);
-    yield* renameRealm(realm.id as WorkspaceId, name);
-    return done(`Renamed the realm "${realm.name}" to "${name}".`);
+    yield* renameRealm(checked.realm.id as WorkspaceId, checked.name);
+    return done(`Renamed the realm "${checked.realm.name}" to "${checked.name}".`);
   }).pipe(
     // A failure of the realm rules, such as a folder that does not exist, comes back to Iskios as a refusal.
     Effect.catchTag("ServiceFailure", (failure) => Effect.succeed(refused(`Not done: ${failure.message}`))),

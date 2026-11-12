@@ -1,12 +1,13 @@
 import { RitualScope as RitualScopeSchema, Settings } from "@iskios/contracts";
 import { Context, Effect, Schema } from "effect";
 import { SqlClient } from "effect/sql";
-import { readSettings, realFolderOf, type ToolAnswer } from "../core/index.ts";
+import { readSettings, type ToolAnswer } from "../core/index.ts";
 import { isNamedByOwner, type NamedAction } from "../policy/index.ts";
 import type { Approvals } from "./approvals.ts";
 import { previewEnding, readWorkingIds } from "./ending.ts";
 import { companionOf, findRealm, isGuildmasterThread } from "./guildmaster.ts";
 import { changeableSettings } from "./guildmasterSettings.ts";
+import { checkRealmCreation, checkRealmRename } from "./realmChecks.ts";
 import { coveringEntryOf, type ScopedAction } from "./ritualScope.ts";
 import type { ArgumentsOf } from "./threadTools.ts";
 import { titleOf } from "./titles.ts";
@@ -196,28 +197,23 @@ const deriveAction = (callerId: string, tool: StructuralTool, args: object) =>
       });
     }
     if (tool === "create_realm") {
-      const { folder, name } = args as ArgumentsOf<"create_realm">;
-      const trimmed = name.trim();
-      if (trimmed === "") return null;
-      const given = folder === undefined || folder.trim() === "" ? null : folder.trim();
-      const real = given === null ? null : ((yield* realFolderOf(given)) ?? given);
+      const checked = yield* checkRealmCreation(args as ArgumentsOf<"create_realm">);
+      // What the tool would refuse is never put to the owner as a question: it refuses it with its own reason.
+      if (checked._tag === "Refused") return null;
       const existing = yield* sql`SELECT id, name, path FROM workspaces
-        WHERE lower(name) = lower(${trimmed}) OR path = ${real ?? ""} ORDER BY id`;
+        WHERE lower(name) = lower(${checked.name}) OR path = ${checked.real ?? ""} ORDER BY id`;
       return finish({
         mustAsk: false,
-        named: { operation: "CreateRealm", targets: [trimmed], value: given },
+        named: { operation: "CreateRealm", targets: [checked.name], value: checked.folder },
         scoped: null,
-        state: { existing, folder: real, name: trimmed },
-        summary: `Make the realm "${trimmed}", ${real === null ? "tied to no folder" : `tied to ${real}`}.`,
+        state: { existing, folder: checked.real, name: checked.name },
+        summary: `Make the realm "${checked.name}", ${checked.real === null ? "tied to no folder" : `tied to ${checked.real}`}.`,
       });
     }
     if (tool === "rename_realm") {
-      const { name, realm } = args as ArgumentsOf<"rename_realm">;
-      const [found] = yield* sql<{ id: string; name: string; path: string | null }>`
-        SELECT id, name, path FROM workspaces WHERE path = ${realm.trim()} OR lower(name) = lower(${realm.trim()})
-        ORDER BY created_at LIMIT 1`;
-      const trimmed = name.trim();
-      if (found === undefined || trimmed === "") return null;
+      const checked = yield* checkRealmRename(args as ArgumentsOf<"rename_realm">);
+      if (checked._tag === "Refused") return null;
+      const { name, realm: found } = checked;
       const rivals = (yield* sql<{ name: string }>`SELECT name FROM workspaces WHERE id <> ${found.id}`).map(
         (row) => row.name,
       );
@@ -227,11 +223,11 @@ const deriveAction = (callerId: string, tool: StructuralTool, args: object) =>
           operation: "RenameRealm",
           rivals,
           targets: [found.name, ...(found.path === null ? [] : [found.path])],
-          value: trimmed,
+          value: name,
         },
         scoped: null,
-        state: { name: trimmed, realm: found },
-        summary: `Rename the realm "${found.name}" to "${trimmed}".`,
+        state: { name, realm: found },
+        summary: `Rename the realm "${found.name}" to "${name}".`,
       });
     }
     const ritual = args as ArgumentsOf<"create_ritual">;
@@ -334,6 +330,10 @@ export const withProvenance = (
     }
     const receipt: Receipt = { fingerprint: derived.fingerprint, isUsed: false, key: keyOf(callerId, tool, args) };
     const answer = yield* run((work) => Effect.provideService(work, receiptReference, receipt));
+    // A tool that reports success without spending the receipt changed something its authorization never covered: a
+    // defect in the tool, which no caller can recover from.
+    if (!answer.isError && !receipt.isUsed)
+      return yield* Effect.die(new Error(`${tool} succeeded without spending its authorization receipt.`));
     if (!answer.isError && authority._tag !== "Ask")
       yield* approvals.recordDecision(
         callerId,

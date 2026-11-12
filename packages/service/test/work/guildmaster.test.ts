@@ -901,6 +901,40 @@ describe("managing realms at the owner's request", () => {
     }).pipe(Effect.provide(setup().layer)),
   );
 
+  it.live("asks the owner nothing about a realm action the tool would refuse, and says why", () => {
+    const { directory, layer } = setup();
+    return Effect.gen(function* () {
+      const place = yield* guildmaster;
+      const folder = folderIn(directory, "shop");
+      yield* manage(place, "create_realm", { folder, name: "Shop" });
+      yield* manage(place, "create_realm", { name: "Notions" });
+      const refusals: ReadonlyArray<readonly [string, object, string]> = [
+        ["create_realm", { name: "SHOP" }, "already exists"],
+        ["create_realm", { folder, name: "Store" }, "already belongs to a realm"],
+        ["rename_realm", { name: "Notions", realm: "Shop" }, "already named"],
+        ["rename_realm", { name: "Anything", realm: "nowhere" }, 'no realm "nowhere"'],
+      ];
+      for (const [name, args, reason] of refusals) {
+        // Escaped so the owner's message never names the target: a question would be the only way to authorize it.
+        yield* say(
+          place.threadId,
+          `What is it about?\ncall ${name} ${JSON.stringify(args).replaceAll(" ", "\\u0020")}`,
+        );
+        const detail = yield* settle(
+          place.missionId,
+          (d) => isIdle(d) || d.questions.some((q) => q.outcome === null),
+          place.threadId,
+        );
+        expect(
+          detail.questions.filter((q) => q.outcome === null),
+          name,
+        ).toEqual([]);
+        expect(lastAgentText(detail), name).toContain(reason);
+      }
+      expect((yield* realms).map((realm) => realm.name).sort()).toEqual(["Notions", "Shop"]);
+    }).pipe(Effect.provide(layer));
+  });
+
   it.live("keeps the realm tools to Iskios: a quest's thread is refused", () =>
     Effect.gen(function* () {
       const quest = yield* startIdle("Some quest");
