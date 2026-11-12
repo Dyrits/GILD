@@ -2805,3 +2805,19 @@ At the owner's request the scrollbar of CHG-0243 is as thin as a border: 1 px (i
 
 ## CHG-0245 · 2026-11-13 · No scroll indicator for now; the question is kept in the backlog
 The owner did not like the 1 px line of CHG-0244, nor the tiny corner triangle tried next (built as a style on each scrolling region with a script that only set a marker, and not accepted; its first build also failed to draw in the window), and asked for no scroll indicator at all for now, with the question kept in the documentation to settle later. The web build now hides every scrollbar and draws nothing in its place (`applyAppearance` adds one style rule; the tick, scrollbar, and corner code is deleted: `scrollIndicator.ts`, `scrollTicks.ts`, `scrollCorner.ts`, `scrollMore.ts`, and their tests). The backlog's **Scroll indicator, to settle** lists what was tried and rejected, what was not tried, and the questions to answer. Typecheck, Biome, and the app suite pass (320 passed, 4 skipped). Not checked in the window after this change (it only hides scrollbars); a long list now has no cue but a row cut at its edge, and a mouse user without a wheel or trackpad cannot see that a region scrolls.
+
+## CHG-0246 · 2026-11-13 · Side-quest creation uses the shared Companion selector
+
+The side-quest form replaces its separate harness, model, and effort fields with the same Companion button below the composer as a conversation. It opens the shared Companions selector with the draft's runner and change handler; choosing does not change the parent thread. The draft still inherits the parent's runner, previews its chosen model's context, and submits its selection with the first message. The Open side-quest icon also moves after Send. At the owner's request, the form's Cancel word becomes a red ✕ with a larger hit area and the accessible label "Cancel new side-quest". Checks: `bun run check`, `bun run typecheck`, and `bun run test apps/app` pass (320 passed, 4 skipped; app tests before the Cancel icon change). Live appearance and draft selection through the sidebar have not been verified; the reported sidebar Heading and SVG WebShape errors remain undiagnosed.
+
+## CHG-0247 · 2026-11-13 · Expanded Iskios uses the available panel width
+
+At the owner's request, Iskios's expanded conversation no longer centers itself in a 900 px column. It uses its container's full width, including the composer, with the existing padding and shared message-bubble sizing. The docked sidebar keeps its existing layout. Live appearance remains to be checked.
+
+## CHG-0248 · 2026-11-13 · Sidebar navigation restores expanded Iskios
+
+Choosing a page, realm quest list, quest, or side-quest in the left sidebar exits Iskios's expanded view and reveals the chosen destination, keeping Iskios open in its smaller panel. This happens on the navigation action, including selecting the current destination again, rather than on destination changes alone. Folding sidebar sections does not restore Iskios. Live interaction remains to be checked.
+
+## CHG-0249 · 2026-11-13 · Expanded Iskios owns the active context
+
+While Iskios fills the main panel, the previous page's navigation highlight and Quest details tab are hidden. The Companions tab offers only Iskios's own picker and backups: the prior pressed picker, default picker selection, and tab cycling all exclude the hidden page's picker. Messages sent from expanded Iskios carry "Iskios" as the viewing context without the previous quest's ID or realm name. Restoring Iskios makes the underlying page's context available again. Checks: a new viewing-context test fails before the fix and passes afterwards; Companion scope has two new tests; `bun run check`, `bun run typecheck`, and `bun run test apps/app --reporter=dot` pass (323 passed, 4 skipped). Live sidebar interaction remains unverified.

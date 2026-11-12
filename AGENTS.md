@@ -47,7 +47,7 @@ When adding a handoff, keep only the three newest current handoffs linked below;
 
 Latest handoffs:
 
-- To resume conversation header cleanup (built and checked; live appearance and landing pending), read the [current handoff](.agents/handoffs/2026-11-13-0023-conversation-header-cleanup.md). Handoffs are shared and committed.
+- To resume side-quest controls, expanded Iskios context, local sync, or the unresolved sidebar rendering errors, read the [current handoff](.agents/handoffs/2026-11-13-0051-side-quest-and-expanded-iskios.md). Handoffs are shared and committed.
 
 - To resume the architecture audit of 2026-11-12 (all five candidates built in part and recorded as CHG-0216 to CHG-0219: Containment, realm checks, message admission, Host access, the OpenCode launch; the remaining parts and the owner decisions of the 2026-11-11 audit wait), read the [current handoff](.agents/handoffs/2026-11-13-0017-architecture-audit-candidates-done.md). The CHG-0208 review follow-up it touches stays in the [sandbox handoff](.agents/handoffs/2026-11-12-1405-sandbox-review-follow-up.md). Handoffs are shared and committed.
 

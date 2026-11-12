@@ -136,11 +136,10 @@ export function OpenThreadForm({
         <Text numberOfLines={1} style={[styles.label, styles.flex]}>
           New side-quest beneath "{parent.title}"
         </Text>
-        <Pressable onPress={onCancel}>
-          <Text style={styles.link}>Cancel</Text>
+        <Pressable accessibilityLabel="Cancel new side-quest" accessibilityRole="button" hitSlop={8} onPress={onCancel}>
+          <Text style={styles.error}>✕</Text>
         </Pressable>
       </View>
-      <RunnerPickers client={client} harnesses={harnesses} isCompact={false} onChange={setRunner} value={runner} />
       {context != null && isOverWarning && (
         <View style={styles.failure}>
           <Text style={styles.error}>{startingContextWarningOf(context)}</Text>
@@ -173,6 +172,9 @@ export function OpenThreadForm({
         </View>
       )}
       <Composer
+        accessory={
+          <RunnerPickers client={client} harnesses={harnesses} isCompact onChange={setRunner} value={runner} />
+        }
         attachments={{ client, refusal: imageRefusalOf(harnesses, runner.harness, model) }}
         mentions={{ client, workspacePath: parent.workspace?.path ?? null }}
         skills={skills}

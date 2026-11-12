@@ -1,5 +1,15 @@
 # Work in progress
 
+## Expanded Iskios width · 2026-11-13 · live check pending
+
+CHG-0247 removes the expanded conversation's centered 900 px cap so the conversation and composer use the full available panel width. CHG-0248 restores expanded Iskios when the owner navigates from the left sidebar, including choosing the current destination again. Pending: check a wide window, resizing, and sidebar navigation to pages, realms, quests, and side-quests while Iskios is expanded in the running app.
+
+CHG-0249: expanded Iskios hides the previous page's highlight and Quest tab, restricts Companions to Iskios's picker and backups, and sends no previous-page viewing context. Lint, typecheck, and app tests pass (323 passed, 4 skipped), including new scope and viewing-context tests. Pending: expand from a quest with its Companion already selected, verify the Iskios-only tab and backups, then restore and check the quest's picker returns.
+
+## Side-quest Companion selector · 2026-11-13 · built, live check pending
+
+CHG-0246: the new side-quest composer uses the shared Companion button and Companions tab instead of separate fields; the side-quest action sits after Send. Lint, typecheck, and app tests pass (320 passed, 4 skipped). Pending: check opening the draft's picker, selecting model and effort without changing the parent, sending the draft, cancelling, and the narrow-window overlay in the running app. The owner's sidebar Heading and SVG WebShape errors remain undiagnosed; the supplied logs omit the error messages above the stacks.
+
 ## Companions tab · 2026-11-12 to 2026-11-13 · built and checked in the window, owner review pending
 
 The model choice asked for "like Delta's and OpenBot's pickers" became, over CHG-0220 to CHG-0245, a **Companions** tab in the right-hand column beside **Quest** (the Quest tab only in a quest): a Companion button in a composer opens it; a fold for the Companion in use and one fold per backup Companion (drag to reorder, bin to remove), the same picker in each; Iskios's button opens it as "✦ Companions" and its own backups; pressing the tab switches between a quest's and Iskios's; the right-hand toggle shows on every screen. Also: the top bar's breadcrumbs removed (CHG-0229), the quest panel's duplicate "Quest" caption removed (CHG-0230), the app has **no scroll indicator** for now (CHG-0245; question in the [backlog](backlog.md)). Companion presets are specified, not built ([specifications](capabilities/companion-presets/specifications.md), CHG-0242). Evidence: [screens](verification/2026-11-12-companion-picker/); typecheck, Biome, and the app suite (320 passed, 4 skipped) pass; driven in a throwaway Electron window on the fake harness.

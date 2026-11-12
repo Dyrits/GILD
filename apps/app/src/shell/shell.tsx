@@ -11,6 +11,7 @@ import {
   TopBarShown,
 } from "../foundation/shellContext";
 import { colors, radii } from "../foundation/theme";
+import { isCompanionInScope } from "./companionScope";
 import { EdgeResizer } from "./edgeResizer";
 import { IskiosColumn, IskiosFloating, IskiosLauncher, iskiosColumnWidth } from "./iskiosDock";
 import type { RealmListing } from "./questTree";
@@ -79,8 +80,12 @@ export function Shell(
   const iskiosWidth = clampPaneWidth(storedIskiosWidth, width, iskiosColumnWidth);
   // Iskios's panel: folded to a pill or open, remembered; a realm chosen for its next message opens it.
   const [isIskiosOpen, setIsIskiosOpen] = useState(readIskiosOpen);
-  // Opened to the whole content area, in place of the screen, until the owner restores it; not remembered.
+  // Opened to the whole content area until restored or the owner navigates from the sidebar; not remembered.
   const [isIskiosFull, setIsIskiosFull] = useState(false);
+  const navigate = (open: () => void) => {
+    setIsIskiosFull(false);
+    open();
+  };
   const setIskiosOpen = (isOpen: boolean) => {
     rememberIskiosOpen(isOpen);
     setIsIskiosOpen(isOpen);
@@ -120,7 +125,7 @@ export function Shell(
     return () => document.removeEventListener("keydown", onKey);
   }, [hasRail]);
   const { details } = props;
-  const isPanelShown = details?.isOpen === true && questPanel !== null;
+  const isPanelShown = !isIskiosFull && details?.isOpen === true && questPanel !== null;
   const panelColumn = isPanelShown && details !== null && (
     <QuestColumn
       edge={
@@ -150,13 +155,13 @@ export function Shell(
   const [tab, setTab] = useState<"quest" | "companion">("quest");
   // Open with no quest panel on this screen (the Guild Hall): the column then holds the Companion tab alone.
   const [isCompanionOnly, setCompanionOnly] = useState(false);
-  const hasQuestPanel = details !== null && questPanel !== null;
+  const hasQuestPanel = !isIskiosFull && details !== null && questPanel !== null;
   const isColumnOpen = hasQuestPanel ? details.isOpen : isCompanionOnly;
   const activeTab = hasQuestPanel ? tab : "companion";
   const bestPill = () => {
     let best: [string, { rank: number; seq: number }] | null = null;
     for (const [id, entry] of pills.current) {
-      if (entry.picker === null) continue;
+      if (entry.picker === null || !isCompanionInScope(entry.picker.isIskios === true, isIskiosFull)) continue;
       if (best === null || entry.rank < best[1].rank || (entry.rank === best[1].rank && entry.seq > best[1].seq)) {
         best = [id, entry];
       }
@@ -164,7 +169,11 @@ export function Shell(
     return best === null ? null : best[0];
   };
   // The pressed button while it is mounted, else the best-ranked, latest one.
-  const pillId = pressedPill !== null && pills.current.get(pressedPill)?.picker != null ? pressedPill : bestPill();
+  const pressedPicker = pressedPill === null ? null : pills.current.get(pressedPill)?.picker;
+  const pillId =
+    pressedPicker != null && isCompanionInScope(pressedPicker.isIskios === true, isIskiosFull)
+      ? pressedPill
+      : bestPill();
   const isCompanionShown = isColumnOpen && activeTab === "companion";
   const latest = useRef({ closeColumn: () => {}, isCompanionShown, openColumn: () => {}, pillId });
   latest.current = {
@@ -217,7 +226,13 @@ export function Shell(
   for (const [id, entry] of pills.current) {
     const isIskios = entry.picker?.isIskios === true;
     // Iskios's Companion is offered only while Iskios is open on the right.
-    if (entry.picker !== null && isIskios !== isIskiosShown && (!isIskios || isIskiosOpen)) otherPillId = id;
+    if (
+      entry.picker !== null &&
+      isCompanionInScope(isIskios, isIskiosFull) &&
+      isIskios !== isIskiosShown &&
+      (!isIskios || isIskiosOpen)
+    )
+      otherPillId = id;
   }
   const companionPicker = pillId === null ? null : (pills.current.get(pillId)?.picker ?? null);
   const columnTabs = (
@@ -298,7 +313,7 @@ export function Shell(
       onRealm={props.iskios.onRealm}
       onToggleFull={() => setIsIskiosFull(!isIskiosFull)}
       realmPath={props.iskios.realmPath}
-      viewing={viewingOf(props.place, props.openMission, props.listedRealm?.name ?? null)}
+      viewing={viewingOf(props.place, props.openMission, props.listedRealm?.name ?? null, isIskiosFull)}
     />
   );
   // The top bar's button opens it; a window with no top bar (narrow, not macOS) has a pill in its stead.
@@ -338,7 +353,19 @@ export function Shell(
                 <TopBar client={props.client} details={null} iskios={iskiosToggle} />
                 <View style={local.body}>
                   <View style={local.frame}>
-                    {!isHidden && <Sidebar {...props} width={railWidth} />}
+                    {!isHidden && (
+                      <Sidebar
+                        {...props}
+                        onOpenMission={(id) => navigate(() => props.onOpenMission(id))}
+                        onOpenRealmQuests={(listing) => navigate(() => props.onOpenRealmQuests(listing))}
+                        onOpenThread={(missionId, threadId) => navigate(() => props.onOpenThread(missionId, threadId))}
+                        onPlace={(place) => navigate(() => props.onPlace(place))}
+                        openMission={isIskiosFull ? null : props.openMission}
+                        openThread={isIskiosFull ? null : props.openThread}
+                        place={isIskiosFull ? null : props.place}
+                        width={railWidth}
+                      />
+                    )}
                     {!isHidden && (
                       <EdgeResizer
                         label="Resize the sidebar"

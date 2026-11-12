@@ -21,12 +21,14 @@ const screenNames: Record<Place, string> = {
   Settings: "Settings",
 };
 
-/** What Iskios is told: the quest that is open, else the screen. */
+/** What Iskios is told: itself when expanded, else the quest or screen beside it. */
 export const viewingOf = (
   place: Place | null,
   openMission: MissionId | null,
   listedRealmName: string | null,
+  isIskiosFull = false,
 ): Viewing => {
+  if (isIskiosFull) return { screen: "Iskios" };
   if (openMission !== null) return { missionId: openMission, screen: "Quest" };
   if (place === null) return { screen: "App" };
   return {

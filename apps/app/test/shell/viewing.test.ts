@@ -19,4 +19,8 @@ describe("where Iskios is told the owner is", () => {
     expect(viewingOf("RealmQuests", null, "Shop")).toEqual({ screen: "Quests of Shop" });
     expect(viewingOf("RealmQuests", null, null)).toEqual({ screen: "Realm quests" });
   });
+
+  it("does not attach the hidden quest or realm when Iskios fills the panel", () => {
+    expect(viewingOf("RealmQuests", "q1" as MissionId, "Shop", true)).toEqual({ screen: "Iskios" });
+  });
 });

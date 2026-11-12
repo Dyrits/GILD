@@ -209,7 +209,7 @@ function IskiosChat({
       (reason) => setActionError(messageOf(reason)),
     );
   return (
-    <View style={[local.page, isFull && local.pageFull]}>
+    <View style={local.page}>
       <View style={styles.header}>
         <Text numberOfLines={1} style={[local.title, styles.flex]}>
           Iskios
@@ -395,7 +395,6 @@ const local = StyleSheet.create({
   noteName: { color: colors.highlight, fontFamily: fonts.sans, fontWeight: "700" },
   noteText: { color: colors.onGround, fontFamily: fonts.sans, fontSize: fontSizes.md },
   page: { backgroundColor: colors.page, flex: 1, gap: 8, paddingBottom: 14, paddingHorizontal: 16, paddingTop: 12 },
-  pageFull: { alignSelf: "center", maxWidth: 900, width: "100%" },
   sub: { color: colors.onGround, fontFamily: fonts.sans, fontSize: fontSizes.md, opacity: 0.8 },
   title: { color: colors.onGround, fontFamily: fonts.sans, fontSize: fontSizes.lg, fontWeight: "700" },
 });
