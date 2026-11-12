@@ -1243,6 +1243,39 @@ describe("settings at the owner's request", () => {
   );
 });
 
+describe("Iskios's app guide", () => {
+  it.live("lists the topics when called with none, and reads one by its id", () =>
+    Effect.gen(function* () {
+      const place = yield* guildmaster;
+      const index = yield* tool(place.threadId, "read_app_guide", {});
+      expect(index).toContain("- rituals:");
+      expect(index).toContain("say you do not know");
+      const topic = yield* tool(place.threadId, "read_app_guide", { topic: "rituals" });
+      expect(topic).toContain("Run now");
+      expect(topic).toContain("Answer only from this guide");
+    }).pipe(Effect.provide(setup().layer)),
+  );
+
+  it.live("finds a topic from the words of a question, and says when the guide has none", () =>
+    Effect.gen(function* () {
+      const place = yield* guildmaster;
+      expect(yield* tool(place.threadId, "read_app_guide", { topic: "how do I pair my phone?" })).toContain(
+        "one-time pairing code",
+      );
+      const none = yield* tool(place.threadId, "read_app_guide", { topic: "what is the capital of France" });
+      expect(none).toContain("does not cover");
+      expect(none).toContain("say you do not know");
+    }).pipe(Effect.provide(setup().layer)),
+  );
+
+  it.live("keeps the guide to Iskios: a quest's thread is refused", () =>
+    Effect.gen(function* () {
+      const quest = yield* startIdle("Some quest");
+      expect(yield* tool(quest.threadId, "read_app_guide", {})).toContain("Only Iskios");
+    }).pipe(Effect.provide(setup().layer)),
+  );
+});
+
 describe("where the owner has Iskios open from", () => {
   const sayFrom = (threadId: ThreadId, text: string, viewing: Viewing | null) =>
     call({ _tag: "SendMessage", delivery: null, requestId: crypto.randomUUID(), text, threadId, viewing });

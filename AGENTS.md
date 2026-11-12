@@ -49,7 +49,7 @@ Latest handoffs:
 
 - To resume the CHG-0208 review follow-up (sandbox and structural actions: refactors and the Seatbelt signal rule done, P1 application launch and P2 to P11 open, P8 and P9 waiting for owner decisions), read the [current handoff](.agents/handoffs/2026-11-12-1405-sandbox-review-follow-up.md). Handoffs are shared and committed.
 
-- To resume the sidebar icons (the owner's flat matte set built, checked, reviewed, and committed in CHG-0207; the owner's look in the running app and the main-row icon size remain), read the [current handoff](.agents/handoffs/2026-11-12-1402-sidebar-flat-icons-reviewed.md). Handoffs are shared and committed.
-
 - To resume device pairing (shared relay deployed and the optional own relay on the user's Cloudflare account built and checked live, CHG-0209 and CHG-0212; a real pairing between two apps through the shared relay not yet seen; folder picker and terminal on a host, the direct path, relay limits and the usage measurement remain), read the [current handoff](.agents/handoffs/2026-11-12-2142-device-pairing-own-relay.md). Handoffs are shared and committed.
+
+- To resume release readiness for 0.1.0-Alpha and Iskios's app guide (the two failing hosted tests fixed and the Apache 2.0 license added and pushed, CHG-0210; the app guide and its `read_app_guide` tool built and checked, CHG-0211; manual installer builds, their smoke tests on real systems, and the version tag remain, and the guide's text awaits the owner's review), read the [current handoff](.agents/handoffs/2026-11-12-2143-release-readiness-and-app-guide.md). Handoffs are shared and committed.
 

@@ -13,6 +13,7 @@ import {
   refusedAction,
   refusedRitual,
 } from "./guildmaster.ts";
+import { readAppGuideByGuildmaster } from "./guildmasterGuide.ts";
 import { withProvenance } from "./guildmasterProvenance.ts";
 import { createRealmByGuildmaster, renameRealmByGuildmaster } from "./guildmasterRealms.ts";
 import { changeSettingByGuildmaster, readSettingsByGuildmaster } from "./guildmasterSettings.ts";
@@ -236,6 +237,7 @@ export const makeToolHandlers = (dependencies: {
             : openThread(args)(threadId),
         ),
       ),
+    read_app_guide: (threadId, args) => runTool(readAppGuideByGuildmaster(threadId, args)),
     read_control_history: (threadId, args) => commit(readControlHistory(threadId, args)),
     read_settings: (threadId) => runTool(readSettingsByGuildmaster(threadId)),
     rename_realm: (threadId, args) =>

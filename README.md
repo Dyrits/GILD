@@ -20,7 +20,7 @@ See the [work in progress](documentation/work-in-progress.md) for current verifi
 - Attach a local folder or repository, or give a thread its own Git worktree.
 - Keep a shared briefing and journal for each quest, and save lore at thread, workspace, or global scope.
 - Paste, drop, or choose images for a message, and use `!` to open a shell in the desktop composer and send its output as context.
-- Configure MCP servers and use skills from existing skill folders.
+- Use skills from existing skill folders by typing `/` in a message. Managing MCP servers from Iskios is not available yet.
 - Set quest and global budgets, review action approvals, and grant removable standing permissions.
 - Schedule recurring instructions as Rituals, with fallback models and a manual Run now option.
 
@@ -34,7 +34,7 @@ The interface uses guild names for familiar concepts:
 | Realm | A workspace folder or repository |
 | Guildmaster | The conversation that opens and coordinates quests |
 | Ritual | A recurring instruction on a schedule |
-| Charter | Settings |
+| Workshop | Settings (accounts, harnesses, permissions, defaults, budgets) |
 | Summons | A thread needs your attention |
 
 The [glossary](documentation/glossary.md) explains the full vocabulary and the technical names used in the code.
@@ -101,11 +101,11 @@ chmod +x Iskios-*.AppImage
 
 ### First launch
 
-The installer includes the interface and local service. In Charter, choose Install beside a missing harness, then sign in to it. Installing through Charter requires Node.js and npm with a writable global installation folder; you can also install harnesses yourself.
+The installer includes the interface and local service. In the Workshop, choose Install beside a missing harness, then sign in to it. Installing through the Workshop requires Node.js and npm with a writable global installation folder; you can also install harnesses yourself.
 Iskios looks for `claude`, `codex`, and `opencode` on your `PATH`.
 You only need the harnesses you intend to use.
 
-1. Open Iskios and visit the Charter to check harness availability and accounts.
+1. Open Iskios and visit the Workshop to check harness availability and accounts.
 2. Add a realm if you want agents to work in a local folder or repository.
 3. Tell the Guildmaster what you want to do, then open the quest it creates or continues.
 4. Choose a Companion, send a message, and open side-quests as needed.

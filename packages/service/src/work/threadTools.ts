@@ -169,6 +169,17 @@ export const threadTools = {
       title: optionalText("A short title for the new thread, a few words, shown to the owner."),
     }),
   }),
+  read_app_guide: definitionOf({
+    description:
+      "Only Iskios uses it. Read the app guide, to answer a question about how Iskios works or how to use it. With no topic it lists the topics; give a topic id, or a few words of the owner's question, to read that part.",
+    invalid: invalid("Invalid arguments: topic is text, or leave it out to list the topics."),
+    isUnasked: true,
+    schema: Schema.Struct({
+      topic: optionalText(
+        "A topic id from the list, or a few words of the question, such as how Rituals are scheduled.",
+      ),
+    }),
+  }),
   read_control_history: definitionOf({
     description:
       "Only Iskios uses it. Read your own older messages with the owner, newest first, when they ask about something said earlier, for example 'Remember what we did about X?'.",

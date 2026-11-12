@@ -12,7 +12,7 @@ import type { ArgumentsOf } from "./threadTools.ts";
 
 /**
  * The settings Iskios never changes: what agents may do without asking and what they may spend. The owner sets them in
- * the Charter, because a quest's text could otherwise talk Iskios into widening them.
+ * the Workshop, because a quest's text could otherwise talk Iskios into widening them.
  */
 export const settingsKeptFromIskios = [
   "approvalLevel",
@@ -47,7 +47,7 @@ export const readSettingsByGuildmaster = (callerId: string) =>
     const settings = yield* readSettings;
     return unchanged({
       isError: false,
-      text: `${JSON.stringify(settings)}\n\nYou may not change: ${settingsKeptFromIskios.join(", ")}; the owner sets those in the Charter.`,
+      text: `${JSON.stringify(settings)}\n\nYou may not change: ${settingsKeptFromIskios.join(", ")}; the owner sets those in the Workshop.`,
     } satisfies ToolAnswer);
   });
 
@@ -60,7 +60,7 @@ export const changeSettingByGuildmaster = (callerId: string, args: ArgumentsOf<"
     if (!(yield* isStructuralCaller(callerId, "change_setting")))
       return refused("Only Iskios changes the settings here.");
     if (isKept(args.setting))
-      return refused(`Not done: ${args.setting} is the owner's alone to change, in the Charter. Tell them where.`);
+      return refused(`Not done: ${args.setting} is the owner's alone to change, in the Workshop. Tell them where.`);
     if (!(changeableSettings as ReadonlyArray<string>).includes(args.setting))
       return refused(`Not done: no setting "${args.setting}". Read the settings first; use a name from them.`);
     const value = jsonOf(args.value);
