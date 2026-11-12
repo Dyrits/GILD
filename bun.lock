@@ -14,7 +14,7 @@
     },
     "apps/app": {
       "name": "app",
-      "version": "0.1.0-Prototype",
+      "version": "0.1.1-Prototype",
       "dependencies": {
         "@expo-google-fonts/caveat": "^0.4.2",
         "@expo/metro-runtime": "~58.0.17",
@@ -39,7 +39,7 @@
     },
     "apps/desktop": {
       "name": "desktop",
-      "version": "0.1.0-Prototype",
+      "version": "0.1.1-Prototype",
       "dependencies": {
         "node-pty": "^1.1.0",
       },
