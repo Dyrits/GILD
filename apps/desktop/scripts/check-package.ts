@@ -46,7 +46,8 @@ const evaluate = (url: string, expression: string) =>
 
 // The endpoint itself contains an owner token, so only the success verdict leaves the renderer.
 const expression = `(async () => {
-  if (!(document.body.innerText.includes("Iskios") && document.body.innerText.includes("Budget ·")) || typeof window.iskios?.endpoint !== "function") return "waiting";
+  const text = document.body?.innerText ?? "";
+  if (!(text.includes("Guild Hall") && text.includes("Realms")) || typeof window.iskios?.endpoint !== "function") return "waiting";
   await window.iskios.endpoint();
   const session = await window.iskios.terminalOpen("package-check", null);
   await window.iskios.terminalClose("package-check");
