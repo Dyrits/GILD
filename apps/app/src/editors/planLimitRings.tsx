@@ -12,11 +12,24 @@ import { currentWindowsOf, leftPercentOf, type Ring, resetsInTextOf, ringStackOf
 const size = 44;
 const stroke = 4;
 const gap = 2;
+/** A plan with three windows, such as OpenCode Go's, draws thinner rings so its logo keeps room. */
+const thinStroke = 3;
+const thinGap = 1;
 
 const levelColors = { normal: colors.success, reached: colors.danger, warning: colors.warning } as const;
 
 /** One plan's windows as concentric rings around its provider's logo; the filled arc, the share left, starts at the top and runs clockwise. */
-function PlanRings({ harness, rings, logoSize }: { harness: HarnessName; logoSize: number; rings: readonly Ring[] }) {
+function PlanRings({
+  harness,
+  logoSize,
+  rings,
+  stroke,
+}: {
+  harness: HarnessName;
+  logoSize: number;
+  rings: readonly Ring[];
+  stroke: number;
+}) {
   return (
     <View style={local.ringBox}>
       <Svg height={size} style={local.ringSvg} viewBox={`0 0 ${size} ${size}`} width={size}>
@@ -122,7 +135,9 @@ export function PlanLimitRings({ client }: { client: ServiceClient }) {
           const key = `${budget.harness}:${budget.accountId ?? ""}`;
           const name = budget.label === "This computer" ? budget.harness : budget.label;
           const windows = currentWindowsOf(budget.planLimits?.windows ?? [], Date.now());
-          const { logoSize, rings } = ringStackOf(windows, size, stroke, gap);
+          const isThin = windows.length > 2;
+          const ringStroke = isThin ? thinStroke : stroke;
+          const { logoSize, rings } = ringStackOf(windows, size, ringStroke, isThin ? thinGap : gap);
           return (
             <Pressable
               accessibilityLabel={`${name}: ${windows.map(planLimitTextOf).join("; ")}`}
@@ -134,7 +149,7 @@ export function PlanLimitRings({ client }: { client: ServiceClient }) {
               onHoverOut={() => setShown(null)}
               style={[local.circle, shown === key && local.circleLifted]}
             >
-              <PlanRings harness={budget.harness} logoSize={logoSize} rings={rings} />
+              <PlanRings harness={budget.harness} logoSize={logoSize} rings={rings} stroke={ringStroke} />
             </Pressable>
           );
         })}

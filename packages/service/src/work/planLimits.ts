@@ -16,9 +16,11 @@ export const windowLabelOf = (minutes: number) =>
     ? "Weekly"
     : minutes === 1440
       ? "Daily"
-      : minutes % 60 === 0
-        ? `${minutes / 60}-hour`
-        : `${minutes}-minute`;
+      : minutes === 43200
+        ? "Monthly"
+        : minutes % 60 === 0
+          ? `${minutes / 60}-hour`
+          : `${minutes}-minute`;
 
 /** The plan limits of provider accounts. */
 export class PlanLimits extends Context.Service<

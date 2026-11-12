@@ -6,6 +6,7 @@
 // is echoed. "fragile run <command>" asks the same way, then hangs on the next prompt and exits when cancelled,
 // as a process that dies during an interrupt.
 import { appendFileSync } from "node:fs";
+import { createServer } from "node:http";
 import { resolve } from "node:path";
 import { createInterface } from "node:readline";
 
@@ -20,6 +21,39 @@ log({
   home: process.env.XDG_DATA_HOME ?? null,
   pid: process.pid,
 });
+
+// `serve`: OpenCode's local API, shaped after OpenCode 2.2.0 (probed 2026-11-12). It answers only
+// `/api/experimental/usage/limits`, behind basic authentication with OPENCODE_SERVER_PASSWORD, and logs each read as
+// { method: "usage/limits" }. STAND_IN_OPENCODE_LIMITS: "fail" answers 500, "none" a null `data` (not signed in to the
+// Console); otherwise a Go plan with a 5-hour window at 12%, a weekly one at 40%, and a monthly one at 7%.
+if (process.argv.includes("serve")) {
+  const password = process.env.OPENCODE_SERVER_PASSWORD ?? "";
+  const server = createServer((request, response) => {
+    const sent = request.headers.authorization ?? "";
+    if (sent !== `Basic ${Buffer.from(`opencode:${password}`).toString("base64")}`) {
+      response.writeHead(401).end(JSON.stringify({ _tag: "UnauthorizedError" }));
+      return;
+    }
+    log({ method: "usage/limits" });
+    if (process.env.STAND_IN_OPENCODE_LIMITS === "fail") return void response.writeHead(500).end("{}");
+    const data =
+      process.env.STAND_IN_OPENCODE_LIMITS === "none"
+        ? null
+        : {
+            budgets: [],
+            go: {
+              monthly: { limited: false, percent: 7, resetsAt: 1796315927000 },
+              rolling: { limited: false, percent: 12, resetsAt: 1794481927000 },
+              weekly: { limited: false, percent: 40, resetsAt: 1794787200000 },
+            },
+            workspace: { id: "wrk_stand_in", name: "Default", usageURL: "https://example.invalid/usage" },
+          };
+    response.writeHead(200, { "content-type": "application/json" }).end(JSON.stringify({ data, location: {} }));
+  });
+  server.listen(0, "127.0.0.1", () =>
+    process.stdout.write(`server listening on http://127.0.0.1:${server.address().port}\n`),
+  );
+}
 
 const send = (message) => process.stdout.write(`${JSON.stringify({ jsonrpc: "2.0", ...message })}\n`);
 let nextServerId = 1000;

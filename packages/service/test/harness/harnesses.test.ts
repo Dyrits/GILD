@@ -38,6 +38,7 @@ afterEach(() => {
   delete process.env.STAND_IN_LOG;
   delete process.env.STAND_IN_CODEX_ACCOUNT;
   delete process.env.STAND_IN_CODEX_LIMITS;
+  delete process.env.STAND_IN_OPENCODE_LIMITS;
   for (const directory of directories.splice(0)) rmSync(directory, { force: true, recursive: true });
 });
 
@@ -340,6 +341,51 @@ describe("running Codex threads", () => {
       expect(own?.planLimits).toBeNull();
     }).pipe(Effect.provide(layer));
   });
+
+  it.live("reads an OpenCode account's Go plan limits from its own local API, once, in three windows", () => {
+    const { layer, logged } = withHarnesses();
+    return Effect.gen(function* () {
+      const own = () =>
+        call({ _tag: "ReadAccountBudgets" }).pipe(
+          Effect.map((budgets) => budgets.find((budget) => budget.harness === "opencode" && budget.accountId === null)),
+        );
+      yield* own();
+      let reading = yield* own();
+      for (let attempt = 0; attempt < 100 && (reading?.planLimits ?? null) === null; attempt++) {
+        yield* Effect.sleep("50 millis");
+        reading = yield* own();
+      }
+      expect(reading?.planLimits?.windows).toEqual([
+        { label: "5-hour", resetsAt: 1794481927000, usedPercent: 12 },
+        { label: "Weekly", resetsAt: 1794787200000, usedPercent: 40 },
+        { label: "Monthly", resetsAt: 1796315927000, usedPercent: 7 },
+      ]);
+      yield* own();
+      yield* own();
+      expect(logged().filter((entry) => entry.method === "usage/limits")).toHaveLength(1);
+    }).pipe(Effect.provide(layer));
+  });
+
+  for (const [reason, mode] of [
+    ["is not signed in to its Console", "none"],
+    ["cannot answer", "fail"],
+  ] as const) {
+    it.live(`shows no OpenCode plan limits when it ${reason}, and does not ask again at once`, () => {
+      process.env.STAND_IN_OPENCODE_LIMITS = mode;
+      const { layer, logged } = withHarnesses();
+      return Effect.gen(function* () {
+        for (let attempt = 0; attempt < 6; attempt++) {
+          yield* call({ _tag: "ReadAccountBudgets" });
+          yield* Effect.sleep("150 millis");
+        }
+        expect(logged().filter((entry) => entry.method === "usage/limits")).toHaveLength(1);
+        const own = (yield* call({ _tag: "ReadAccountBudgets" })).find(
+          (budget) => budget.harness === "opencode" && budget.accountId === null,
+        );
+        expect(own?.planLimits).toBeNull();
+      }).pipe(Effect.provide(layer));
+    });
+  }
 
   it.live("asks the owner before a sensitive command and runs an ordinary one unasked", () => {
     const { layer } = withHarnesses();

@@ -56,3 +56,9 @@ C10a (screen interactions) and C14 (desktop-only guards) remain unproven; C10b (
 ## Cleanup and scope
 
 Production scope excludes `skills-lock.json` and `.agents/skills/security-audit`, which are unrelated work. Temporary logs, review snapshots and scripts reside under `/private/tmp`; desktop build wrote ignored `apps/desktop/dist` output. Dependency repair ran frozen install and the normal prepare hook. No external relay was created by this review.
+
+## Integration onto current main
+
+Feature commit `cd8047e` was merged with remote `241ce99` (OpenCode Go plan limits). Only AGENTS.md's handoff index and the appended changelog conflicted: both changes were retained, with device-pairing entries numbered CHG-0201 through CHG-0206 and OpenCode preserved as CHG-0200. The handoff index keeps device pairing, the newest OpenCode/Reserves handoff and the Claude recovery handoff. The combined state passes all six typechecks, Biome on 452 app/package files, desktop build, and 1,159 tests (14 skipped, 101 files passed). No force push is required.
+
+The exact updated mutation helper's full run detected one invalid C8b mutation and exited nonzero as intended. That entry was corrected to match the successful retry and separately verified as RED (one test failed); all other 15 entries passed in the full run. The final combined helper was not rerun in full after that isolated correction.

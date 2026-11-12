@@ -49,7 +49,7 @@ Latest handoffs:
 
 - To resume device pairing (relay, secure channel, service and screens built and checked; the relay not deployed yet; folder picker and terminal on a host, the direct path and the deployment remain), read the [current handoff](.agents/handoffs/2026-11-12-0940-device-pairing.md). Handoffs are shared and committed.
 
-- To resume the Reserves usage page (built and checked, with gaps against its specification) and the rail's plan-limit rings (Codex and Claude Code limits; owner look pending in the running app), read the [current handoff](.agents/handoffs/2026-11-12-0726-reserves-usage-and-plan-rings.md). Handoffs are shared and committed.
+- To resume the Reserves usage page (built and checked, with gaps against its specification) and the rail's plan-limit rings (Codex, Claude Code, and OpenCode Go limits; owner look pending in the running app), read the [current handoff](.agents/handoffs/2026-11-12-0916-opencode-go-plan-limits.md). Handoffs are shared and committed.
 
 - To resume the Claude Code tool listing fault and the moved quest that stayed held (both fixed and checked in CHG-0197; the owner's stuck quests still to retry in the restarted app), read the [current handoff](.agents/handoffs/2026-11-12-0034-claude-tool-listing-and-moved-quest.md). Handoffs are shared and committed.
 
