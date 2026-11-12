@@ -11,6 +11,14 @@ describe("laying plan limits out as rings", () => {
     expect(rings.map((ring) => ring.radius)).toEqual([20, 14]);
   });
 
+  it("keeps a logo room inside the three thinner rings of OpenCode Go's three windows", () => {
+    const monthly = { label: "Monthly", resetsAt: 20_000, usedPercent: 7 };
+    const { logoSize, rings } = ringStackOf([fiveHour, weekly, monthly], 44, 3, 1);
+    expect(rings.map((ring) => ring.window.label)).toEqual(["Monthly", "Weekly", "5-hour"]);
+    expect(rings.map((ring) => ring.radius)).toEqual([20.5, 16.5, 12.5]);
+    expect(logoSize).toBe(16);
+  });
+
   it("fills the share left of each circumference", () => {
     const { rings } = ringStackOf([weekly], 44, 4, 2);
     expect(rings[0]?.filled).toBeCloseTo((rings[0]?.circumference ?? 0) * 0.89);
