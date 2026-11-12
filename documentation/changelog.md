@@ -2699,3 +2699,6 @@ The owner asked that a user could use their own Cloudflare account instead of th
 
 ## CHG-0213 · 2026-11-12 · Version renamed from 0.1.0-Alpha to 0.1.0-Prototype
 The owner chose the name Prototype for the first release. The `app` and `desktop` packages and `bun.lock` now say `0.1.0-Prototype`; a tag such as `v0.1.0-Prototype` makes the packaged installers carry that version, and the hyphen marks the GitHub release as a prerelease. Checked before the bump: `bun run check`, `bun run typecheck`, and `bun run test --maxWorkers=4` (1312 passed, 14 skipped), and `bun install --frozen-lockfile` after it. Older handoffs and verification notes still say 0.1.0-Alpha because they record what was true then.
+
+## CHG-0214 · 2026-11-12 · Release tags no longer need a `v` prefix
+The owner wants the first release tagged `0.1.0-Prototype`, not `v0.1.0-Prototype`. The workflow now starts on tags that begin with a digit (`[0-9]*`) instead of `v*`; the version is still taken from the tag with a leading `v` dropped, and a hyphen still marks a prerelease. The README says so. A first `v0.1.0-Prototype` tag was pushed and deleted before it could publish. Not checked: the new trigger on a real tag until the `0.1.0-Prototype` run finishes.

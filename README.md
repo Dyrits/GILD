@@ -196,8 +196,8 @@ This builds an installer for the current platform in `apps/desktop/release`.
 It bundles the interface and service, so the installed app needs no development server.
 
 Pushes to `main` and pull requests targeting it run lint, typechecking, and tests through the [desktop workflow](.github/workflows/package.yml).
-Push a version tag such as `v0.1.0-alpha.1` to build macOS arm64 and x64, Windows x64, and Linux x64 installers and publish them on [GitHub Releases](https://github.com/Dyrits/ISKIOS/releases).
-The tag without its `v` prefix sets the packaged app version; tags containing a hyphen produce prereleases.
+Push a version tag such as `0.1.0-Prototype` (no `v` prefix) to build macOS arm64 and x64, Windows x64, and Linux x64 installers and publish them on [GitHub Releases](https://github.com/Dyrits/ISKIOS/releases).
+The tag sets the packaged app version (a leading `v`, if present, is dropped); tags containing a hyphen produce prereleases.
 The release is published only after all four builds and uploads succeed.
 Installers download directly as `.dmg`, `.exe`, and `.AppImage` files without an extra ZIP wrapper.
 The workflow also supports **Run workflow** manually for test builds, which upload direct installer files to the run's **Artifacts** section without publishing a release.
