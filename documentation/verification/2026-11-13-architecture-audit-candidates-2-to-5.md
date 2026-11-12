@@ -1,6 +1,6 @@
 # Proof: architecture audit 2026-11-12, candidates 2 to 5 (CHG-0217 to CHG-0219)
 
-- **Verdict:** proven for the code claims below; no running app was driven (see Not proven)
+- **Verdict:** not fully proven: C2 is unproven, C1 and C3 to C6 are proven; no running app was driven (see Not proven)
 - **Work:** `22ac07b..` the working tree on top of `099f9ac`, committed as CHG-0219 (candidates 2 and 4 to 5 are `9c75c08` and `099f9ac`)
 - **Agreement:** the [2026-11-12 architecture audit](../architecture-audit/architecture-audit-2026-11-12-2245.html); behaviour kept except the realm-question bug of candidate 2
 - **Environment:** macOS (Darwin 25.6.0), the project's `test` script (`ELECTRON_RUN_AS_NODE=1`, Electron 45), stand-in harnesses, real `sandbox-exec` for the OpenCode tests
