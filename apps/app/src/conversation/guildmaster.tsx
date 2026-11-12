@@ -17,6 +17,7 @@ import { useDraft, useFollowNewest } from "./conversation";
 import { AgentReply, EntryView, WorkingIndicator } from "./conversationEntries";
 import { type Entry, entriesOf, workingLabelOf } from "./entries";
 import { GuildHallHub } from "./guildHallHub";
+import { ThreadBackups } from "./threadBackups";
 
 /** The realm chosen for the next message, shown over the message box and cleared with its ×. */
 function RealmNote({ name, onClear }: { name: string; onClear: () => void }) {
@@ -306,8 +307,11 @@ function IskiosChat({
           isInTurn ? undefined : (
             <RunnerPickers
               client={client}
+              dockRank={1}
+              extra={<ThreadBackups client={client} key={thread.id} threadId={thread.id} />}
               harnesses={harnesses}
               isCompact={true}
+              isIskios={true}
               onChange={(next) => act(client.request({ _tag: "ChangeThreadRunner", ...next, threadId: thread.id }))}
               value={{
                 accountId: thread.accountId,

@@ -1,12 +1,16 @@
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useRef, useState } from "react";
-import { Pressable, StyleSheet, useWindowDimensions, View } from "react-native";
+import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { IskiosConversation } from "../conversation/guildmaster";
-import { allMissions } from "../foundation/queries";
-import { QuestPanelSetter, SidebarShown, TopBarShown } from "../foundation/shellContext";
+import { CompanionPanel, type CompanionPickerProps } from "../editors/companionPicker";
+import {
+  CompanionDockActions,
+  CompanionTabOf,
+  QuestPanelSetter,
+  SidebarShown,
+  TopBarShown,
+} from "../foundation/shellContext";
 import { colors, radii } from "../foundation/theme";
-import { useServiceQuery } from "../foundation/useServiceQuery";
-import { useRituals } from "../rituals/rituals";
 import { EdgeResizer } from "./edgeResizer";
 import { IskiosColumn, IskiosFloating, IskiosLauncher, iskiosColumnWidth } from "./iskiosDock";
 import type { RealmListing } from "./questTree";
@@ -26,16 +30,22 @@ import {
   rememberRailWidth,
 } from "./railStorage";
 import { Sidebar } from "./sidebar";
-import {
-  crumbsOf,
-  type DetailsToggle,
-  hasOwnTitleBar,
-  PanelIcon,
-  QuestColumn,
-  questColumnWidth,
-  TopBar,
-} from "./topBar";
+import { type DetailsToggle, hasOwnTitleBar, PanelIcon, QuestColumn, questColumnWidth, TopBar } from "./topBar";
 import { viewingOf } from "./viewing";
+
+/** Whether two picker states draw the same: their data, not their handlers, which are new on every render. */
+const isSamePicker = (a: CompanionPickerProps | null, b: CompanionPickerProps) =>
+  a !== null &&
+  a.accountId === b.accountId &&
+  a.effort === b.effort &&
+  a.harness === b.harness &&
+  a.harnesses === b.harnesses &&
+  a.isAccountChosen === b.isAccountChosen &&
+  a.model === b.model &&
+  a.isIskios === b.isIskios &&
+  a.extra?.key === b.extra?.key &&
+  a.effortOptions.join() === b.effortOptions.join() &&
+  a.accountOptions.join() === b.accountOptions.join();
 
 /** The window width from which the sidebar shows beside the content; narrower windows keep the screens' own links. */
 const sidebarBreakpoint = 820;
@@ -90,7 +100,6 @@ export function Shell(
     setQuestPanel(panel);
     setPanelTitle(title);
   }, []);
-  const { data } = useServiceQuery(props.client, allMissions.request, allMissions.key);
   const hasRail = width >= sidebarBreakpoint;
   const toggle = () => {
     rememberHidden(!isHidden);
@@ -110,18 +119,6 @@ export function Shell(
     document.addEventListener("keydown", onKey);
     return () => document.removeEventListener("keydown", onKey);
   }, [hasRail]);
-  const workspaces = data?.workspaces ?? [];
-  const rituals = useRituals(props.client);
-  const crumbs = crumbsOf({
-    isLoaded: data !== null && rituals !== null,
-    listedRealmName: props.listedRealm?.name ?? null,
-    missions: data?.missions ?? [],
-    onPlace: props.onPlace,
-    openMission: props.openMission,
-    place: props.place,
-    rituals: rituals ?? [],
-    workspaces,
-  });
   const { details } = props;
   const isPanelShown = details?.isOpen === true && questPanel !== null;
   const panelColumn = isPanelShown && details !== null && (
@@ -143,6 +140,148 @@ export function Shell(
       width={questWidth}
     >
       {questPanel}
+    </QuestColumn>
+  );
+  // The right-hand column's Companion tab: the Companion buttons that are mounted, each with its latest picker state.
+  const pills = useRef(new Map<string, { picker: CompanionPickerProps | null; rank: number; seq: number }>());
+  const pillCount = useRef(0);
+  const [pressedPill, setPressedPill] = useState<string | null>(null);
+  const [, redraw] = useReducer((n: number) => n + 1, 0);
+  const [tab, setTab] = useState<"quest" | "companion">("quest");
+  // Open with no quest panel on this screen (the Guild Hall): the column then holds the Companion tab alone.
+  const [isCompanionOnly, setCompanionOnly] = useState(false);
+  const hasQuestPanel = details !== null && questPanel !== null;
+  const isColumnOpen = hasQuestPanel ? details.isOpen : isCompanionOnly;
+  const activeTab = hasQuestPanel ? tab : "companion";
+  const bestPill = () => {
+    let best: [string, { rank: number; seq: number }] | null = null;
+    for (const [id, entry] of pills.current) {
+      if (entry.picker === null) continue;
+      if (best === null || entry.rank < best[1].rank || (entry.rank === best[1].rank && entry.seq > best[1].seq)) {
+        best = [id, entry];
+      }
+    }
+    return best === null ? null : best[0];
+  };
+  // The pressed button while it is mounted, else the best-ranked, latest one.
+  const pillId = pressedPill !== null && pills.current.get(pressedPill)?.picker != null ? pressedPill : bestPill();
+  const isCompanionShown = isColumnOpen && activeTab === "companion";
+  const latest = useRef({ closeColumn: () => {}, isCompanionShown, openColumn: () => {}, pillId });
+  latest.current = {
+    closeColumn: () => {
+      if (hasQuestPanel) {
+        if (details.isPinned !== true && details.isOpen) details.onToggle();
+      } else setCompanionOnly(false);
+    },
+    isCompanionShown,
+    openColumn: () => {
+      if (hasQuestPanel) {
+        if (!details.isOpen) details.onToggle();
+      } else setCompanionOnly(true);
+    },
+    pillId,
+  };
+  const companionDock = useMemo(
+    () => ({
+      open: (id: string) => {
+        if (latest.current.isCompanionShown && latest.current.pillId === id) return latest.current.closeColumn();
+        setPressedPill(id);
+        setTab("companion");
+        latest.current.openColumn();
+      },
+      publish: (id: string, picker: CompanionPickerProps, rank: number) => {
+        const entry = pills.current.get(id);
+        if (entry === undefined) return;
+        const before = entry.picker;
+        entry.picker = picker;
+        entry.rank = rank;
+        // Only a shown tab draws it, and only when what it shows changed: the frame's own redraw renders the button
+        // again, which would hand over the same state and loop.
+        if (latest.current.isCompanionShown && latest.current.pillId === id && !isSamePicker(before, picker)) redraw();
+      },
+      register: (id: string) => {
+        pillCount.current += 1;
+        pills.current.set(id, { picker: null, rank: 0, seq: pillCount.current });
+      },
+      unregister: (id: string) => {
+        pills.current.delete(id);
+        redraw();
+      },
+    }),
+    [],
+  );
+  // The latest-registered button on the other side of Iskios (a quest's against Iskios's), if the window has one and,
+  // for Iskios's, it is open.
+  const isIskiosShown = pillId === null ? null : pills.current.get(pillId)?.picker?.isIskios === true;
+  let otherPillId: string | null = null;
+  for (const [id, entry] of pills.current) {
+    const isIskios = entry.picker?.isIskios === true;
+    // Iskios's Companion is offered only while Iskios is open on the right.
+    if (entry.picker !== null && isIskios !== isIskiosShown && (!isIskios || isIskiosOpen)) otherPillId = id;
+  }
+  const companionPicker = pillId === null ? null : (pills.current.get(pillId)?.picker ?? null);
+  const columnTabs = (
+    <View style={local.tabs}>
+      {hasQuestPanel && (
+        <Pressable
+          accessibilityRole="tab"
+          accessibilityState={{ selected: activeTab === "quest" }}
+          onPress={() => setTab("quest")}
+          style={[local.tab, activeTab === "quest" && local.tabActive]}
+        >
+          <Text style={[local.tabText, activeTab === "quest" && local.tabTextActive]}>{panelTitle}</Text>
+        </Pressable>
+      )}
+      <Pressable
+        accessibilityRole="tab"
+        accessibilityState={{ selected: activeTab === "companion" }}
+        onPress={() => {
+          // Chosen already, the tab goes to the other Companion in the window: Iskios's from a quest's, and back.
+          if (activeTab === "companion" && otherPillId !== null) setPressedPill(otherPillId);
+          setTab("companion");
+        }}
+        style={[local.tab, activeTab === "companion" && local.tabActive]}
+      >
+        <Text style={[local.tabText, activeTab === "companion" && local.tabTextActive]}>
+          {companionPicker?.isIskios === true && <Text style={local.iskiosMark}>✦ </Text>}
+          Companions
+        </Text>
+      </Pressable>
+    </View>
+  );
+  const wideColumn = isColumnOpen && (
+    <QuestColumn
+      edge={
+        <EdgeResizer
+          label="Resize the quest panel"
+          leastWidth={questColumnWidth}
+          onChange={setQuestWidth}
+          onRelease={(next) => rememberPaneWidth(questPanelWidthKey, next)}
+          side="start"
+          width={questWidth}
+          windowWidth={width}
+        />
+      }
+      isWide={true}
+      onClose={null}
+      tabs={columnTabs}
+      title={panelTitle}
+      width={questWidth}
+    >
+      {hasQuestPanel && <View style={[local.questTab, activeTab !== "quest" && local.hidden]}>{questPanel}</View>}
+      {activeTab === "companion" &&
+        (companionPicker === null ? (
+          <Text style={local.noCompanion}>There is no Companion to choose here.</Text>
+        ) : (
+          <CompanionPanel
+            key={pillId}
+            {...companionPicker}
+            // The button's latest handlers, whatever the tab last drew.
+            onAccount={(accountId) => pills.current.get(pillId ?? "")?.picker?.onAccount(accountId)}
+            onEffort={(effort) => pills.current.get(pillId ?? "")?.picker?.onEffort(effort)}
+            onModel={(harness, model) => pills.current.get(pillId ?? "")?.picker?.onModel(harness, model)}
+          />
+        ))}
     </QuestColumn>
   );
   // Beside every screen, the Guild Hall's hub included, Iskios is a column; only a narrow window floats it as a card (CHG-0193).
@@ -179,7 +318,7 @@ export function Shell(
       <QuestPanelSetter.Provider value={setPanel}>
         <TopBarShown.Provider value={hasOwnTitleBar}>
           <View style={local.narrow}>
-            {hasOwnTitleBar && <TopBar client={props.client} crumbs={crumbs} details={details} iskios={iskiosToggle} />}
+            {hasOwnTitleBar && <TopBar client={props.client} details={details} iskios={iskiosToggle} />}
             <View style={[local.narrowContent, isPanelShown && local.hidden]}>{props.children}</View>
             {!isPanelShown && iskiosDock}
             {!isPanelShown && iskiosFull}
@@ -192,79 +331,83 @@ export function Shell(
   return (
     <QuestPanelSetter.Provider value={setPanel}>
       <SidebarShown.Provider value={true}>
-        <TopBarShown.Provider value={true}>
-          <View style={local.window}>
-            <TopBar client={props.client} crumbs={crumbs} details={null} iskios={iskiosToggle} />
-            <View style={local.body}>
-              <View style={local.frame}>
-                {!isHidden && <Sidebar {...props} width={railWidth} />}
-                {!isHidden && (
-                  <EdgeResizer
-                    label="Resize the sidebar"
-                    leastWidth={minRailWidth}
-                    onChange={setRailWidth}
-                    onRelease={rememberRailWidth}
-                    side="end"
-                    width={railWidth}
-                    windowWidth={width}
-                  />
-                )}
-                <Pressable
-                  accessibilityLabel={isHidden ? "Show sidebar (⌘B)" : "Hide sidebar (⌘B)"}
-                  accessibilityRole="button"
-                  onPress={toggle}
-                  style={({ pressed }) => [
-                    local.handle,
-                    isHidden ? local.handleTab : { left: railWidth - handleSize / 2 },
-                    pressed && local.handlePressed,
-                  ]}
-                >
-                  <PanelIcon />
-                </Pressable>
-                <View style={local.panel}>
-                  {props.children}
-                  {iskiosFull}
-                </View>
-                {iskiosDock}
-              </View>
-              {panelColumn}
-              {isIskiosColumn && (
-                <IskiosColumn
-                  edge={
-                    <EdgeResizer
-                      label="Resize Iskios"
-                      leastWidth={iskiosColumnWidth}
-                      onChange={setIskiosWidth}
-                      onRelease={(next) => rememberPaneWidth(iskiosWidthKey, next)}
-                      side="start"
+        <CompanionDockActions.Provider value={companionDock}>
+          <CompanionTabOf.Provider value={isCompanionShown ? pillId : null}>
+            <TopBarShown.Provider value={true}>
+              <View style={local.window}>
+                <TopBar client={props.client} details={null} iskios={iskiosToggle} />
+                <View style={local.body}>
+                  <View style={local.frame}>
+                    {!isHidden && <Sidebar {...props} width={railWidth} />}
+                    {!isHidden && (
+                      <EdgeResizer
+                        label="Resize the sidebar"
+                        leastWidth={minRailWidth}
+                        onChange={setRailWidth}
+                        onRelease={rememberRailWidth}
+                        side="end"
+                        width={railWidth}
+                        windowWidth={width}
+                      />
+                    )}
+                    <Pressable
+                      accessibilityLabel={isHidden ? "Show sidebar (⌘B)" : "Hide sidebar (⌘B)"}
+                      accessibilityRole="button"
+                      onPress={toggle}
+                      style={({ pressed }) => [
+                        local.handle,
+                        isHidden ? local.handleTab : { left: railWidth - handleSize / 2 },
+                        pressed && local.handlePressed,
+                      ]}
+                    >
+                      <PanelIcon />
+                    </Pressable>
+                    <View style={local.panel}>
+                      {props.children}
+                      {iskiosFull}
+                    </View>
+                    {iskiosDock}
+                  </View>
+                  {wideColumn}
+                  {isIskiosColumn && (
+                    <IskiosColumn
+                      edge={
+                        <EdgeResizer
+                          label="Resize Iskios"
+                          leastWidth={iskiosColumnWidth}
+                          onChange={setIskiosWidth}
+                          onRelease={(next) => rememberPaneWidth(iskiosWidthKey, next)}
+                          side="start"
+                          width={iskiosWidth}
+                          windowWidth={width}
+                        />
+                      }
                       width={iskiosWidth}
-                      windowWidth={width}
-                    />
-                  }
-                  width={iskiosWidth}
-                >
-                  {iskiosChat}
-                </IskiosColumn>
-              )}
-              {details !== null && details.isPinned !== true && (
-                <Pressable
-                  accessibilityLabel={details.isOpen ? "Hide quest panel" : "Show quest panel"}
-                  accessibilityRole="button"
-                  onPress={details.onToggle}
-                  style={({ pressed }) => [
-                    local.handle,
-                    isPanelShown
-                      ? { right: questWidth - handleSize / 2 + iskiosOffset }
-                      : [local.endHandleTab, { right: iskiosOffset }],
-                    pressed && local.handlePressed,
-                  ]}
-                >
-                  <PanelIcon side="right" />
-                </Pressable>
-              )}
-            </View>
-          </View>
-        </TopBarShown.Provider>
+                    >
+                      {iskiosChat}
+                    </IskiosColumn>
+                  )}
+                  {(!hasQuestPanel || details.isPinned !== true) && (
+                    <Pressable
+                      accessibilityLabel={isColumnOpen ? "Hide quest panel" : "Show quest panel"}
+                      accessibilityRole="button"
+                      onPress={hasQuestPanel ? details.onToggle : () => setCompanionOnly(!isCompanionOnly)}
+                      style={({ pressed }) => [
+                        local.handle,
+                        isColumnOpen
+                          ? { right: questWidth - handleSize / 2 + iskiosOffset }
+                          : [local.endHandleTab, { right: iskiosOffset }],
+                        pressed && local.handlePressed,
+                      ]}
+                    >
+                      <PanelIcon side="right" />
+                    </Pressable>
+                  )}
+                </View>
+              </View>
+            </TopBarShown.Provider>
+          </CompanionTabOf.Provider>
+        </CompanionDockActions.Provider>
       </SidebarShown.Provider>
     </QuestPanelSetter.Provider>
   );
@@ -316,8 +459,11 @@ const local = StyleSheet.create({
     width: handleSize * 0.75,
   },
   hidden: { display: "none" },
+  // Iskios's own mark, as on its button in the top bar.
+  iskiosMark: { color: colors.accentText },
   narrow: { backgroundColor: colors.page, flex: 1 },
   narrowContent: { flex: 1 },
+  noCompanion: { color: colors.textMuted, padding: 16 },
   panel: {
     backgroundColor: colors.page,
     borderColor: colors.borderStrong,
@@ -325,5 +471,19 @@ const local = StyleSheet.create({
     flex: 1,
     overflow: "hidden",
   },
+  // The quest panel under the tabs, in the column's own flow so the tabs stay in view.
+  questTab: { flex: 1 },
+  tab: {
+    alignItems: "center",
+    borderColor: colors.edge,
+    borderRadius: radii.md,
+    borderWidth: 1,
+    flex: 1,
+    paddingVertical: 6,
+  },
+  tabActive: { backgroundColor: colors.controlActive },
+  tabs: { flexDirection: "row", gap: 6, padding: 8 },
+  tabText: { color: colors.textSecondary, fontSize: 13, fontWeight: "500" },
+  tabTextActive: { color: colors.accentText, fontWeight: "700" },
   window: { backgroundColor: colors.ground, flex: 1 },
 });

@@ -1,8 +1,30 @@
 import type { BackupCompanion, HarnessList } from "@iskios/contracts";
 import { Pressable, StyleSheet, Text, View } from "react-native";
+import Svg, { Path } from "react-native-svg";
 import { styles } from "../foundation/styles";
 import { colors, fontSizes, fonts, radii } from "../foundation/theme";
+import { Fold, useOpenFold } from "../ui/fold";
+import { SortableItem } from "../ui/sortable";
+import { runnerSummaryOf } from "./companionPicker";
 import { RunnerPickers } from "./runners";
+
+/** A bin: removes a backup. A line drawing in the sidebar's style, in the danger color. */
+function BinIcon({ color }: { color: string }) {
+  return (
+    <Svg
+      fill="none"
+      height={16}
+      stroke={color}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={1.8}
+      viewBox="0 0 24 24"
+      width={16}
+    >
+      <Path d="M4 7h16M10 11v6M14 11v6M6 7l1 12a2 2 0 0 0 2 2h6a2 2 0 0 0 2-2l1-12M9 7V4h6v3" />
+    </Svg>
+  );
+}
 
 /** The most backup Companions a thread, or the Charter's default list, holds. */
 export const maxBackups = 5;
@@ -17,6 +39,7 @@ export function BackupsEditor({
   harnesses,
   isBare = false,
   isCompact,
+  isFolded = false,
   onChange,
 }: {
   backups: ReadonlyArray<BackupCompanion>;
@@ -25,15 +48,19 @@ export function BackupsEditor({
   isBare?: boolean;
   /** Compact underlined words beside each number; named fields beneath it otherwise. */
   isCompact: boolean;
+  /** One fold of the Companions tab for each backup, with the same picker as the thread's own Companion. */
+  isFolded?: boolean;
   onChange: (backups: ReadonlyArray<BackupCompanion>) => void;
 }) {
-  const move = (index: number, by: -1 | 1) => {
+  const reorder = (from: number, to: number) => {
     const next = [...backups];
-    const [moved] = next.splice(index, 1);
+    const [moved] = next.splice(from, 1);
     if (moved === undefined) return;
-    next.splice(index + by, 0, moved);
+    next.splice(to, 0, moved);
     onChange(next);
   };
+  const move = (index: number, by: -1 | 1) => reorder(index, index + by);
+  const openFold = useOpenFold();
   const add = () => {
     // The first installed harness, on its first listed model.
     const first = harnesses?.harnesses.find((candidate) => candidate.problem === null && candidate.models.length > 0);
@@ -46,7 +73,75 @@ export function BackupsEditor({
         model: first?.models[0]?.id ?? "default",
       },
     ]);
+    // The one just added is unfolded, to choose it.
+    openFold(`backup-${backups.length}`);
   };
+  const controls = (index: number) => (
+    <View style={local.header}>
+      <Text style={local.number}>Order {index + 1}</Text>
+      <Pressable
+        accessibilityLabel={`Move backup ${index + 1} up`}
+        accessibilityRole="button"
+        disabled={index === 0}
+        onPress={() => move(index, -1)}
+      >
+        <Text style={[local.control, index === 0 && local.controlOff]}>↑</Text>
+      </Pressable>
+      <Pressable
+        accessibilityLabel={`Move backup ${index + 1} down`}
+        accessibilityRole="button"
+        disabled={index === backups.length - 1}
+        onPress={() => move(index, 1)}
+      >
+        <Text style={[local.control, index === backups.length - 1 && local.controlOff]}>↓</Text>
+      </Pressable>
+      <Pressable
+        accessibilityLabel={`Remove backup ${index + 1}`}
+        accessibilityRole="button"
+        hitSlop={6}
+        onPress={() => onChange(backups.filter((_, other) => other !== index))}
+      >
+        <BinIcon color={colors.dangerText} />
+      </Pressable>
+    </View>
+  );
+  if (isFolded) {
+    return (
+      <View style={local.folds}>
+        {backups.map((backup, index) => (
+          // A backup has no identity but its place in the list.
+          // biome-ignore lint/suspicious/noArrayIndexKey: see above
+          <SortableItem index={index} key={index} onMove={(from, to) => reorder(from, to)}>
+            {(grip) => (
+              <Fold
+                grip={grip}
+                harness={backup.harness}
+                id={`backup-${index}`}
+                summary={runnerSummaryOf(harnesses, backup)}
+                title={`Backup ${index + 1}`}
+              >
+                {controls(index)}
+                <RunnerPickers
+                  harnesses={harnesses}
+                  isCompact={false}
+                  isPanel={true}
+                  onChange={(next) => onChange(backups.map((current, other) => (other === index ? next : current)))}
+                  value={backup}
+                />
+              </Fold>
+            )}
+          </SortableItem>
+        ))}
+        {backups.length < maxBackups ? (
+          <Pressable accessibilityRole="button" onPress={add}>
+            <Text style={local.add}>+ Add a backup Companion</Text>
+          </Pressable>
+        ) : (
+          <Text style={styles.muted}>The most is {maxBackups}.</Text>
+        )}
+      </View>
+    );
+  }
   return (
     <View style={isBare ? undefined : local.card}>
       {backups.map((backup, index) => (
@@ -111,6 +206,7 @@ const local = StyleSheet.create({
   },
   control: { color: colors.text, fontFamily: fonts.sans, fontSize: fontSizes.lg, paddingHorizontal: 4 },
   controlOff: { color: colors.textMuted, opacity: 0.4 },
+  folds: { gap: 8 },
   header: { alignItems: "center", flexDirection: "row", gap: 10 },
   item: { gap: 8, minHeight: 46, padding: 12 },
   itemRuled: { borderTopColor: colors.border, borderTopWidth: 1 },

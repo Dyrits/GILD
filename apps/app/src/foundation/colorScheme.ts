@@ -67,18 +67,25 @@ export function chooseTheme(chosen: Theme): void {
 /**
  * Tells the browser the look in use, so its scrollbars and form controls match, paints the page behind the app so an
  * overscroll shows the app's ground rather than white, and gives the desktop app's Dock and window the icon of the
- * theme in use. Returns a stop function. While the owner follows the system, a change of the system's look reloads the
- * window.
+ * theme in use. Hides the browser's scrollbars and shows nothing in their place: how a region says it scrolls is still to
+ * settle (backlog, Scroll indicator). Returns a stop function. While the owner follows the system, a change of the
+ * system's look reloads the window.
  */
 export function applyAppearance(ground: string): () => void {
   if (!canChooseColorScheme) return () => {};
   void syncDesktopTheme(window.iskios, theme);
   document.documentElement.style.colorScheme = colorScheme;
   document.documentElement.style.backgroundColor = ground;
+  const style = document.createElement("style");
+  style.textContent = "* { scrollbar-width: none; } ::-webkit-scrollbar { display: none; }";
+  document.head.appendChild(style);
   const subscription = Appearance.addChangeListener(() => {
     if (colorPreference === "system" && schemeOf(colorPreference, systemSchemeOf()) !== colorScheme) {
       reloadForColorScheme();
     }
   });
-  return () => subscription.remove();
+  return () => {
+    subscription.remove();
+    style.remove();
+  };
 }

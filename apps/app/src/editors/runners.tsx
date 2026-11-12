@@ -1,10 +1,11 @@
 import type { AccountId, EffortChoice, HarnessInfo, HarnessList, HarnessName, ModelChoice } from "@iskios/contracts";
-import { useCallback, useEffect, useState } from "react";
+import { type ReactElement, useCallback, useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { messageOf, type ServiceClient } from "../foundation/client";
-import { effortLabel, harnessLabels, modelLabelOf } from "../foundation/formatting";
+import { harnessLabels, modelLabelOf } from "../foundation/formatting";
 import { styles } from "../foundation/styles";
 import { Choice, Menu, Steps } from "../ui/pickers";
+import { CompanionBody, CompanionPicker } from "./companionPicker";
 
 /** What a thread runs on: its harness, provider account (null for the computer's own sign-in), model, and effort. */
 export interface Runner {
@@ -115,19 +116,31 @@ const effortFor = (harness: HarnessInfo | undefined, model: ModelChoice, effort:
  */
 export function RunnerPickers({
   client,
+  dockRank,
+  extra,
   harnesses,
   isAccountShown = true,
   isCompact,
+  isIskios = false,
+  isPanel = false,
   onChange,
   value,
 }: {
   /** Asks the provider for a model's effort levels when its model list does not give them (OpenCode); without it, none are offered there. */
   client?: ServiceClient;
+  /** Which Companion button the window's Companion tab shows when none was pressed: the lowest rank, else the latest. */
+  dockRank?: number;
+  /** The Companions tab's fold for what belongs to the thread alone; see `CompanionPickerProps`. */
+  extra?: ReactElement;
   harnesses: HarnessList | null;
   /** Whether the account can be chosen; Settings' defaults have none. */
   isAccountShown?: boolean;
   /** Compact underlined words, as in a composer; named fields otherwise. */
   isCompact: boolean;
+  /** Iskios's own Companion: the Companions tab marks it with ✦. */
+  isIskios?: boolean;
+  /** The picker's own content, as drawn in a fold of the Companions tab; `isCompact` is then ignored. */
+  isPanel?: boolean;
   onChange: (runner: Runner) => void;
   value: Runner;
 }) {
@@ -146,6 +159,18 @@ export function RunnerPickers({
     const model = next?.models[0]?.id ?? "default";
     onChange({ accountId: null, effort: effortFor(next, model, value.effort), harness: harnessName, model });
   };
+  // A model of another harness: that harness with its own sign-in, the chosen model, and the effort kept when it offers it.
+  const chooseHarnessModel = (harnessName: HarnessName, model: ModelChoice) =>
+    onChange({
+      accountId: null,
+      effort: effortFor(
+        harnesses?.harnesses.find((candidate) => candidate.name === harnessName),
+        model,
+        value.effort,
+      ),
+      harness: harnessName,
+      model,
+    });
   const chooseModel = (model: ModelChoice) =>
     onChange({ ...value, effort: effortFor(harness, model, value.effort), model });
   const effortOptions = effortsOf(useModelEfforts(client, harness, value), value.effort);
@@ -162,43 +187,32 @@ export function RunnerPickers({
   const accountOptions = accountIds.includes(value.accountId) ? accountIds : [...accountIds, value.accountId];
   const isAccountChosen = isAccountShown && accountIds.length > 1;
   const modelOptions = modelIdsOf(harness, value.model);
-  if (isCompact) {
-    // In a composer, each picker is one underlined word that opens its list.
+  if (isCompact || isPanel) {
+    const picker = {
+      accountId: value.accountId,
+      accountLabel,
+      accountOptions,
+      effort: value.effort,
+      effortOptions,
+      harness: value.harness,
+      harnesses,
+      isAccountChosen,
+      model: value.model,
+      onAccount: (accountId: AccountId | null) => onChange({ ...value, accountId }),
+      onEffort: (effort: EffortChoice) => onChange({ ...value, effort }),
+      onModel: (harnessName: HarnessName, model: ModelChoice) =>
+        harnessName === value.harness ? chooseModel(model) : chooseHarnessModel(harnessName, model),
+    };
+    // In a fold of the Companions tab, the picker's own content; in a composer, one button for the whole runner,
+    // which opens that tab with harness tabs, a model search, and effort.
+    if (isPanel) return <CompanionBody {...picker} />;
     return (
-      <>
-        <Menu
-          accessibilityLabel="Harness"
-          label={harnessLabel}
-          onChange={chooseHarness}
-          options={harnessNames}
-          value={value.harness}
-        />
-        {isAccountChosen && (
-          <Menu
-            accessibilityLabel="Account"
-            label={accountLabel}
-            onChange={(accountId: AccountId | null) => onChange({ ...value, accountId })}
-            options={accountOptions}
-            value={value.accountId}
-          />
-        )}
-        <Menu
-          accessibilityLabel="Companion (model)"
-          label={(id: ModelChoice) => modelLabelOf(id, models)}
-          onChange={chooseModel}
-          options={modelOptions}
-          value={value.model}
-        />
-        {isEffortChosen && (
-          <Menu
-            accessibilityLabel="Effort"
-            label={effortLabel}
-            onChange={(effort: EffortChoice) => onChange({ ...value, effort })}
-            options={effortOptions}
-            value={value.effort}
-          />
-        )}
-      </>
+      <CompanionPicker
+        {...(dockRank === undefined ? {} : { rank: dockRank })}
+        {...(extra === undefined ? {} : { extra })}
+        {...(isIskios ? { isIskios } : {})}
+        {...picker}
+      />
     );
   }
   // In a form, each picker is a named field; effort is an ordered scale, so it is a line of stops.

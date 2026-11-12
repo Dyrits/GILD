@@ -1,5 +1,10 @@
 # Work in progress
 
+## Companions tab · 2026-11-12 to 2026-11-13 · built and checked in the window, owner review pending
+
+The model choice asked for "like Delta's and OpenBot's pickers" became, over CHG-0220 to CHG-0245, a **Companions** tab in the right-hand column beside **Quest** (the Quest tab only in a quest): a Companion button in a composer opens it; a fold for the Companion in use and one fold per backup Companion (drag to reorder, bin to remove), the same picker in each; Iskios's button opens it as "✦ Companions" and its own backups; pressing the tab switches between a quest's and Iskios's; the right-hand toggle shows on every screen. Also: the top bar's breadcrumbs removed (CHG-0229), the quest panel's duplicate "Quest" caption removed (CHG-0230), the app has **no scroll indicator** for now (CHG-0245; question in the [backlog](backlog.md)). Companion presets are specified, not built ([specifications](capabilities/companion-presets/specifications.md), CHG-0242). Evidence: [screens](verification/2026-11-12-companion-picker/); typecheck, Biome, and the app suite (320 passed, 4 skipped) pass; driven in a throwaway Electron window on the fake harness.
+Open: the owner's look at the tab and folds; the narrow-window overlay, light and Gild looks, a real failing turn using backups (a thread's or Iskios's), OpenCode effort levels in a backup, and the phone build were not checked.
+
 ## Sidebar icons, flat matte · 2026-11-12 · built and checked in the window, owner review pending
 
 The owner supplied `guildmaster-flat-matte-icons` and asked for the sidebar's icons to be those. CHG-0207: the ivory drawings are used on dark looks and the slate blue ones on light looks, and both themes share them, so the metallic, gilt, and bronze sets are gone; `assets/nav/dark/` and `assets/nav/light/` hold them and `shell/navIcons.tsx` picks by look alone. Starting revision `ef103f9`.

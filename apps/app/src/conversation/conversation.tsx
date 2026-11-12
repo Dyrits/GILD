@@ -33,6 +33,7 @@ import { CommentTray } from "./commentViews";
 import { AgentReply, EntryView, WorkingIndicator } from "./conversationEntries";
 import { type Entry, entriesOf, workingLabelOf } from "./entries";
 import { ChatterNotices } from "./threadActions";
+import { ThreadBackups } from "./threadBackups";
 import { ThreadPanel } from "./threadPanel";
 import { OpenThreadForm, ThreadTree } from "./threadTree";
 import { CommentsProvider, useThreadComments } from "./useComments";
@@ -296,6 +297,7 @@ function ThreadPane({
                     accessory: (
                       <RunnerPickers
                         client={client}
+                        extra={<ThreadBackups client={client} key={thread.id} threadId={thread.id} />}
                         harnesses={harnesses}
                         isCompact={true}
                         onChange={(next) =>

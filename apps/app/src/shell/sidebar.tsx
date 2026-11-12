@@ -12,6 +12,7 @@ import { allMissions } from "../foundation/queries";
 import { colors, fontSizes, fonts, radii, stateTones } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
 import { NewRealmModal } from "../realms/newRealmModal";
+import { BowArrow } from "../ui/bowArrow";
 import { MoveQuestModal } from "./moveQuestModal";
 import { NavIcon, type NavIconName } from "./navIcons";
 import { DragSource, DropTarget } from "./questDrag";
@@ -170,31 +171,6 @@ const useRowActions = () => {
     },
   };
 };
-
-/**
- * A heading's fold mark: an archery arrow, its fletching at the tail and its head pointing right while the group is
- * folded and down while it is open.
- */
-function BowArrow({ color = colors.text, isOpen, size = 22 }: { color?: string; isOpen: boolean; size?: number }) {
-  return (
-    <View style={isOpen && local.chevronMarkOpen}>
-      <Svg
-        fill="none"
-        height={size}
-        stroke={color}
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        strokeWidth={1.8}
-        viewBox="0 0 24 24"
-        width={size}
-      >
-        <Path d="M3 12h15" />
-        <Path d="M21.5 12 16 8.5v7Z" fill={color} />
-        <Path d="M3 12 1.5 9M3 12l-1.5 3M6 12 4.5 9M6 12l-1.5 3" />
-      </Svg>
-    </View>
-  );
-}
 
 /** Opens a group's overview without changing its folded state. */
 function OverviewButton({
@@ -967,7 +943,6 @@ const local = StyleSheet.create({
   addHovered: { backgroundColor: colors.controlActive },
   addMark: { color: colors.highlight, fontFamily: fonts.sans, fontSize: 18, lineHeight: 20 },
   chevron: { alignItems: "center", height: 20, justifyContent: "center", width: chevronWidth },
-  chevronMarkOpen: { transform: [{ rotate: "90deg" }] },
   count: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.sm },
   diamond: {
     backgroundColor: colors.edge,

@@ -121,9 +121,10 @@ export function QuestSidebar({
       <ScrollView contentContainerStyle={local.content} style={styles.flex}>
         <View style={local.hero}>
           {onBack === undefined ? (
-            <Text style={local.kicker}>
-              {thread?.sideQuest != null ? "Side-quest" : mission.ritual === null ? "Quest" : "Ritual"}
-            </Text>
+            // A plain quest is already named by the column's Quest tab; only a side-quest or a Ritual says what it is.
+            (thread?.sideQuest != null || mission.ritual !== null) && (
+              <Text style={local.kicker}>{thread?.sideQuest != null ? "Side-quest" : "Ritual"}</Text>
+            )
           ) : (
             <Pressable accessibilityRole="button" onPress={onBack}>
               <Text style={local.kicker}>‹ The council</Text>
