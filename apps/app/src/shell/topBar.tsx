@@ -1,10 +1,12 @@
 import type { MissionId, MissionSummary, Ritual, WorkspaceId } from "@iskios/contracts";
-import type { ReactNode } from "react";
+import { type ReactNode, useContext } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import type { ServiceClient } from "../foundation/client";
+import { HostMenuContext } from "../foundation/hostContext";
 import { usedTextOf } from "../foundation/labels";
 import { colors, fontSizes, fonts, radii } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
+import { HostMenu } from "./hostMenu";
 import type { Place } from "./sidebar";
 
 // The window's top bar: the breadcrumbs to where the owner is, the spending, the quest panel's icon, and the column that
@@ -62,9 +64,15 @@ export function TopBar({
   /** The button that opens or folds Iskios's panel (quest coordination, Iskios everywhere). */
   iskios: { isOpen: boolean; onToggle: () => void };
 }) {
+  const hostMenu = useContext(HostMenuContext);
   return (
     // As the macOS title bar the bar drags the window, and leaves room for the traffic lights at its start.
     <View style={[local.topBar, hasOwnTitleBar && local.topBarTitle, hasOwnTitleBar && dragRegion]}>
+      {hostMenu !== null && (
+        <View style={noDragRegion}>
+          <HostMenu {...hostMenu} />
+        </View>
+      )}
       <View accessibilityLabel="Breadcrumbs" style={local.crumbs}>
         {crumbs.map((crumb, index) => {
           const isLast = index === crumbs.length - 1;

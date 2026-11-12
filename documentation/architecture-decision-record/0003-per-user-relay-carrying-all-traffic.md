@@ -8,3 +8,5 @@ Phones reach the local service through a Cloudflare Worker with one Durable Obje
 - **A shared relay run by the project (Paseo's approach)**: rejected by the nearly-free requirement.
 - **A Cloudflare Tunnel per installation (MausBot's approach)**: rejected, because it needs the maintainers' accounts and domains, and traffic is not end-to-end encrypted.
 - **Tailscale**: left as an alternative for users who prefer it, not the default, since it needs the app on both devices.
+
+Amendment (CHG-0201): the relay is one shared Worker on the owner's free Cloudflare account, not one per user, and carries other Iskios instances as well as phones. See [0016](0016-shared-relay-on-the-owners-free-cloudflare-account.md).

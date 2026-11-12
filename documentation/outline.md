@@ -11,7 +11,7 @@ The first build serves one user. The [architecture](architecture.md#future-multi
 - **Provider**: the user's own model account or API key that a harness bills.
 - **Trigger source**: a clock, webhook, or external event that starts a routine or workflow run.
 - **Connected service**: an outside service (mail, code host, chat) a thread acts on.
-- **Paired device**: the user's phone, used to follow and steer threads away from the computer.
+- **Paired device**: the user's phone, or the Iskios app on another computer, used to follow and steer threads on a host away from it.
 
 ## Capabilities
 
@@ -31,6 +31,6 @@ The first build serves one user. The [architecture](architecture.md#future-multi
 - **[scoped-intel](capabilities/scoped-intel/specifications.md)**: gathering and recalling lore at thread, realm, or global scope.
 - **[action-approval](capabilities/action-approval/specifications.md)**: asking the user in plain language before a risky action, one approval per action and thread, with standing permissions for what the user always allows.
 - **[budget-control](capabilities/budget-control/specifications.md)**: budgets on each mission, on Guildmaster, and on all spending over a period, stopping new spending at the limit and shown as rings that fill as they are used.
-- **device-pairing**: pairing a phone with one pairing code and using Iskios from it on any network.
+- **[device-pairing](capabilities/device-pairing/specifications.md)**: pairing a phone or another Iskios with one pairing code and using a host's Iskios from it on any internet connection, with no account for the user.
 
 See also the [requirements](requirements.md) and the [glossary](glossary.md).

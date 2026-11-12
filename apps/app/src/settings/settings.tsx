@@ -40,6 +40,7 @@ import { AccountBudgetsCard } from "./accountBudgetsCard";
 import { AccountsCard, HarnessesCard } from "./accounts";
 import { GuildmasterSettings } from "./guildmasterSettings";
 import { PricesCard } from "./pricesCard";
+import { RemoteAccessCard } from "./remoteAccessCard";
 import { SettingsCard, SettingsHeading, SettingsMenu, SettingsRule, ToggleRow } from "./settingsParts";
 import { activeSectionOf, type SettingsSectionId } from "./settingsSections";
 
@@ -315,6 +316,9 @@ export function SettingsScreen({
             </Section>
             <Section id="accounts" tops={tops}>
               <AccountsCard client={client} harnesses={harnesses.data} onChanged={harnesses.setData} />
+            </Section>
+            <Section id="remote" tops={tops}>
+              <RemoteAccessCard client={client} />
             </Section>
             <Section id="messaging" tops={tops}>
               <SettingsCard

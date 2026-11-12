@@ -260,9 +260,13 @@ Stored records, request tags, and thread tool names keep the earlier word `intel
 ## Devices
 
 **Paired device**:
-A phone connected to the user's Iskios by scanning a pairing code.
+Another Iskios connected to the user's own by a pairing code: the phone web app, or the Iskios app on another computer. It has the owner's full authority over the host it is paired with.
 _Avoid_: Remote, client
 
+**Host**:
+The computer whose Iskios a paired device controls. It keeps its own name, which the owner can change from the host or from a paired device.
+_Avoid_: Server, remote
+
 **Pairing code**:
-The one-time QR code the computer shows to pair a phone.
+The one-time text the host shows to pair a device, a QR code of it for a phone later. It works once and expires after 10 minutes.
 _Avoid_: Connect code, ticket

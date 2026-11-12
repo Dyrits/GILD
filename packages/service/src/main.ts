@@ -4,6 +4,7 @@ import { join } from "node:path";
 import { Cause, Config, Effect, Exit, Layer } from "effect";
 import { Harness, modelsDevSourceLayer, noPriceSourceLayer, sandboxProblem } from "./core/index.ts";
 import { fakeHarnessLayer, fakeHarnessToolsLayer, liveHarnessToolsLayer, makeHarnessRouter } from "./harness/index.ts";
+import { defaultRelayOrigin } from "./remote/config.ts";
 import { serveLoopback } from "./server.ts";
 import { serviceLayer } from "./service.ts";
 
@@ -24,6 +25,8 @@ const liveLayer = Layer.unwrap(
       codex: yield* Config.String("ISKIOS_CODEX_PATH").pipe(Config.withDefault("codex")),
       opencode: yield* Config.String("ISKIOS_OPENCODE_PATH").pipe(Config.withDefault("opencode")),
     };
+    // ISKIOS_RELAY_ORIGIN points pairing at another relay, such as one run locally for checks (device-pairing).
+    const relayOrigin = yield* Config.String("ISKIOS_RELAY_ORIGIN").pipe(Config.withDefault(defaultRelayOrigin));
     const problem = yield* sandboxProblem;
     const idleTimeout = "10 minutes";
     // Every thread's harness has its own adapter; turns go to the one their thread runs on (provider-accounts).
@@ -39,6 +42,7 @@ const liveLayer = Layer.unwrap(
         harnessTools: harnessName === "fake" ? fakeHarnessToolsLayer() : liveHarnessToolsLayer(commands),
         homeFolder: homedir(),
         priceSource: harnessName === "fake" ? noPriceSourceLayer : modelsDevSourceLayer(),
+        relayOrigin,
         scratchRoot: join(dataDirectory, "missions"),
       }),
     );

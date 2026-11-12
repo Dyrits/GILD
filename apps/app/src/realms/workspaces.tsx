@@ -3,6 +3,7 @@ import { type ReactNode, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { CrestBadge } from "../crest/crest";
 import { messageOf, type ServiceClient } from "../foundation/client";
+import { useIsRemoteHost } from "../foundation/hostContext";
 import { samePath } from "../foundation/paths";
 import { styles } from "../foundation/styles";
 import { colors, fontSizes, fonts, radii } from "../foundation/theme";
@@ -31,8 +32,9 @@ export function RealmChooser({
   const [chooseError, setChooseError] = useState<string | null>(null);
   // The folder being named in the menu that opens when one is chosen; null while the menu is closed.
   const [editing, setEditing] = useState<NewRealm | null>(null);
+  const isRemote = useIsRemoteHost();
   const choose = () =>
-    chooseFolder().then(
+    chooseFolder(isRemote).then(
       (path) => {
         setChooseError(null);
         if (path === null) return;

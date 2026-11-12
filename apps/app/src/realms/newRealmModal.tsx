@@ -4,13 +4,21 @@ import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-nativ
 import { CrestBadge } from "../crest/crest";
 import { CrestStudio } from "../crest/crestStudio";
 import { messageOf } from "../foundation/client";
+import { useIsRemoteHost } from "../foundation/hostContext";
 import { colors, fontSizes, fonts, outline, radii } from "../foundation/theme";
 
-/** Opens the system's folder dialog through the desktop shell; null when cancelled. */
-export const chooseFolder = () =>
-  window.iskios === undefined
-    ? Promise.reject(new Error("Choosing a folder needs the desktop app."))
-    : window.iskios.chooseFolder();
+/**
+ * Opens the system's folder dialog through the desktop shell; null when cancelled. The dialog shows this computer's
+ * folders, so it is refused while a paired host is shown, whose folders are the ones wanted (device-pairing, draft).
+ */
+export const chooseFolder = (isRemote: boolean) =>
+  isRemote
+    ? Promise.reject(
+        new Error("Choosing a folder on a host is not built yet. Make the realm on the host itself for now."),
+      )
+    : window.iskios === undefined
+      ? Promise.reject(new Error("Choosing a folder needs the desktop app."))
+      : window.iskios.chooseFolder();
 
 /** A realm being made: named and given a crest. The path is empty until a folder is chosen, and stays so for a realm tied to none. */
 export type NewRealm = { crest: Crest | null; name: string; path: string };
@@ -43,9 +51,10 @@ export function NewRealmModal({
   const [editing, setEditing] = useState(initial);
   const [isStudioOpen, setIsStudioOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const isRemote = useIsRemoteHost();
   const isReady = editing.name.trim() !== "" && (!isFolderRequired || editing.path !== "");
   const choose = () =>
-    chooseFolder().then(
+    chooseFolder(isRemote).then(
       (path) => {
         setError(null);
         if (path !== null)

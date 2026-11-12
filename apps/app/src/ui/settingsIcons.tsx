@@ -9,6 +9,7 @@ const iconPaths = {
   gem: emblemPaths.gem,
   hourglass: ["M6 3h12", "M6 21h12", "M7 3c0 5 3 6 5 9-2 3-5 4-5 9", "M17 3c0 5-3 6-5 9 2 3 5 4 5 9"],
   layers: ["M12 3l9 5-9 5-9-5z", "M3 12l9 5 9-5", "M3 16l9 5 9-5"],
+  monitor: ["M3 5h18v11H3z", "M9 20h6", "M12 16v4"],
   people: [
     "M9 11a3.5 3.5 0 1 0 0-7 3.5 3.5 0 0 0 0 7z",
     "M2.5 20c0-3.5 3-6 6.5-6s6.5 2.5 6.5 6",

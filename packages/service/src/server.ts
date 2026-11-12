@@ -1,20 +1,13 @@
 import { timingSafeEqual } from "node:crypto";
 import type { IncomingMessage } from "node:http";
-import {
-  type ClientFrame,
-  ClientFrameJson,
-  Results,
-  type ServerFrame,
-  ServerFrameJson,
-  type ThreadId,
-} from "@iskios/contracts";
-import { Effect, Exit, PubSub, Schema } from "effect";
+import type { ServerFrame } from "@iskios/contracts";
+import { Effect } from "effect";
+import { SqlClient } from "effect/sql";
 import { WebSocket, WebSocketServer } from "ws";
-import { Changes } from "./core/index.ts";
+import { Sessions } from "./core/index.ts";
+import { type HostChannel, openHostChannel } from "./remote/controller.ts";
+import { answerText, encodeServerFrame } from "./remote/frames.ts";
 import { Service } from "./service.ts";
-
-const decodeClientFrame = Schema.decodeUnknownExit(ClientFrameJson);
-const encodeServerFrame = Schema.encodeSync(ServerFrameJson);
 
 const sameToken = (given: string | null, expected: string) => {
   if (given === null) return false;
@@ -25,16 +18,6 @@ const sameToken = (given: string | null, expected: string) => {
 
 const tokenOf = (request: IncomingMessage) => new URL(request.url ?? "/", "http://127.0.0.1").searchParams.get("token");
 
-/** Best effort: answers a malformed frame on its identifier when one can be read. */
-const frameIdOf = (raw: string) => {
-  try {
-    const id = (JSON.parse(raw) as { id?: unknown }).id;
-    return typeof id === "string" ? id : null;
-  } catch {
-    return null;
-  }
-};
-
 /**
  * Serves the owner on one loopback WebSocket. The per-launch token in the
  * connection URL is the owner's credential; any other connection is refused.
@@ -42,7 +25,8 @@ const frameIdOf = (raw: string) => {
 export const serveLoopback = (options: { readonly port: number; readonly token: string }) =>
   Effect.gen(function* () {
     const service = yield* Service;
-    const changes = yield* Changes;
+    const sessions = yield* Sessions;
+    const sql = yield* SqlClient.SqlClient;
     const context = yield* Effect.context<never>();
     const run = Effect.runPromiseWith(context);
 
@@ -63,65 +47,71 @@ export const serveLoopback = (options: { readonly port: number; readonly token: 
         }),
     );
 
-    const send = (socket: WebSocket, frame: ServerFrame) => {
+    const sendTo = (socket: WebSocket) => (frame: ServerFrame) => {
       if (socket.readyState === WebSocket.OPEN) socket.send(encodeServerFrame(frame));
     };
 
-    const answer = (socket: WebSocket, frame: ClientFrame) =>
-      service.handle(frame.request).pipe(
-        Effect.map((value) =>
-          Schema.encodeUnknownSync(Results[frame.request._tag] as unknown as Schema.Codec<unknown>)(value),
-        ),
-        Effect.exit,
-        Effect.map((exit) =>
-          Exit.isSuccess(exit)
-            ? send(socket, { _tag: "Success", id: frame.id, value: exit.value })
-            : send(socket, {
-                _tag: "Failure",
-                error:
-                  exit.cause.reasons[0]?._tag === "Fail"
-                    ? { kind: exit.cause.reasons[0].error.kind, message: exit.cause.reasons[0].error.message }
-                    : { kind: "ExecutionFailure", message: "The service failed unexpectedly." },
-                id: frame.id,
-              }),
+    /**
+     * Joins the app to a paired host: the service opens an encrypted link to it and passes each frame both ways, so the
+     * app speaks to the host's service as to its own. A link that cannot open closes the socket with code 4000 and the
+     * reason the owner reads, or 4002 when the host refuses this installation; a link that ends closes it with 4001.
+     */
+    const bridgeToHost = (socket: WebSocket, hostId: string) => {
+      const waiting: string[] = [];
+      let link: HostChannel | null = null;
+      let isClosed = false;
+      socket.on("message", (data) => {
+        if (link === null) waiting.push(data.toString());
+        else link.sendText(data.toString());
+      });
+      socket.on("close", () => {
+        isClosed = true;
+        link?.close();
+      });
+      const opening = openHostChannel(hostId).pipe(
+        Effect.provideService(SqlClient.SqlClient, sql),
+        Effect.map((channel) => ({ channel, isFinal: false, message: "" })),
+        // A host that refuses this installation will keep refusing: say so with a code that ends the app's retries.
+        Effect.catch((failure) =>
+          Effect.succeed({
+            channel: null,
+            isFinal: "kind" in failure && (failure.kind === "AccessRefused" || failure.kind === "NotFound"),
+            message: failure.message,
+          }),
         ),
       );
-
-    wss.on("connection", (socket) => {
-      socket.on("message", (data) => {
-        const raw = data.toString();
-        const decoded = decodeClientFrame(raw);
-        if (Exit.isSuccess(decoded)) {
-          void run(answer(socket, decoded.value));
+      void run(opening).then((outcome) => {
+        if (outcome.channel === null) {
+          socket.close(outcome.isFinal ? 4002 : 4000, outcome.message.slice(0, 120));
           return;
         }
-        const id = frameIdOf(raw);
-        if (id !== null)
-          send(socket, { _tag: "Failure", error: { kind: "InvalidInput", message: "Invalid request." }, id });
+        const channel = outcome.channel;
+        if (isClosed) {
+          channel.close();
+          return;
+        }
+        link = channel;
+        channel.onText((text) => {
+          if (socket.readyState === WebSocket.OPEN) socket.send(text);
+        });
+        channel.onClose(() => socket.close(4001, "The host disconnected."));
+        for (const text of waiting.splice(0)) channel.sendText(text);
+      });
+    };
+
+    wss.on("connection", (socket, request) => {
+      const hostId = /^\/host\/([A-Za-z0-9-]+)$/.exec(new URL(request.url ?? "/", "http://127.0.0.1").pathname)?.[1];
+      if (hostId !== undefined) {
+        bridgeToHost(socket, hostId);
+        return;
+      }
+      const send = sendTo(socket);
+      const remove = sessions.add(send);
+      socket.on("close", remove);
+      socket.on("message", (data) => {
+        void run(answerText(service.handle, data.toString(), send, { isPairedDevice: false }));
       });
     });
-
-    const subscription = yield* PubSub.subscribe(changes.pubsub);
-    yield* PubSub.take(subscription).pipe(
-      Effect.tap((sequence) =>
-        Effect.sync(() => {
-          for (const client of wss.clients) send(client, { _tag: "Changed", sequence });
-        }),
-      ),
-      Effect.forever,
-      Effect.forkScoped,
-    );
-
-    const drafts = yield* PubSub.subscribe(changes.drafts);
-    yield* PubSub.take(drafts).pipe(
-      Effect.tap(({ threadId, text }) =>
-        Effect.sync(() => {
-          for (const client of wss.clients) send(client, { _tag: "Draft", text, threadId: threadId as ThreadId });
-        }),
-      ),
-      Effect.forever,
-      Effect.forkScoped,
-    );
 
     const address = wss.address();
     return { port: typeof address === "object" && address !== null ? address.port : options.port };

@@ -1,10 +1,11 @@
 import { dirname, join } from "node:path";
 import type { Request } from "@iskios/contracts";
-import { Context, Effect, Layer, Match, Semaphore } from "effect";
+import { Effect, Layer, Match, Semaphore } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
 import {
   addBrowsableRoot,
   browseFolders,
+  Changes,
   changesLayer,
   createFolder,
   endpointsLayer,
@@ -19,6 +20,7 @@ import {
   ServiceFailure,
   sandboxProblem,
   seedBrowsableRoots,
+  sessionsLayer,
   storeLayer,
   writeSettings,
 } from "./core/index.ts";
@@ -41,6 +43,21 @@ import {
   removePermission,
   widenPermission,
 } from "./policy/index.ts";
+import { computerNameOf, defaultRelayOrigin, RemoteConfig } from "./remote/config.ts";
+import { pairWithHost } from "./remote/controller.ts";
+import {
+  forgetDevice,
+  hostNameOf,
+  readHostRecord,
+  remoteAccessView,
+  renameHost,
+  setRemoteAccess,
+} from "./remote/hostAccess.ts";
+import { applyRemoteAccess, createPairingCode } from "./remote/hostActions.ts";
+import { remoteHostLayer } from "./remote/hostRuntime.ts";
+import { forgetHost, listKnownHosts } from "./remote/knownHosts.ts";
+import { RemoteState, remoteStateLayer } from "./remote/state.ts";
+import { Service } from "./serviceTag.ts";
 import { addCredit, readAccountBudgets, setAccountBudget } from "./work/accountBudgets.ts";
 import {
   addAccount,
@@ -100,11 +117,7 @@ import { createRealm, renameRealm, ScratchRoot, setRealmCrest } from "./work/wor
 
 // Stored and wire names keep `intel` so existing data and agents still work: request tags (`"ListIntel"`, ...).
 
-/** The entry point shared by app commands and, later, MCP calls. */
-export class Service extends Context.Service<
-  Service,
-  { readonly handle: (request: Request) => Effect.Effect<unknown, ServiceFailure> }
->()("iskios/Service") {}
+export { Service };
 
 const storageFailure = (error: SqlError.SqlError) =>
   new ServiceFailure({ kind: "ExecutionFailure", message: `Storage failed: ${error.message}` });
@@ -130,6 +143,9 @@ const ownerOutcomeOf = (missionId: string, outcome: JournalOutcome) =>
 
 const make = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
+  const changes = yield* Changes;
+  const remote = yield* RemoteState;
+  const remoteConfig = yield* RemoteConfig;
   const threads = yield* Threads;
   const scratchRoot = yield* ScratchRoot;
   const commands = yield* Commands;
@@ -174,6 +190,13 @@ const make = Effect.gen(function* () {
       Effect.provideService(HarnessTools, harnessTools),
       Effect.provideService(AccountsRoot, accountsRoot),
     );
+  /** Runs device-pairing storage work, which also needs to know the computer's name and the default relay. */
+  const withRemote = <A, E>(work: Effect.Effect<A, E, SqlClient.SqlClient | RemoteConfig>) =>
+    Effect.provideService(work, RemoteConfig, remoteConfig);
+  /** Charter's remote access section as it stands. */
+  const remoteView = Effect.flatMap(remote.status, (status) =>
+    withRemote(remoteAccessView(status, remote.connectedDevices())),
+  );
   const chatterDecisions = yield* Semaphore.make(1);
 
   /**
@@ -213,6 +236,7 @@ const make = Effect.gen(function* () {
         AddBrowsableRoot: (add) => change(addBrowsableRoot(add.path)),
         AddCredit: (given) =>
           commands.run(addCredit({ accountId: given.accountId, harness: given.harness }, given.amount)),
+        AddHost: (add) => withRemote(pairWithHost(add.code, add.deviceName)).pipe(Effect.tap(() => changes.publish)),
         AddJournalEntry: (add) =>
           nonBlank(add.text).pipe(
             Effect.andThen((text) =>
@@ -256,6 +280,7 @@ const make = Effect.gen(function* () {
             );
           }),
         CreateFolder: (create) => createFolder(create.parent, create.name),
+        CreatePairingCode: () => withRemote(createPairingCode),
         CreateRealm: (create) => change(createRealm(create.path, create.name, create.crest)),
         CreateRitual: (create) =>
           commands.run(
@@ -282,6 +307,11 @@ const make = Effect.gen(function* () {
             Effect.provideService(Commands, commands),
           ),
         DiscardAttachment: (given) => withFiles(discardAttachment(given.attachmentId)).pipe(Effect.as(null)),
+        DisconnectDevice: (given) =>
+          change(forgetDevice(given.deviceId)).pipe(
+            Effect.tap(() => Effect.sync(() => remote.closeDevice(given.deviceId))),
+            Effect.andThen(remoteView),
+          ),
         DismissMissionPrompt: (given) => commands.run(dismissPrompt(given.missionId, given.prompt)),
         EditIntel: (given) => change(editLoreEntryByOwner(given.loreEntryId, given.text)),
         EndMission: (given) => commands.run(endMission(given.missionId, given.ending, given.snapshot)),
@@ -304,6 +334,7 @@ const make = Effect.gen(function* () {
             Effect.provideService(HarnessTools, harnessTools),
             Effect.provideService(AccountsRoot, accountsRoot),
           ),
+        ListHosts: () => withRemote(listKnownHosts),
         ListIntel: (list) => readLoreView(list.scope, list.state, list.threadId, list.workspaceId ?? null),
         ListMentionables: () => listMentionables,
         ListMissions: (filters) => listMissions(filters),
@@ -364,6 +395,7 @@ const make = Effect.gen(function* () {
         ReadBudget: (read) => readBudgetWindow(read.missionId),
         ReadGuildHallRecap: (read) => readGuildHallRecap(read.since),
         ReadGuildmaster: () => commands.run(readGuildmaster),
+        ReadHostName: () => withRemote(Effect.flatMap(readHostRecord, hostNameOf)),
         ReadIntelHistory: (read) => readLoreHistory(read.loreEntryId),
         ReadJournal: (read) => readJournalView(read.missionId),
         ReadMission: (read) => readMission(read.missionId, read.threadId),
@@ -378,6 +410,7 @@ const make = Effect.gen(function* () {
             };
           }),
         ReadPriceStatus: () => prices.status,
+        ReadRemoteAccess: () => remoteView,
         ReadRitual: (read) => readRitual(read.missionId),
         ReadSettings: () => readSettings,
         ReadStartChoices: () => readStartChoices,
@@ -394,8 +427,10 @@ const make = Effect.gen(function* () {
             ),
           ),
         RemoveAccount: (remove) => thenListHarnesses(removeAccount(remove.accountId)),
+        RemoveHost: (given) => change(forgetHost(given.hostId)).pipe(Effect.andThen(withRemote(listKnownHosts))),
         RemovePermission: (remove) => change(removePermission(remove.permissionId)),
         RenameAccount: (rename) => thenListHarnesses(renameAccount(rename.accountId, rename.label)),
+        RenameHost: (given) => change(withRemote(renameHost(given.name))),
         RenameMission: (rename) => change(renameMission(rename.missionId, rename.title)),
         RenameRealm: (rename) => change(renameRealm(rename.workspaceId, rename.name)),
         ReopenMission: (reopen) => commands.run(reopenMission(reopen.missionId)),
@@ -463,6 +498,11 @@ const make = Effect.gen(function* () {
           ),
         SetMissionBudget: (given) => commands.run(setMissionBudget(given.missionId, given.limits)),
         SetRealmCrest: (set) => change(setRealmCrest(set.workspaceId, set.crest)),
+        SetRemoteAccess: (given) =>
+          change(setRemoteAccess(given.isEnabled)).pipe(
+            Effect.tap(() => applyRemoteAccess(given.isEnabled, remote)),
+            Effect.andThen(remoteView),
+          ),
         SetThreadBackups: (given) => commands.run(setThreadBackups(given.threadId, given.backups)),
         SignInAccount: (given) =>
           signInAccount(given.harness, given.accountId).pipe(
@@ -578,6 +618,8 @@ export interface ServiceOptions {
   readonly accountsRoot?: string;
   /** Where attached files are kept; beside the database when left out (message-attachments). */
   readonly attachmentsRoot?: string;
+  /** The computer's name, offered as the host's name until the owner chooses one; the machine's own when left out. */
+  readonly computerName?: string;
   readonly filename: string;
   readonly harness: Layer.Layer<Harness>;
   /** The harnesses' own tools for sign-ins and models; every harness signed in, for checks, when left out. */
@@ -586,6 +628,8 @@ export interface ServiceOptions {
   readonly homeFolder: string;
   /** Where the model price table is read from; none, so the snapshot alone, when left out (decision record 0014). */
   readonly priceSource?: Layer.Layer<PriceSource>;
+  /** The relay a new pairing code names; the shared relay of decision record 0016 when left out. */
+  readonly relayOrigin?: string;
   /** The folder holding each mission's scratch folder. */
   readonly scratchRoot: string;
 }
@@ -616,19 +660,27 @@ export const serviceLayer = (options: ServiceOptions) => {
     Layer.provideMerge(Layer.mergeAll(approvalsLayer, suggestionsLayer)),
     Layer.provideMerge(foundation),
   );
-  return Layer.effect(Service, make).pipe(
+  const core = Layer.effect(Service, make).pipe(
     Layer.provideMerge(
       Layer.mergeAll(
+        Layer.succeed(RemoteConfig, {
+          computerName: options.computerName ?? computerNameOf(),
+          relayOrigin: options.relayOrigin ?? defaultRelayOrigin,
+        }),
+        remoteStateLayer,
         autoArchiveLayer,
         budgetPeriodsLayer,
         guildmasterReportsLayer,
         planLimitsLayer,
         priceRefreshLayer,
         ritualsLayer,
+        sessionsLayer,
         toolServerLayer,
       ),
     ),
     Layer.provideMerge(commandsLayer),
     Layer.provideMerge(running),
   );
+  // The host runtime serves paired devices through the service, so it comes after it.
+  return remoteHostLayer.pipe(Layer.provideMerge(core));
 };

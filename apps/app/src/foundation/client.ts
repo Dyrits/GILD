@@ -8,6 +8,7 @@ import {
 } from "@iskios/contracts";
 import { Schema } from "effect";
 import type { DesktopBridge } from "./desktopBridge";
+import { hostEndpointOf, isFinalLinkClose, linkFailureOf, retryDelayOf } from "./hosts";
 
 declare global {
   interface Window {
@@ -26,21 +27,59 @@ export class RequestFailed extends Error {
 
 type Pending = { tag: RequestTag; resolve: (value: unknown) => void; reject: (error: Error) => void };
 
-/** One connection to the local service: requests with replies, and change announcements. */
+/** One connection to the local service, or through it to a paired host: requests with replies, and change announcements. */
 export class ServiceClient {
   private socket: WebSocket | null = null;
   private nextId = 0;
+  private failures = 0;
+  private isEnded = false;
+  private lastFailure: string | null = null;
   private readonly pending = new Map<string, Pending>();
   private readonly listeners = new Set<() => void>();
   private readonly draftListeners = new Set<(threadId: string, text: string) => void>();
+  private readonly failureListeners = new Set<() => void>();
 
-  private constructor(private readonly endpoint: string) {}
+  private constructor(
+    private readonly endpoint: string,
+    /** The paired host this connection leads to; null for the local service. */
+    readonly hostId: string | null,
+  ) {}
 
-  static async connect(): Promise<ServiceClient> {
+  /** Connects to the local service, or to a paired host's service through it. */
+  static async connect(hostId: string | null = null): Promise<ServiceClient> {
     if (window.iskios === undefined) return Promise.reject(new Error("Open Iskios through the desktop app."));
-    const client = new ServiceClient(await window.iskios.endpoint());
+    const endpoint = await window.iskios.endpoint();
+    const client = new ServiceClient(hostId === null ? endpoint : hostEndpointOf(endpoint, hostId), hostId);
     await client.open();
     return client;
+  }
+
+  /** Why the link to the host is down, in the words the owner reads; null while it works or on the local service. */
+  get failure() {
+    return this.lastFailure;
+  }
+
+  /** Whether the link stopped trying for good: the host refused this installation, so only pairing again helps. */
+  get hasGivenUp() {
+    return this.isEnded;
+  }
+
+  /** Calls the listener when the link's failure appears or clears. */
+  subscribeFailure(listener: () => void) {
+    this.failureListeners.add(listener);
+    return () => this.failureListeners.delete(listener);
+  }
+
+  private setFailure(next: string | null) {
+    if (next === this.lastFailure) return;
+    this.lastFailure = next;
+    for (const listener of this.failureListeners) listener();
+  }
+
+  /** Ends the connection for good, as when the window shows another host. */
+  close() {
+    this.isEnded = true;
+    this.socket?.close();
   }
 
   private open() {
@@ -52,11 +91,27 @@ export class ServiceClient {
         this.notify();
       };
       socket.onerror = () => reject(new Error("Could not reach the local service."));
-      socket.onmessage = (event) => this.receive(event.data);
-      socket.onclose = () => {
-        for (const request of this.pending.values()) request.reject(new Error("The connection to the service closed."));
+      socket.onmessage = (event) => {
+        this.failures = 0;
+        this.setFailure(null);
+        this.receive(event.data);
+      };
+      socket.onclose = (event) => {
+        const failure = linkFailureOf(event.code, event.reason);
+        if (isFinalLinkClose(event.code)) this.isEnded = true;
+        if (failure !== null) this.setFailure(failure);
+        for (const request of this.pending.values()) {
+          request.reject(new Error(failure ?? "The connection to the service closed."));
+        }
         this.pending.clear();
-        if (this.socket === socket) setTimeout(() => this.open().catch(() => void 0), 1000);
+        if (this.socket !== socket || this.isEnded) return;
+        this.failures += 1;
+        setTimeout(
+          () => {
+            if (!this.isEnded) this.open().catch(() => void 0);
+          },
+          retryDelayOf(this.failures, this.hostId !== null),
+        );
       };
     });
   }

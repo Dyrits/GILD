@@ -4,6 +4,7 @@ export const settingsSections = [
   { icon: "sliders", id: "defaults", label: "Defaults" },
   { icon: "code", id: "harnesses", label: "Harnesses" },
   { icon: "people", id: "accounts", label: "Accounts" },
+  { icon: "monitor", id: "remote", label: "Remote access" },
   { icon: "chat", id: "messaging", label: "Messaging" },
   { icon: "layers", id: "limits", label: "Limits" },
 ] as const;

@@ -1,0 +1,19 @@
+# Device pairing, batch 2: the screens (2026-11-12)
+
+Claim: the app lets the owner pair this installation with a host and switch the whole window to it from a host menu in the top bar; Charter's Remote access section turns pairing on, shows a pairing code, lists the paired devices and disconnects them; a host that refuses this installation ends the retries; nothing desktop-only is aimed at the wrong computer (CHG-0201, CHG-0203, CHG-0205).
+Not checked: a second physical computer or a phone (both windows ran on this Mac, so both are called "Mac"); the look in dark mode, in the Gild theme and in a narrow window; the Copy button of the pairing code; renaming a host from the paired device through the UI (covered by the service test only); a real harness (the fake one ran); the relay on Cloudflare's network.
+
+## Reproduce
+
+1. `bun run build` in `apps/desktop`; a relay: `startNodeRelay({ port: 8795 })` from `@iskios/relay`, bundled outside the repository; Expo started on a free port with `--clear` (a plain restart served stale code on this volume once, and the first rerun showed the old banner until it was restarted).
+2. Two Electron windows from `apps/desktop`, each `ISKIOS_HARNESS=fake ISKIOS_APP_URL=http://localhost:<port> ISKIOS_DATA_DIR=<own folder> ISKIOS_RELAY_ORIGIN=http://127.0.0.1:8795 electron dist/main.js --remote-debugging-port=<own>`.
+3. Driven with Python Playwright over CDP (scripts kept in `/tmp`, outside the repository).
+
+## Observed
+
+- Host window, Workshop page: the Remote access card is in the page and in the section menu; "Allow paired devices" off reads "Off. No other device can reach this computer." and disables Pair a device; switched on it reads "Ready. A paired device can reach this computer from any network." once the service has connected to the relay; Pair a device shows a 127-character code ([screen](verification/2026-11-12-device-pairing-batch-2/02-host-code.png)).
+- Controller window: before pairing it shows its own empty Guild Hall ("No quest yet"); Add a host with the pasted code and the name "Test Laptop" ([screen](verification/2026-11-12-device-pairing-batch-2/05-controller-add.png)) switches the window to the host, whose quest, created in the host window, then shows in the sidebar and the Guild Hall ([screen](verification/2026-11-12-device-pairing-batch-2/06-controller-on-host.png)); the host menu lists This computer and the paired host with a check on the one shown ([screen](verification/2026-11-12-device-pairing-batch-2/07-controller-menu.png)).
+- While the host is shown, its Charter says paired devices are managed on the host itself.
+- Host window: the device is listed as "Test Laptop, Desktop · connected now" with a Disconnect button ([screen](verification/2026-11-12-device-pairing-batch-2/09-host-devices.png)); Disconnect empties the list and, on the controller, a banner over the window appears; after the fix of this batch it reads "The host no longer knows this computer. Pair with it again." with **Use this computer** and no "Trying again" ([screen](verification/2026-11-12-device-pairing-batch-2/12-controller-refused.png)); Use this computer returns to the controller's own empty data.
+- Found by this check and fixed: the default host name was "Mac.lan" (only `.local` was dropped; it is now the first part of the machine's name, with a unit test); a host that disconnected the device was retried forever, each try costing the shared relay a request (close code 4002 now ends the retries; covered by the service test and the app's unit test).
+- Tests: app 303 passed (4 skipped) before the last two additions, now with them; service remote tests 8 (the pairing test now expects 4002 for a forgotten device); full suite 98 files passed, 1 skipped; 1,140 tests passed, 14 skipped. `bun run typecheck` exits 0 in all six workspaces; Biome is clean on `apps` and `packages` (the whole-repository run reports only another agent's untracked `.agents/skills/security-audit`).

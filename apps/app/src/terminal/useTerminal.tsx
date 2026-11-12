@@ -1,6 +1,7 @@
 import { useRef, useState } from "react";
 import { Pressable, Text, View } from "react-native";
 import { messageOf } from "../foundation/client";
+import { useIsRemoteHost } from "../foundation/hostContext";
 import { styles } from "../foundation/styles";
 import { colors } from "../foundation/theme";
 import { TerminalPanel } from "./terminalPanel";
@@ -14,7 +15,10 @@ export function useTerminal(id: string, cwd: string | null) {
   const [isReady, setIsReady] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const panel = useRef<TerminalPanelHandle>(null);
-  const isAvailable = typeof window !== "undefined" && window.iskios !== undefined;
+  // The shell runs on the computer the window runs on: while a paired host is shown, `!` stays ordinary text until the
+  // terminal can run on the host (device-pairing, draft).
+  const isRemote = useIsRemoteHost();
+  const isAvailable = typeof window !== "undefined" && window.iskios !== undefined && !isRemote;
   const sessionId = `${id}:${cwd ?? "home"}`;
   const open = () => {
     setHasTerminal(true);

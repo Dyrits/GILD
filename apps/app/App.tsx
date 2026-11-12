@@ -1,15 +1,17 @@
 import type { MissionId, ThreadId } from "@iskios/contracts";
-import { useEffect, useState } from "react";
-import { StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { useEffect, useMemo, useState } from "react";
+import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { Conversation } from "./src/conversation/conversation";
 import { GuildmasterScreen } from "./src/conversation/guildmaster";
 import { PermissionsScreen } from "./src/editors/permissions";
-import { ServiceClient } from "./src/foundation/client";
 import { applyAppearance, rememberPlace, resumedPlace } from "./src/foundation/colorScheme";
+import { ActiveHostContext, HostMenuContext } from "./src/foundation/hostContext";
 import { colors, fontSizes, fonts } from "./src/foundation/theme";
+import { useHostConnection } from "./src/foundation/useHostConnection";
 import { LoreScreen } from "./src/lore/lore";
 import { RitualsScreen } from "./src/rituals/rituals";
 import { SettingsScreen } from "./src/settings/settings";
+import { AddHostModal } from "./src/shell/addHostModal";
 import { Dashboard } from "./src/shell/dashboard";
 import { useAttentionNotice } from "./src/shell/notifications";
 import { UnbuiltScreen } from "./src/shell/places";
@@ -33,8 +35,21 @@ const resumablePlaces: readonly Place[] = [
 ];
 
 export default function App() {
-  const [client, setClient] = useState<ServiceClient | null>(null);
-  const [failure, setFailure] = useState<string | null>(null);
+  const {
+    localClient,
+    hostId,
+    setHostId,
+    hostClient,
+    hosts,
+    computerName,
+    isAddingHost,
+    setIsAddingHost,
+    linkFailure,
+    client,
+    failure,
+    setFailure,
+    activeHost,
+  } = useHostConnection();
   const [openMission, setOpenMission] = useState<MissionId | null>(null);
   // The place the rail leads to; a quest, when one is open, shows in its stead.
   const [place, setPlace] = useState<Place>(
@@ -59,9 +74,6 @@ export default function App() {
   useEffect(() => rememberPlace(place), [place]);
   // The browser's own chrome, the page behind the app, and the Dock's icon follow the theme and look in use.
   useEffect(() => applyAppearance(colors.ground), []);
-  useEffect(() => {
-    ServiceClient.connect().then(setClient, (error: Error) => setFailure(error.message));
-  }, []);
   // With the Guildmaster hidden in the Charter, the window opens on the Rituals instead.
   useEffect(() => {
     client
@@ -72,10 +84,36 @@ export default function App() {
       .catch(() => {});
   }, [client]);
 
+  const hostMenu = useMemo(
+    () => ({
+      activeId: hostId,
+      computerName,
+      hosts,
+      onAdd: () => setIsAddingHost(true),
+      onChoose: (next: string | null) => {
+        // Another computer's quests are not this one's: nothing open stays open.
+        setOpenMission(null);
+        setOpenThread(null);
+        setSelectedMission(null);
+        setListedRealm(null);
+        setIsPermissionsOpen(false);
+        setFailure(null);
+        setHostId(next);
+      },
+    }),
+    [computerName, hostId, hosts, setFailure, setHostId, setIsAddingHost],
+  );
   if (client === null) {
     return (
       <View style={styles.center}>
-        <Text style={styles.connecting}>{failure ?? "Connecting to the local service…"}</Text>
+        <Text style={styles.connecting}>
+          {failure ?? (hostId === null ? "Connecting to the local service…" : `Connecting to ${activeHost.name}…`)}
+        </Text>
+        {hostId !== null && (
+          <Pressable accessibilityRole="button" onPress={() => hostMenu.onChoose(null)} style={styles.backButton}>
+            <Text style={styles.backText}>Back to this computer</Text>
+          </Pressable>
+        )}
       </View>
     );
   }
@@ -168,7 +206,7 @@ export default function App() {
         workspaceId={null}
       />
     );
-  return (
+  const shell = (
     <Shell
       client={client}
       details={
@@ -194,9 +232,58 @@ export default function App() {
       {content}
     </Shell>
   );
+  return (
+    <ActiveHostContext.Provider value={activeHost}>
+      <HostMenuContext.Provider value={localClient === null ? null : hostMenu}>
+        <View style={styles.root}>
+          {hostId !== null && linkFailure !== null && (
+            <View accessibilityRole="alert" style={styles.banner}>
+              <Text numberOfLines={2} style={styles.bannerText}>
+                {activeHost.name}: {linkFailure}
+                {hostClient?.hasGivenUp === true ? "" : " Trying again…"}
+              </Text>
+              <Pressable accessibilityRole="button" onPress={() => hostMenu.onChoose(null)}>
+                <Text style={styles.bannerLink}>Use this computer</Text>
+              </Pressable>
+            </View>
+          )}
+          <View style={styles.root}>{shell}</View>
+        </View>
+        {isAddingHost && localClient !== null && (
+          <AddHostModal
+            computerName={computerName}
+            onCancel={() => setIsAddingHost(false)}
+            onPair={(code, deviceName) =>
+              localClient.request({ _tag: "AddHost", code, deviceName }).then((host) => {
+                setIsAddingHost(false);
+                hostMenu.onChoose(host.id);
+                return host;
+              })
+            }
+          />
+        )}
+      </HostMenuContext.Provider>
+    </ActiveHostContext.Provider>
+  );
 }
 
 const styles = StyleSheet.create({
+  backButton: { marginTop: 16 },
+  backText: { color: colors.highlight, fontSize: fontSizes.md, textDecorationLine: "underline" },
+  banner: {
+    alignItems: "center",
+    backgroundColor: colors.dangerSoft,
+    borderBottomColor: colors.danger,
+    borderBottomWidth: 1,
+    flexDirection: "row",
+    gap: 12,
+    justifyContent: "space-between",
+    paddingHorizontal: 14,
+    paddingVertical: 8,
+  },
+  bannerLink: { color: colors.highlight, fontSize: fontSizes.md, textDecorationLine: "underline" },
+  bannerText: { color: colors.dangerText, flex: 1, fontSize: fontSizes.md },
   center: { alignItems: "center", backgroundColor: colors.frame, flex: 1, justifyContent: "center" },
   connecting: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.base },
+  root: { flex: 1 },
 });

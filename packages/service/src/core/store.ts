@@ -617,6 +617,46 @@ export const migrations = {
     const sql = yield* SqlClient.SqlClient;
     yield* sql`ALTER TABLE messages ADD COLUMN viewing TEXT`;
   }),
+  // Device pairing (device-pairing): this installation as a host (one identity, its pairing codes, its paired devices,
+  // each kept only as the hash of its token) and as a controller (the hosts it is paired with, with the token each gave).
+  "0043_device_pairing": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE host_identity (
+      id INTEGER PRIMARY KEY CHECK (id = 1),
+      claim_secret TEXT NOT NULL,
+      host_name TEXT,
+      is_enabled INTEGER NOT NULL DEFAULT 0,
+      public_key TEXT NOT NULL,
+      relay_origin TEXT,
+      room TEXT NOT NULL,
+      secret_key TEXT NOT NULL
+    )`;
+    yield* sql`CREATE TABLE pairing_codes (
+      id TEXT PRIMARY KEY,
+      expires_at INTEGER NOT NULL,
+      secret_hash TEXT NOT NULL,
+      used_at INTEGER
+    )`;
+    yield* sql`CREATE TABLE paired_devices (
+      id TEXT PRIMARY KEY,
+      kind TEXT NOT NULL,
+      last_active_at INTEGER,
+      name TEXT NOT NULL,
+      paired_at INTEGER NOT NULL,
+      token_hash TEXT NOT NULL
+    )`;
+    yield* sql`CREATE TABLE remote_hosts (
+      id TEXT PRIMARY KEY,
+      device_id TEXT NOT NULL,
+      device_token TEXT NOT NULL,
+      host_name TEXT NOT NULL,
+      host_public_key TEXT NOT NULL,
+      last_seen_at INTEGER,
+      paired_at INTEGER NOT NULL,
+      relay_origin TEXT NOT NULL,
+      room TEXT NOT NULL
+    )`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

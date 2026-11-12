@@ -11,7 +11,9 @@
   },
   "dependencies": {
     "@effect/sql-sqlite-node": "4.1.2",
+    "@iskios/channel": "workspace:*",
     "@iskios/contracts": "workspace:*",
+    "@iskios/relay": "workspace:*",
     "effect": "4.1.2",
     "ws": "8.22.1"
   },
