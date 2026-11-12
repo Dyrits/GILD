@@ -1,0 +1,368 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <title>Architecture review for ISKIOS, 2026-11-12</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script type="module">
+      import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs";
+
+      mermaid.initialize({ securityLevel: "loose", startOnLoad: true, theme: "neutral" });
+    </script>
+    <style>
+      .seam { stroke-dasharray: 4 4; }
+      .leak { stroke: #dc2626; }
+      .deep { background: linear-gradient(135deg, #0f172a, #1e293b); }
+      .dashed-seam { border-style: dashed; }
+      .label { font-size: 0.65rem; text-transform: uppercase; letter-spacing: 0.08em; }
+    </style>
+  </head>
+  <body class="bg-stone-50 text-slate-900 font-sans">
+    <main class="max-w-5xl mx-auto px-6 py-12 space-y-12">
+      <header class="space-y-4">
+        <h1 class="font-serif text-4xl">Architecture review: ISKIOS</h1>
+        <p class="text-sm text-slate-500">2026-11-12 · scope: changes since the 2026-11-11 audit (CHG-0187 to CHG-0215) · five candidates</p>
+        <div class="flex flex-wrap gap-4 text-xs text-slate-600">
+          <span class="flex items-center gap-2"><span class="inline-block w-5 h-3 border border-slate-400 bg-white"></span>module</span>
+          <span class="flex items-center gap-2"><span class="inline-block w-5 border-t-2 border-dashed border-slate-500"></span>seam</span>
+          <span class="flex items-center gap-2"><span class="inline-block w-5 border-t-2 border-red-600"></span>leakage</span>
+          <span class="flex items-center gap-2"><span class="inline-block w-5 h-3 deep"></span>deep module</span>
+        </div>
+        <div class="rounded border border-amber-300 bg-amber-50 text-amber-900 text-sm px-4 py-2">
+          Already delivered, so not repeated: the four candidates of the 2026-11-11 audit (CHG-0187: <span class="font-mono">reach.ts</span>, <span class="font-mono">composerList.ts</span>, <span class="font-mono">chipPlaces.ts</span>, <span class="font-mono">desktopTheme.ts</span>). Still open from 2026-11-09 and not re-proposed: the navigation module out of <span class="font-mono">App.tsx</span>.
+        </div>
+      </header>
+
+      <section class="space-y-12" id="candidates" >
+
+        <!-- 1 -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm" id="c1" >
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="label rounded-full bg-emerald-100 text-emerald-800 px-3 py-1 font-semibold">Strong</span>
+            <span class="label rounded-full bg-slate-100 text-slate-700 px-3 py-1">in-process</span>
+            <span class="label text-slate-400">candidate 1</span>
+          </div>
+          <h2 class="font-serif text-2xl">One Containment module decides whether a harness action stays inside its sandbox</h2>
+          <ul class="font-mono text-sm text-slate-700 space-y-0.5">
+            <li>work/approvals.ts <span class="text-slate-400">(477)</span> · capabilityOf L304, editFolderOf L292, answerPrompt L330</li>
+            <li>core/execution.ts <span class="text-slate-400">(256)</span> · HarnessPrompt flags L62-81, containmentOf L198, L228</li>
+            <li>harness/claude.ts L383 · harness/claudeArgs.ts L163 (isSandboxedOf)</li>
+            <li>harness/codex.ts L187, L373 · harness/opencode.ts L224 (isUnaskedEdit), L276, L506, L592</li>
+            <li>harness/threadFolder.ts · work/threadToolHandlers.ts L47 (askOwnerFor)</li>
+          </ul>
+
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <div class="label text-red-700">Before: four answers to one question</div>
+              <div class="rounded-lg border border-slate-200 bg-white p-4">
+                <pre class="mermaid">
+flowchart LR
+  A["claude.containmentOf<br/>Sandboxed if host can"] --> F["HarnessPrompt flags<br/>isOutsideSandbox / isUnsandboxed"]
+  B["claudeArgs.isSandboxedOf<br/>needs RiskyOnly"] -.disagrees.-> A
+  C["codex<br/>always Sandboxed,<br/>every ask outside"] --> F
+  D["opencode.isUnaskedEdit<br/>raw request.cwd"] --> F
+  D -.second path check.-> E
+  F --> G[askOwnerFor] --> E["approvals.capabilityOf<br/>editFolderOf"]
+  classDef leak stroke:#dc2626,stroke-width:2px;
+  class A,B,D leak
+  linkStyle 1 stroke:#dc2626,stroke-width:2px
+  linkStyle 4 stroke:#dc2626,stroke-width:2px
+                </pre>
+              </div>
+            </div>
+            <div class="space-y-2">
+              <div class="label text-emerald-700">After: adapters report facts, one module decides</div>
+              <div class="rounded-lg border border-slate-200 bg-white p-4 h-full">
+                <div class="grid grid-cols-3 gap-2 text-center">
+                  <div class="rounded border border-slate-300 p-2 label">claude</div>
+                  <div class="rounded border border-slate-300 p-2 label">codex</div>
+                  <div class="rounded border border-slate-300 p-2 label">opencode</div>
+                </div>
+                <div class="text-center text-slate-400 text-xs my-1">sandbox facts: which sandbox, what was asked, starting folder</div>
+                <svg class="mx-auto" height="18" width="20" ><title>down</title><line class="seam" stroke="#475569" stroke-width="2" x1="10" x2="10" y1="0" y2="16" /></svg>
+                <div class="deep rounded-lg border-4 border-slate-900 text-white p-4 text-center">
+                  <div class="label text-emerald-300">Containment</div>
+                  <div class="text-sm mt-1">contained · leaves the sandbox · unprotected · folder question</div>
+                  <div class="mt-2 text-xs text-slate-400">level × sandbox × action × folder, decided once</div>
+                </div>
+                <svg class="mx-auto" height="18" width="20" ><title>down</title><line class="seam" stroke="#475569" stroke-width="2" x1="10" x2="10" y1="0" y2="16" /></svg>
+                <div class="rounded border border-slate-300 p-2 text-center label">approvals: ask · record · remember</div>
+              </div>
+            </div>
+          </div>
+
+          <p><strong>Problem.</strong> "Is this thread sandboxed, and does this action stay inside?" is answered in four places that already disagree: Claude Code reports <code>Sandboxed</code> whenever the host can sandbox, yet <code>isSandboxedOf</code> sandboxes only at <code>RiskyOnly</code>; Codex reports <code>Sandboxed</code> and flags every request as outside it (finding P5); OpenCode checks unasked edits against the raw <code>request.cwd</code> while Approvals checks <code>editFolderOf</code>; the folder check is skipped without an OpenCode sandbox (P6).</p>
+          <p><strong>Solution.</strong> Adapters report only facts; one Containment module turns them into the decision; Approvals only asks, records and remembers.</p>
+          <ul class="list-disc pl-5 text-sm space-y-0.5">
+            <li>Locality: P4, P5, P6 and any new harness land in one module</li>
+            <li>Leverage: three adapters and Approvals share one answer</li>
+            <li>Interface is the test surface: a table of harness × level × sandbox × action, no process</li>
+            <li><span class="font-mono">approvals.test.ts</span> and the <span class="font-mono">harnesses.test.ts</span> ask cases survive end to end</li>
+            <li>OpenCode <span class="font-mono">isUnaskedEdit</span> assertions collapse into the table</li>
+          </ul>
+        </article>
+
+        <!-- 2 -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm" id="c2" >
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="label rounded-full bg-emerald-100 text-emerald-800 px-3 py-1 font-semibold">Strong</span>
+            <span class="label rounded-full bg-slate-100 text-slate-700 px-3 py-1">in-process</span>
+            <span class="label text-slate-400">candidate 2</span>
+          </div>
+          <h2 class="font-serif text-2xl">Define each structural action once: derived, checked and applied from the same result</h2>
+          <ul class="font-mono text-sm text-slate-700 space-y-0.5">
+            <li>work/guildmasterProvenance.ts <span class="text-slate-400">(346)</span> · deriveAction L156-256, consumeReceipt L302, withProvenance L319</li>
+            <li>work/guildmaster.ts <span class="text-slate-400">(475)</span> · consumeReceipt L371, L446</li>
+            <li>work/guildmasterRealms.ts L42, L69 · work/guildmasterSettings.ts L60, L76</li>
+            <li>work/threadToolHandlers.ts · withProvenance L165, L195, L199, L203, L244</li>
+          </ul>
+
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <div class="label text-red-700">Before: every rule written twice, receipt by hand</div>
+              <div class="rounded-lg border border-slate-200 bg-white p-4 space-y-0">
+                <div class="border-l-4 border-slate-300 bg-slate-50 px-3 h-11 flex items-center text-sm">handler <span class="font-mono ml-2 text-xs">threadToolHandlers</span></div>
+                <div class="border-l-4 border-amber-400 bg-amber-50 px-3 h-11 flex items-center text-sm">withProvenance → deriveAction <span class="ml-auto label text-amber-800">rules copy A</span></div>
+                <div class="border-l-4 border-red-500 bg-red-50 px-3 h-11 flex items-center text-sm">tool body: own checks <span class="ml-auto label text-red-700">rules copy B</span></div>
+                <div class="border-l-4 border-red-500 bg-red-50 px-3 h-11 flex items-center text-sm">consumeReceipt, <em class="ml-1">if the author remembers</em></div>
+                <div class="border-l-4 border-slate-300 bg-slate-50 px-3 h-11 flex items-center text-sm">write</div>
+                <div class="text-xs text-red-700 mt-2">A and B drift: rename_realm derives no duplicate-name refusal, so the owner is asked to Allow an action the tool then refuses.</div>
+              </div>
+            </div>
+            <div class="space-y-2">
+              <div class="label text-emerald-700">After: one definition per action, receipt internal</div>
+              <div class="rounded-lg border border-slate-200 bg-white p-4 h-full space-y-2">
+                <div class="border-l-4 border-slate-300 bg-slate-50 px-3 h-11 flex items-center text-sm">handler</div>
+                <div class="deep rounded-lg border-4 border-slate-900 text-white p-4">
+                  <div class="label text-emerald-300">Provenance runner</div>
+                  <div class="text-xs text-slate-300 mt-1">derive → authority → re-derive in the transaction → apply</div>
+                  <div class="mt-3 grid grid-cols-3 gap-2 text-center">
+                    <div class="rounded bg-slate-700 p-2 label">create_realm</div>
+                    <div class="rounded bg-slate-700 p-2 label">rename_realm</div>
+                    <div class="rounded bg-slate-700 p-2 label">change_setting</div>
+                  </div>
+                  <div class="mt-2 text-xs text-slate-400">each: derive target and refusal once, apply from that state; receipt consumed inside</div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p><strong>Problem.</strong> <code>deriveAction</code> returns null "when the tool's own checks will refuse it", so each check lives in the derivation and in the tool body, and each body must remember <code>consumeReceipt</code> before it writes; nothing enforces that. <code>create_realm</code> already matches realms two ways: by resolved real path in the derivation, by <code>findRealmOfAnyKind(name)</code> in the tool.</p>
+          <p><strong>Solution.</strong> Each action becomes one definition (derive its target and refusal once, apply from that derived state); the provenance module runs the sequence and owns the receipt.</p>
+          <ul class="list-disc pl-5 text-sm space-y-0.5">
+            <li>Locality: one place per action for rules and refusal wording</li>
+            <li>Deletion test: deleting copy B concentrates the logic</li>
+            <li>Forgotten-receipt hazard closes by construction</li>
+            <li>All of <span class="font-mono">guildmaster.test.ts</span> (1318 lines) survives; new case: no question for a refused action</li>
+          </ul>
+        </article>
+
+        <!-- 3 -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm" id="c3" >
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="label rounded-full bg-amber-100 text-amber-800 px-3 py-1 font-semibold">Worth exploring</span>
+            <span class="label rounded-full bg-slate-100 text-slate-700 px-3 py-1">local-substitutable</span>
+            <span class="label text-slate-400">candidate 3</span>
+          </div>
+          <h2 class="font-serif text-2xl">Gather the sandboxed OpenCode launch behind one module</h2>
+          <ul class="font-mono text-sm text-slate-700 space-y-0.5">
+            <li>harness/opencode.ts <span class="text-slate-400">(703)</span> · start L488-600, probe L592</li>
+            <li>harness/openCodeSandbox.ts <span class="text-slate-400">(222)</span> · harness/openCodeSeed.ts <span class="text-slate-400">(223)</span> · harness/processTree.ts <span class="text-slate-400">(219)</span></li>
+          </ul>
+
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <div class="label text-red-700">Before: the safe order lives in the caller</div>
+              <div class="rounded-lg border border-slate-200 bg-white p-4">
+                <pre class="mermaid">
+flowchart TB
+  S["opencode.start<br/>holds the ordering"]
+  S --> a[folder-escape question]
+  S --> b[sweepOrphans]
+  S --> c["seedOpenCodeSignIn<br/>inside exclusive"]
+  S --> d[openCodeEnvironmentOf]
+  S --> e[wrappedCommandOf]
+  S --> f["onEnded sweep"]
+  S --> g["probe from rpc.pid"]
+  classDef leak stroke:#dc2626,stroke-width:2px;
+  class S leak
+                </pre>
+              </div>
+            </div>
+            <div class="space-y-2">
+              <div class="label text-emerald-700">After: pure helpers go internal</div>
+              <div class="rounded-lg border border-slate-200 bg-white p-4 h-full space-y-2">
+                <div class="rounded border border-slate-300 p-2 text-center label">opencode: ACP protocol, efforts, plan limits</div>
+                <svg class="mx-auto" height="14" width="20" ><title>down</title><line class="seam" stroke="#475569" stroke-width="2" x1="10" x2="10" y1="0" y2="12" /></svg>
+                <div class="deep rounded-lg border-4 border-slate-900 text-white p-4">
+                  <div class="label text-emerald-300">Sandboxed launch</div>
+                  <div class="text-xs text-slate-300 mt-1">turn request + host sandbox → wrapped process + containment probe</div>
+                  <div class="mt-3 grid grid-cols-4 gap-1 text-center opacity-50">
+                    <div class="rounded bg-slate-700 p-1 label">seed</div>
+                    <div class="rounded bg-slate-700 p-1 label">wrap</div>
+                    <div class="rounded bg-slate-700 p-1 label">sweep</div>
+                    <div class="rounded bg-slate-700 p-1 label">probe</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p><strong>Problem.</strong> The pure parts were extracted and tested alone (<code>openCodeSandbox.test.ts</code>, 638 lines), but the order that makes the sandbox safe sits inline in <code>start</code> and only the stand-in OpenCode in <code>harnesses.test.ts</code> reaches it; findings P1, P7, P8, S7 and S8 all live in that sequence.</p>
+          <p><strong>Solution.</strong> One module takes a turn request and the host sandbox and returns a running wrapped process with its containment probe; <code>opencode.ts</code> keeps the protocol and drops under about 500 lines.</p>
+          <ul class="list-disc pl-5 text-sm space-y-0.5">
+            <li>Locality: P1, P7, P8, S7, S8 concentrate in one module</li>
+            <li>Real <span class="font-mono">sandbox-exec</span> tests drive the whole launch</li>
+            <li>Pure-function tests go internal; Seatbelt and process-tree tests survive</li>
+          </ul>
+          <div class="rounded border border-amber-300 bg-amber-50 text-amber-900 text-sm px-3 py-2">Overlaps candidate 1: do that first; the launch then reports its facts to Containment.</div>
+        </article>
+
+        <!-- 4 -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm" id="c4" >
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="label rounded-full bg-amber-100 text-amber-800 px-3 py-1 font-semibold">Worth exploring</span>
+            <span class="label rounded-full bg-slate-100 text-slate-700 px-3 py-1">ports &amp; adapters</span>
+            <span class="label text-slate-400">candidate 4</span>
+          </div>
+          <h2 class="font-serif text-2xl">Put the stored host switch and the live relay connection behind one Host access module</h2>
+          <ul class="font-mono text-sm text-slate-700 space-y-0.5">
+            <li>remote/ <span class="text-slate-400">(11 files, no index.ts)</span> · hostActions.ts (55) · state.ts (62) · hostRuntime.ts (158) · hostSession.ts (214) · hostAccess.ts (230)</li>
+            <li>service.ts <span class="text-slate-400">(730)</span> · L46-62, L198-217 (switchRelay), L331-335, L522-526, L628-633</li>
+          </ul>
+
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <div class="label text-red-700">Before: service.ts knows the order</div>
+              <div class="rounded-lg border border-slate-200 bg-white p-4">
+                <pre class="mermaid">
+flowchart LR
+  H["service.handle"] -->|1 write| HA[hostAccess store]
+  H -->|2 apply| AC["hostActions<br/>pass-through"]
+  AC --> ST["RemoteState.poke"]
+  ST --> RT[hostRuntime]
+  RT -.re-reads.-> HA
+  RT --> SE[hostSession]
+  H -->|3 read view| HA
+  classDef leak stroke:#dc2626,stroke-width:2px;
+  class H leak
+  linkStyle 0 stroke:#dc2626,stroke-width:2px
+  linkStyle 1 stroke:#dc2626,stroke-width:2px
+  linkStyle 6 stroke:#dc2626,stroke-width:2px
+                </pre>
+              </div>
+            </div>
+            <div class="space-y-2">
+              <div class="label text-emerald-700">After: one interface, the order is internal</div>
+              <div class="rounded-lg border border-slate-200 bg-white p-4 h-full space-y-2">
+                <div class="rounded border border-slate-300 p-2 text-center label">service.handle</div>
+                <svg class="mx-auto" height="14" width="20" ><title>down</title><line class="seam" stroke="#475569" stroke-width="2" x1="10" x2="10" y1="0" y2="12" /></svg>
+                <div class="deep rounded-lg border-4 border-slate-900 text-white p-4">
+                  <div class="label text-emerald-300">Host access</div>
+                  <div class="text-xs text-slate-300 mt-1">turn on or off · use a relay · forget a device · report its view</div>
+                  <div class="mt-3 grid grid-cols-3 gap-1 text-center opacity-50">
+                    <div class="rounded bg-slate-700 p-1 label">store</div>
+                    <div class="rounded bg-slate-700 p-1 label">runtime</div>
+                    <div class="rounded bg-slate-700 p-1 label">sessions</div>
+                  </div>
+                </div>
+                <svg class="mx-auto" height="14" width="20" ><title>down</title><line class="seam" stroke="#475569" stroke-width="2" x1="10" x2="10" y1="0" y2="12" /></svg>
+                <div class="rounded border border-dashed border-slate-400 p-2 text-center label">relay seam: Durable Object · Node</div>
+              </div>
+            </div>
+          </div>
+
+          <p><strong>Problem.</strong> <code>service.ts</code> orchestrates "write the record, poke the runtime, read the view" by hand for four requests; <code>hostActions.ts</code> is a pass-through (deleting it only moves its code into <code>service.ts</code>); "off means nothing serves" is rechecked at seven sites; and with no <code>index.ts</code> other folders import nine remote files directly, against the folder-interface rule.</p>
+          <p><strong>Solution.</strong> One Host access module owns the switch, the relay address, the paired devices and the live connection; callers never poke the runtime.</p>
+          <ul class="list-disc pl-5 text-sm space-y-0.5">
+            <li>Locality: the "switched off or moved relay" invariant in one module</li>
+            <li>Leverage: relay rate limits and device re-pointing land in one place</li>
+            <li><span class="font-mono">service.ts</span> sheds about 40 lines and 7 imports</li>
+            <li><span class="font-mono">devicePairing</span>, <span class="font-mono">ownRelayChoice</span> and <span class="font-mono">frames</span> tests survive unchanged</li>
+          </ul>
+          <div class="rounded border border-amber-300 bg-amber-50 text-amber-900 text-sm px-3 py-2">Consistent with decision record 0016 and its CHG-0212 amendment.</div>
+        </article>
+
+        <!-- 5 -->
+        <article class="rounded-xl border border-slate-200 bg-white p-6 space-y-5 shadow-sm" id="c5" >
+          <div class="flex flex-wrap items-center gap-2">
+            <span class="label rounded-full bg-amber-100 text-amber-800 px-3 py-1 font-semibold">Worth exploring</span>
+            <span class="label rounded-full bg-slate-100 text-slate-700 px-3 py-1">local-substitutable</span>
+            <span class="label text-slate-400">candidate 5</span>
+          </div>
+          <h2 class="font-serif text-2xl">Admit an owner's message in one module, not assembled in service.ts</h2>
+          <ul class="font-mono text-sm text-slate-700 space-y-0.5">
+            <li>service.ts · helpers L164-187 · SendMessage L485-510 · OpenThread L373-404 · StartMission L561-591 · ChangeThreadRunner L280-299</li>
+            <li>work/vision.ts <span class="text-slate-400">(38)</span> · work/messaging.ts <span class="text-slate-400">(230)</span> L190 · work/tree.ts L79 · work/missions.ts L87-92</li>
+          </ul>
+
+          <div class="grid md:grid-cols-2 gap-4">
+            <div class="space-y-2">
+              <div class="label text-red-700">Before: the runner is derived twice</div>
+              <div class="rounded-lg border border-slate-200 bg-white p-4 text-sm space-y-2">
+                <div class="rounded border border-slate-300 p-2">service.handle
+                  <div class="ml-4 mt-1 space-y-1 font-mono text-xs">
+                    <div class="rounded bg-red-50 border border-red-300 p-1">runnerOf(parent…) → refuseUnreadableImages</div>
+                    <div class="rounded bg-slate-50 border border-slate-200 p-1">textWith · once · nameNewQuest</div>
+                    <div class="rounded bg-slate-50 border border-slate-200 p-1">insertUserMessage → insertMessage (pass-through)</div>
+                  </div>
+                </div>
+                <div class="rounded border border-red-300 bg-red-50 p-2 text-xs">tree.ts L79 / missions.ts L87-92 derive the runner again: the refusal can judge a different Companion than the one that runs.</div>
+              </div>
+            </div>
+            <div class="space-y-2">
+              <div class="label text-emerald-700">After: one admission, one resolved runner</div>
+              <div class="rounded-lg border border-slate-200 bg-white p-4 h-full space-y-2">
+                <div class="rounded border border-slate-300 p-2 text-center label">service.handle (one line each)</div>
+                <svg class="mx-auto" height="14" width="20" ><title>down</title><line class="seam" stroke="#475569" stroke-width="2" x1="10" x2="10" y1="0" y2="12" /></svg>
+                <div class="deep rounded-lg border-4 border-slate-900 text-white p-4">
+                  <div class="label text-emerald-300">Message admission</div>
+                  <div class="text-xs text-slate-300 mt-1">text + attachments + target → admitted message with its runner, or the refusal</div>
+                  <div class="mt-3 grid grid-cols-3 gap-1 text-center opacity-50">
+                    <div class="rounded bg-slate-700 p-1 label">runner</div>
+                    <div class="rounded bg-slate-700 p-1 label">vision</div>
+                    <div class="rounded bg-slate-700 p-1 label">messaging</div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <p><strong>Problem.</strong> <code>service.ts</code> re-derives the runner that the domain operation derives later, only to refuse images; emptiness, image refusal, default delivery, the viewing line and naming are stitched together per request.</p>
+          <p><strong>Solution.</strong> One module resolves the runner once and returns the admitted message or the refusal; the image check stays outside the transaction but judges the same runner.</p>
+          <ul class="list-disc pl-5 text-sm space-y-0.5">
+            <li>Locality: one runner resolution per request</li>
+            <li>Handlers shrink to a call each; <code>insertUserMessage</code> pass-through goes</li>
+            <li><span class="font-mono">attachments.test.ts</span> L244 and L278 survive</li>
+          </ul>
+        </article>
+      </section>
+
+      <section id="top-recommendation">
+        <div class="rounded-xl deep text-white p-8 space-y-3">
+          <div class="label text-emerald-300">Top recommendation</div>
+          <h2 class="font-serif text-2xl">Candidate 1: one Containment module</h2>
+          <p class="text-slate-200">The release's safety guarantee is sandbox-first autonomy (CHG-0208), and open findings P4, P5 and P6 sit in exactly this code; the Claude Code disagreement is a live wording bug at the stricter approval level. Fixing them in one module costs less than patching four places.</p>
+          <p class="text-slate-300 text-sm">Fallback if time is short: <a class="underline" href="#c2">candidate 2</a>, self-contained and already covered by tests. Then <a class="underline" href="#c3">3</a> on top of 1.</p>
+          <a class="inline-block mt-2 underline text-emerald-300" href="#c1">Go to candidate 1</a>
+        </div>
+        <div class="mt-6 rounded border border-amber-300 bg-amber-50 text-amber-900 text-sm px-4 py-3 space-y-1">
+          <div>Note: commit <span class="font-mono">434e4fb</span> (CHG-0213) renamed the first release from 0.1.0-Alpha to 0.1.0-Prototype; confirm which name stands.</div>
+          <div>Not verified: this report comes from reading the code. No tests, typecheck or app run was done, and Bubblewrap on Linux was not looked at.</div>
+        </div>
+        <details class="mt-6 text-sm text-slate-600">
+          <summary class="cursor-pointer">Looked at, not proposed</summary>
+          <ul class="list-disc pl-5 mt-2 space-y-1">
+            <li>packages/relay: RoomCore behind RoomPorts with two adapters is already a real seam and deep.</li>
+            <li>core/store.ts (673): migration data, not several responsibilities.</li>
+            <li>threadTools.ts: the one-definition catalogue is delivered and deep.</li>
+            <li>hostOnlyRequestTags (contracts/src/remote.ts L103-113): deny-list by design (a paired device has full owner authority); a specification question.</li>
+            <li>Settings written whole (settings.tsx L154, L303, L408): a correctness fix, not a deepening; Iskios and an open settings screen can overwrite each other.</li>
+            <li>Convention points: Date.now() in remote code instead of Clock; HarnessTools/AccountsRoot provided 7 times in service.ts.</li>
+            <li>sidebar.tsx (1074): barely changed in this range; a leftover of the last audit.</li>
+          </ul>
+        </details>
+      </section>
+    </main>
+  </body>
+</html>

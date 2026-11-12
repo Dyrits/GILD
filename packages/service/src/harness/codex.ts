@@ -182,9 +182,13 @@ const answerRequest = (
   Effect.gen(function* () {
     const { id, method, params } = incoming;
     const { rpc } = connection;
-    // At the default level Codex asks only to go beyond its sandbox, so each of its requests is an escape.
+    // At the default level Codex asks only to go beyond its sandbox, so each of its requests is an escape. At "Also
+    // commands and edits" it asks before commands it does not trust, which run inside the sandbox once allowed.
+    const isEscape = request.access.approvalLevel === "RiskyOnly";
     const ask = (toolName: string, input: object) =>
-      request.askOwner({ input, isOutsideSandbox: true, toolName }).pipe(Effect.map((answer) => answer.isAllowed));
+      request
+        .askOwner({ input, ...(isEscape ? { isOutsideSandbox: true } : {}), toolName })
+        .pipe(Effect.map((answer) => answer.isAllowed));
     if (method === "item/commandExecution/requestApproval") {
       const isAllowed = yield* ask("Bash", {
         command: textFieldOf(params, "command") ?? "",

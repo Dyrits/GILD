@@ -1,6 +1,7 @@
 import { readFileSync } from "node:fs";
 import { homedir } from "node:os";
 import { join } from "node:path";
+import type { ApprovalLevel } from "@iskios/contracts";
 import { Exit, Schema } from "effect";
 import { fieldOf, type ThreadAccess, textFieldOf } from "../core/index.ts";
 import { approvalInstructionsOf } from "./instructions.ts";
@@ -159,9 +160,9 @@ const sandboxSettingsOf = () => ({
   sandbox: { autoAllowBashIfSandboxed: true, enabled: true, failIfUnavailable: true, ...threadSandbox.sandbox },
 });
 
-/** Whether Claude Code runs this thread inside its enforced sandbox: the level allows it and the host can run one. */
-export const isSandboxedOf = (access: ThreadAccess, options: AccessOptions) =>
-  access.approvalLevel === "RiskyOnly" && options.sandboxProblem === null;
+/** Whether Claude Code runs a thread at this level inside its enforced sandbox: the level allows it and the host can run one. */
+export const isSandboxedOf = (level: ApprovalLevel, options: AccessOptions) =>
+  level === "RiskyOnly" && options.sandboxProblem === null;
 
 /**
  * The host of a `can_use_tool` control request that asks to reach a host the sandbox blocks, or null for any other
@@ -183,7 +184,7 @@ export const accessArgsOf = (access: ThreadAccess, context: string, options: Acc
   // A question waits with no time limit (action-approval, Waiting); without its own
   // timeout, Claude Code aborts a call silent for 300 seconds (verified 2026-11-05).
   const mcpConfig = { mcpServers: { [toolServerName]: { timeout: noTimeLimit, type: "http", url: access.mcpUrl } } };
-  const isSandboxed = isSandboxedOf(access, options);
+  const isSandboxed = isSandboxedOf(access.approvalLevel, options);
   const levelArgs = isSandboxed
     ? ["--permission-mode", "acceptEdits", "--settings", JSON.stringify(sandboxSettingsOf())]
     : [

@@ -489,12 +489,13 @@ const openCodeProtocolOf = (options: OpenCodeOptions): HarnessProtocol<OpenCodeC
         const instructionsPath = yield* writeInstructions(request);
         const args = [...(options.prefixArgs ?? []), "acp"];
         // A folder that would widen what the sandbox writes is never sandboxed: the owner decides whether the thread
-        // runs there without the sandbox, every action asking, or the turn fails.
-        const found =
-          options.sandbox == null
-            ? null
-            : yield* Effect.sync(() => folderEscapeOf(request.cwd, request.folderRoot, request.access.isInWorkspace));
-        if (found !== null) {
+        // runs there without the sandbox, every action asking, or the turn fails. Without a sandbox tool nothing is
+        // widened and every action asks anyway, but the folder still counts as outside its workspace, so even an edit
+        // in it asks (the folder check no sandbox skipped).
+        const found = yield* Effect.sync(() =>
+          folderEscapeOf(request.cwd, request.folderRoot, request.access.isInWorkspace),
+        );
+        if (found !== null && options.sandbox != null) {
           // A one-time question: it offers no standing permission, and none answers it.
           const answer = yield* request.askOwner({
             folderCheck: { pointsTo: found.pointsTo, startsIn: null },

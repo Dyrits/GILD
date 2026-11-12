@@ -1,25 +1,16 @@
 import { dirname, resolve as resolvePath } from "node:path";
-import type { Answer, HarnessName, Question, QuestionOutcome, QuestionSource } from "@iskios/contracts";
+import type { Answer, ApprovalLevel, HarnessName, Question, QuestionOutcome, QuestionSource } from "@iskios/contracts";
 import { Clock, Context, Effect, Layer } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
-import {
-  Changes,
-  fieldOf,
-  Harness,
-  invalid,
-  isInsideFolder,
-  notFound,
-  readSettings,
-  type ServiceFailure,
-} from "../core/index.ts";
+import { Changes, fieldOf, Harness, invalid, notFound, readSettings, type ServiceFailure } from "../core/index.ts";
 import { folderEscapeOf, resolvedFolderOf } from "../harness/index.ts";
 import {
   capabilities,
-  changedFilesOf,
   consequences,
   findCoveringPermission,
   insertPermission,
-  isFileWriting,
+  isUnaskedAt,
+  needsOf,
   plainActionOf,
   readQuestion,
   reasonOf,
@@ -297,34 +288,29 @@ export const approvalsLayer = Layer.effect(
     };
 
     /**
-     * What a harness action needs beyond its sandbox, or null when it is contained (CHG-0208). A file change inside
-     * the thread's folder is contained by its exact path; any other change by the harness's own tool is not. A
-     * harness with no enforced sandbox needs the owner for everything else; inside one, only leaving it does.
+     * What a harness action needs beyond its sandbox, or null when it is contained (CHG-0208): gathers the facts
+     * Containment (policy/containment.ts) judges from, which the adapter reported and the store holds.
      */
     const capabilityOf = (
       threadId: string,
+      level: ApprovalLevel,
       toolName: string,
       input: unknown,
       isEscape: boolean,
       isUnsandboxed: boolean,
     ) =>
       Effect.gen(function* () {
-        if (isFileWriting(toolName)) {
-          const files = changedFilesOf(input);
-          const stored = yield* threadFolderOf(threadId).pipe(Effect.provideService(ScratchRoot, scratchRoot));
-          const folder = stored === null ? null : editFolderOf(threadId, stored);
-          // Unsandboxed for a folder that points outside its workspace, the thread's folder itself is outside it.
-          if (isEscape || isUnsandboxed || files.length === 0 || folder === null)
-            return capabilities.fileOutsideWorkspace;
-          for (const file of files)
-            if (!(yield* isInsideFolder(folder, file))) return capabilities.fileOutsideWorkspace;
-          return null;
-        }
+        const stored = yield* threadFolderOf(threadId).pipe(Effect.provideService(ScratchRoot, scratchRoot));
         const [row] = yield* sql<{ harness: HarnessName }>`SELECT harness FROM threads WHERE id = ${threadId}`;
-        const containment = row === undefined ? "Unprotected" : (harness.containmentOf?.(row.harness) ?? "Unprotected");
-        if (containment === "Unprotected" || isUnsandboxed) return capabilities.unsandboxed;
-        if (toolName === "Permissions") return capabilities.widenSandbox;
-        return isEscape ? capabilities.outsideSandbox : null;
+        return yield* needsOf({
+          containment:
+            row === undefined ? "Unprotected" : (harness.containmentOf?.(row.harness, level) ?? "Unprotected"),
+          editFolder: stored === null ? null : editFolderOf(threadId, stored),
+          input,
+          isEscape,
+          isUnsandboxed,
+          toolName,
+        });
       });
 
     const answerPrompt = (
@@ -345,12 +331,12 @@ export const approvalsLayer = Layer.effect(
         const missionId = yield* missionOf(threadId);
         if (missionId === null) return { isAllowed: false, text: "Unknown thread." } satisfies Decision;
         const { approvalLevel } = yield* readSettings;
-        const capability = yield* capabilityOf(threadId, toolName, input, isEscape, isUnsandboxed);
+        const capability = yield* capabilityOf(threadId, approvalLevel, toolName, input, isEscape, isUnsandboxed);
         const reason = reasonOf(input);
         const plain = plainActionOf(toolName);
         // At the default level a contained action runs and leaves a line, whatever it does: the sandbox holds the
         // damage, and no command is judged by its words.
-        if (approvalLevel === "RiskyOnly" && capability === null) {
+        if (isUnaskedAt(approvalLevel, capability)) {
           yield* record(
             {
               details: target,

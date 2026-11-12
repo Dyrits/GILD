@@ -474,6 +474,22 @@ describe("running Codex threads", () => {
     }).pipe(Effect.provide(layer));
   });
 
+  it.live(
+    "asks about a command as an ordinary one, not an escape, at the level asking before commands and edits",
+    () => {
+      const { layer } = withHarnesses();
+      return Effect.gen(function* () {
+        const settings = yield* call({ _tag: "ReadSettings" });
+        yield* call({ _tag: "UpdateSettings", settings: { ...settings, approvalLevel: "CommandsAndEdits" } });
+        const started = yield* start({ harness: "codex", text: "run ls" });
+        const answered = yield* answerOpen("Allow");
+        expect(answered).toMatchObject({ details: "ls", permission: "Run a command" });
+        expect(answered.summary).not.toContain("outside the sandbox");
+        expect(replies(yield* settle(started.missionId, idleWith(1)))).toEqual(["ls: accept"]);
+      }).pipe(Effect.provide(layer));
+    },
+  );
+
   it.live("fails the turn, rather than leave Codex waiting, when the owner cannot be asked", () =>
     Effect.gen(function* () {
       const harness = yield* makeCodexHarness({
@@ -1075,6 +1091,25 @@ describe("running OpenCode threads", () => {
       expect(detail.handovers).toEqual([]);
     }).pipe(Effect.provide(layer));
   });
+
+  it.live(
+    "asks before an edit in a folder that is a link when no sandbox tool exists, without asking about the start",
+    () => {
+      const { layer } = withHarnesses("50 millis");
+      const { elsewhere, workspace } = linkedFolders();
+      return Effect.gen(function* () {
+        const started = yield* start({ harness: "opencode", text: "one", workspacePath: workspace });
+        yield* settle(started.missionId, idleWith(1));
+        yield* Effect.sleep("200 millis");
+        linkInPlace(workspace, elsewhere);
+        yield* sendTo(started.threadId, "edit notes/plan.md");
+        // The only question is the edit's: nothing is sandboxed, so there is no start to ask about.
+        const edit = yield* answerOpen("Deny");
+        expect(edit.permission).toBe("Change a file outside the workspace");
+        yield* settle(started.missionId, idleWith(2));
+      }).pipe(Effect.provide(layer));
+    },
+  );
 
   /** A workspace folder in its own temporary folder, and a folder outside it, both real paths. */
   const linkedFolders = () => {

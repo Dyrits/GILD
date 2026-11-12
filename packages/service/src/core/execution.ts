@@ -82,8 +82,9 @@ export interface HarnessPrompt {
 }
 
 /**
- * Whether a harness's tool execution runs inside a sandbox it enforces on this computer (sandbox-first autonomy):
- * inside one, an action runs unasked unless it leaves the sandbox; without one, every action it prompts for asks.
+ * Whether a harness's tool execution runs inside a sandbox it enforces on this computer at an approval level
+ * (sandbox-first autonomy): inside one, an action runs unasked unless it leaves the sandbox; without one, every
+ * action it prompts for asks.
  */
 export type Containment = "Sandboxed" | "Unprotected";
 
@@ -192,10 +193,10 @@ export interface PlanLimitsReport {
 /** What one harness adapter offers: one turn of a thread at a time, which can be steered and interrupted. */
 export interface HarnessAdapter {
   /**
-   * Whether the harness runs its tools inside an enforced sandbox here. Left out, a harness counts as unprotected, so
-   * its prompts ask.
+   * Whether the harness runs its tools inside an enforced sandbox here at the approval level. Left out, a harness
+   * counts as unprotected, so its prompts ask. Adapters report this fact; Containment (policy/containment.ts) decides.
    */
-  readonly containmentOf?: (harness: HarnessName) => Containment;
+  readonly containmentOf?: (harness: HarnessName, level: ApprovalLevel) => Containment;
   /** Ends the thread's running turn, whose `runTurn` then returns as interrupted; false when none runs. */
   readonly interrupt: (threadId: string) => Effect.Effect<boolean>;
   /**
@@ -225,7 +226,7 @@ export class Harness extends Context.Service<Harness, HarnessAdapter>()("iskios/
 export const routeHarnesses = (adapters: Record<HarnessName, HarnessAdapter>): HarnessAdapter => {
   const running = new Map<string, HarnessAdapter>();
   return {
-    containmentOf: (harness) => adapters[harness].containmentOf?.(harness) ?? "Unprotected",
+    containmentOf: (harness, level) => adapters[harness].containmentOf?.(harness, level) ?? "Unprotected",
     interrupt: (threadId) => running.get(threadId)?.interrupt(threadId) ?? Effect.succeed(false),
     readPlanLimits: (harness, configDirectory) => adapters[harness].readPlanLimits(harness, configDirectory),
     runTurn: (request) =>

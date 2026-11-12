@@ -486,6 +486,17 @@ describe("running Claude Code threads", () => {
     }).pipe(Effect.provide(layer));
   });
 
+  it.live("reports itself sandboxed only at the default level on a host that can sandbox", () =>
+    Effect.gen(function* () {
+      const options = { command: process.execPath, idleTimeout: "10 minutes", prefixArgs: [standIn] } as const;
+      const capable = yield* makeClaudeHarness({ ...options, sandboxProblem: null });
+      const incapable = yield* makeClaudeHarness({ ...options, sandboxProblem: "Sandbox unavailable." });
+      expect(capable.containmentOf?.("claude", "RiskyOnly")).toBe("Sandboxed");
+      expect(capable.containmentOf?.("claude", "CommandsAndEdits")).toBe("Unprotected");
+      expect(incapable.containmentOf?.("claude", "RiskyOnly")).toBe("Unprotected");
+    }).pipe(Effect.scoped),
+  );
+
   it.live("closes an idle process and resumes the same session for the next message", () => {
     const { layer, starts } = withClaude({ idleTimeout: "100 millis" });
     return Effect.gen(function* () {

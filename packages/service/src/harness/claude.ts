@@ -1,5 +1,5 @@
 import { tmpdir } from "node:os";
-import type { BillingKind, TokenUsage } from "@iskios/contracts";
+import type { ApprovalLevel, BillingKind, TokenUsage } from "@iskios/contracts";
 import { type Duration, Effect, Layer, Queue } from "effect";
 import {
   type Containment,
@@ -206,7 +206,7 @@ const claudeProtocolOf = (
           // damage, and egress is open. Only that one ask is answered; every other ask, such as a Bash call outside
           // the sandbox, is left to the permission prompt tool, and none is answered without a sandbox.
           const askedRequest = fieldOf(event, "request");
-          const host = isSandboxedOf(request.access, options) ? networkHostOf(askedRequest) : null;
+          const host = isSandboxedOf(request.access.approvalLevel, options) ? networkHostOf(askedRequest) : null;
           const requestId = textFieldOf(event, "request_id");
           if (host !== null && requestId !== null)
             connection.process.write({
@@ -379,8 +379,10 @@ export const makeClaudeHarness = (options: ClaudeOptions) =>
         Effect.tapError(() => Effect.sync(() => probed.delete(key))),
       );
     };
-    // Claude Code runs its commands in its own sandbox unless the host cannot start one (core/sandbox.ts).
-    const containmentOf = (): Containment => (options.sandboxProblem === null ? "Sandboxed" : "Unprotected");
+    // Claude Code runs its commands in its own sandbox at the default level, unless the host cannot start one
+    // (core/sandbox.ts); at "Also commands and edits" it runs without it, and every prompt asks as for an unprotected harness.
+    const containmentOf = (_harness: unknown, level: ApprovalLevel): Containment =>
+      isSandboxedOf(level, options) ? "Sandboxed" : "Unprotected";
     return { ...adapter, containmentOf, readPlanLimits } satisfies HarnessAdapter;
   });
 

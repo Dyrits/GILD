@@ -47,7 +47,7 @@ When adding a handoff, keep only the three newest current handoffs linked below;
 
 Latest handoffs:
 
-- To resume the CHG-0208 review follow-up (sandbox and structural actions: refactors and the Seatbelt signal rule done, P1 application launch and P2 to P11 open, P8 and P9 waiting for owner decisions), read the [current handoff](.agents/handoffs/2026-11-12-1405-sandbox-review-follow-up.md). Handoffs are shared and committed.
+- To resume the architecture audit of 2026-11-12 (candidate 1, one Containment decision for harness actions, built and checked as CHG-0216, with Claude Code's, Codex's and OpenCode's disagreements fixed; candidates 2 to 5 open, and the owner decisions of the 2026-11-11 audit still waiting), read the [current handoff](.agents/handoffs/2026-11-12-2357-architecture-audit-containment.md). The CHG-0208 review follow-up it touches stays in the [sandbox handoff](.agents/handoffs/2026-11-12-1405-sandbox-review-follow-up.md). Handoffs are shared and committed.
 
 - To resume device pairing (shared relay deployed and the optional own relay on the user's Cloudflare account built and checked live, CHG-0209 and CHG-0212; a real pairing between two apps through the shared relay not yet seen; folder picker and terminal on a host, the direct path, relay limits and the usage measurement remain), read the [current handoff](.agents/handoffs/2026-11-12-2142-device-pairing-own-relay.md). Handoffs are shared and committed.
 
