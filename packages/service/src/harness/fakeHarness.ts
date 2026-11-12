@@ -1,6 +1,14 @@
 import type { BillingKind, TokenUsage } from "@iskios/contracts";
 import { Deferred, type Duration, Effect, Layer } from "effect";
-import { fieldOf, Harness, HarnessFailure, type ImageAttachment, type TurnRequest } from "../core/index.ts";
+import {
+  type Containment,
+  fieldOf,
+  Harness,
+  HarnessFailure,
+  type ImageAttachment,
+  type TurnRequest,
+  textFieldOf,
+} from "../core/index.ts";
 
 /** Calls one tool on a thread's MCP endpoint and returns its text, as a harness would; for the fake and checks. */
 export const callThreadTool = (mcpUrl: string, name: string, args: unknown) =>
@@ -21,7 +29,8 @@ export const callThreadTool = (mcpUrl: string, name: string, args: unknown) =>
   });
 
 // The fake's script: a line `ask <json>` calls request_approval, `prompt <tool> <json input>` asks the
-// owner about a harness action, and `call <tool> <json>` calls any thread tool, each answered before
+// owner about a harness action, `escape <tool> <json input>` asks about one the harness would run outside its
+// sandbox (as Codex's escalations do), `folder <tool> <json>` asks the one-time question about a linked thread folder, and `call <tool> <json>` calls any thread tool, each answered before
 // the echo; `wait <millis>` keeps the turn running; `fail <harness> <reason>` fails the turn on that harness; `cwd`, `context`, and `runner` report the working folder, the
 // starting context, and the harness, model, effort, and session; `spend <tokens> [cost]` reports spending at the turn's end,
 // `usage <input> <output> <cacheRead> <cacheWrite>` reports tokens by kind, `callusage <input> <output> <cacheRead> <cacheWrite>` gives the reply's own call its usage, and `billing <Subscription|ApiKey|Unknown>` names how the turn was billed (a turn that reports a cost and names none is API-key, as before).
@@ -85,10 +94,26 @@ const scriptedCall = (request: TurnRequest, line: string, turn: FakeTurn) => {
   const tool = /^call (\S+) (.*)$/.exec(line);
   if (tool !== null) return callThreadTool(access.mcpUrl, tool[1] ?? "", JSON.parse(tool[2] ?? "{}"));
   if (line.startsWith("ask ")) return callThreadTool(access.mcpUrl, "request_approval", JSON.parse(line.slice(4)));
-  const prompt = /^prompt (\S+) (.*)$/.exec(line);
+  const prompt = /^(prompt|escape) (\S+) (.*)$/.exec(line);
   if (prompt !== null) {
     return request
-      .askOwner({ input: JSON.parse(prompt[2] ?? "{}"), toolName: prompt[1] ?? "" })
+      .askOwner({
+        input: JSON.parse(prompt[3] ?? "{}"),
+        isOutsideSandbox: prompt[1] === "escape",
+        toolName: prompt[2] ?? "",
+      })
+      .pipe(Effect.map((answer) => (answer.isAllowed ? "prompt allowed" : `prompt denied: ${answer.text}`)));
+  }
+  // `folder <tool> <json>` asks the one-time question a harness asks before starting in a linked thread folder.
+  const folder = /^folder (\S+) (.*)$/.exec(line);
+  if (folder !== null) {
+    const input = JSON.parse(folder[2] ?? "{}");
+    return request
+      .askOwner({
+        folderCheck: { pointsTo: textFieldOf(input, "startsIn") ?? "", startsIn: textFieldOf(input, "startsIn") },
+        input,
+        toolName: folder[1] ?? "",
+      })
       .pipe(Effect.map((answer) => (answer.isAllowed ? "prompt allowed" : `prompt denied: ${answer.text}`)));
   }
   return null;
@@ -117,8 +142,9 @@ interface FakeTurn {
 /**
  * A deterministic harness for checks: it runs scripted tool calls, then echoes after a delay. Messages
  * steered in while it runs are taken in at once, run the same way, and appended to the echo after " + ".
+ * It stands for a sandboxed harness unless `containment` says otherwise.
  */
-export const fakeHarnessLayer = (replyDelay: Duration.Input) =>
+export const fakeHarnessLayer = (replyDelay: Duration.Input, containment: Containment = "Sandboxed") =>
   Layer.sync(Harness, () => {
     const running = new Map<string, FakeTurn>();
     const script = (request: TurnRequest, turn: FakeTurn) =>
@@ -143,6 +169,7 @@ export const fakeHarnessLayer = (replyDelay: Duration.Input) =>
         return false;
       });
     return {
+      containmentOf: () => containment,
       interrupt: (threadId) =>
         Effect.suspend(() => {
           const turn = running.get(threadId);

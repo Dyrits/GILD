@@ -98,15 +98,21 @@ Guildmaster uses these thread tools in addition to `find_missions`, `suggest_mis
 | Tool | Purpose | Arguments | Answer |
 | --- | --- | --- | --- |
 | `suggest_mission` | Propose a quest as a card, or continue a matching one | The request, a title, the ids of matching quests (none when nothing fits); optionally a realm and a tier | What the owner chose, or a refusal when the realm named has no folder or does not exist (no card is made). There is no tool that opens a quest without the owner's choice (CHG-0173) |
-| `create_realm` | Make a realm | A name, optionally a folder, and the user's exact words as `quote` | Done, or a refusal: no quote, a name or a folder a realm already has, a folder that does not exist |
-| `rename_realm` | Rename a realm | The realm's name or folder, the new name, and the user's exact words as `quote` | Done, or a refusal: no quote, an unknown realm, a name another realm has |
-| `create_ritual` | Create a [Ritual](../rituals/specifications.md) for a repeating request | The instruction, a title, a schedule preset; optionally a tier, harness, model, effort, and realm | The Ritual's title, schedule, and Companion, or a refusal and its reason |
-| `act_on_mission` | Stop threads, archive, or rename, at the user's request | A quest, an action, the user's exact words asking for it as `quote`, for renaming a title, and for a confirmed ending the snapshot it was given | Done, or the confirmation the user must give first, or a refusal |
+| `create_realm` | Make a realm | A name, optionally a folder | Done once authorized by provenance (below), or a refusal: not authorized, a name or a folder a realm already has, a folder that does not exist |
+| `rename_realm` | Rename a realm | The realm's name or folder, the new name | Done once authorized, or a refusal: not authorized, an unknown realm, a name another realm has |
+| `create_ritual` | Create a [Ritual](../rituals/specifications.md) for a repeating request | The instruction, a title, a schedule preset; optionally a tier, harness, model, effort, and realm | Once authorized, the Ritual's title, schedule, and Companion (its scope empty), or a refusal and its reason |
+| `act_on_mission` | Stop threads, mark Done, archive, or rename, at the user's request | A quest, an action, and for renaming a title | Done once authorized, or a refusal: not authorized, or the quest or its threads at work changed meanwhile |
 | `read_settings` | Read the user's settings | None | The settings as JSON, and the names it may not change |
-| `change_setting` | Change one setting, at the user's request | The setting's name, its new whole value as JSON text, and the user's exact words as `quote` | What changed, from what to what; or a refusal: no quote, an unknown setting, a value the setting does not accept, or one of the approval level, the budgets, and price fetching, which only the user sets in the Charter |
+| `change_setting` | Change one setting, at the user's request | The setting's name and its new whole value as JSON text | Once authorized, what changed, from what to what; or a refusal: not authorized, an unknown setting, a value the setting does not accept, or one of the approval level, the budgets, and price fetching, which only the user sets in the Charter |
 | `read_control_history` | Read Guildmaster's older messages | A query or a starting point | The matching messages |
 
-Only Guildmaster can call these tools, except `suggest_mission`, which any thread calls for an off-topic message. Any thread can address Guildmaster with `send_thread_message`.
+Only Guildmaster can call these tools, except `suggest_mission`, which any thread calls for an off-topic message, and `act_on_mission` and `change_setting`, which a Ritual's own thread may also call (its runs act unasked only within the Ritual's reviewed scope). Any thread can address Guildmaster with `send_thread_message`.
+
+**Structural actions by provenance** (CHG-0208, replacing the quoted-words check of CHG-0174 and CHG-0193 and the one-click guards tried before it). The service derives the operation, its resolved target, and its new value from the tool call; the model supplies no evidence (the tools take no `quote` and no snapshot). Authority comes from the owner:
+- **The owner's own words**: one of the owner's messages delivered to the calling thread's current turn names the action, its target, and its new value where it has one, plainly: in one sentence that is not a question, one request with the action's words, the target's exact name (at least 3 characters, not inside a longer name of another target, and with no other target beside it), then the new value, and no negation, doubt, or other action ("Archive Weekly report draft." runs; "Don't archive …", "Maybe archive …", "Should I archive …?" ask). It runs with no question and leaves a line, Allowed by message, quoting the owner's words. Messages from earlier turns, from other threads (reports, briefings), agents' replies, and the service's message that starts a Ritual's run never count.
+- **A Ritual's reviewed scope**, during one of its runs only: an entry naming exactly that operation, target, and new value (see [Rituals](../rituals/specifications.md)); it runs and leaves a line, Allowed by permission.
+- **Otherwise one question**, Allow or Deny (never Always allow), naming the exact action and target, for example "Archive the quest "Weekly report draft".", through the same open-question list and card as action approval. Marking Done or archiving a quest with threads at work always asks, naming the threads it stops.
+- The action runs once, only if its turn, target, value, and threads at work are the same as when it was authorized; otherwise it is refused and nothing changes. Stopping Guildmaster withdraws an open question. The Guildmaster identity check, the settings kept for the owner, and the Stop snapshot stay as before.
 Direct creation uses the app's service interface; it does not grant ordinary threads access to Guildmaster-only tools.
 
 The table covers the existing coordination tools.
@@ -156,8 +162,8 @@ The additional search and management tools for CHG-0132 need a contract and serv
 
 ## Provisional choices to review
 
-- **The owner's words authorize an action.** `act_on_mission` is refused unless the `quote` appears in the owner's message that started Guildmaster's current turn; an archive with threads at work first answers with the dashboard's question and goes ahead only with that question's snapshot and the owner's agreement quoted in a later message. A quote cannot prove that the owner meant it for this action.
-- **Stop** takes no confirmation, as the dashboard's Stop does not.
+- **Provenance wording** (CHG-0208): the owner's words count in English and French, with the action's verbs, and a realm or Ritual named as such; anything less plain costs one question. A setting counts only by its exact name and value, so a setting change mostly asks.
+- **Stop** takes no confirmation when the owner named it, as the dashboard's Stop does not; when Guildmaster proposes it, it asks once.
 - **A quest reports once its turn has ended**, so its closing reply travels with the report; a quest that stands in the same report is not told twice, and one that leaves it is told again later.
 - **Hiding Guild Hall** removes its rail entry and opens the window on the quests; the screen is still where a realm page's message goes.
 - **Tiers** are optional Companions; a tier not set, or no tier, starts on the Settings default, never on Guildmaster's own cheap Companion. Guildmaster's own Companion starts on Claude Code's cheapest model (Haiku) when the default harness is Claude Code, and on the harness's own default otherwise.

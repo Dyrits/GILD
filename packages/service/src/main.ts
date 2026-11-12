@@ -33,7 +33,7 @@ const liveLayer = Layer.unwrap(
     const harness =
       harnessName === "fake"
         ? fakeHarnessLayer("1500 millis")
-        : Layer.effect(Harness, makeHarnessRouter(commands, { idleTimeout, sandboxProblem: problem }));
+        : Layer.effect(Harness, makeHarnessRouter(commands, { dataDirectory, idleTimeout, sandboxProblem: problem }));
     return Layer.fresh(
       serviceLayer({
         accountsRoot: join(dataDirectory, "accounts"),

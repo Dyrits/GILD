@@ -1,4 +1,16 @@
-import { chmodSync, existsSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
+import { spawn } from "node:child_process";
+import {
+  chmodSync,
+  existsSync,
+  mkdirSync,
+  mkdtempSync,
+  readFileSync,
+  realpathSync,
+  renameSync,
+  rmSync,
+  symlinkSync,
+  writeFileSync,
+} from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
@@ -10,11 +22,14 @@ import type {
   Request,
   RequestTag,
   ResultOf,
+  ThreadId,
 } from "@iskios/contracts";
 import { type Duration, Effect, Layer } from "effect";
 import { afterEach } from "vitest";
 import { Endpoints, HarnessFailure } from "../../src/core/index.ts";
 import { runnerOf } from "../../src/harness/index.ts";
+import { type OpenCodeSandbox, ownerMarkerOf } from "../../src/harness/openCodeSandbox.ts";
+import { isOpenCodeCommand, markedProcessesOf } from "../../src/harness/processTree.ts";
 import {
   type FakeUpdates,
   fakeHarnessToolsLayer,
@@ -39,20 +54,63 @@ afterEach(() => {
   delete process.env.STAND_IN_CODEX_ACCOUNT;
   delete process.env.STAND_IN_CODEX_LIMITS;
   delete process.env.STAND_IN_OPENCODE_LIMITS;
+  delete process.env.STAND_IN_OPENCODE_CHILD;
+  delete process.env.STAND_IN_OPENCODE_EXECUTOR;
+  delete process.env.STAND_IN_OPENCODE_MISSING_SESSIONS;
   for (const directory of directories.splice(0)) rmSync(directory, { force: true, recursive: true });
 });
 
+/** Folders standing for the computer's own OpenCode configuration and data, outside every writable folder. */
+const realHomes = () => {
+  const directory = realpathSync(mkdtempSync(join(tmpdir(), "iskios-real-")));
+  directories.push(directory);
+  return directory;
+};
+
+/** Seatbelt as the service sets it up, with the computer's own folders in `real`. */
+const seatbeltIn =
+  (real: string) =>
+  (root: string): OpenCodeSandbox => ({
+    // The checks' own log sits in the temporary folder, so it is a writable cache here.
+    caches: [root],
+    command: "/usr/bin/sandbox-exec",
+    computerConfigHome: join(real, "config"),
+    computerDataHome: join(real, "share"),
+    kind: "seatbelt",
+    root: join(root, "opencode-sandbox"),
+  });
+
+const isAlive = (pid: number) => {
+  try {
+    process.kill(pid, 0);
+    return true;
+  } catch {
+    return false;
+  }
+};
+
 interface Logged {
+  readonly args?: ReadonlyArray<string>;
+  readonly auth?: string;
   readonly config?: Record<string, unknown>;
+  readonly cwd?: string;
+  readonly data?: string;
   readonly env?: ReadonlyArray<string>;
+  readonly executor?: number;
+  readonly grandchild?: number;
   readonly home?: unknown;
   readonly method?: string;
   readonly params?: Record<string, unknown>;
   readonly pid?: number;
+  readonly pwd?: string | null;
+  readonly xdg?: Record<string, string | null>;
 }
 
-/** A service whose three adapters run stand-ins, all logging to one file. */
-const withHarnesses = (idleTimeout: Duration.Input = "10 minutes") => {
+/** A service whose three adapters run stand-ins, all logging to one file; OpenCode wrapped when a sandbox is given. */
+const withHarnesses = (
+  idleTimeout: Duration.Input = "10 minutes",
+  openCodeSandbox: (directory: string) => OpenCodeSandbox | null = () => null,
+) => {
   const directory = realpathSync(mkdtempSync(join(tmpdir(), "iskios-harnesses-")));
   directories.push(directory);
   const log = join(directory, "log.jsonl");
@@ -82,6 +140,7 @@ const withHarnesses = (idleTimeout: Duration.Input = "10 minutes") => {
           idleTimeout,
           instructionsFolder: join(directory, "instructions"),
           prefixArgs: [join(fixtures, "stand-in-opencode.mjs")],
+          sandbox: openCodeSandbox(directory),
         }),
       });
     }),
@@ -163,6 +222,17 @@ const answerOpen = (answer: "Allow" | "Deny", message: string | null = null) =>
       const [question] = yield* call({ _tag: "ListOpenQuestions" });
       if (question !== undefined)
         return yield* call({ _tag: "AnswerQuestion", answer, message, questionId: question.id });
+      yield* Effect.sleep("20 millis");
+    }
+    return yield* Effect.die(new Error("no question was asked"));
+  });
+
+/** The first open question, once one is asked. */
+const openQuestionOf = () =>
+  Effect.gen(function* () {
+    for (let i = 0; i < 300; i++) {
+      const [question] = yield* call({ _tag: "ListOpenQuestions" });
+      if (question !== undefined) return question;
       yield* Effect.sleep("20 millis");
     }
     return yield* Effect.die(new Error("no question was asked"));
@@ -255,10 +325,16 @@ describe("running Codex threads", () => {
       const [thread] = requests("thread/start");
       expect(thread?.params).toMatchObject({
         approvalPolicy: "on-request",
-        config: { "features.multi_agent": false, project_doc_max_bytes: 0 },
+        // Codex's own workspace sandbox, with its network open; never its full-access mode.
+        config: {
+          "features.multi_agent": false,
+          project_doc_max_bytes: 0,
+          "sandbox_workspace_write.network_access": true,
+        },
         model: "gpt-x",
         sandbox: "workspace-write",
       });
+      expect(JSON.stringify(logged())).not.toContain("danger-full-access");
       expect(JSON.stringify(thread?.params?.config)).toMatch(/"mcp_servers\.iskios\.url":"http:\/\/127\.0\.0\.1:\d+\//);
       expect(String(thread?.params?.developerInstructions)).toContain("# Approvals in Iskios");
       expect(String(thread?.params?.developerInstructions)).not.toContain("dangerouslyDisableSandbox");
@@ -387,18 +463,14 @@ describe("running Codex threads", () => {
     });
   }
 
-  it.live("asks the owner before a sensitive command and runs an ordinary one unasked", () => {
+  it.live("asks the owner, naming the exact command, before any command Codex would run outside its sandbox", () => {
     const { layer } = withHarnesses();
     return Effect.gen(function* () {
-      const started = yield* start({ harness: "codex", text: "run git push origin main" });
+      const started = yield* start({ harness: "codex", text: "run ls" });
       const answered = yield* answerOpen("Allow");
-      expect(answered.details).toBe("git push origin main");
+      expect(answered).toMatchObject({ details: "ls", permission: "Run outside the sandbox" });
       const detail = yield* settle(started.missionId, idleWith(1));
-      expect(replies(detail)).toEqual(["git push origin main: accept"]);
-      yield* call({ _tag: "SendMessage", delivery: null, requestId: "r2", text: "run ls", threadId: started.threadId });
-      const after = yield* settle(started.missionId, idleWith(2));
-      expect(replies(after).at(-1)).toBe("ls: accept");
-      expect(after.questions.at(-1)?.outcome).toBe("AllowedAutomatically");
+      expect(replies(detail)).toEqual(["ls: accept"]);
     }).pipe(Effect.provide(layer));
   });
 
@@ -692,7 +764,7 @@ describe("running OpenCode threads", () => {
     return Effect.gen(function* () {
       const started = yield* start({ harness: "opencode", text: `edit ${outside}` });
       const answered = yield* answerOpen("Deny");
-      expect(answered.details).toBe(`Edit ${outside}`);
+      expect(answered.details).toBe(`Edit ${outside}\n${JSON.stringify({ file_path: outside }, null, 2)}`);
       const detail = yield* settle(started.missionId, idleWith(1));
       expect(replies(detail)).toEqual([
         `Echo: Iskios refused the change to \`${outside}\`. Not approved by the owner. Do not do this action; carry on without it. `,
@@ -707,6 +779,216 @@ describe("running OpenCode threads", () => {
       yield* answerOpen("Allow");
       const detail = yield* settle(started.missionId, idleWith(1));
       expect(replies(detail)).toEqual(["../../outside.txt: once "]);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("asks before every command when no sandbox protects OpenCode, naming it exactly", () => {
+    const { layer } = withHarnesses();
+    return Effect.gen(function* () {
+      const started = yield* start({ harness: "opencode", text: "run ls" });
+      const answered = yield* answerOpen("Allow");
+      expect(answered).toMatchObject({ details: "ls", permission: "Run without a sandbox" });
+      expect(replies(yield* settle(started.missionId, idleWith(1)))).toEqual(["ls: once "]);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live.skipIf(process.platform !== "darwin")(
+    "runs OpenCode inside Seatbelt: commands go unasked, and writes land only in its folders",
+    () => {
+      const real = realHomes();
+      const { directory, layer, logged } = withHarnesses("10 minutes", seatbeltIn(real));
+      const elsewhere = realpathSync(mkdtempSync(join(tmpdir(), "iskios-elsewhere-")));
+      directories.push(elsewhere);
+      return Effect.gen(function* () {
+        const started = yield* start({ harness: "opencode", text: "run ls" });
+        const detail = yield* settle(started.missionId, idleWith(1));
+        expect(replies(detail)).toEqual(["ls: once "]);
+        expect(detail.questions.map((question) => question.outcome)).toEqual(["AllowedAutomatically"]);
+        const xdg = logged().find((entry) => entry.pid !== undefined)?.xdg;
+        // Its data too is the service's copy for this computer's account, never OpenCode's own data folder.
+        expect(xdg).toEqual({
+          cache: join(directory, "opencode-sandbox", "cache"),
+          config: join(directory, "opencode-sandbox", "config"),
+          data: join(directory, "opencode-sandbox", "data", "computer"),
+          state: join(directory, "opencode-sandbox", "state"),
+          tmp: join(directory, "opencode-sandbox", "tmp"),
+        });
+        const send = (text: string, count: number) =>
+          Effect.gen(function* () {
+            yield* call({
+              _tag: "SendMessage",
+              delivery: null,
+              requestId: `w${count}`,
+              text,
+              threadId: started.threadId,
+            });
+            return replies(yield* settle(started.missionId, idleWith(count))).at(-1);
+          });
+        const outside = join(elsewhere, "outside.txt");
+        expect(yield* send(`write ${outside}`, 2)).toBe(`${outside}: EPERM `);
+        expect(existsSync(outside)).toBe(false);
+        // A file planted for OpenCode runs outside the sandbox cannot reach its real data folder; the copy takes it,
+        // and it never shows in the real folder.
+        mkdirSync(join(real, "share", "opencode", "bin"), { recursive: true });
+        const planted = join(real, "share", "opencode", "bin", "rg");
+        expect(yield* send(`write ${planted}`, 3)).toBe(`${planted}: EPERM `);
+        const copied = join(directory, "opencode-sandbox", "data", "computer", "opencode", "plugin.js");
+        expect(yield* send(`write ${copied}`, 4)).toBe(`${copied}: written `);
+        expect(existsSync(planted)).toBe(false);
+        expect(existsSync(join(real, "share", "opencode", "plugin.js"))).toBe(false);
+      }).pipe(Effect.provide(layer));
+    },
+  );
+
+  it.live.skipIf(process.platform !== "darwin")(
+    "asks, as for an escape, when no executor descends from the wrapped OpenCode",
+    () => {
+      // An `acp` that serves from a process outside its own tree (an existing daemon) is not contained by the wrapper.
+      process.env.STAND_IN_OPENCODE_EXECUTOR = "none";
+      const { layer } = withHarnesses("10 minutes", seatbeltIn(realHomes()));
+      return Effect.gen(function* () {
+        const started = yield* start({ harness: "opencode", text: "run ls" });
+        const answered = yield* answerOpen("Deny");
+        expect(answered).toMatchObject({ details: "ls", permission: "Run outside the sandbox" });
+        yield* settle(started.missionId, idleWith(1));
+      }).pipe(Effect.provide(layer));
+    },
+  );
+
+  it.live.skipIf(process.platform !== "darwin")(
+    "asks before an edit inside the folder too when containment cannot be confirmed",
+    () => {
+      process.env.STAND_IN_OPENCODE_EXECUTOR = "none";
+      const { layer } = withHarnesses("10 minutes", seatbeltIn(realHomes()));
+      return Effect.gen(function* () {
+        const started = yield* start({ harness: "opencode", text: "edit notes/plan.md" });
+        const answered = yield* answerOpen("Deny");
+        expect(answered.permission).toBe("Change a file outside the workspace");
+        yield* settle(started.missionId, idleWith(1));
+      }).pipe(Effect.provide(layer));
+    },
+  );
+
+  it.live.skipIf(process.platform !== "darwin")(
+    "seeds its data copy from the real folder at each start, while the probes keep reading the real folder",
+    () => {
+      const real = realHomes();
+      const { directory, layer, logged } = withHarnesses("50 millis", seatbeltIn(real));
+      const copy = join(directory, "opencode-sandbox", "data", "computer");
+      const exportsFrom = (data: string) =>
+        logged().filter((entry) => entry.auth === "export" && entry.data === data).length;
+      return Effect.gen(function* () {
+        const started = yield* start({ harness: "opencode", text: "one" });
+        yield* settle(started.missionId, idleWith(1));
+        expect([exportsFrom(join(real, "share")), exportsFrom(copy)]).toEqual([1, 1]);
+        // Closed when idle, then started again for the next message: seeded again.
+        yield* Effect.sleep("200 millis");
+        yield* call({ _tag: "SendMessage", delivery: null, requestId: "r2", text: "two", threadId: started.threadId });
+        yield* settle(started.missionId, idleWith(2));
+        expect([exportsFrom(join(real, "share")), exportsFrom(copy)]).toEqual([2, 2]);
+
+        // The plan-limit probe runs outside the sandbox on the account's real folder, as the owner's OpenCode does.
+        for (let i = 0; i < 100 && !logged().some((entry) => entry.method === "usage/limits"); i++) {
+          yield* call({ _tag: "ReadAccountBudgets" });
+          yield* Effect.sleep("50 millis");
+        }
+        const probe = logged().find((entry) => entry.pid !== undefined && entry.args?.includes("serve"));
+        expect(probe?.home).toBe(process.env.XDG_DATA_HOME ?? null);
+        expect(probe?.xdg?.config).toBe(process.env.XDG_CONFIG_HOME ?? null);
+        // So does the effort probe, here for an added account's folder.
+        const account = join(real, "accounts", "work");
+        yield* listOpenCodeEfforts(process.execPath, account, "provider/model-a", [
+          join(fixtures, "stand-in-opencode.mjs"),
+        ]);
+        expect(
+          logged()
+            .filter((entry) => entry.pid !== undefined)
+            .at(-1)?.home,
+        ).toBe(account);
+      }).pipe(Effect.provide(layer));
+    },
+  );
+
+  it.live.skipIf(process.platform !== "darwin")(
+    "ends an executor that outlived its `acp`, found by the service's marker",
+    () => {
+      process.env.STAND_IN_OPENCODE_EXECUTOR = "survivor";
+      const { layer, logged } = withHarnesses("10 minutes", seatbeltIn(realHomes()));
+      let executor = -1;
+      return Effect.gen(function* () {
+        const started = yield* start({ harness: "opencode", text: "Hello" });
+        yield* settle(started.missionId, idleWith(1));
+        executor = logged().find((entry) => entry.executor !== undefined)?.executor ?? -1;
+        const acp = logged().find((entry) => entry.pid !== undefined && entry.args?.includes("acp"))?.pid ?? -1;
+        expect(isAlive(executor)).toBe(true);
+        // `acp` dies alone, before anything reads its tree: its executor is an orphan in a group of its own.
+        process.kill(acp, "SIGKILL");
+        for (let i = 0; i < 200 && isAlive(executor); i++) yield* Effect.sleep("25 millis");
+        expect(isAlive(executor)).toBe(false);
+      }).pipe(
+        Effect.ensuring(Effect.sync(() => executor > 0 && isAlive(executor) && process.kill(executor, "SIGKILL"))),
+        Effect.provide(layer),
+      );
+    },
+  );
+
+  it.live.skipIf(process.platform !== "darwin")("leaves no marked OpenCode process after a normal close", () => {
+    const real = realHomes();
+    const { directory, layer, logged } = withHarnesses("100 millis", seatbeltIn(real));
+    return Effect.gen(function* () {
+      const started = yield* start({ harness: "opencode", text: "Hello" });
+      yield* settle(started.missionId, idleWith(1));
+      const executor = logged().find((entry) => entry.executor !== undefined)?.executor ?? -1;
+      const marker = ownerMarkerOf(seatbeltIn(real)(directory));
+      expect(markedProcessesOf(marker).map((found) => found.pid)).toContain(executor);
+      for (let i = 0; i < 200 && isAlive(executor); i++) yield* Effect.sleep("25 millis");
+      expect(isAlive(executor)).toBe(false);
+      expect(markedProcessesOf(marker).filter((found) => isOpenCodeCommand(found.command))).toEqual([]);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live.skipIf(process.platform !== "darwin")(
+    "ends, when the service starts, the OpenCode processes an earlier run lost",
+    () => {
+      const real = realHomes();
+      const { directory, layer } = withHarnesses("10 minutes", seatbeltIn(real));
+      const marker = ownerMarkerOf(seatbeltIn(real)(directory));
+      const pidFile = join(directory, "lost");
+      // A parent that leaves a marked executor behind, as a service that stopped would.
+      spawn(
+        process.execPath,
+        [
+          "-e",
+          `const child = require("node:child_process").spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)", "serve", "--stdio"], { detached: true, stdio: "ignore" });
+           require("node:fs").writeFileSync(${JSON.stringify(pidFile)}, String(child.pid));
+           process.exit(0);`,
+        ],
+        { env: { ...process.env, [marker.name]: marker.value }, stdio: "ignore" },
+      );
+      let lost = -1;
+      return Effect.gen(function* () {
+        for (let i = 0; i < 200 && !existsSync(pidFile); i++) yield* Effect.sleep("25 millis");
+        lost = Number(readFileSync(pidFile, "utf8"));
+        yield* Effect.sleep("200 millis");
+        expect(isAlive(lost)).toBe(true);
+        // The OpenCode adapter is made with the service: it ends the lost process before any thread starts.
+        yield* Effect.provide(call({ _tag: "ListHarnesses" }), layer);
+        for (let i = 0; i < 200 && isAlive(lost); i++) yield* Effect.sleep("25 millis");
+        expect(isAlive(lost)).toBe(false);
+      }).pipe(Effect.ensuring(Effect.sync(() => lost > 0 && isAlive(lost) && process.kill(lost, "SIGKILL"))));
+    },
+  );
+
+  it.live("ends OpenCode's whole process tree when it closes, a child in its own process group included", () => {
+    const { layer, logged } = withHarnesses("100 millis");
+    process.env.STAND_IN_OPENCODE_CHILD = "1";
+    return Effect.gen(function* () {
+      const started = yield* start({ harness: "opencode", text: "Hello" });
+      yield* settle(started.missionId, idleWith(1));
+      const grandchild = logged().find((entry) => entry.grandchild !== undefined)?.grandchild ?? -1;
+      expect(grandchild).toBeGreaterThan(0);
+      for (let i = 0; i < 200 && isAlive(grandchild); i++) yield* Effect.sleep("25 millis");
+      expect(isAlive(grandchild)).toBe(false);
     }).pipe(Effect.provide(layer));
   });
 
@@ -735,7 +1017,331 @@ describe("running OpenCode threads", () => {
       expect(detail.mission.usage).toEqual({ cacheCreation: 0, cacheRead: 40, input: 90, output: 8 });
     }).pipe(Effect.provide(layer));
   });
+
+  it.live.skipIf(process.platform !== "darwin")(
+    "starts a new session, and says so in the thread, when a sandboxed OpenCode cannot load the earlier one",
+    () => {
+      const { layer, logged, requests } = withHarnesses("50 millis", seatbeltIn(realHomes()));
+      return Effect.gen(function* () {
+        const started = yield* start({ harness: "opencode", text: "one" });
+        yield* settle(started.missionId, idleWith(1));
+        // The earlier session lives where the sandbox's copy does not have it.
+        const earlier = `ses-${acpPidsOf(logged)[0]}`;
+        process.env.STAND_IN_OPENCODE_MISSING_SESSIONS = earlier;
+        yield* Effect.sleep("200 millis");
+        yield* sendTo(started.threadId, "two");
+        const detail = yield* settle(started.missionId, idleWith(2));
+        expect(replies(detail)).toEqual(["Echo: one ", "Echo: two "]);
+        expect(requests("session/load").map((request) => request.params?.sessionId)).toEqual([earlier]);
+        expect(requests("session/new")).toHaveLength(2);
+        expect(detail.thread.failure).toBeNull();
+        expect(detail.handovers.map((line) => line.text)).toEqual([expect.stringContaining("could not pick up")]);
+        expect(detail.handovers[0]?.text).toContain("handover notes");
+        // The new session's first prompt carries the thread's conversation so far, then the turn's own message.
+        const replacing = `ses-${acpPidsOf(logged)[1]}`;
+        const promptsOf = (sessionId: string) =>
+          requests("session/prompt")
+            .filter((request) => request.params?.sessionId === sessionId)
+            .map((request) => JSON.stringify(request.params?.prompt));
+        const [first] = promptsOf(replacing);
+        expect(first).toContain("Conversation so far");
+        expect(first).toContain("The owner: one");
+        expect(first).toContain("You: Echo: one");
+        expect(first?.indexOf("Conversation so far")).toBeLessThan(first?.lastIndexOf("two") ?? -1);
+        // The new session replaced the earlier one: the next start loads it, with no new note.
+        yield* Effect.sleep("200 millis");
+        yield* sendTo(started.threadId, "three");
+        const after = yield* settle(started.missionId, idleWith(3));
+        expect(requests("session/load").map((request) => request.params?.sessionId)).toEqual([earlier, replacing]);
+        expect(requests("session/new")).toHaveLength(2);
+        expect(after.handovers).toHaveLength(1);
+        // The loaded session remembers: its later prompts carry no conversation again.
+        expect(promptsOf(replacing).slice(1).join("")).not.toContain("Conversation so far");
+      }).pipe(Effect.provide(layer));
+    },
+  );
+
+  it.live("still fails the turn when an unsandboxed OpenCode cannot load its session", () => {
+    const { layer, logged, requests } = withHarnesses("50 millis");
+    return Effect.gen(function* () {
+      const started = yield* start({ harness: "opencode", text: "one" });
+      yield* settle(started.missionId, idleWith(1));
+      process.env.STAND_IN_OPENCODE_MISSING_SESSIONS = `ses-${acpPidsOf(logged)[0]}`;
+      yield* Effect.sleep("200 millis");
+      yield* sendTo(started.threadId, "two");
+      const detail = yield* settle(started.missionId, (d) => d.thread.state === "Failed");
+      expect(detail.thread.failure).toContain("Session not found");
+      expect(requests("session/new")).toHaveLength(1);
+      expect(detail.handovers).toEqual([]);
+    }).pipe(Effect.provide(layer));
+  });
+
+  /** A workspace folder in its own temporary folder, and a folder outside it, both real paths. */
+  const linkedFolders = () => {
+    const base = realpathSync(mkdtempSync(join(tmpdir(), "iskios-linked-")));
+    directories.push(base);
+    const workspace = join(base, "workspace");
+    const elsewhere = join(base, "elsewhere");
+    mkdirSync(workspace);
+    mkdirSync(elsewhere);
+    return { elsewhere, workspace };
+  };
+
+  /** Replaces a folder with a link to the target. */
+  const linkInPlace = (folder: string, target: string) => {
+    rmSync(folder, { force: true, recursive: true });
+    symlinkSync(target, folder);
+  };
+
+  it.live.skipIf(process.platform !== "darwin")(
+    "asks before running a thread whose workspace folder became a link, then runs it unsandboxed, asking per action",
+    () => {
+      const { layer, logged } = withHarnesses("50 millis", seatbeltIn(realHomes()));
+      const { elsewhere, workspace } = linkedFolders();
+      return Effect.gen(function* () {
+        const started = yield* start({ harness: "opencode", text: "one", workspacePath: workspace });
+        yield* settle(started.missionId, idleWith(1));
+        yield* Effect.sleep("200 millis");
+        linkInPlace(workspace, elsewhere);
+        yield* sendTo(started.threadId, "run ls");
+        // A boundary anomaly: each start asks, and the question offers no standing permission (no Always allow).
+        const open = yield* openQuestionOf();
+        expect(open).toMatchObject({ pattern: null, permission: null });
+        const refused = yield* Effect.flip(
+          call({ _tag: "AnswerQuestion", answer: "AlwaysAllow", message: null, questionId: open.id }),
+        );
+        expect(refused.message).toContain("one-time");
+        const asked = yield* answerOpen("Allow");
+        expect(asked.outcome).toBe("Allowed");
+        expect((yield* call({ _tag: "ReadPermissions", missionId: null })).permissions).toEqual([]);
+        expect(asked.summary).toContain(workspace);
+        expect(asked.summary).toContain(elsewhere);
+        expect(asked.summary).toContain("write outside the workspace");
+        // Allowed: OpenCode runs where the link points, with no sandbox, and every command asks.
+        const command = yield* answerOpen("Allow");
+        expect(command).toMatchObject({ details: "ls", permission: "Run without a sandbox" });
+        expect(replies(yield* settle(started.missionId, idleWith(2))).at(-1)).toBe("ls: once ");
+        const unwrapped = logged().filter((entry) => entry.pid !== undefined && entry.args?.includes("acp"))[1];
+        expect(unwrapped?.xdg?.data).toBe(process.env.XDG_DATA_HOME ?? null);
+      }).pipe(Effect.provide(layer));
+    },
+  );
+
+  it.live.skipIf(process.platform !== "darwin")(
+    "asks before an edit inside the linked folder once running unsandboxed",
+    () => {
+      const { layer } = withHarnesses("50 millis", seatbeltIn(realHomes()));
+      const { elsewhere, workspace } = linkedFolders();
+      return Effect.gen(function* () {
+        const started = yield* start({ harness: "opencode", text: "one", workspacePath: workspace });
+        yield* settle(started.missionId, idleWith(1));
+        yield* Effect.sleep("200 millis");
+        linkInPlace(workspace, elsewhere);
+        yield* sendTo(started.threadId, "edit notes/plan.md");
+        yield* answerOpen("Allow");
+        const edit = yield* answerOpen("Deny");
+        expect(edit.permission).toBe("Change a file outside the workspace");
+        yield* settle(started.missionId, idleWith(2));
+      }).pipe(Effect.provide(layer));
+    },
+  );
+
+  for (const [label, target] of [
+    ["the whole disk", () => "/"],
+    ["a folder outside the scratch root", () => linkedFolders().elsewhere],
+  ] as const)
+    it.live.skipIf(process.platform !== "darwin")(
+      `fails the turn with the reason when the owner refuses a scratch folder linked to ${label}`,
+      () => {
+        const { directory, layer, logged } = withHarnesses("50 millis", seatbeltIn(realHomes()));
+        const pointed = target();
+        return Effect.gen(function* () {
+          const started = yield* start({ harness: "opencode", text: "one" });
+          yield* settle(started.missionId, idleWith(1));
+          yield* Effect.sleep("200 millis");
+          const scratch = join(directory, "missions", started.missionId);
+          linkInPlace(scratch, pointed);
+          yield* sendTo(started.threadId, "two");
+          const asked = yield* answerOpen("Deny");
+          expect(asked.summary).toContain(scratch);
+          expect(asked.summary).toContain(`points to ${pointed}`);
+          const detail = yield* settle(started.missionId, (d) => d.thread.state === "Failed");
+          expect(detail.thread.failure).toContain(scratch);
+          expect(detail.thread.failure).toContain("outside the workspace");
+          // No OpenCode started for the refused turn, sandboxed or not.
+          expect(acpPidsOf(logged)).toHaveLength(1);
+        }).pipe(Effect.provide(layer));
+      },
+    );
+
+  it.live.skipIf(process.platform !== "darwin")("asks when the scratch root itself became a link", () => {
+    const { directory, layer, logged } = withHarnesses("50 millis", seatbeltIn(realHomes()));
+    const { elsewhere } = linkedFolders();
+    return Effect.gen(function* () {
+      const started = yield* start({ harness: "opencode", text: "one" });
+      yield* settle(started.missionId, idleWith(1));
+      yield* Effect.sleep("200 millis");
+      const root = join(directory, "missions");
+      renameSync(root, join(elsewhere, "missions"));
+      symlinkSync(join(elsewhere, "missions"), root);
+      yield* sendTo(started.threadId, "two");
+      const asked = yield* answerOpen("Deny");
+      expect(asked.summary).toContain(root);
+      expect(asked.summary).toContain(join(elsewhere, "missions"));
+      yield* settle(started.missionId, (d) => d.thread.state === "Failed");
+      expect(acpPidsOf(logged)).toHaveLength(1);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live.skipIf(process.platform !== "darwin")(
+    "runs a thread in a plain workspace folder sandboxed, asking nothing",
+    () => {
+      const { layer, logged } = withHarnesses("10 minutes", seatbeltIn(realHomes()));
+      const { workspace } = linkedFolders();
+      return Effect.gen(function* () {
+        const started = yield* start({ harness: "opencode", text: "run ls", workspacePath: workspace });
+        const detail = yield* settle(started.missionId, idleWith(1));
+        expect(detail.questions.map((question) => question.outcome)).toEqual(["AllowedAutomatically"]);
+        const wrapped = logged().find((entry) => entry.pid !== undefined && entry.args?.includes("acp"));
+        expect(wrapped?.cwd).toBe(workspace);
+        expect(wrapped?.xdg?.data).not.toBe(process.env.XDG_DATA_HOME ?? null);
+      }).pipe(Effect.provide(layer));
+    },
+  );
 });
+
+/** The process starts of a Claude Code or Codex stand-in, in order. */
+const startsOf = (logged: () => Array<Logged>) => logged().filter((entry) => entry.pid !== undefined);
+
+/** The folder a harness was started in, as the adapter gave it: Claude Code's process, Codex's thread settings too. */
+const startedFolderOf = (harness: "claude" | "codex", logged: () => Array<Logged>, index: number) => {
+  const pwd = startsOf(logged)[index]?.pwd;
+  if (harness === "claude") return pwd;
+  const settings = logged().filter((entry) => entry.method === "thread/start" || entry.method === "thread/resume");
+  const cwd = settings[index]?.params?.cwd;
+  return pwd === cwd ? pwd : `process ${pwd}, thread ${String(cwd)}`;
+};
+
+describe.each(["claude", "codex"] as const)("checking a %s thread's folder before it starts", (harness) => {
+  /** A workspace folder in its own temporary folder, and a folder outside it, both real paths. */
+  const linkedFolders = () => {
+    const base = realpathSync(mkdtempSync(join(tmpdir(), "iskios-linked-")));
+    directories.push(base);
+    const workspace = join(base, "workspace");
+    const elsewhere = join(base, "elsewhere");
+    mkdirSync(workspace);
+    mkdirSync(elsewhere);
+    return { elsewhere, workspace };
+  };
+  const linkInPlace = (folder: string, target: string) => {
+    rmSync(folder, { force: true, recursive: true });
+    symlinkSync(target, folder);
+  };
+
+  it.live("starts in a plain workspace folder, asking nothing", () => {
+    const { layer, logged } = withHarnesses();
+    const { workspace } = linkedFolders();
+    return Effect.gen(function* () {
+      const started = yield* start({ harness, text: "one", workspacePath: workspace });
+      const detail = yield* settle(started.missionId, idleWith(1));
+      expect(detail.questions).toEqual([]);
+      expect(detail.handovers).toEqual([]);
+      expect(startedFolderOf(harness, logged, 0)).toBe(workspace);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("asks once a kept thread's workspace folder became a link, then starts where it points and says so", () => {
+    const { layer, logged } = withHarnesses();
+    const { elsewhere, workspace } = linkedFolders();
+    return Effect.gen(function* () {
+      const started = yield* start({ harness, text: "one", workspacePath: workspace });
+      yield* settle(started.missionId, idleWith(1));
+      // The process is kept between turns: the changed link alone must restart it.
+      linkInPlace(workspace, elsewhere);
+      yield* sendTo(started.threadId, "two");
+      const open = yield* openQuestionOf();
+      expect(open).toMatchObject({ pattern: null, permission: null, source: "Harness" });
+      expect(open.summary).toContain(workspace);
+      expect(open.summary).toContain(elsewhere);
+      const refused = yield* Effect.flip(
+        call({ _tag: "AnswerQuestion", answer: "AlwaysAllow", message: null, questionId: open.id }),
+      );
+      expect(refused.message).toContain("one-time");
+      yield* answerOpen("Allow");
+      const detail = yield* settle(started.missionId, idleWith(2));
+      expect(startsOf(logged)).toHaveLength(2);
+      expect(startedFolderOf(harness, logged, 1)).toBe(elsewhere);
+      expect(detail.handovers.map((line) => line.text)).toEqual([
+        expect.stringMatching(new RegExp(`${workspace}.*is a link.*${elsewhere}`)),
+      ]);
+      expect((yield* call({ _tag: "ReadPermissions", missionId: null })).permissions).toEqual([]);
+      // The process it started is kept for the next turn, asking nothing more.
+      yield* sendTo(started.threadId, "three");
+      const kept = yield* settle(started.missionId, idleWith(3));
+      expect(kept.questions).toHaveLength(1);
+      expect(startsOf(logged)).toHaveLength(2);
+      // The link pointed elsewhere restarts the process, and the start asks again: the answer covered one start.
+      const other = join(elsewhere, "..", "other");
+      mkdirSync(other);
+      linkInPlace(workspace, other);
+      yield* sendTo(started.threadId, "four");
+      expect((yield* answerOpen("Deny")).summary).toContain(other);
+      yield* settle(started.missionId, (d) => d.thread.state === "Failed");
+      expect(startsOf(logged)).toHaveLength(2);
+    }).pipe(Effect.provide(layer));
+  });
+
+  for (const [label, target] of [
+    ["the whole disk", () => "/"],
+    ["a folder outside the scratch root", () => linkedFolders().elsewhere],
+  ] as const)
+    it.live(`fails the turn with the reason when the owner refuses a scratch folder linked to ${label}`, () => {
+      const { directory, layer, logged } = withHarnesses();
+      const pointed = target();
+      return Effect.gen(function* () {
+        const started = yield* start({ harness, text: "one" });
+        yield* settle(started.missionId, idleWith(1));
+        const scratch = join(directory, "missions", started.missionId);
+        linkInPlace(scratch, pointed);
+        yield* sendTo(started.threadId, "two");
+        const asked = yield* answerOpen("Deny");
+        expect(asked.summary).toContain(scratch);
+        expect(asked.summary).toContain(`points to ${pointed}`);
+        const detail = yield* settle(started.missionId, (d) => d.thread.state === "Failed");
+        expect(detail.thread.failure).toContain(scratch);
+        expect(detail.thread.failure).toContain(pointed);
+        expect(startsOf(logged)).toHaveLength(1);
+      }).pipe(Effect.provide(layer));
+    });
+
+  it.live("asks when the scratch root itself became a link, and starts in the resolved folder once allowed", () => {
+    const { directory, layer, logged } = withHarnesses();
+    const { elsewhere } = linkedFolders();
+    return Effect.gen(function* () {
+      const started = yield* start({ harness, text: "one" });
+      yield* settle(started.missionId, idleWith(1));
+      const root = join(directory, "missions");
+      renameSync(root, join(elsewhere, "missions"));
+      symlinkSync(join(elsewhere, "missions"), root);
+      yield* sendTo(started.threadId, "two");
+      const asked = yield* answerOpen("Allow");
+      expect(asked.summary).toContain(root);
+      expect(asked.summary).toContain(join(elsewhere, "missions"));
+      yield* settle(started.missionId, idleWith(2));
+      expect(startedFolderOf(harness, logged, 1)).toBe(join(elsewhere, "missions", started.missionId));
+    }).pipe(Effect.provide(layer));
+  });
+});
+
+/** The process ids of the `opencode acp` stand-ins started, in order. */
+const acpPidsOf = (logged: () => Array<Logged>) =>
+  logged()
+    .filter((entry) => entry.pid !== undefined && entry.args?.includes("acp"))
+    .map((entry) => entry.pid);
+
+/** Sends the owner's message to a thread. */
+const sendTo = (threadId: ThreadId, text: string) =>
+  call({ _tag: "SendMessage", delivery: null, requestId: crypto.randomUUID(), text, threadId });
 
 describe("managing provider accounts", () => {
   it.live("lists every harness with the computer's own sign-in first", () => {

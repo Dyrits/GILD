@@ -49,16 +49,14 @@ const scopeHelp =
 export const threadTools = {
   act_on_mission: definitionOf({
     description:
-      "Only Iskios uses it, and only because the owner asked in their latest message: stop a quest's threads, mark it Done, archive it, or rename it. Pass the owner's exact words asking for it as quote; Iskios checks them. When threads are still running, marking Done or archiving first answers with the question to put to the owner; when they agree in their next message, call again with the same arguments, the snapshot you were given, and their words as quote.",
-    invalid: invalid("Invalid arguments: give mission, action (Stop, Done, Archive, or Rename), and quote."),
+      "Iskios uses it, at the owner's request: stop a quest's threads, mark it Done, archive it, or rename it. Iskios derives the exact action and target from the call. It runs at once when the owner's own message in this turn named that action and quest (and new title) plainly; otherwise it asks the owner one Allow or Deny question naming them and waits; marking Done or archiving a quest with threads at work always asks. Do not ask a second question in chat. Nothing you pass counts as the owner's words.",
+    invalid: invalid("Invalid arguments: give mission and action (Stop, Done, Archive, or Rename)."),
     isUnasked: true,
     schema: Schema.Struct({
       action: Schema.Literals(["Stop", "Done", "Archive", "Rename"]).annotate({
         description: "Stop: stop every thread at work in the quest. Done and Archive: end it. Rename: give it a title.",
       }),
       mission: text("The quest's id, from your context or find_missions."),
-      quote: text("The owner's exact words from their latest message that ask for this, copied verbatim."),
-      snapshot: optionalText("The snapshot a confirmation question gave, when the owner has agreed to it."),
       title: optionalText("For Rename: the new title."),
     }),
   }),
@@ -75,11 +73,10 @@ export const threadTools = {
   }),
   change_setting: definitionOf({
     description:
-      "Only Iskios uses it, and only because the owner asked in their latest message: change one of the owner's settings (read_settings lists them). The approval level, the budgets, and price fetching are the owner's alone and are refused. Pass the owner's exact words asking for it as quote; Iskios checks them.",
-    invalid: invalid("Invalid arguments: give setting, value, and quote."),
+      "Iskios uses it, at the owner's request: change one of the owner's settings (read_settings lists them). It runs at once when the owner's own message in this turn named that setting and its new value plainly; otherwise it asks the owner one Allow or Deny question naming them and waits. The approval level, the budgets, and price fetching are the owner's alone and are refused.",
+    invalid: invalid("Invalid arguments: give setting and value."),
     isUnasked: true,
     schema: Schema.Struct({
-      quote: text("The owner's exact words from their latest message that ask for this, copied verbatim."),
       setting: text("The setting's name, as read_settings gives it, for example shouldShowFinishedQuests."),
       value: text(
         'The new value as JSON text, whole and in the shape read_settings shows for that setting, for example true, 14, "Steer", or {"cost":null,"tokens":null}.',
@@ -88,20 +85,19 @@ export const threadTools = {
   }),
   create_realm: definitionOf({
     description:
-      "Only Iskios uses it, and only because the owner asked in their latest message: make a realm, tied to a folder or to none. Pass the owner's exact words asking for it as quote; Iskios checks them.",
-    invalid: invalid("Invalid arguments: give name and quote; folder is optional."),
+      "Only Iskios uses it, at the owner's request: make a realm, tied to a folder or to none. It runs at once when the owner's own message in this turn asked for a realm by that name (and folder) plainly; otherwise it asks the owner one Allow or Deny question naming them and waits.",
+    invalid: invalid("Invalid arguments: give name; folder is optional."),
     isUnasked: true,
     schema: Schema.Struct({
       folder: optionalText(
         "The folder's full path, when the realm is tied to a folder; left out for a realm tied to none.",
       ),
       name: text("The realm's name, at most 80 characters."),
-      quote: text("The owner's exact words from their latest message that ask for this, copied verbatim."),
     }),
   }),
   create_ritual: definitionOf({
     description:
-      "Only Iskios uses it. Create a Ritual: an instruction that runs by itself on a schedule, in a quest of its own, for anything the owner wants done repeatedly (every hour, every morning, weekly). Use it, not a quest, for a repeating request. Pick the preset that fits; there is no cron. Check the Rituals in your context first, so the same one is not made twice. The Ritual starts on and runs when next due.",
+      "Only Iskios uses it. Create a Ritual: an instruction that runs by itself on a schedule, in a quest of its own, for anything the owner wants done repeatedly (every hour, every morning, weekly). Use it, not a quest, for a repeating request. Pick the preset that fits; there is no cron. Check the Rituals in your context first, so the same one is not made twice. Unless the owner's own message in this turn asked for a Ritual by this title plainly, it asks the owner one Allow or Deny question with its title, schedule, realm, and Companion, and waits. It starts on and runs when next due. Its runs may take no structural action unasked until the owner sets its scope in the Ritual's form; its instruction never grants any.",
     invalid: invalid(
       "Invalid arguments: give instruction, title, and schedule (Daily, Weekdays, Weekly, Monthly, or Hourly).",
     ),
@@ -220,12 +216,11 @@ export const threadTools = {
   }),
   rename_realm: definitionOf({
     description:
-      "Only Iskios uses it, and only because the owner asked in their latest message: rename a realm. Pass the owner's exact words asking for it as quote; Iskios checks them.",
-    invalid: invalid("Invalid arguments: give realm, name, and quote."),
+      "Only Iskios uses it, at the owner's request: rename a realm. It runs at once when the owner's own message in this turn named that realm and its new name plainly; otherwise it asks the owner one Allow or Deny question naming them and waits.",
+    invalid: invalid("Invalid arguments: give realm and name."),
     isUnasked: true,
     schema: Schema.Struct({
       name: text("The realm's new name, at most 80 characters."),
-      quote: text("The owner's exact words from their latest message that ask for this, copied verbatim."),
       realm: text("The name or folder of one of the realms listed in your context."),
     }),
   }),
@@ -245,7 +240,7 @@ export const threadTools = {
   }),
   request_approval: definitionOf({
     description:
-      "Ask the owner before one sensitive action (see your instructions). One call per action. Wait for the answer; do the action only if it is Allowed.",
+      "Ask the owner before one action you judge consequential (see your instructions), or before running one exact command outside the sandbox. One call per action. Wait for the answer; do the action only if it is Allowed. Nothing you write, quote, or cite counts as the owner's approval.",
     invalid: invalid("Invalid arguments: give action and command."),
     isUnasked: false,
     schema: Schema.Struct({
@@ -253,10 +248,11 @@ export const threadTools = {
         "One plain sentence: what you want to do and why, e.g. 'Push today's 3 commits so the release can start'.",
       ),
       command: text("The exact command, file path, or recipient and text."),
-      pattern: optionalText("A command pattern covering this kind of action, with * for any text, e.g. 'git push *'."),
-      permission: optionalText("A short sentence naming this kind of action, e.g. 'Push code'."),
-      quote: optionalText(
-        "Only when the owner's latest message already names this action: the owner's exact words naming it, copied verbatim.",
+      outsideSandbox: Schema.optionalKey(
+        Schema.Boolean.annotate({
+          description:
+            "True only to ask the owner to run this exact command outside the sandbox; the question names that capability. Left out, an approval keeps the sandbox.",
+        }),
       ),
     }),
   }),

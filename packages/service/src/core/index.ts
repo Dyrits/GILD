@@ -3,6 +3,7 @@ export { Changes, changesLayer } from "./changes.ts";
 export { Endpoints, endpointsLayer } from "./endpoints.ts";
 export { invalid, notFound, ServiceFailure } from "./errors.ts";
 export {
+  type Containment,
   Harness,
   type HarnessAdapter,
   type HarnessEvent,

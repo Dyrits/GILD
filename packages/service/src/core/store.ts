@@ -657,6 +657,13 @@ export const migrations = {
       room TEXT NOT NULL
     )`;
   }),
+  // A Ritual's reviewed scope (empty by default) and the service's marker for the message that starts a run.
+  // The key keeps its first name: a development database already applied it (with an unused exact_target column).
+  "0044_exact_action_authority": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`ALTER TABLE rituals ADD COLUMN authority TEXT NOT NULL DEFAULT '[]'`;
+    yield* sql`CREATE TABLE ritual_run_messages (message_id TEXT PRIMARY KEY REFERENCES messages(id) ON DELETE CASCADE, ritual_id TEXT NOT NULL REFERENCES rituals(id) ON DELETE CASCADE)`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

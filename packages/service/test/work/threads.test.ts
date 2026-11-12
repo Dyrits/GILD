@@ -286,7 +286,8 @@ describe("limiting threads", () => {
 
   it.live("counts threads waiting on the owner inside their turn toward the 8 running", () =>
     Effect.gen(function* () {
-      const push = `prompt Bash ${JSON.stringify({ command: "git push origin main" })}`;
+      // An escape from the sandbox asks the owner; a sandboxed command would run unasked (CHG-0208).
+      const push = `prompt Bash ${JSON.stringify({ command: "git push origin main", dangerouslyDisableSandbox: true })}`;
       const asking = Array.from({ length: 7 }, (_, i) => tool("open_thread", { request: `${push}\nTask ${i}` }));
       const started = yield* start([...asking, "wait 300", tool("open_thread", { request: "One more" })].join("\n"));
       const detail = yield* settle(started.missionId, (current) => lastText(current).startsWith("Echo:"));

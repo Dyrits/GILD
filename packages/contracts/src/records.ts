@@ -457,7 +457,10 @@ export const ThreadPanel = Schema.Struct({
 });
 export type ThreadPanel = typeof ThreadPanel.Type;
 
-/** A line in a thread's conversation recording a handover: its harness, account, model, or effort changed. */
+/**
+ * A line in a thread's conversation recording a handover: its harness, account, model, or effort changed; or that its
+ * harness could not continue its earlier session (CHG-0208).
+ */
 export const Handover = Schema.Struct({ at: Schema.Number, id: Schema.String, text: Schema.String });
 export type Handover = typeof Handover.Type;
 

@@ -74,8 +74,17 @@ const insertHandover = (threadId: string, runner: Runner, fellBackAfter: string 
       runner.accountId === null
         ? []
         : yield* sql<{ label: string }>`SELECT label FROM accounts WHERE id = ${runner.accountId}`;
-    yield* sql`INSERT INTO handovers (id, thread_id, text, at)
-      VALUES (${crypto.randomUUID()}, ${threadId}, ${handoverTextOf(runner, account?.label ?? null, fellBackAfter)}, ${at})`;
+    yield* insertThreadLine(threadId, handoverTextOf(runner, account?.label ?? null, fellBackAfter), at);
+  });
+
+/**
+ * Writes one line in the thread's conversation beside its handover lines, shown the same way: a handover, or a harness
+ * session the thread lost (CHG-0208). Callers run it in a transaction.
+ */
+export const insertThreadLine = (threadId: string, text: string, at: number) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`INSERT INTO handovers (id, thread_id, text, at) VALUES (${crypto.randomUUID()}, ${threadId}, ${text}, ${at})`;
   });
 
 /**
@@ -162,7 +171,7 @@ export const readConversationSoFar = (threadId: string, turnId: string, model: M
     const kept = lines.slice(first);
     return [
       "## Conversation so far",
-      'This thread ran on another harness, account, or model before, and you now continue it. What follows is its conversation, oldest first, with you as "You". Carry on from it; do not repeat it.',
+      'This thread ran before in a harness session you do not have (on another harness, account, or model, or one that could not be resumed), and you now continue it. What follows is its conversation, oldest first, with you as "You". Carry on from it; do not repeat it.',
       ...(first > 0
         ? [
             `(${first} earlier ${first === 1 ? "message was" : "messages were"} left out because the conversation is long.)`,

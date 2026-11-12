@@ -46,7 +46,8 @@ export interface HarnessFacts {
 /** Each harness's facts, by name. */
 export const harnessFacts = {
   claude: {
-    approvedCommandAdvice: "; for a Bash command set dangerouslyDisableSandbox to true",
+    approvedCommandAdvice:
+      "; keep the sandbox for it, unless the owner allowed that exact command outside the sandbox: then set dangerouslyDisableSandbox to true",
     configVariable: "CLAUDE_CONFIG_DIR",
     fixedModels: claudeModels,
     hasPromptTool: true,

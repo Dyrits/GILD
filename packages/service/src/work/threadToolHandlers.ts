@@ -1,11 +1,10 @@
 import type { SuggestionOutcome } from "@iskios/contracts";
 import { Effect, Match } from "effect";
 import { SqlClient } from "effect/sql";
-import { HarnessFailure, type HarnessPrompt, type PromptAnswer, type ToolAnswer } from "../core/index.ts";
+import { HarnessFailure, type HarnessPrompt, type PromptAnswer, type ToolAnswer, textFieldOf } from "../core/index.ts";
 import type { Approvals } from "./approvals.ts";
 import { countChatter } from "./chatter.ts";
 import { type CommandRunner, changed, unchanged, type WithFollowUps } from "./commands.ts";
-import { readWorkingIds } from "./ending.ts";
 import {
   actOnMission,
   createRitualByGuildmaster,
@@ -14,6 +13,7 @@ import {
   refusedAction,
   refusedRitual,
 } from "./guildmaster.ts";
+import { withProvenance } from "./guildmasterProvenance.ts";
 import { createRealmByGuildmaster, renameRealmByGuildmaster } from "./guildmasterRealms.ts";
 import { changeSettingByGuildmaster, readSettingsByGuildmaster } from "./guildmasterSettings.ts";
 import { journalToolsOf } from "./journalTools.ts";
@@ -48,7 +48,23 @@ export const askOwnerFor =
     Effect.gen(function* () {
       const refusal = yield* callerRefusalOf(threadId, "answer_prompt");
       if (refusal !== null) return { isAllowed: false, text: refusal } satisfies PromptAnswer;
-      const decision = yield* approvals.answerPrompt(threadId, prompt.toolName, prompt.input);
+      // The folder question is one-time: it never goes through the standing permissions (harness/threadFolder.ts).
+      if (prompt.folderCheck !== undefined) {
+        const answered = yield* approvals.askAboutFolder(threadId, {
+          folder: textFieldOf(prompt.input, "file_path") ?? "",
+          pointsTo: prompt.folderCheck.pointsTo,
+          startsIn: prompt.folderCheck.startsIn,
+          summary: textFieldOf(prompt.input, "description") ?? `${prompt.toolName} asks about its folder`,
+        });
+        return { isAllowed: answered.isAllowed, text: answered.text } satisfies PromptAnswer;
+      }
+      const decision = yield* approvals.answerPrompt(
+        threadId,
+        prompt.toolName,
+        prompt.input,
+        prompt.isOutsideSandbox ?? false,
+        prompt.isUnsandboxed ?? false,
+      );
       return { isAllowed: decision.isAllowed, text: decision.text } satisfies PromptAnswer;
     }).pipe(
       Effect.provideService(SqlClient.SqlClient, sql),
@@ -145,18 +161,19 @@ export const makeToolHandlers = (dependencies: {
     ...journalToolsOf(commit),
     ...titleToolsOf(commit),
     act_on_mission: (threadId, args) =>
-      runTool(
-        actOnMission(threadId, args).pipe(
-          Effect.catchTag("ServiceFailure", (failure) => Effect.succeed(refusedAction(failure.message))),
-        ),
-      ).pipe(
-        Effect.flatMap((outcome) =>
-          outcome._tag === "ToStop"
-            ? commit(readWorkingIds(outcome.missionId)).pipe(
-                Effect.flatMap((ids) => Effect.forEach(ids, (id) => threads.stop(id), { discard: true })),
-                Effect.as(answer(outcome.text)),
-              )
-            : Effect.succeed(answer(outcome.text, outcome._tag === "Refused")),
+      withProvenance(approvals, commit, threadId, "act_on_mission", args, (authorize) =>
+        runTool(
+          authorize(actOnMission(threadId, args)).pipe(
+            Effect.catchTag("ServiceFailure", (failure) => Effect.succeed(refusedAction(failure.message))),
+          ),
+        ).pipe(
+          Effect.flatMap((outcome) =>
+            outcome._tag === "ToStop"
+              ? Effect.forEach(outcome.ids, (id) => threads.stop(id), { discard: true }).pipe(
+                  Effect.as(answer(outcome.text)),
+                )
+              : Effect.succeed(answer(outcome.text, outcome._tag === "Refused")),
+          ),
         ),
       ),
     answer_prompt: (threadId, { input, tool_name }) =>
@@ -173,15 +190,23 @@ export const makeToolHandlers = (dependencies: {
             ),
           ),
         ),
-    change_setting: (threadId, args) => runTool(changeSettingByGuildmaster(threadId, args)),
-    create_realm: (threadId, args) => runTool(createRealmByGuildmaster(threadId, args)),
+    change_setting: (threadId, args) =>
+      withProvenance(approvals, commit, threadId, "change_setting", args, (authorize) =>
+        runTool(authorize(changeSettingByGuildmaster(threadId, args))),
+      ),
+    create_realm: (threadId, args) =>
+      withProvenance(approvals, commit, threadId, "create_realm", args, (authorize) =>
+        runTool(authorize(createRealmByGuildmaster(threadId, args))),
+      ),
     create_ritual: (threadId, args) =>
-      runTool(
-        createRitualByGuildmaster(threadId, args).pipe(
-          Effect.catchTag("ServiceFailure", (failure) => Effect.succeed(refusedRitual(failure.message))),
+      withProvenance(approvals, commit, threadId, "create_ritual", args, (authorize) =>
+        runTool(
+          authorize(createRitualByGuildmaster(threadId, args)).pipe(
+            Effect.catchTag("ServiceFailure", (failure) => Effect.succeed(refusedRitual(failure.message))),
+          ),
+        ).pipe(
+          Effect.map((outcome) => (outcome._tag === "Created" ? answer(outcome.text) : answer(outcome.reason, true))),
         ),
-      ).pipe(
-        Effect.map((outcome) => (outcome._tag === "Created" ? answer(outcome.text) : answer(outcome.reason, true))),
       ),
     find_missions: suggestions.findMissions,
     interrupt_thread: (threadId, { thread: target }) =>
@@ -213,7 +238,10 @@ export const makeToolHandlers = (dependencies: {
       ),
     read_control_history: (threadId, args) => commit(readControlHistory(threadId, args)),
     read_settings: (threadId) => runTool(readSettingsByGuildmaster(threadId)),
-    rename_realm: (threadId, args) => runTool(renameRealmByGuildmaster(threadId, args)),
+    rename_realm: (threadId, args) =>
+      withProvenance(approvals, commit, threadId, "rename_realm", args, (authorize) =>
+        runTool(authorize(renameRealmByGuildmaster(threadId, args))),
+      ),
     report_result: (threadId, { journal, result }) =>
       journal.trim() === ""
         ? Effect.succeed(toolCatalogue.report_result.invalid)
@@ -229,9 +257,7 @@ export const makeToolHandlers = (dependencies: {
         .requestApproval(threadId, {
           action: given.action,
           command: given.command,
-          pattern: given.pattern ?? null,
-          permission: given.permission ?? null,
-          quote: given.quote ?? null,
+          outsideSandbox: given.outsideSandbox ?? false,
         })
         .pipe(Effect.map((decision) => answer(decision.text, !decision.isAllowed))),
     send_thread_message: (threadId, { text, to }) =>

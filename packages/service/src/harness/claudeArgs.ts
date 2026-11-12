@@ -78,33 +78,102 @@ const ownerRulesOf = (path: string) => {
 export const noTimeLimit = 2147483647;
 
 /**
- * What a sandboxed thread in a workspace may also do unasked, so it can install the project's
- * dependencies and run its checks (CHG-0034; probe of 2026-11-06 with Bun 1.4.3 and Electron 45):
- * reach the package registry and GitHub's release downloads, write Bun's and Electron's caches,
- * listen on loopback for test servers, and send Node's own downloads through the sandbox proxy.
+ * The hosts a sandboxed thread reaches unasked (CHG-0208): package registries, GitHub and other code hosts, release
+ * downloads, and common CDNs. Claude Code 2.1.322 refuses "*" and a bare top-level wildcard such as "*.com" in
+ * `allowedDomains`, so this list is a broad allowlist, not an open network. A host outside it is asked about over
+ * Claude Code's stream-json control channel as a `can_use_tool` request for the tool `SandboxNetworkAccess` with
+ * `input.host` (live probe of 2026-11-12), and the Claude Code adapter answers exactly that ask inside a sandboxed
+ * thread (`networkHostOf`), so egress is open in practice. Either way data can leave to any reachable host, such as
+ * a push to GitHub: the sandbox contains file and process damage, not data.
  */
-const workspaceSandbox = {
+export const allowedDomains = [
+  // JavaScript and Bun
+  "registry.npmjs.org",
+  "*.npmjs.org",
+  "registry.yarnpkg.com",
+  "*.yarnpkg.com",
+  "bun.sh",
+  "*.bun.sh",
+  "jsr.io",
+  "*.jsr.io",
+  "deno.land",
+  "*.deno.land",
+  "nodejs.org",
+  "*.nodejs.org",
+  // Python, Rust, Go, Ruby, Java
+  "pypi.org",
+  "*.pypi.org",
+  "files.pythonhosted.org",
+  "crates.io",
+  "*.crates.io",
+  "proxy.golang.org",
+  "sum.golang.org",
+  "index.golang.org",
+  "rubygems.org",
+  "*.rubygems.org",
+  "repo.maven.apache.org",
+  "repo1.maven.org",
+  "plugins.gradle.org",
+  "services.gradle.org",
+  // Code hosts and their release downloads
+  "github.com",
+  "*.github.com",
+  "*.githubusercontent.com",
+  "ghcr.io",
+  "*.ghcr.io",
+  "gitlab.com",
+  "*.gitlab.com",
+  "bitbucket.org",
+  "*.bitbucket.org",
+  // Common CDNs and browser downloads for checks
+  "cdn.jsdelivr.net",
+  "*.jsdelivr.net",
+  "unpkg.com",
+  "esm.sh",
+  "cdnjs.cloudflare.com",
+  "fonts.googleapis.com",
+  "fonts.gstatic.com",
+  "cdn.playwright.dev",
+  "playwright.azureedge.net",
+];
+
+/**
+ * What a sandboxed thread may also do unasked, so it can install the project's dependencies and run its checks
+ * (CHG-0034, CHG-0208): reach the allowlisted hosts, write the package managers' and Electron's caches, listen on
+ * loopback for test servers, and send Node's own downloads through the sandbox proxy.
+ */
+const threadSandbox = {
   env: { NODE_USE_ENV_PROXY: "1" },
   sandbox: {
-    filesystem: { allowWrite: ["~/.bun/install/cache", "~/Library/Caches/electron", "~/.cache/electron"] },
-    network: {
-      allowedDomains: [
-        "registry.npmjs.org",
-        "github.com",
-        "objects.githubusercontent.com",
-        "release-assets.githubusercontent.com",
-      ],
-      allowLocalBinding: true,
-    },
+    filesystem: { allowWrite: ["~/.bun/install/cache", "~/.npm", "~/Library/Caches/electron", "~/.cache/electron"] },
+    network: { allowedDomains, allowLocalBinding: true },
   },
 };
 
-/** Claude Code's sandbox settings: always on and unasked inside it, widened for a workspace thread. */
-const sandboxSettingsOf = (access: ThreadAccess) => {
-  const base = { autoAllowBashIfSandboxed: true, enabled: true };
-  return access.isInWorkspace
-    ? { env: workspaceSandbox.env, sandbox: { ...base, ...workspaceSandbox.sandbox } }
-    : { sandbox: base };
+/**
+ * Claude Code's sandbox settings: always on, commands unasked inside it, and never run unsandboxed on a warning
+ * (`failIfUnavailable`, in the 2.1.322 settings schema): a sandbox that cannot start stops Claude Code instead.
+ */
+const sandboxSettingsOf = () => ({
+  env: threadSandbox.env,
+  sandbox: { autoAllowBashIfSandboxed: true, enabled: true, failIfUnavailable: true, ...threadSandbox.sandbox },
+});
+
+/** Whether Claude Code runs this thread inside its enforced sandbox: the level allows it and the host can run one. */
+export const isSandboxedOf = (access: ThreadAccess, options: AccessOptions) =>
+  access.approvalLevel === "RiskyOnly" && options.sandboxProblem === null;
+
+/**
+ * The host of a `can_use_tool` control request that asks to reach a host the sandbox blocks, or null for any other
+ * ask: a Bash call outside the sandbox, a file outside the workspace, an MCP tool, or a tool approval. Only the tool
+ * name `SandboxNetworkAccess` with one plain host name in `input.host` counts; anything else is never answered here.
+ */
+export const networkHostOf = (request: unknown): string | null => {
+  if (typeof request !== "object" || request === null) return null;
+  const { input, subtype, tool_name: toolName } = request as Record<string, unknown>;
+  if (subtype !== "can_use_tool" || toolName !== "SandboxNetworkAccess") return null;
+  const host = typeof input === "object" && input !== null ? (input as Record<string, unknown>).host : undefined;
+  return typeof host === "string" && /^[A-Za-z0-9.-]+(:\d{1,5})?$/.test(host) ? host : null;
 };
 
 /** The arguments that depend on the thread's access: its endpoint, instructions, and approval level. */
@@ -112,9 +181,9 @@ export const accessArgsOf = (access: ThreadAccess, context: string, options: Acc
   // A question waits with no time limit (action-approval, Waiting); without its own
   // timeout, Claude Code aborts a call silent for 300 seconds (verified 2026-11-05).
   const mcpConfig = { mcpServers: { [toolServerName]: { timeout: noTimeLimit, type: "http", url: access.mcpUrl } } };
-  const isSandboxed = access.approvalLevel === "RiskyOnly" && options.sandboxProblem === null;
+  const isSandboxed = isSandboxedOf(access, options);
   const levelArgs = isSandboxed
-    ? ["--permission-mode", "acceptEdits", "--settings", JSON.stringify(sandboxSettingsOf(access))]
+    ? ["--permission-mode", "acceptEdits", "--settings", JSON.stringify(sandboxSettingsOf())]
     : [
         "--permission-mode",
         "default",

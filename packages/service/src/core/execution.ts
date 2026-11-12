@@ -24,7 +24,12 @@ export type HarnessEvent =
   /** The assistant message written so far, never saved. */
   | { readonly _tag: "Draft"; readonly text: string }
   /** A message steered into the running turn was taken in by it (CHG-0039). */
-  | { readonly _tag: "Delivered"; readonly messageId: string };
+  | { readonly _tag: "Delivered"; readonly messageId: string }
+  /**
+   * A line for the thread's conversation from the adapter, not the model, saved and shown as handover lines are:
+   * such as a harness session that could not be continued (CHG-0208).
+   */
+  | { readonly _tag: "Notice"; readonly text: string };
 
 /** An image attached to a message, as a harness takes it: the file where the service keeps it. */
 export interface ImageAttachment {
@@ -55,9 +60,32 @@ export interface ThreadAccess {
 
 /** One action a harness asks permission for, named as Claude Code names its tools (`Bash`, `Edit`, …). */
 export interface HarnessPrompt {
+  /**
+   * Set on the question a harness asks before starting in a thread folder that is a link or resolves outside its root
+   * (harness/threadFolder.ts): a one-time Allow or Deny for that start, which offers no standing permission and which
+   * no standing permission answers. `startsIn` is the folder's real path the harness starts in when allowed (Claude
+   * Code, Codex), which the edit check then counts as the thread's folder; null when it runs unsandboxed (OpenCode).
+   */
+  readonly folderCheck?: { readonly pointsTo: string; readonly startsIn: string | null };
   readonly input: unknown;
+  /**
+   * Set by an adapter whose harness asks only to go beyond its active sandbox (Codex's escalations): the action
+   * would run outside it. Claude Code says so itself with `dangerouslyDisableSandbox` in the input.
+   */
+  readonly isOutsideSandbox?: boolean;
+  /**
+   * Set by an adapter running this thread without the sandbox it otherwise runs in, as the owner allowed (OpenCode on
+   * a folder that points outside its workspace): the action asks as for a harness no sandbox protects.
+   */
+  readonly isUnsandboxed?: boolean;
   readonly toolName: string;
 }
+
+/**
+ * Whether a harness's tool execution runs inside a sandbox it enforces on this computer (sandbox-first autonomy):
+ * inside one, an action runs unasked unless it leaves the sandbox; without one, every action it prompts for asks.
+ */
+export type Containment = "Sandboxed" | "Unprotected";
 
 /** The owner's answer to a harness prompt: whether the action may run, and what to tell the harness otherwise. */
 export interface PromptAnswer {
@@ -80,8 +108,19 @@ export interface TurnRequest {
   readonly configDirectory: string | null;
   /** The starting context: the thread's workspace, or its scratch folder, with the folder's own instructions. */
   readonly context: string;
+  /**
+   * Reads the thread's conversation before this turn, as a handover gives it to a session that starts with none
+   * (work/handover.ts readConversationSoFar); null when there is none. Read only when asked: a session OpenCode opens
+   * in place of one it could not load is given it.
+   */
+  readonly conversationSoFar: Effect.Effect<string | null>;
   readonly cwd: string;
   readonly effort: EffortChoice;
+  /**
+   * The folder `cwd` must lie in: the workspace's own folder for a thread in a workspace (then `cwd` itself, stored
+   * by its real path), or the scratch root for a thread in its mission's scratch folder.
+   */
+  readonly folderRoot: string;
   readonly harness: HarnessName;
   /** The images attached to the turn's messages, in order (message-attachments). */
   readonly images: ReadonlyArray<ImageAttachment>;
@@ -152,6 +191,11 @@ export interface PlanLimitsReport {
 
 /** What one harness adapter offers: one turn of a thread at a time, which can be steered and interrupted. */
 export interface HarnessAdapter {
+  /**
+   * Whether the harness runs its tools inside an enforced sandbox here. Left out, a harness counts as unprotected, so
+   * its prompts ask.
+   */
+  readonly containmentOf?: (harness: HarnessName) => Containment;
   /** Ends the thread's running turn, whose `runTurn` then returns as interrupted; false when none runs. */
   readonly interrupt: (threadId: string) => Effect.Effect<boolean>;
   /**
@@ -181,6 +225,7 @@ export class Harness extends Context.Service<Harness, HarnessAdapter>()("iskios/
 export const routeHarnesses = (adapters: Record<HarnessName, HarnessAdapter>): HarnessAdapter => {
   const running = new Map<string, HarnessAdapter>();
   return {
+    containmentOf: (harness) => adapters[harness].containmentOf?.(harness) ?? "Unprotected",
     interrupt: (threadId) => running.get(threadId)?.interrupt(threadId) ?? Effect.succeed(false),
     readPlanLimits: (harness, configDirectory) => adapters[harness].readPlanLimits(harness, configDirectory),
     runTurn: (request) =>

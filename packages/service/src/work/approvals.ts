@@ -1,23 +1,32 @@
-import type { Answer, Question, QuestionOutcome, QuestionSource } from "@iskios/contracts";
+import { dirname, resolve as resolvePath } from "node:path";
+import type { Answer, HarnessName, Question, QuestionOutcome, QuestionSource } from "@iskios/contracts";
 import { Clock, Context, Effect, Layer } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
-import { Changes, invalid, isInsideFolder, notFound, readSettings, type ServiceFailure } from "../core/index.ts";
 import {
+  Changes,
+  fieldOf,
+  Harness,
+  invalid,
+  isInsideFolder,
+  notFound,
+  readSettings,
+  type ServiceFailure,
+} from "../core/index.ts";
+import { folderEscapeOf, resolvedFolderOf } from "../harness/threadFolder.ts";
+import {
+  capabilities,
   changedFilesOf,
+  consequenceOf,
   findCoveringPermission,
   insertPermission,
-  isFileChange,
-  isNamingQuote,
+  isFileWriting,
   plainActionOf,
   readQuestion,
   reasonOf,
-  savedPatternOf,
-  sensitivityOf,
   targetOf,
 } from "../policy/index.ts";
 import { makeOwnerWaits } from "./attention.ts";
 import { resumeInTurn } from "./lifecycle.ts";
-import { readOwnerTextsOfTurn } from "./messaging.ts";
 import { ScratchRoot, threadFolderOf } from "./workspaces.ts";
 
 /** What a thread passes to `request_approval`: one action, said in plain language, with its exact target. */
@@ -26,12 +35,18 @@ export interface ApprovalRequest {
   readonly action: string;
   /** The exact command, file, or target. */
   readonly command: string;
-  /** The command pattern Always allow would save. */
-  readonly pattern: string | null;
-  /** The short sentence Always allow would save. */
-  readonly permission: string | null;
-  /** The owner's own words naming this action, when the thread believes the owner already approved it. */
-  readonly quote: string | null;
+  /** Whether the owner is explicitly being asked to run this command without the sandbox. */
+  readonly outsideSandbox?: boolean;
+}
+
+/** The question a harness asks before starting in a thread folder that is a link (harness/threadFolder.ts). */
+export interface FolderQuestion {
+  /** The folder found to be a link or to resolve outside its root. */
+  readonly folder: string;
+  readonly pointsTo: string;
+  /** The real path the harness starts in when allowed, then counted as the thread's folder; null for none. */
+  readonly startsIn: string | null;
+  readonly summary: string;
 }
 
 /** The answer a thread or the harness receives. */
@@ -56,8 +71,38 @@ export class Approvals extends Context.Service<
       message: string | null,
       device: string,
     ) => Effect.Effect<Question, ServiceFailure | SqlError.SqlError>;
-    readonly answerPrompt: (threadId: string, toolName: string, input: unknown) => Effect.Effect<Decision>;
+    /**
+     * Answers a harness's permission prompt: unasked inside an enforced sandbox, asked when it leaves the sandbox or
+     * none protects the harness. `isOutsideSandbox` comes from the adapter, for a harness that asks only to leave it;
+     * `isUnsandboxed`, for a thread its adapter runs without the sandbox it otherwise runs in.
+     */
+    readonly answerPrompt: (
+      threadId: string,
+      toolName: string,
+      input: unknown,
+      isOutsideSandbox?: boolean,
+      isUnsandboxed?: boolean,
+    ) => Effect.Effect<Decision>;
     readonly requestApproval: (threadId: string, request: ApprovalRequest) => Effect.Effect<Decision>;
+    /**
+     * Asks once, Allow or Deny, before a harness starts in a thread folder that is a link: never saves a standing
+     * permission, and none answers it. Allowed with `startsIn`, the edit check counts that real path as the thread's
+     * folder while the folder still points there.
+     */
+    readonly askAboutFolder: (threadId: string, question: FolderQuestion) => Effect.Effect<Decision>;
+    /**
+     * Asks once, Allow or Deny, about an exact structural action the service derived; never saves a command
+     * allowance or standing permission.
+     */
+    readonly confirmAction: (threadId: string, summary: string, details: string) => Effect.Effect<Decision>;
+    /** Records a structural action the service let run unasked, with its evidence, as a line in the thread. */
+    readonly recordDecision: (
+      threadId: string,
+      summary: string,
+      details: string,
+      outcome: "AllowedByMessage" | "AllowedByPermission",
+      evidence: string,
+    ) => Effect.Effect<void>;
     /** Forgets the thread's one-time allowances: an approval lasts only the turn it was given in. */
     readonly endTurn: (threadId: string) => Effect.Effect<void>;
     readonly withdraw: (threadId: string) => Effect.Effect<void>;
@@ -78,16 +123,17 @@ const allowingOutcomes: ReadonlyArray<QuestionOutcome> = [
   "AllowedAutomatically",
 ];
 
-// Shown to the thread after an approval: an approved command must leave the
-// sandbox to reach the network or outside files (work-in-progress, probe evidence).
-// The approved command must run alone: anything chained to it no longer matches and asks again.
+// Shown to the thread after an approval. The approved command must run alone: anything chained to it no longer
+// matches and asks again. An ordinary approval keeps the sandbox; only an escape the owner allowed leaves it.
 const allowedText =
   "Allowed. Do exactly this action now, with nothing chained before or after it; run any other step separately. " +
-  "For a Bash command, run it with dangerouslyDisableSandbox set to true.";
+  "Keep the command's sandbox protection; this answer does not grant an escape.";
 
-const textOf = (resolution: Resolution) =>
+const textOf = (resolution: Resolution, outsideSandbox = false) =>
   allowingOutcomes.includes(resolution.outcome)
-    ? allowedText
+    ? outsideSandbox
+      ? "Allowed. Run exactly this command outside the sandbox once, with nothing added."
+      : allowedText
     : resolution.outcome === "Withdrawn"
       ? "Withdrawn: the owner stopped this thread."
       : resolution.message !== null
@@ -101,10 +147,16 @@ export const approvalsLayer = Layer.effect(
     const sql = yield* SqlClient.SqlClient;
     const changes = yield* Changes;
     const scratchRoot = yield* ScratchRoot;
+    const harness = yield* Harness;
     const waits = makeOwnerWaits<Resolution>(sql, changes);
     const withdrawn: Resolution = { message: null, outcome: "Withdrawn" };
     // Targets approved through `request_approval` that the next matching harness prompt may run once.
-    const allowances = new Map<string, Array<string>>();
+    const allowances = new Map<
+      string,
+      Array<{ readonly target: string; readonly turnId: string; readonly outsideSandbox: boolean }>
+    >();
+    // The real path the owner last allowed a harness to start in, by thread, for a thread folder that is a link.
+    const allowedFolders = new Map<string, string>();
 
     // Provisional until recovery is settled (work-in-progress, open questions): a
     // restart ends the harness process behind an open question, so it is withdrawn.
@@ -117,13 +169,28 @@ export const approvalsLayer = Layer.effect(
         Effect.map(([row]) => row?.missionId ?? null),
       );
 
-    const allowOnce = (threadId: string, target: string) =>
-      Effect.sync(() => allowances.set(threadId, [...(allowances.get(threadId) ?? []), target.trim()]));
+    const turnOf = (threadId: string) =>
+      sql<{ id: string }>`SELECT id FROM turns
+      WHERE thread_id = ${threadId} AND status = 'running' ORDER BY started_at DESC, rowid DESC LIMIT 1`.pipe(
+        Effect.map(([turn]) => turn?.id ?? null),
+      );
 
-    const takeAllowance = (threadId: string, target: string) =>
-      Effect.sync(() => {
+    const allowOnce = (threadId: string, target: string, turnId: string, outsideSandbox: boolean) =>
+      Effect.sync(() =>
+        allowances.set(threadId, [
+          ...(allowances.get(threadId) ?? []),
+          { outsideSandbox, target: target.trim(), turnId },
+        ]),
+      );
+
+    const takeAllowance = (threadId: string, target: string, outsideSandbox: boolean) =>
+      Effect.gen(function* () {
+        const turnId = yield* turnOf(threadId);
         const targets = allowances.get(threadId) ?? [];
-        const index = targets.indexOf(target.trim());
+        const index = targets.findIndex(
+          (grant) =>
+            grant.target === target.trim() && grant.turnId === turnId && grant.outsideSandbox === outsideSandbox,
+        );
         if (index === -1) return false;
         allowances.set(threadId, targets.toSpliced(index, 1));
         return true;
@@ -185,76 +252,105 @@ export const approvalsLayer = Layer.effect(
         }),
       );
 
-    /** Whether the owner's messages that started the thread's current turn approve the command in the quoted words. */
-    const isQuotedByOwner = (threadId: string, quote: string, command: string) =>
-      Effect.gen(function* () {
-        const texts = yield* readOwnerTextsOfTurn(threadId);
-        return texts.some((text) => isNamingQuote(text, quote, command));
-      });
-
     const requestApproval = (threadId: string, request: ApprovalRequest) =>
       Effect.gen(function* () {
         const missionId = yield* missionOf(threadId);
         if (missionId === null) return { isAllowed: false, text: "Unknown thread." } satisfies Decision;
-        const kind = sensitivityOf("Bash", { command: request.command })?.permission ?? null;
+        const turnId = yield* turnOf(threadId);
+        if (turnId === null) return { isAllowed: false, text: "No running turn to approve." } satisfies Decision;
+        const outsideSandbox = request.outsideSandbox ?? false;
+        // The question names only what the service knows: the exact command, and whether it leaves the sandbox.
+        const kind = outsideSandbox ? capabilities.outsideSandbox : null;
         const asked: Asked = {
           details: request.command,
           missionId,
-          // The question shows the pattern Always allow will save, which falls back to the exact command.
-          pattern: savedPatternOf(request.pattern, request.command),
-          // The sensitive list names the kinds it knows, so a push saves "Push code" whatever the thread called it.
-          permission: kind ?? request.permission,
+          // Always allow saves this exact command, never a pattern the thread proposed.
+          pattern: request.command.trim(),
+          permission: kind ?? "Run this exact command",
           source: "Thread",
-          summary: request.action,
+          summary: outsideSandbox ? `${request.action}. Run this exact command outside the sandbox.` : request.action,
           threadId,
         };
-        if (request.quote !== null && (yield* isQuotedByOwner(threadId, request.quote, request.command))) {
-          const resolution: Resolution = { message: `"${request.quote.trim()}"`, outcome: "AllowedByMessage" };
-          yield* record(asked, resolution);
-          yield* allowOnce(threadId, request.command);
-          return { isAllowed: true, text: textOf(resolution) } satisfies Decision;
-        }
         const covering = yield* findCoveringPermission(threadId, request.command, kind);
         if (covering !== null) {
           const resolution: Resolution = { message: covering.sentence, outcome: "AllowedByPermission" };
           yield* record(asked, resolution);
-          yield* allowOnce(threadId, request.command);
-          return { isAllowed: true, text: textOf(resolution) } satisfies Decision;
+          yield* allowOnce(threadId, request.command, turnId, outsideSandbox);
+          return { isAllowed: true, text: textOf(resolution, outsideSandbox) } satisfies Decision;
         }
         const resolution = yield* ask(asked);
-        const isAllowed = allowingOutcomes.includes(resolution.outcome);
-        if (isAllowed) yield* allowOnce(threadId, request.command);
-        return { isAllowed, text: textOf(resolution) } satisfies Decision;
+        const isAllowed = allowingOutcomes.includes(resolution.outcome) && (yield* turnOf(threadId)) === turnId;
+        if (isAllowed) yield* allowOnce(threadId, request.command, turnId, outsideSandbox);
+        return { isAllowed, text: textOf(resolution, outsideSandbox) } satisfies Decision;
       }).pipe(Effect.orDie);
 
     /**
-     * A prompt's sensitivity, where a file change inside the thread's folder is ordinary work: harnesses ask about
-     * such changes only at "Also commands and edits", whose question then names no outside change.
+     * The folder a file change must lie in to count as inside the thread's: its own, unless it is a link or resolves
+     * outside its root (harness/threadFolder.ts). Then only the real path the owner allowed a harness to start in, while
+     * the folder still points there; otherwise none, and every change asks.
      */
-    const sensitivityInFolderOf = (threadId: string, toolName: string, input: unknown) =>
+    const editFolderOf = (threadId: string, folder: string) => {
+      const isScratch = dirname(resolvePath(folder)) === resolvePath(scratchRoot);
+      if (folderEscapeOf(folder, isScratch ? scratchRoot : folder, !isScratch) === null) return folder;
+      const allowed = allowedFolders.get(threadId);
+      return allowed !== undefined && allowed === resolvedFolderOf(folder) ? allowed : null;
+    };
+
+    /**
+     * What a harness action needs beyond its sandbox, or null when it is contained (CHG-0208). A file change inside
+     * the thread's folder is contained by its exact path; any other change by the harness's own tool is not. A
+     * harness with no enforced sandbox needs the owner for everything else; inside one, only leaving it does.
+     */
+    const capabilityOf = (
+      threadId: string,
+      toolName: string,
+      input: unknown,
+      isEscape: boolean,
+      isUnsandboxed: boolean,
+    ) =>
       Effect.gen(function* () {
-        const sensitivity = sensitivityOf(toolName, input);
-        const files = changedFilesOf(input);
-        if (!isFileChange(sensitivity) || files.length === 0) return sensitivity;
-        const folder = yield* threadFolderOf(threadId).pipe(Effect.provideService(ScratchRoot, scratchRoot));
-        if (folder === null) return sensitivity;
-        for (const file of files) if (!(yield* isInsideFolder(folder, file))) return sensitivity;
-        return null;
+        if (isFileWriting(toolName)) {
+          const files = changedFilesOf(input);
+          const stored = yield* threadFolderOf(threadId).pipe(Effect.provideService(ScratchRoot, scratchRoot));
+          const folder = stored === null ? null : editFolderOf(threadId, stored);
+          // Unsandboxed for a folder that points outside its workspace, the thread's folder itself is outside it.
+          if (isEscape || isUnsandboxed || files.length === 0 || folder === null)
+            return capabilities.fileOutsideWorkspace;
+          for (const file of files)
+            if (!(yield* isInsideFolder(folder, file))) return capabilities.fileOutsideWorkspace;
+          return null;
+        }
+        const [row] = yield* sql<{ harness: HarnessName }>`SELECT harness FROM threads WHERE id = ${threadId}`;
+        const containment = row === undefined ? "Unprotected" : (harness.containmentOf?.(row.harness) ?? "Unprotected");
+        if (containment === "Unprotected" || isUnsandboxed) return capabilities.unsandboxed;
+        if (toolName === "Permissions") return capabilities.widenSandbox;
+        return isEscape ? capabilities.outsideSandbox : null;
       });
 
-    const answerPrompt = (threadId: string, toolName: string, input: unknown) =>
+    const answerPrompt = (
+      threadId: string,
+      toolName: string,
+      input: unknown,
+      isOutsideSandbox: boolean,
+      isUnsandboxed: boolean,
+    ) =>
       Effect.gen(function* () {
+        // A prompt from a harness still exiting after Stop runs nothing and asks nobody.
+        if ((yield* turnOf(threadId)) === null)
+          return { isAllowed: false, text: "This thread is not at work, so nothing runs." } satisfies Decision;
         const target = targetOf(toolName, input);
-        if (yield* takeAllowance(threadId, target)) return { isAllowed: true, text: "" } satisfies Decision;
+        const isEscape =
+          isOutsideSandbox || (toolName === "Bash" && fieldOf(input, "dangerouslyDisableSandbox") === true);
+        if (yield* takeAllowance(threadId, target, isEscape)) return { isAllowed: true, text: "" } satisfies Decision;
         const missionId = yield* missionOf(threadId);
         if (missionId === null) return { isAllowed: false, text: "Unknown thread." } satisfies Decision;
         const { approvalLevel } = yield* readSettings;
-        const sensitivity = yield* sensitivityInFolderOf(threadId, toolName, input);
+        const capability = yield* capabilityOf(threadId, toolName, input, isEscape, isUnsandboxed);
         const reason = reasonOf(input);
-        const plain = `${reason ?? plainActionOf(toolName)}.`;
-        // At the default level only a sensitive action asks; anything else runs and leaves
-        // a line, with or without a sandbox (CHG-0035).
-        if (approvalLevel === "RiskyOnly" && sensitivity === null) {
+        const plain = plainActionOf(toolName);
+        // At the default level a contained action runs and leaves a line, whatever it does: the sandbox holds the
+        // damage, and no command is judged by its words.
+        if (approvalLevel === "RiskyOnly" && capability === null) {
           yield* record(
             {
               details: target,
@@ -262,7 +358,7 @@ export const approvalsLayer = Layer.effect(
               pattern: null,
               permission: null,
               source: "Harness",
-              summary: plain,
+              summary: `${reason ?? plain}.`,
               threadId,
             },
             { message: null, outcome: "AllowedAutomatically" },
@@ -270,15 +366,15 @@ export const approvalsLayer = Layer.effect(
           return { isAllowed: true, text: "" } satisfies Decision;
         }
         const asked: Asked = {
-          details: target,
+          details: toolName === "Bash" ? target : `${target}\n${JSON.stringify(input, null, 2)}`,
           missionId,
-          pattern: null,
-          permission: sensitivity?.permission ?? null,
+          pattern: target,
+          permission: capability ?? plain,
           source: "Harness",
-          summary: sensitivity === null ? plain : `${reason ?? sensitivity.permission}. ${sensitivity.consequence}`,
+          summary: capability === null ? `${reason ?? plain}.` : `${reason ?? plain}. ${consequenceOf[capability]}`,
           threadId,
         };
-        const covering = yield* findCoveringPermission(threadId, target, sensitivity?.permission ?? null);
+        const covering = yield* findCoveringPermission(threadId, target, capability);
         if (covering !== null) {
           yield* record(asked, { message: covering.sentence, outcome: "AllowedByPermission" });
           return { isAllowed: true, text: "" } satisfies Decision;
@@ -299,13 +395,9 @@ export const approvalsLayer = Layer.effect(
         const note = given === "Deny" && message !== null && message.trim() !== "" ? message.trim() : null;
         const resolution: Resolution = { message: note, outcome: outcomeOfAnswer[given] };
         if (given === "AlwaysAllow") {
-          yield* sql.withTransaction(
-            insertPermission(
-              question.threadId,
-              question.permission ?? question.summary,
-              savedPatternOf(question.pattern, question.details),
-            ),
-          );
+          if (question.pattern === null || question.permission === null)
+            return yield* invalid("This action needs a one-time confirmation. Choose Allow or Deny.");
+          yield* sql.withTransaction(insertPermission(question.threadId, question.permission, question.pattern.trim()));
         }
         yield* resolve(questionId, question.threadId, resolution, device);
         yield* waits.settle(questionId, resolution);
@@ -325,11 +417,58 @@ export const approvalsLayer = Layer.effect(
         allowances.delete(threadId);
       }).pipe(Effect.orDie);
 
+    const askAboutFolder = (threadId: string, question: FolderQuestion) =>
+      Effect.gen(function* () {
+        const missionId = yield* missionOf(threadId);
+        if (missionId === null) return { isAllowed: false, text: "Unknown thread." } satisfies Decision;
+        // No pattern and no permission: Always allow is refused (`answer`), and no standing permission is looked up.
+        const resolution = yield* ask({
+          details: `${question.folder}\npoints to ${question.pointsTo}`,
+          missionId,
+          pattern: null,
+          permission: null,
+          source: "Harness",
+          summary: `${question.summary}.`,
+          threadId,
+        });
+        const isAllowed = resolution.outcome === "Allowed";
+        if (isAllowed && question.startsIn !== null) allowedFolders.set(threadId, question.startsIn);
+        else allowedFolders.delete(threadId);
+        return { isAllowed, text: textOf(resolution) } satisfies Decision;
+      }).pipe(Effect.provideService(SqlClient.SqlClient, sql), Effect.orDie);
+
     return {
       answer,
-      answerPrompt: (threadId, toolName, input) =>
-        answerPrompt(threadId, toolName, input).pipe(Effect.provideService(SqlClient.SqlClient, sql)),
+      answerPrompt: (threadId, toolName, input, isOutsideSandbox = false, isUnsandboxed = false) =>
+        answerPrompt(threadId, toolName, input, isOutsideSandbox, isUnsandboxed).pipe(
+          Effect.provideService(SqlClient.SqlClient, sql),
+        ),
+      askAboutFolder,
+      confirmAction: (threadId, summary, details) =>
+        Effect.gen(function* () {
+          const missionId = yield* missionOf(threadId);
+          if (missionId === null) return { isAllowed: false, text: "Unknown thread." };
+          const resolution = yield* ask({
+            details,
+            missionId,
+            pattern: null,
+            permission: null,
+            source: "Thread",
+            summary,
+            threadId,
+          });
+          return { isAllowed: resolution.outcome === "Allowed", text: textOf(resolution) };
+        }).pipe(Effect.provideService(SqlClient.SqlClient, sql), Effect.orDie),
       endTurn: (threadId) => Effect.sync(() => allowances.delete(threadId)).pipe(Effect.asVoid),
+      recordDecision: (threadId, summary, details, outcome, evidence) =>
+        Effect.gen(function* () {
+          const missionId = yield* missionOf(threadId);
+          if (missionId === null) return;
+          yield* record(
+            { details, missionId, pattern: null, permission: null, source: "Thread", summary, threadId },
+            { message: evidence, outcome },
+          );
+        }).pipe(Effect.orDie),
       requestApproval: (threadId, request) =>
         requestApproval(threadId, request).pipe(Effect.provideService(SqlClient.SqlClient, sql)),
       withdraw,

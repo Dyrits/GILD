@@ -2,6 +2,7 @@ import { tmpdir } from "node:os";
 import type { BillingKind, TokenUsage } from "@iskios/contracts";
 import { type Duration, Effect, Layer, Queue } from "effect";
 import {
+  type Containment,
   fieldOf,
   Harness,
   type HarnessAdapter,
@@ -14,7 +15,14 @@ import {
   textFieldOf,
   turnMessageOf,
 } from "../core/index.ts";
-import { type AccessOptions, accessArgsOf, baseArgsOf, noTimeLimit } from "./claudeArgs.ts";
+import {
+  type AccessOptions,
+  accessArgsOf,
+  baseArgsOf,
+  isSandboxedOf,
+  networkHostOf,
+  noTimeLimit,
+} from "./claudeArgs.ts";
 import { accountEnvironmentOf } from "./harnessCatalog.ts";
 import { type HarnessConnection, type HarnessProtocol, makeHarnessProcesses } from "./harnessProcesses.ts";
 import {
@@ -23,6 +31,7 @@ import {
   type StreamJsonProcess,
   startStreamJsonProcess,
 } from "./lineProcess.ts";
+import { resolvedFolderOf, startFolderOf } from "./threadFolder.ts";
 
 // Claude Code through `claude -p` in stream-json mode (ADR 0008; CHG-0027): one process per thread.
 
@@ -171,6 +180,8 @@ const claudeProtocolOf = (
       accessArgsOf(request.access, request.context, options),
       request.configDirectory,
       request.cwd,
+      // Where the folder really points: a link pointed elsewhere restarts the process, whose start checks it again.
+      resolvedFolderOf(request.cwd),
       request.effort,
       request.model,
     ]),
@@ -190,6 +201,22 @@ const claudeProtocolOf = (
         const type = textFieldOf(event, "type");
         if (type === "system" && textFieldOf(event, "subtype") === "init") {
           connection.billing = billingOf(event, connection.billing);
+        } else if (type === "control_request") {
+          // Inside the enforced sandbox a blocked host is allowed (CHG-0208): the sandbox contains file and process
+          // damage, and egress is open. Only that one ask is answered; every other ask, such as a Bash call outside
+          // the sandbox, is left to the permission prompt tool, and none is answered without a sandbox.
+          const askedRequest = fieldOf(event, "request");
+          const host = isSandboxedOf(request.access, options) ? networkHostOf(askedRequest) : null;
+          const requestId = textFieldOf(event, "request_id");
+          if (host !== null && requestId !== null)
+            connection.process.write({
+              response: {
+                request_id: requestId,
+                response: { behavior: "allow", updatedInput: fieldOf(askedRequest, "input") },
+                subtype: "success",
+              },
+              type: "control_response",
+            });
         } else if (type === "rate_limit_event") {
           // Kept for the plan's limits, which then cost no read of their own.
           const report = planLimitsOf(event, connection.billing);
@@ -238,6 +265,9 @@ const claudeProtocolOf = (
 
   start: (request) =>
     Effect.gen(function* () {
+      // A thread folder that is a link asks the owner; allowed, Claude Code starts where it really points, under its
+      // own sandbox, which then writes there (threadFolder.ts).
+      const cwd = yield* startFolderOf(request, "Claude Code");
       const isResuming = request.sessionId !== null;
       const sessionId = request.sessionId ?? crypto.randomUUID();
       const process = yield* startStreamJsonProcess({
@@ -250,8 +280,9 @@ const claudeProtocolOf = (
           ...(request.effort === "default" ? [] : ["--effort", request.effort]),
         ],
         command: options.command,
-        cwd: request.cwd,
-        env: childEnvironment(request.configDirectory),
+        cwd,
+        // The folder it was started in, as a shell it starts takes it.
+        env: { ...childEnvironment(request.configDirectory), PWD: cwd },
         label: "Claude Code",
       });
       return {
@@ -348,7 +379,9 @@ export const makeClaudeHarness = (options: ClaudeOptions) =>
         Effect.tapError(() => Effect.sync(() => probed.delete(key))),
       );
     };
-    return { ...adapter, readPlanLimits } satisfies HarnessAdapter;
+    // Claude Code runs its commands in its own sandbox unless the host cannot start one (core/sandbox.ts).
+    const containmentOf = (): Containment => (options.sandboxProblem === null ? "Sandboxed" : "Unprotected");
+    return { ...adapter, containmentOf, readPlanLimits } satisfies HarnessAdapter;
   });
 
 /** Runs each thread in one long-lived `claude -p` stream-json process (CHG-0027). */

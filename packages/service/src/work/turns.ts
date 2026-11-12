@@ -4,7 +4,7 @@ import { SqlClient } from "effect/sql";
 import { Changes, PriceTable, type TurnOutcome, touchMission } from "../core/index.ts";
 import type { StoredAttachment } from "./attachments.ts";
 import { enforceBudgets, holdIfReached } from "./budgets.ts";
-import { recordPendingHandover } from "./handover.ts";
+import { insertThreadLine, recordPendingHandover } from "./handover.ts";
 import { endTurn, failTurn, holdThread, startRunning } from "./lifecycle.ts";
 import { deliverMessages, insertReply, listPending } from "./messaging.ts";
 import { finishRitualRun } from "./rituals.ts";
@@ -143,6 +143,16 @@ export const saveTurnReply = (
         yield* sql`INSERT INTO reply_usage (message_id, input, output, cache_read, cache_creation, estimate)
           VALUES (${messageId}, ${usage.input}, ${usage.output}, ${usage.cacheRead}, ${usage.cacheCreation}, ${estimate?.amount ?? null})`;
       }
+      yield* publishOnCommit;
+    }),
+  );
+
+/** Records a line the harness adapter left in the thread during the turn, such as a session it could not continue. */
+export const saveTurnNotice = (threadId: string, turn: Admitted, text: string) =>
+  transacting(
+    Effect.gen(function* () {
+      if (!(yield* isCurrentTurn(turn.turnId))) return;
+      yield* insertThreadLine(threadId, text, yield* Clock.currentTimeMillis);
       yield* publishOnCommit;
     }),
   );

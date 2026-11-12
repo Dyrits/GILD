@@ -10,20 +10,19 @@ Version 1 serves the installation's owner. In future hosted missions, only the h
 
 ### Asking
 
-- At the default level a thread works on its own and asks only before a **sensitive action**: one that leaves the computer or cannot be undone (CHG-0035). Sensitive actions are pushing code, publishing, deploying, sending a message to a person, submitting a form, paying, deleting anything outside the workspace or discarding uncommitted work, changing the system or its settings, and reaching passwords, keys, or other secrets. Everything else runs without a question, including reading, editing inside the workspace, local git, installing dependencies, and running the project's checks; the thread's instructions carry this list.
-- A thread asks through `request_approval`, as a question in its own conversation. Each harness runs in its sandbox where one exists. When the harness itself asks for permission, Iskios decides: a prompt matching the action just allowed in that thread, or a standing permission's pattern, runs; a prompt that Iskios's own list of sensitive commands recognizes becomes a question; any other prompt runs without a question and leaves a line in the thread saying what ran. This holds with or without a sandbox (CHG-0035).
+- **Sandbox-first autonomy** (CHG-0208, replacing CHG-0035's sensitive-command list). Each harness runs its commands inside a sandbox: Claude Code and Codex their own, OpenCode inside the host's (Seatbelt on macOS, bubblewrap on Linux), started by Iskios. The sandbox contains damage to this computer's files and processes; it does **not** contain data: its network reaches many hosts (Codex and OpenCode any host, Claude Code a broad allowlist of registries, code hosts, release hosts, and CDNs, plus any other host it asks about while sandboxed, which Iskios allows: that one ask only, never a sandbox escape), so whatever a command sends can leave the computer, a push to an allowed host included. Iskios judges no command by its words. Before OpenCode runs anything unasked, Iskios confirms in the process table that its executor (`serve --stdio`) runs below the wrapped process; if it cannot, every action asks as for an escape. A wrapped OpenCode never writes a folder that OpenCode runs outside the sandbox read: its data folder is the service's own copy per account, which holds the account's sign-ins, copied one way from the account's real data folder at each start (a changed or revoked sign-in follows; nothing flows back, and no file of the real folder is copied), and its configuration folder holds a read-only copy of the owner's OpenCode settings and Markdown agents, commands and modes, made at each start, never its plugins or tools. Settings that point at paths on this computer, or plugins the settings name, may behave differently inside the sandbox. A thread's earlier OpenCode session kept in the real data folder cannot be loaded inside the sandbox: OpenCode then starts a new session for the thread, which replaces the earlier one for later starts; its first message carries the thread's handover notes (its conversation so far, as after a change of harness, thread-handover), and the thread shows a line saying OpenCode could not pick up its earlier conversation and that the new one was given those notes; the messages stay. Outside the sandbox, a session that cannot load still fails the turn. A sign-in OpenCode exports without an integration id is not copied, so the providers behind such sign-ins are unavailable to sandboxed OpenCode; OpenCode's own `auth list`, run outside Iskios, shows which they are, and signing in to that provider again gives the sign-in an integration id. If a provider makes refresh tokens single-use, a refresh inside the sandbox's copy can invalidate the real folder's sign-in; signing in again outside Iskios restores it. This is accepted as an annoyance, not a boundary failure: the copy stays, OpenCode never falls back to the real folder, and sign-ins are not restricted. Every sandboxed OpenCode process carries the service's marker in its environment; one left running after its `acp` ended, or by an earlier run of the service, is ended when the service starts and whenever a wrapped OpenCode starts or ends, and only a process carrying that exact marker is ever ended this way.
+- **A thread's folder that points elsewhere** (CHG-0208). Before starting any harness, Iskios checks the thread's folder by its real path: the folder must not be a link and must lie in its root (the workspace's own folder, or the scratch folder for a thread without a workspace), and that root must not be a link, nor, for a workspace, resolve anywhere other than the folder added as the workspace. Otherwise a sandbox would write where the link points, outside the workspace, so the harness is not started there: the owner is asked one question naming the folder, where it really points, and what the sandbox could then write. The question is a one-time confirmation of that start: it offers **Allow** and **Deny** only, never **Always allow**; the service refuses an Always allow answer to it and never saves a standing permission for it, and no standing permission answers it. A later start in a folder that is still, or again, a link asks again. **Deny** fails the turn with the reason. **Allow** differs by harness. OpenCode, whose sandbox Iskios provides, runs without a sandbox for that thread, every command asking as "Run without a sandbox" and every file change as "Change a file outside the workspace"; its sandbox is never widened to the link's target. Claude Code and Codex keep their own sandbox and are started in the folder's real path (as their process folder, and as Codex's thread folder), so the folder their sandbox writes is where the link really points, and the thread shows a line saying its folder is a link and where it points. A changed link restarts their process, so the next start checks it again. The shared edit check counts a file in a link's target as outside the thread's folder, unless the owner allowed a start there and the folder still points there.
+- At the default level a thread works on its own. It judges for itself which actions are consequential, those that reach people or systems outside the computer or cannot be undone, and asks before them through `request_approval`, as a question in its own conversation; its instructions name examples, not a rule Iskios enforces.
+- When a harness itself asks for permission, Iskios decides from where the action runs, never from its words: inside an active sandbox it runs without a question and leaves a line; an escape from the sandbox (Claude Code's `dangerouslyDisableSandbox`, any escalation Codex asks for), a file change the harness makes outside the thread's folder, and any action of a harness with no sandbox on this computer (the host's sandbox cannot start, or OpenCode's sandbox tool is missing) ask, with the exact command or target and the capability it needs ("Run outside the sandbox", "Change a file outside the workspace", "Widen the sandbox", "Run without a sandbox"), and nothing broader. A prompt matching the escape just allowed in that turn, or a standing permission for that exact action and capability, runs.
 - Each question covers exactly one action. A thread that needs three actions asks three questions.
-- A thread does not ask when the action is already approved:
-  - the user's message names it, for example "push it" or "send this to Alice", which approves that one action in that thread;
-  - a routine's instruction, written by the user, names it, which approves it in each run of that routine; actions the instruction does not name still ask;
-  - a standing permission covers it.
+- Words never approve a command (CHG-0208): neither the owner's message quoted by a thread, nor a Ritual's instruction, nor anything a thread writes. A command question is spared only by a standing permission for that exact action. Structural actions on the app (acting on quests, settings, realms, Rituals) follow their own provenance rule in [mission-coordination](../mission-coordination/specifications.md).
 - A thread message never carries an approval, and no thread can answer another thread's question.
 
 ### The question
 
 - A question is written for someone who does not read code. It leads with what the thread wants to do and what that affects, in plain words, for example "Push today's 3 commits to GitHub. This sends your changes off this computer, where everyone with access to the repository sees them." **Show details** reveals the exact command, file changes, or recipient and text.
 - Outside its thread, a question also shows its mission and thread.
-- The buttons are **Allow**, **Always allow**, and **Deny**. An optional message beside Deny tells the thread why or what to do instead (CHG-0035).
+- The buttons are **Allow**, **Always allow**, and **Deny**. An optional message beside Deny tells the thread why or what to do instead (CHG-0035). A question with no permission to save (a one-time confirmation: a structural action, or a thread folder that is a link) shows only Allow and Deny (CHG-0208).
 - On a denial, the thread carries on with the refusal.
 
 ### Waiting
@@ -38,13 +37,13 @@ Version 1 serves the installation's owner. In future hosted missions, only the h
 
 ### Standing permissions
 
-- **Always allow** approves the action and grants a standing permission for the same kind of action, written as one short sentence such as "Push code to GitHub" or "Send emails to Alice".
+- **Always allow** approves the action and grants a standing permission for that exact command or target (CHG-0208: never a pattern the thread proposed), under the capability its question named. A permission for an ordinary action never covers the same command's escape from the sandbox.
 - A standing permission applies in the thread's workspace, or in its mission when the thread has no workspace, to every thread there. The user can widen it to everywhere from the Permissions page.
 - Every thread knows the standing permissions that apply to it and does not ask for an action they cover.
 
 ### Approval level
 
-- One approval setting has two levels: **Sensitive actions only** (the default) and **Also commands and edits**, which turns the harnesses' own permission prompts back on, each one answered with the same buttons.
+- One approval setting has two levels: **Sensitive actions only** (the default; since CHG-0208 it means escapes from the sandbox and unprotected actions) and **Also commands and edits**, which turns the harnesses' own permission prompts back on, each one answered with the same buttons.
 - At **Also commands and edits**, Iskios follows the allow and deny rules the user set in each harness's own settings.
 
 ### Permissions page
@@ -59,17 +58,17 @@ Version 1 serves the installation's owner. In future hosted missions, only the h
 
 | Tool | Purpose | Arguments | Answer |
 | --- | --- | --- | --- |
-| `request_approval` | Ask the user before one sensitive action | A plain sentence saying what and what it affects, and the exact details | Allowed; Allowed, with the standing permission granted; or Denied, with the user's message if any |
+| `request_approval` | Ask the user before one action the thread judges consequential, or before one exact command outside the sandbox | A plain sentence saying what and what it affects, the exact details, and `outsideSandbox` when asking to leave the sandbox | Allowed; Allowed, with the standing permission granted; or Denied, with the user's message if any |
 
 A withdrawn question gets no answer, since its turn has ended.
 
 ## Acceptance and validation
 
 - **Automated, with a fake harness**:
-  - a sensitive action asked about once, and nothing asked for reading, editing inside the workspace, or other harness prompts the sensitive list does not recognize, each of which leaves a line;
+  - a sandboxed command run without a question whatever it does, leaving a line; an escape from the sandbox, a file change outside the thread's folder, and any prompt of a harness with no sandbox asked about once, with the exact command and capability;
   - one question per action, never bundled;
   - each answer reaching the thread: Allow, Always allow, Deny, and Deny with a message;
-  - an action named in the user's message, or in a routine's instruction, run without a question, and an unnamed one asked;
+  - an action named in the user's message and quoted by the thread, or in a Ritual's instruction, still asked;
   - a standing permission sparing the question in its workspace or mission, still asking in another, and asking again once removed;
   - a thread message claiming an approval, and another thread trying to answer, both having no effect;
   - the thread in Attention until the question is answered, with no time limit, and the question withdrawn on interrupt or stop;
@@ -100,7 +99,8 @@ A withdrawn question gets no answer, since its turn has ended.
 - Approving by time limit or by default.
 - One answer covering several actions.
 - A thread approving on the user's behalf.
-- Blocking actions that neither the thread nor the sensitive list recognizes at the default level; the stricter level exists for that.
+- Judging commands by their words; the sandbox, and the thread's own judgment, take that place (CHG-0208).
+- Containing data: with the network open, the sandbox cannot keep data on this computer.
 
 ## Technical notes
 

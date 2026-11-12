@@ -6,6 +6,7 @@ import { join } from "node:path";
 import type { EffortChoice, TokenUsage } from "@iskios/contracts";
 import { Deferred, type Duration, Effect, Option, Queue, Result } from "effect";
 import {
+  type Containment,
   fieldOf,
   type HarnessAdapter,
   HarnessFailure,
@@ -31,6 +32,16 @@ import {
 } from "./harnessProcesses.ts";
 import { approvalInstructionsOf } from "./instructions.ts";
 import { harnessEnvironmentOf, type Incoming, type RpcProcess, startRpcProcess } from "./lineProcess.ts";
+import {
+  type OpenCodeSandbox,
+  openCodeEnvironmentOf,
+  ownerMarkerOf,
+  wrappedCommandOf,
+  writableRootsOf,
+} from "./openCodeSandbox.ts";
+import { prepareOpenCodeSandbox } from "./openCodeSeed.ts";
+import { hasExecutorBelow, sweepOrphans } from "./processTree.ts";
+import { type FolderEscape, folderEscapeOf, folderProblemOf } from "./threadFolder.ts";
 import { toolServerName } from "./toolNames.ts";
 
 // OpenCode through the Agent Client Protocol (ADR 0008; `opencode acp` of OpenCode 2.2.0, probed 2026-11-07):
@@ -104,9 +115,31 @@ export interface OpenCodeOptions {
   readonly instructionsFolder?: string;
   /** Arguments placed before `acp`, used to run a stand-in script in checks. */
   readonly prefixArgs?: ReadonlyArray<string>;
+  /**
+   * The host's sandbox each thread's `opencode acp` runs in (openCodeSandbox.ts), or null when none can run here:
+   * then every action OpenCode asks about asks the owner.
+   */
+  readonly sandbox?: OpenCodeSandbox | null;
 }
 
 interface OpenCodeConnection extends HarnessConnection {
+  /**
+   * The thread's conversation so far, for the first prompt of a session opened in place of one OpenCode could not
+   * load, so the new session knows what the thread was doing; null once given, or when there is none.
+   */
+  handoverNotes: string | null;
+  /**
+   * Whether a wrapped OpenCode's executor, the process that runs its commands and edits, is NOT confirmed to descend
+   * from the wrapped process, read from the process table at each permission request: an `acp` serving from a
+   * process outside its tree. The request then asks the owner as for an escape and never runs unasked. Never true
+   * for an unwrapped OpenCode, whose requests already ask for every command.
+   */
+  readonly isContainmentUnconfirmed: () => boolean;
+  /**
+   * Whether OpenCode runs without the sandbox it would otherwise run in, as the owner allowed for a folder pointing
+   * outside its workspace: every command and edit asks the owner.
+   */
+  readonly isUnsandboxed: boolean;
   readonly rpc: RpcProcess;
 }
 
@@ -114,10 +147,10 @@ interface OpenCodeConnection extends HarnessConnection {
 const noTimeLimit = 2147483647;
 
 /**
- * OpenCode's permissions (CHG-0031, CHG-0035). OpenCode has no sandbox here, so every command and edit asks
- * Iskios: a command runs unasked unless it is sensitive, and an edit unless it leaves the thread's folder or
- * the level is "Also commands and edits" (`isUnaskedEdit`). Its own subagents stay off: threads open threads
- * with open_thread (ADR 0007).
+ * OpenCode's permissions (CHG-0031, CHG-0208). Every command and edit asks Iskios. Wrapped in the host's sandbox, a
+ * command runs unasked at the default level; with no sandbox, it asks the owner. An edit inside the thread's folder runs
+ * unasked unless the level is "Also commands and edits" (`isUnaskedEdit`). Its own subagents stay off: threads open
+ * threads with open_thread (ADR 0007).
  */
 const permissions = [
   { action: "shell", effect: "ask", resource: "*" },
@@ -239,9 +272,15 @@ const answerRequest = (
     if (incoming.method !== "session/request_permission")
       return connection.rpc.respondError(incoming.id, `Iskios does not answer ${incoming.method}.`);
     const toolCall = fieldOf(incoming.params, "toolCall");
-    let isAllowed = yield* isUnaskedEdit(request, toolCall);
+    // Nothing runs unasked on an assumption: the executor must be seen below the wrapped process, or it asks.
+    const isUnconfirmed = connection.isContainmentUnconfirmed();
+    let isAllowed = !isUnconfirmed && !connection.isUnsandboxed && (yield* isUnaskedEdit(request, toolCall));
     if (!isAllowed) {
-      const prompt = promptOf(toolCall);
+      const prompt = {
+        ...promptOf(toolCall),
+        ...(isUnconfirmed ? { isOutsideSandbox: true } : {}),
+        ...(connection.isUnsandboxed ? { isUnsandboxed: true } : {}),
+      };
       const answer = yield* request.askOwner(prompt);
       isAllowed = answer.isAllowed;
       if (!isAllowed) refusals.push(refusalOf(prompt, answer));
@@ -267,10 +306,15 @@ const answerRequest = (
 const runPrompts = (connection: OpenCodeConnection, request: TurnRequest, turn: PooledTurn) =>
   Effect.gen(function* () {
     const refusals: Array<string> = [];
-    let text = turnMessageOf(request);
+    // A session that replaced one OpenCode could not load is first given the thread's conversation so far.
+    const notes = connection.handoverNotes;
+    connection.handoverNotes = null;
+    let text = notes === null ? turnMessageOf(request) : `${notes}\n\n${turnMessageOf(request)}`;
+    let isFirst = true;
     let usage: TokenUsage | null = null;
     for (;;) {
-      const end = yield* readPrompt(connection, request, turn, text, refusals);
+      const end = yield* readPrompt(connection, request, turn, text, isFirst, refusals);
+      isFirst = false;
       usage = addUsage(usage, end.usage);
       turn.reportUsage(usage);
       if (!end.isCancelled || refusals.length === 0 || turn.isInterrupting())
@@ -286,12 +330,13 @@ const readPrompt = (
   request: TurnRequest,
   turn: PooledTurn,
   text: string,
+  isFirst: boolean,
   refusals: Array<string>,
 ) =>
   Effect.gen(function* () {
     const answer = yield* Deferred.make<Result.Result<unknown, HarnessFailure>>();
     // The turn's images go with its first prompt only: a later prompt carries the refusals as text.
-    const images = text === turnMessageOf(request) ? yield* readImages(request.images) : [];
+    const images = isFirst ? yield* readImages(request.images) : [];
     yield* Effect.forkChild(
       connection.rpc
         .request("session/prompt", {
@@ -350,9 +395,33 @@ const readPrompt = (
     }
   });
 
+/** The line a thread shows when OpenCode, now in its sandbox, could not pick up the thread's earlier session. */
+const lostSessionNote =
+  "OpenCode could not pick up this thread's earlier conversation: it was saved in OpenCode's own folder, which " +
+  "OpenCode cannot read now that it runs in Iskios's sandbox. The thread carries on in a new OpenCode conversation, " +
+  "which was given the thread's handover notes: its conversation so far, as when a thread changes harness.";
+
+/** The question asked before running OpenCode without its sandbox for a folder that points elsewhere. */
+const escapeQuestionOf = (found: FolderEscape, request: TurnRequest) =>
+  `${folderProblemOf(found, request)}. Sandboxed there, OpenCode could write outside the workspace, so it was not started. ` +
+  "Allow runs this thread's OpenCode without a sandbox, asking you before each command and file change; Deny stops " +
+  "this turn";
+
+/** Why the turn failed when the owner did not allow OpenCode to run without its sandbox. */
+const escapeRefusalOf = (found: FolderEscape) =>
+  `OpenCode did not start: the folder ${found.folder} points to ${found.pointsTo}, so its sandbox could write ` +
+  "outside the workspace, and running it without a sandbox was not allowed. Fix the folder, or allow it, then retry.";
+
 /** OpenCode's ACP protocol: one ACP session per Iskios thread, one prompt per turn. */
 const openCodeProtocolOf = (options: OpenCodeOptions): HarnessProtocol<OpenCodeConnection> => {
   const instructionsFolder = options.instructionsFolder ?? join(tmpdir(), "iskios-opencode");
+  // Starts prepare the sandbox's shared folders one at a time, so two never copy into the same folder at once.
+  let queue: Promise<unknown> = Promise.resolve();
+  const exclusive = <A>(work: () => Promise<A>) => {
+    const next = queue.then(work, work);
+    queue = next.catch(() => undefined);
+    return next;
+  };
 
   /** The starting context and approval rules, as the file OpenCode reads them from. */
   const writeInstructions = (request: TurnRequest) =>
@@ -363,21 +432,35 @@ const openCodeProtocolOf = (options: OpenCodeOptions): HarnessProtocol<OpenCodeC
       return path;
     });
 
-  /** Opens the thread's ACP session, or loads it again, on a started process. */
-  const openSession = (rpc: RpcProcess, request: TurnRequest) =>
+  /**
+   * Opens the thread's ACP session, or loads it again, on a started process. Sandboxed, OpenCode reads the sandbox's
+   * copy of its data, which holds no session made before the sandbox, in the real data folder: one it cannot load is
+   * replaced by a new session, saying so in the thread, rather than failing the thread for good (CHG-0208); the
+   * new session is given the thread's conversation so far with its first prompt, as after a handover. Unsandboxed, a
+   * session that cannot load fails the turn as before.
+   */
+  const openSession = (rpc: RpcProcess, request: TurnRequest, isSandboxed: boolean) =>
     Effect.gen(function* () {
       yield* rpc.request("initialize", {
         clientCapabilities: { fs: { readTextFile: false, writeTextFile: false }, terminal: false },
         protocolVersion: 1,
       });
       if (request.sessionId !== null) {
+        const loaded = yield* rpc
+          .request("session/load", { cwd: request.cwd, mcpServers: [], sessionId: request.sessionId })
+          .pipe(Effect.result);
         // Loading replays the conversation as updates, which are not this turn's: they are dropped.
-        yield* rpc.request("session/load", { cwd: request.cwd, mcpServers: [], sessionId: request.sessionId });
         yield* Queue.clear(rpc.incoming);
-        return request.sessionId;
+        if (Result.isSuccess(loaded)) return { handoverNotes: null, sessionId: request.sessionId };
+        if (!isSandboxed || rpc.hasExited()) return yield* loaded.failure;
+        const created = yield* rpc.request("session/new", { cwd: request.cwd, mcpServers: [] });
+        const sessionId = textFieldOf(created, "sessionId");
+        if (sessionId === null) return { handoverNotes: null, sessionId };
+        yield* request.onEvent({ _tag: "Notice", text: lostSessionNote });
+        return { handoverNotes: yield* request.conversationSoFar, sessionId };
       }
       const created = yield* rpc.request("session/new", { cwd: request.cwd, mcpServers: [] });
-      return textFieldOf(created, "sessionId");
+      return { handoverNotes: null, sessionId: textFieldOf(created, "sessionId") };
     });
 
   return {
@@ -404,18 +487,78 @@ const openCodeProtocolOf = (options: OpenCodeOptions): HarnessProtocol<OpenCodeC
     start: (request) =>
       Effect.gen(function* () {
         const instructionsPath = yield* writeInstructions(request);
+        const args = [...(options.prefixArgs ?? []), "acp"];
+        // A folder that would widen what the sandbox writes is never sandboxed: the owner decides whether the thread
+        // runs there without the sandbox, every action asking, or the turn fails.
+        const found =
+          options.sandbox == null
+            ? null
+            : yield* Effect.sync(() => folderEscapeOf(request.cwd, request.folderRoot, request.access.isInWorkspace));
+        if (found !== null) {
+          // A one-time question: it offers no standing permission, and none answers it.
+          const answer = yield* request.askOwner({
+            folderCheck: { pointsTo: found.pointsTo, startsIn: null },
+            input: { description: escapeQuestionOf(found, request), file_path: found.folder },
+            toolName: "OpenCode",
+          });
+          if (!answer.isAllowed) return yield* new HarnessFailure({ reason: escapeRefusalOf(found) });
+        }
+        const isUnsandboxed = found !== null;
+        const sandbox = isUnsandboxed ? null : (options.sandbox ?? null);
+        const marker = sandbox === null ? null : ownerMarkerOf(sandbox);
+        // Every sandboxed process carries the service's marker and its thread, so one it loses is found again.
+        const marks = marker === null ? {} : { [marker.name]: marker.value, ISKIOS_SANDBOX_THREAD: request.threadId };
+        if (sandbox !== null && marker !== null) {
+          yield* Effect.promise(() => sweepOrphans(marker));
+          yield* Effect.tryPromise({
+            catch: (error) =>
+              new HarnessFailure({
+                reason: `OpenCode's sign-in or settings could not be copied into its sandbox. ${error instanceof Error ? error.message : String(error)}`,
+              }),
+            try: () =>
+              exclusive(() =>
+                prepareOpenCodeSandbox({
+                  accountDataHome: request.configDirectory,
+                  command: options.command,
+                  environment: marks,
+                  prefixArgs: options.prefixArgs ?? [],
+                  sandbox,
+                }),
+              ),
+          });
+        }
+        const env = {
+          ...accountEnvironmentOf("opencode", request.configDirectory),
+          ...(sandbox === null ? {} : openCodeEnvironmentOf(sandbox, request.configDirectory)),
+          ...marks,
+          OPENCODE_CONFIG_CONTENT: JSON.stringify(configOf(request.access, instructionsPath)),
+        };
+        // Wrapped, OpenCode and every process it starts write only where the sandbox lets them; never attached to a
+        // running OpenCode server, so no process outside the sandbox serves the thread.
+        const started =
+          sandbox === null
+            ? { args, command: options.command }
+            : wrappedCommandOf(
+                sandbox,
+                yield* Effect.sync(() => writableRootsOf(sandbox, request.cwd, request.configDirectory)),
+                options.command,
+                args,
+              );
         const rpc = yield* startRpcProcess({
-          args: [...(options.prefixArgs ?? []), "acp"],
-          command: options.command,
+          args: started.args,
+          command: started.command,
           cwd: request.cwd,
-          env: harnessEnvironmentOf({
-            ...accountEnvironmentOf("opencode", request.configDirectory),
-            OPENCODE_CONFIG_CONTENT: JSON.stringify(configOf(request.access, instructionsPath)),
-          }),
+          env: harnessEnvironmentOf(env),
           isJsonRpc2: true,
+          // `acp` starts its own `serve`, whose children leave its process group: closing ends the group and the whole
+          // tree, and once `acp` has ended, however it ended, any marked OpenCode process it left is ended too.
+          isTreeKilled: true,
           label: "OpenCode",
+          ...(marker === null ? {} : { onEnded: () => sweepOrphans(marker) }),
         });
-        const sessionId = yield* openSession(rpc, request).pipe(Effect.tapError(() => Effect.sync(() => rpc.close())));
+        const { handoverNotes, sessionId } = yield* openSession(rpc, request, sandbox !== null).pipe(
+          Effect.tapError(() => Effect.sync(() => rpc.close())),
+        );
         if (sessionId === null) {
           rpc.close();
           return yield* new HarnessFailure({ reason: "OpenCode started no session." });
@@ -441,7 +584,16 @@ const openCodeProtocolOf = (options: OpenCodeOptions): HarnessProtocol<OpenCodeC
               ),
             );
         }
-        return { close: rpc.close, hasExited: rpc.hasExited, rpc, sessionId } satisfies OpenCodeConnection;
+        const rootPid = rpc.pid;
+        return {
+          close: rpc.close,
+          handoverNotes,
+          hasExited: rpc.hasExited,
+          isContainmentUnconfirmed: () => sandbox !== null && !(rootPid !== null && hasExecutorBelow(rootPid)),
+          isUnsandboxed,
+          rpc,
+          sessionId,
+        } satisfies OpenCodeConnection;
       }),
 
     /** ACP takes no message into a running prompt: a steered message waits for the next turn. */
@@ -527,13 +679,25 @@ const readOpenCodePlanLimits = (options: OpenCodeOptions, configDirectory: strin
     },
   });
 
-/** Runs each thread in one long-lived `opencode acp` process, closed with the scope that made it. */
+/**
+ * Runs each thread in one long-lived `opencode acp` process, closed with the scope that made it. Wrapped, it first ends
+ * the sandboxed OpenCode processes an earlier run of the service lost (processTree.ts sweepOrphans).
+ */
 export const makeOpenCodeHarness = (options: OpenCodeOptions) =>
   Effect.map(
-    makeHarnessProcesses(openCodeProtocolOf(options), options),
+    Effect.andThen(
+      Effect.promise(async () => {
+        const sandbox = options.sandbox ?? null;
+        if (sandbox === null) return;
+        const left = await sweepOrphans(ownerMarkerOf(sandbox));
+        if (left.length > 0) console.error(`OpenCode: lost processes still running: ${left.join(", ")}`);
+      }),
+      makeHarnessProcesses(openCodeProtocolOf(options), options),
+    ),
     (adapter) =>
       ({
         ...adapter,
+        containmentOf: (): Containment => ((options.sandbox ?? null) === null ? "Unprotected" : "Sandboxed"),
         readPlanLimits: (_harness, configDirectory) => readOpenCodePlanLimits(options, configDirectory),
       }) satisfies HarnessAdapter,
   );

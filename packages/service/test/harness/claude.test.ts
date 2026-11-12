@@ -114,7 +114,12 @@ describe("running Claude Code threads", () => {
       expect(args).toContain("--permission-mode acceptEdits");
       expect(start?.args[start.args.indexOf("--tools") + 1]).toBe("default");
       const settings = JSON.parse(start?.args[start.args.indexOf("--settings") + 1] ?? "{}");
-      expect(settings).toEqual({ sandbox: { autoAllowBashIfSandboxed: true, enabled: true } });
+      // Never unsandboxed on a warning: a sandbox that cannot start stops Claude Code instead.
+      expect(settings.sandbox).toMatchObject({
+        autoAllowBashIfSandboxed: true,
+        enabled: true,
+        failIfUnavailable: true,
+      });
       const mcp = JSON.parse(start?.args[start.args.indexOf("--mcp-config") + 1] ?? "{}");
       expect(mcp.mcpServers.iskios.url).toMatch(/^http:\/\/127\.0\.0\.1:\d+\/mcp\/[0-9a-f]{48}$/);
       // Claude Code aborts a silent call after 300 seconds unless the server sets its own timeout.
@@ -148,38 +153,55 @@ describe("running Claude Code threads", () => {
     }).pipe(Effect.provide(layer));
   });
 
-  it.live("lets a sandboxed workspace thread reach the package registry and release downloads unasked", () => {
+  it.live("lets a sandboxed thread reach a broad allowlist of hosts unasked, which Claude Code accepts", () => {
     const { directory, layer, starts } = withClaude();
     const app = join(realpathSync(directory), "app");
     mkdirSync(app);
     return Effect.gen(function* () {
-      const started = yield* call({
-        _tag: "StartMission",
-        effort: "default",
-        model: "default",
-        requestId: "r1",
-        text: "Hi",
-        workspacePath: app,
-      });
-      yield* settle(started.missionId, idleWith(1));
-      const [start] = starts();
-      const settings = JSON.parse(start?.args[start.args.indexOf("--settings") + 1] ?? "{}");
-      expect(settings.sandbox).toMatchObject({ autoAllowBashIfSandboxed: true, enabled: true });
-      expect(settings.sandbox.network).toEqual({
-        allowedDomains: [
-          "registry.npmjs.org",
-          "github.com",
-          "objects.githubusercontent.com",
-          "release-assets.githubusercontent.com",
-        ],
-        allowLocalBinding: true,
-      });
-      expect(settings.sandbox.filesystem.allowWrite).toEqual([
-        "~/.bun/install/cache",
-        "~/Library/Caches/electron",
-        "~/.cache/electron",
-      ]);
-      expect(settings.env).toEqual({ NODE_USE_ENV_PROXY: "1" });
+      for (const workspacePath of [app, null]) {
+        const started = yield* call({
+          _tag: "StartMission",
+          effort: "default",
+          model: "default",
+          requestId: crypto.randomUUID(),
+          text: "Hi",
+          workspacePath,
+        });
+        yield* settle(started.missionId, idleWith(1));
+      }
+      for (const start of starts()) {
+        const settings = JSON.parse(start.args[start.args.indexOf("--settings") + 1] ?? "{}");
+        const { allowedDomains, allowLocalBinding } = settings.sandbox.network;
+        expect(allowLocalBinding).toBe(true);
+        expect(allowedDomains).toEqual(
+          expect.arrayContaining([
+            "registry.npmjs.org",
+            "github.com",
+            "*.github.com",
+            "*.githubusercontent.com",
+            "pypi.org",
+            "files.pythonhosted.org",
+            "crates.io",
+            "proxy.golang.org",
+            "cdn.jsdelivr.net",
+            "unpkg.com",
+          ]),
+        );
+        // Claude Code 2.1.322 refuses "*" and a bare top-level wildcard such as "*.com": a broad allowlist, not open egress.
+        for (const domain of allowedDomains as Array<string>) {
+          expect(
+            domain === "*" || /^\*\.[^.]+$/.test(domain) || domain.slice(domain.startsWith("*.") ? 2 : 0).includes("*"),
+            domain,
+          ).toBe(false);
+        }
+        expect(settings.sandbox.filesystem.allowWrite).toEqual([
+          "~/.bun/install/cache",
+          "~/.npm",
+          "~/Library/Caches/electron",
+          "~/.cache/electron",
+        ]);
+        expect(settings.env).toEqual({ NODE_USE_ENV_PROXY: "1" });
+      }
     }).pipe(Effect.provide(layer));
   });
 
@@ -456,7 +478,9 @@ describe("running Claude Code threads", () => {
       yield* settle(started.missionId, idleWith(1));
       const args = starts()[0]?.args.join(" ") ?? "";
       expect(args).toContain("--permission-mode default");
-      expect(args).not.toContain("sandbox");
+      const start = starts()[0];
+      const settings = JSON.parse(start?.args[start.args.indexOf("--settings") + 1] ?? "{}");
+      expect(settings.sandbox).toBeUndefined();
       const view = yield* call({ _tag: "ReadPermissions", missionId: null });
       expect(view.level).toBe("RiskyOnly");
     }).pipe(Effect.provide(layer));
@@ -584,6 +608,65 @@ describe("running Claude Code threads", () => {
       });
       yield* settle(off.missionId, idleWith(1));
       expect((yield* PubSub.takeAll(drafts)).filter((d) => d.text !== "")).toEqual([]);
+    }).pipe(Effect.provide(layer));
+  });
+});
+
+describe("network hosts asked about by a sandboxed Claude Code thread", () => {
+  const ask = (text: string) =>
+    call({ _tag: "StartMission", effort: "low", model: "haiku", requestId: "r1", text, workspacePath: null });
+  const lastReply = (detail: MissionDetail) => withoutNote(detail.messages.at(-1)?.text);
+  const inputLines = (directory: string): Array<{ type?: string; response?: unknown }> =>
+    readFileSync(join(directory, "input.jsonl"), "utf8")
+      .trim()
+      .split("\n")
+      .map((line) => JSON.parse(line));
+
+  it.live("allows a blocked host inside the sandbox, answering only that ask", () => {
+    const { directory, layer } = withClaude();
+    process.env.STAND_IN_INPUT = join(directory, "input.jsonl");
+    return Effect.gen(function* () {
+      const started = yield* ask("ask-net example.com");
+      const detail = yield* settle(started.missionId, idleWith(1));
+      expect(lastReply(detail)).toContain("answered allow");
+      const answer = inputLines(directory).find((line) => line.type === "control_response");
+      expect(answer?.response).toMatchObject({
+        request_id: "ask-1",
+        response: { behavior: "allow", updatedInput: { host: "example.com" } },
+        subtype: "success",
+      });
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("leaves a sandbox escape unanswered: the network allowance covers hosts only", () => {
+    const { directory, layer } = withClaude();
+    process.env.STAND_IN_INPUT = join(directory, "input.jsonl");
+    return Effect.gen(function* () {
+      const started = yield* ask("ask-bash-escape");
+      const detail = yield* settle(started.missionId, idleWith(1));
+      expect(lastReply(detail)).toContain("unanswered");
+      expect(inputLines(directory).some((line) => line.type === "control_response")).toBe(false);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("answers no host ask when the sandbox could not start", () => {
+    const { directory, layer } = withClaude({ sandboxProblem: "Sandbox unavailable: install bubblewrap." });
+    process.env.STAND_IN_INPUT = join(directory, "input.jsonl");
+    return Effect.gen(function* () {
+      const started = yield* ask("ask-net example.com");
+      const detail = yield* settle(started.missionId, idleWith(1));
+      expect(lastReply(detail)).toContain("unanswered");
+      expect(inputLines(directory).some((line) => line.type === "control_response")).toBe(false);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("answers no ask whose host is not one plain host name", () => {
+    const { directory, layer } = withClaude();
+    process.env.STAND_IN_INPUT = join(directory, "input.jsonl");
+    return Effect.gen(function* () {
+      const started = yield* ask("ask-net bad/host");
+      const detail = yield* settle(started.missionId, idleWith(1));
+      expect(lastReply(detail)).toContain("unanswered");
     }).pipe(Effect.provide(layer));
   });
 });
@@ -873,9 +956,8 @@ describe.runIf(process.env.ISKIOS_LIVE_CLAUDE === "1")("live Claude Code (uses a
           text: `Create the file ${outside} with the Bash command: touch ${outside}`,
           workspacePath: null,
         });
-        // The model may ask through request_approval, quote the owner's message, or go
-        // straight to the command, whose harness prompt then asks (CHG-0031); allow
-        // whatever opens until the turn ends.
+        // The model may ask through request_approval, or go straight to the command, whose escape from the sandbox
+        // then asks (CHG-0031, CHG-0208); allow whatever opens until the turn ends.
         const isSettled = (d: MissionDetail) => d.thread.state === "Idle" || d.thread.state === "Failed";
         let detail = yield* settleLong(started.missionId, (d) => isSettled(d) || d.thread.state === "Attention");
         for (let round = 0; round < 3 && !isSettled(detail); round++) {

@@ -1,19 +1,13 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
 import type { MissionDetail, MissionId, Question, Request, RequestTag, ResultOf } from "@iskios/contracts";
 import { Effect, Fiber, Layer, Option } from "effect";
 import { afterEach } from "vitest";
+import type { Containment } from "../../src/core/index.ts";
 import { fakeHarnessLayer, Service, serviceLayer } from "../../src/index.ts";
-import { isNamingQuote } from "../../src/policy/index.ts";
-import {
-  isSavablePattern,
-  matchesPattern,
-  savedPatternOf,
-  sensitivityOf,
-  targetOf,
-} from "../../src/policy/patterns.ts";
+import { isSavablePattern, matchesPattern, targetOf } from "../../src/policy/patterns.ts";
 import { Approvals } from "../../src/work/approvals.ts";
 
 const directories: string[] = [];
@@ -26,14 +20,16 @@ afterEach(() => {
   for (const directory of directories.splice(0)) rmSync(directory, { force: true, recursive: true });
 });
 
-const serviceOn = (filename: string) =>
+const serviceOn = (filename: string, containment: Containment = "Sandboxed") =>
   serviceLayer({
     filename,
-    harness: fakeHarnessLayer("10 millis"),
+    harness: fakeHarnessLayer("10 millis", containment),
     homeFolder: join(filename, ".."),
     scratchRoot: join(filename, "..", "missions"),
   });
 const live = () => serviceOn(databaseFile());
+/** A service whose harness runs with no enforced sandbox, as on a host where none can start. */
+const unprotected = () => serviceOn(databaseFile(), "Unprotected");
 
 const call = <R extends Request>(request: R) =>
   Effect.gen(function* () {
@@ -69,20 +65,18 @@ const openQuestion = (detail: MissionDetail) =>
 const push = {
   action: "Push today's commits to GitHub so the release can start",
   command: "git push origin main",
-  pattern: "git push *",
-  permission: "Push code to GitHub",
 };
 const ask = (request: object) => `ask ${JSON.stringify(request)}`;
 
 let requestCount = 0;
-const start = (text: string) =>
+const start = (text: string, workspacePath: string | null = null) =>
   call({
     _tag: "StartMission",
     effort: "default",
     model: "default",
     requestId: `start-${++requestCount}`,
     text,
-    workspacePath: null,
+    workspacePath,
   });
 const send = (threadId: ResultOf<"StartMission">["threadId"], text: string) =>
   call({ _tag: "SendMessage", delivery: null, requestId: `send-${++requestCount}`, text, threadId });
@@ -90,7 +84,7 @@ const send = (threadId: ResultOf<"StartMission">["threadId"], text: string) =>
 const answer = (question: Question, given: "Allow" | "AlwaysAllow" | "Deny", message: string | null = null) =>
   call({ _tag: "AnswerQuestion", answer: given, message, questionId: question.id });
 
-describe("asking before a sensitive action", () => {
+describe("asking before an action the thread judges consequential", () => {
   it.live("puts the thread in Attention with one open question, listed for the dashboard", () =>
     Effect.gen(function* () {
       const started = yield* start(ask(push));
@@ -101,8 +95,8 @@ describe("asking before a sensitive action", () => {
       expect(detail.questions).toHaveLength(1);
       expect(openQuestion(detail)).toMatchObject({
         details: "git push origin main",
-        pattern: "git push *",
-        permission: "Push code",
+        pattern: "git push origin main",
+        permission: "Run this exact command",
         source: "Thread",
         summary: push.action,
       });
@@ -113,15 +107,19 @@ describe("asking before a sensitive action", () => {
     }).pipe(Effect.provide(live())),
   );
 
-  it.live("names what Always allow saves after the sensitive list, and after the thread for actions it misses", () =>
+  it.live("names no kind from the command's words, and the escape capability only when asked for", () =>
     Effect.gen(function* () {
-      const recognized = yield* start(ask(push));
-      expect(openQuestion(yield* settle(recognized.missionId, isAsking)).permission).toBe("Push code");
-
-      const missed = yield* start(
+      const labelled = yield* start(
         ask({ action: "Rotate the staging token", command: "./rotate-token.sh staging", permission: "Rotate tokens" }),
       );
-      expect(openQuestion(yield* settle(missed.missionId, isAsking)).permission).toBe("Rotate tokens");
+      expect(openQuestion(yield* settle(labelled.missionId, isAsking)).permission).toBe("Run this exact command");
+
+      const leaving = yield* start(ask({ ...push, outsideSandbox: true }));
+      expect(openQuestion(yield* settle(leaving.missionId, isAsking))).toMatchObject({
+        details: "git push origin main",
+        permission: "Run outside the sandbox",
+        summary: `${push.action}. Run this exact command outside the sandbox.`,
+      });
     }).pipe(Effect.provide(live())),
   );
 
@@ -185,112 +183,114 @@ describe("asking before a sensitive action", () => {
   );
 });
 
-describe("actions named in the owner's message", () => {
-  it.live("allows an action whose quoted words appear in the owner's message, without a question", () =>
+describe("no grant from prose", () => {
+  it.live("asks even when the owner's message names the action and the thread quotes it", () =>
     Effect.gen(function* () {
       const started = yield* start(`Looks good, push it.\n${ask({ ...push, quote: "push it" })}`);
-      const detail = yield* settle(started.missionId, isReplied);
-      expect(lastReply(detail)).toContain("Allowed.");
-      expect(detail.questions[0]).toMatchObject({ message: '"push it"', outcome: "AllowedByMessage" });
+      const detail = yield* settle(started.missionId, (d) => isAsking(d) || isReplied(d));
+      expect(detail.questions[0]).toMatchObject({ details: push.command, outcome: null });
+      yield* answer(openQuestion(detail), "Allow");
+      expect(lastReply(yield* settle(started.missionId, isReplied))).toContain("Allowed.");
     }).pipe(Effect.provide(live())),
   );
 
-  it.live("asks when the quoted words are not in the owner's message", () =>
-    Effect.gen(function* () {
-      // The fake reads its script from the message, so the quote is escaped to keep it out of the owner's words.
-      const script = ask({ ...push, quote: "push it" }).replace('"push it"', '"push\\u0020it"');
-      const started = yield* start(`Check the build.\n${script}`);
-      const detail = yield* settle(started.missionId, isAsking);
-      expect(openQuestion(detail).outcome).toBeNull();
-    }).pipe(Effect.provide(live())),
-  );
-
-  it.live("asks when the owner's quoted words refuse the action", () =>
-    Effect.gen(function* () {
-      const script = ask({ ...push, quote: "push it" }).replace('"push it"', '"push\\u0020it"');
-      const started = yield* start(`Don't push it yet.\n${script}`);
-      const detail = yield* settle(started.missionId, isAsking);
-      expect(openQuestion(detail).outcome).toBeNull();
-    }).pipe(Effect.provide(live())),
-  );
-
-  it.live("asks when the quoted words do not name the action", () =>
-    Effect.gen(function* () {
-      const started = yield* start(`Fix it.\n${ask({ ...push, quote: "it" })}`);
-      const detail = yield* settle(started.missionId, isAsking);
-      expect(openQuestion(detail).outcome).toBeNull();
-    }).pipe(Effect.provide(live())),
-  );
-});
-
-describe("checking the owner's quoted words", () => {
-  const command = "git push origin main";
-
-  it("accepts words that appear in the owner's message and name the action", () => {
-    expect(isNamingQuote("Looks good, push it.", "push it", command)).toBe(true);
-    expect(isNamingQuote("Push it, but don't deploy.", "Push it", command)).toBe(true);
-    expect(isNamingQuote("Ship it!", "ship it", "bunx wrangler deploy")).toBe(true);
-    expect(isNamingQuote("Then send this to Alice.", "send this to Alice", "mail -s hi alice@example.com")).toBe(true);
-  });
-
-  it("refuses words missing from the message or found only inside a longer word", () => {
-    expect(isNamingQuote("Check the build.", "push it", command)).toBe(false);
-    expect(isNamingQuote("That was a pushover.", "push", command)).toBe(false);
-    expect(isNamingQuote("push it", "  ", command)).toBe(false);
-  });
-
-  it("refuses words the owner negated in the same sentence", () => {
-    for (const message of ["Don't push it.", "Please do not push it yet", "Never push it", "Ne push it pas"]) {
-      expect(isNamingQuote(message, "push it", command), message).toBe(false);
-    }
-    expect(isNamingQuote("No need to wait. Push it.", "push it", command)).toBe(true);
-  });
-
-  it("refuses words that name another kind of action, or no action at all", () => {
-    expect(isNamingQuote("Fix it.", "it", command)).toBe(false);
-    expect(isNamingQuote("Run the tests on main.", "Run the tests on main", command)).toBe(false);
-    expect(isNamingQuote("Push it.", "push it", "npm publish")).toBe(false);
-  });
-
-  it("accepts, for an action the sensitive list misses, words the command shares", () => {
-    expect(isNamingQuote("Rotate the staging token.", "Rotate the staging token", "./rotate-token.sh staging")).toBe(
-      true,
-    );
-    expect(isNamingQuote("Do it.", "Do it", "./rotate-token.sh staging")).toBe(false);
-  });
-});
-
-describe("harness permission prompts", () => {
-  const prompt = (command: string) => `prompt Bash ${JSON.stringify({ command, dangerouslyDisableSandbox: true })}`;
-
-  it.live("asks again when the action allowed in an earlier turn is prompted in a later one", () =>
-    Effect.gen(function* () {
-      const started = yield* start(ask(push));
-      yield* answer(openQuestion(yield* settle(started.missionId, isAsking)), "Allow");
-      yield* settle(started.missionId, isReplied);
-      yield* send(started.threadId, prompt("git push origin main"));
-      const later = yield* settle(started.missionId, (detail) => detail.questions.length === 2 && isAsking(detail));
-      expect(openQuestion(later)).toMatchObject({ details: "git push origin main", source: "Harness" });
-    }).pipe(Effect.provide(live())),
-  );
-
-  it.live("runs the prompt for the action just allowed once, and asks for a repeat", () =>
+  it.live("never lets a quote spare the question for a sandbox escape either", () =>
     Effect.gen(function* () {
       const started = yield* start(
-        `${ask(push)}\n${prompt("git push origin main")}\n${prompt("git push origin main")}`,
+        `Run it outside the sandbox.\n${ask({ ...push, outsideSandbox: true, quote: "Run it outside the sandbox" })}`,
       );
+      const detail = yield* settle(started.missionId, (d) => isAsking(d) || isReplied(d));
+      expect(detail.questions[0]).toMatchObject({ outcome: null, permission: "Run outside the sandbox" });
+    }).pipe(Effect.provide(live())),
+  );
+});
+
+describe("harness prompts inside and outside the sandbox", () => {
+  const prompt = (command: string, dangerouslyDisableSandbox = false) =>
+    `prompt Bash ${JSON.stringify({ command, dangerouslyDisableSandbox })}`;
+
+  it.live("runs a sandboxed command without any question, whatever it does, and leaves a line", () =>
+    Effect.gen(function* () {
+      const commands = ["git push origin main", "curl https://example.invalid/?data=1", "npm publish"];
+      const started = yield* start(commands.map((command) => prompt(command)).join("\n"));
+      const detail = yield* settle(started.missionId, isReplied);
+      expect(lastReply(detail)).toBe("Echo: prompt allowed | prompt allowed | prompt allowed");
+      expect(detail.questions.map((question) => [question.details, question.outcome])).toEqual(
+        commands.map((command) => [command, "AllowedAutomatically"]),
+      );
+    }).pipe(Effect.provide(live())),
+  );
+
+  it.live("asks before a local-looking command leaves the sandbox, naming the exact command and capability", () =>
+    Effect.gen(function* () {
+      const input = { command: "node local.js", dangerouslyDisableSandbox: true, description: "Run the local script" };
+      const started = yield* start(`prompt Bash ${JSON.stringify(input)}`);
+      const detail = yield* settle(started.missionId, isAsking);
+      expect(openQuestion(detail)).toMatchObject({
+        details: "node local.js",
+        pattern: "node local.js",
+        permission: "Run outside the sandbox",
+        source: "Harness",
+        summary:
+          "Run the local script. This runs outside the sandbox, with your full access to this computer's files and programs.",
+      });
+      yield* answer(openQuestion(detail), "Deny");
+      expect(lastReply(yield* settle(started.missionId, isReplied))).toContain("prompt denied");
+    }).pipe(Effect.provide(live())),
+  );
+
+  it.live("asks about every escape a harness flags, such as Codex's escalations", () =>
+    Effect.gen(function* () {
+      const started = yield* start(`escape Bash ${JSON.stringify({ command: "ls" })}`);
+      expect(openQuestion(yield* settle(started.missionId, isAsking))).toMatchObject({
+        details: "ls",
+        permission: "Run outside the sandbox",
+      });
+    }).pipe(Effect.provide(live())),
+  );
+
+  it.live("asks for every prompt, with its exact command, when no sandbox protects the harness", () =>
+    Effect.gen(function* () {
+      const started = yield* start(prompt("ls"));
+      expect(openQuestion(yield* settle(started.missionId, isAsking))).toMatchObject({
+        details: "ls",
+        pattern: "ls",
+        permission: "Run without a sandbox",
+        summary: "Run a command. No sandbox protects this computer here, so this runs with your full access.",
+      });
+    }).pipe(Effect.provide(unprotected())),
+  );
+
+  it.live("does not turn an action approval into an unasked sandbox escape", () =>
+    Effect.gen(function* () {
+      const started = yield* start(`${ask(push)}\n${prompt(push.command, true)}`);
+      yield* answer(openQuestion(yield* settle(started.missionId, isAsking)), "Allow");
+      const detail = yield* settle(started.missionId, (d) => d.questions.length === 2 || isReplied(d));
+      expect(detail.questions[1]).toMatchObject({ outcome: null, permission: "Run outside the sandbox" });
+    }).pipe(Effect.provide(live())),
+  );
+
+  it.live("runs the escape the owner just allowed once, and asks for a repeat or in a later turn", () =>
+    Effect.gen(function* () {
+      const askToLeave = ask({ ...push, outsideSandbox: true });
+      const started = yield* start(`${askToLeave}\n${prompt(push.command, true)}\n${prompt(push.command, true)}`);
       yield* answer(openQuestion(yield* settle(started.missionId, isAsking)), "Allow");
       const repeat = yield* settle(started.missionId, (detail) => detail.questions.length === 2 && isAsking(detail));
-      expect(openQuestion(repeat)).toMatchObject({ details: "git push origin main", source: "Harness" });
+      expect(openQuestion(repeat)).toMatchObject({ details: push.command, source: "Harness" });
       yield* answer(openQuestion(repeat), "Deny");
       const detail = yield* settle(started.missionId, isReplied);
       expect(lastReply(detail)).toContain("prompt allowed | prompt denied: ");
+
+      yield* send(started.threadId, prompt(push.command, true));
+      const later = yield* settle(started.missionId, (d) => d.questions.length === 3 && isAsking(d));
+      expect(openQuestion(later)).toMatchObject({ details: push.command, source: "Harness" });
     }).pipe(Effect.provide(live())),
   );
 
-  it.live("runs the action just allowed once when Codex prompts for it wrapped in a shell script", () =>
+  it.live("runs the escape just allowed once when Codex asks for it wrapped in a shell script", () =>
     Effect.gen(function* () {
-      const started = yield* start(`${ask(push)}\n${prompt("/bin/zsh -lc 'git push origin main'")}`);
+      const codexPrompt = `escape Bash ${JSON.stringify({ command: "/bin/zsh -lc 'git push origin main'" })}`;
+      const started = yield* start(`${ask({ ...push, outsideSandbox: true })}\n${codexPrompt}`);
       yield* answer(openQuestion(yield* settle(started.missionId, isAsking)), "Allow");
       const detail = yield* settle(started.missionId, isReplied);
       expect(lastReply(detail)).toContain("prompt allowed");
@@ -298,40 +298,12 @@ describe("harness permission prompts", () => {
     }).pipe(Effect.provide(live())),
   );
 
-  it.live("runs a prompt the sensitive list does not recognize without a question, and leaves a line", () =>
-    Effect.gen(function* () {
-      const listing = 'for f in src/*.js; do echo "=== $f"; cat -n $f; done';
-      const started = yield* start(prompt(listing));
-      const detail = yield* settle(started.missionId, isReplied);
-      expect(lastReply(detail)).toContain("prompt allowed");
-      expect(detail.questions).toMatchObject([
-        { details: listing, outcome: "AllowedAutomatically", source: "Harness" },
-      ]);
-    }).pipe(Effect.provide(live())),
-  );
-
-  it.live("turns a sensitive prompt into a question saying, in plain words, what it affects", () =>
-    Effect.gen(function* () {
-      const input = { command: "git push origin main", description: "Push the branch to GitHub" };
-      const started = yield* start(`prompt Bash ${JSON.stringify(input)}`);
-      const detail = yield* settle(started.missionId, isAsking);
-      expect(openQuestion(detail)).toMatchObject({
-        details: "git push origin main",
-        permission: "Push code",
-        source: "Harness",
-        summary:
-          "Push the branch to GitHub. This sends your commits off this computer, where everyone with access to the repository can see them.",
-      });
-      yield* answer(openQuestion(detail), "Allow");
-      expect(lastReply(yield* settle(started.missionId, isReplied))).toContain("prompt allowed");
-    }).pipe(Effect.provide(live())),
-  );
-
   it.live("answers Claude Code's permission prompt tool in its own format, allowing or denying", () =>
     Effect.gen(function* () {
-      const promptTool = (command: string) =>
-        `call answer_prompt ${JSON.stringify({ input: { command }, tool_name: "Bash" })}`;
-      const started = yield* start(`${promptTool("ls")}\n${promptTool("git push origin main")}`);
+      const promptTool = (input: object) => `call answer_prompt ${JSON.stringify({ input, tool_name: "Bash" })}`;
+      const started = yield* start(
+        `${promptTool({ command: "ls" })}\n${promptTool({ command: "ls", dangerouslyDisableSandbox: true })}`,
+      );
       yield* answer(openQuestion(yield* settle(started.missionId, isAsking)), "Deny");
       const detail = yield* settle(started.missionId, isReplied);
       expect(lastReply(detail)).toContain('{"behavior":"allow","updatedInput":{"command":"ls"}}');
@@ -339,57 +311,56 @@ describe("harness permission prompts", () => {
     }).pipe(Effect.provide(live())),
   );
 
-  it.live("names the kind of action when Claude Code gives no reason", () =>
+  it.live("changes a file inside the thread's folder unasked and asks about one outside it", () =>
     Effect.gen(function* () {
-      const started = yield* start(prompt("rm -rf ~/Documents/old"));
-      const detail = yield* settle(started.missionId, isAsking);
-      expect(openQuestion(detail).summary).toBe(
-        "Delete files outside the workspace. They do not go to the Trash and cannot be recovered.",
-      );
+      const inside = yield* start(`prompt Edit ${JSON.stringify({ file_path: "notes/plan.md" })}`);
+      expect((yield* settle(inside.missionId, isReplied)).questions.map((q) => q.outcome)).toEqual([
+        "AllowedAutomatically",
+      ]);
+      for (const file_path of ["../elsewhere/plan.md", "plan.md, /etc/hosts"]) {
+        const outside = yield* start(`prompt Edit ${JSON.stringify({ file_path })}`);
+        expect(openQuestion(yield* settle(outside.missionId, isAsking))).toMatchObject({
+          permission: "Change a file outside the workspace",
+        });
+      }
     }).pipe(Effect.provide(live())),
   );
 
-  it.live("runs local git unasked at the default level, and asks for every prompt at the stricter level", () =>
-    Effect.gen(function* () {
-      const commit = prompt(`git add hello.txt && git commit -m "Add hello"`);
-      const quiet = yield* start(commit);
-      const detail = yield* settle(quiet.missionId, isReplied);
-      expect(detail.questions.map((question) => question.outcome)).toEqual(["AllowedAutomatically"]);
-      expect(lastReply(detail)).toContain("prompt allowed");
-
-      const settings = yield* call({ _tag: "ReadSettings" });
-      yield* call({ _tag: "UpdateSettings", settings: { ...settings, approvalLevel: "CommandsAndEdits" } });
-      const strict = yield* start(commit);
-      expect(openQuestion(yield* settle(strict.missionId, isAsking)).source).toBe("Harness");
-    }).pipe(Effect.provide(live())),
-  );
-
-  it.live("asks about a change inside the thread's folder at the stricter level as an ordinary change", () =>
+  it.live("asks for every prompt at the stricter level, inside the sandbox too", () =>
     Effect.gen(function* () {
       const settings = yield* call({ _tag: "ReadSettings" });
       yield* call({ _tag: "UpdateSettings", settings: { ...settings, approvalLevel: "CommandsAndEdits" } });
+      const commit = yield* start(prompt(`git add hello.txt && git commit -m "Add hello"`));
+      expect(openQuestion(yield* settle(commit.missionId, isAsking))).toMatchObject({
+        permission: "Run a command",
+        source: "Harness",
+      });
       const inside = yield* start(`prompt Edit ${JSON.stringify({ file_path: "notes/plan.md" })}`);
       expect(openQuestion(yield* settle(inside.missionId, isAsking))).toMatchObject({
-        permission: null,
+        permission: "Change a file",
         summary: "Change a file.",
-      });
-      const outside = yield* start(`prompt Edit ${JSON.stringify({ file_path: "../elsewhere/plan.md" })}`);
-      expect(openQuestion(yield* settle(outside.missionId, isAsking))).toMatchObject({
-        permission: "Change a file outside the workspace",
-      });
-      const several = yield* start(`prompt Edit ${JSON.stringify({ file_path: "plan.md, /etc/hosts" })}`);
-      expect(openQuestion(yield* settle(several.missionId, isAsking))).toMatchObject({
-        permission: "Change a file outside the workspace",
-      });
-      const secret = yield* start(`prompt Edit ${JSON.stringify({ file_path: ".ssh/id_rsa" })}`);
-      expect(openQuestion(yield* settle(secret.missionId, isAsking))).toMatchObject({
-        permission: "Read passwords or keys",
       });
     }).pipe(Effect.provide(live())),
   );
 });
 
 describe("standing permissions", () => {
+  it.live("saves only the exact target even when the agent proposes a wildcard", () =>
+    Effect.gen(function* () {
+      const first = yield* start(ask({ ...push, pattern: "git push *" }));
+      yield* answer(openQuestion(yield* settle(first.missionId, isAsking)), "AlwaysAllow");
+      yield* settle(first.missionId, isReplied);
+      const view = yield* call({ _tag: "ReadPermissions", missionId: null });
+      expect(view.permissions[0]).toMatchObject({
+        pattern: "git push origin main",
+        sentence: "Run this exact command",
+      });
+      yield* send(first.threadId, ask({ ...push, command: "git push evil other" }));
+      const next = yield* settle(first.missionId, (d) => isAsking(d) || (d.questions.length === 2 && isReplied(d)));
+      expect(next.questions[1]?.outcome).toBeNull();
+    }).pipe(Effect.provide(live())),
+  );
+
   it.live(
     "Always allow spares later matching actions in the mission, asks elsewhere, and asks again once removed",
     () =>
@@ -400,15 +371,14 @@ describe("standing permissions", () => {
 
         const view = yield* call({ _tag: "ReadPermissions", missionId: null });
         expect(view.permissions).toHaveLength(1);
-        expect(view.permissions[0]).toMatchObject({
-          missionId: first.missionId,
-          pattern: "git push *",
-          sentence: "Push code",
-        });
+        expect(view.permissions[0]).toMatchObject({ missionId: first.missionId, pattern: "git push origin main" });
 
-        yield* send(first.threadId, ask({ ...push, command: "git push origin feature" }));
+        yield* send(first.threadId, ask(push));
         const spared = yield* settle(first.missionId, (detail) => detail.questions.length === 2 && isReplied(detail));
-        expect(spared.questions[1]).toMatchObject({ message: "Push code", outcome: "AllowedByPermission" });
+        expect(spared.questions[1]).toMatchObject({
+          message: "Run this exact command",
+          outcome: "AllowedByPermission",
+        });
 
         const other = yield* start(ask(push));
         const asking = yield* settle(other.missionId, isAsking);
@@ -428,45 +398,29 @@ describe("standing permissions", () => {
       }).pipe(Effect.provide(live())),
   );
 
-  it.live("shows in the question the pattern Always allow will save, not one that does not cover the action", () =>
+  it.live("never lets a permission for an ordinary action cover an escape with the same command", () =>
     Effect.gen(function* () {
-      const started = yield* start(ask({ ...push, pattern: "npm publish *" }));
-      expect(openQuestion(yield* settle(started.missionId, isAsking)).pattern).toBe("git push origin main");
-    }).pipe(Effect.provide(live())),
-  );
-
-  it.live("never lets a broad pattern saved for one kind of action cover another kind", () =>
-    Effect.gen(function* () {
-      const started = yield* start(ask({ ...push, pattern: "gi*" }));
+      const build = { action: "Build the app", command: "node build.js" };
+      const started = yield* start(ask(build));
       yield* answer(openQuestion(yield* settle(started.missionId, isAsking)), "AlwaysAllow");
       yield* settle(started.missionId, isReplied);
 
-      yield* send(started.threadId, ask({ ...push, command: "git push origin feature" }));
-      const pushed = yield* settle(started.missionId, (detail) => detail.questions.length === 2 && isReplied(detail));
-      expect(pushed.questions[1]?.outcome).toBe("AllowedByPermission");
-
-      const reset = { action: "Drop the last commit", command: "git reset --hard HEAD~1" };
-      yield* send(started.threadId, ask(reset));
+      yield* send(started.threadId, `prompt Bash ${JSON.stringify({ ...build, dangerouslyDisableSandbox: true })}`);
       const asking = yield* settle(started.missionId, isAsking);
-      expect(openQuestion(asking)).toMatchObject({ details: reset.command, permission: "Discard work" });
+      expect(openQuestion(asking)).toMatchObject({ details: "node build.js", permission: "Run outside the sandbox" });
     }).pipe(Effect.provide(live())),
   );
 
-  it.live("never lets a pattern saved for an action the sensitive list misses cover a sensitive one", () =>
+  it.live("lets the owner allow one exact escape always, which spares only that escape", () =>
     Effect.gen(function* () {
-      const script = {
-        action: "Run the staging script",
-        command: "./staging.sh",
-        pattern: "./*",
-        permission: "Run staging scripts",
-      };
-      const started = yield* start(ask(script));
+      const leave = (command: string) => `prompt Bash ${JSON.stringify({ command, dangerouslyDisableSandbox: true })}`;
+      const started = yield* start(leave("./setup-hooks.sh"));
       yield* answer(openQuestion(yield* settle(started.missionId, isAsking)), "AlwaysAllow");
       yield* settle(started.missionId, isReplied);
-
-      yield* send(started.threadId, `prompt Bash ${JSON.stringify({ command: "./git push origin main" })}`);
-      const asking = yield* settle(started.missionId, isAsking);
-      expect(openQuestion(asking)).toMatchObject({ details: "./git push origin main", permission: "Push code" });
+      yield* send(started.threadId, `${leave("./setup-hooks.sh")}\n${leave("./setup-hooks.sh --force")}`);
+      const next = yield* settle(started.missionId, (d) => d.questions.length === 3 && isAsking(d));
+      expect(next.questions[1]?.outcome).toBe("AllowedByPermission");
+      expect(openQuestion(next).details).toBe("./setup-hooks.sh --force");
     }).pipe(Effect.provide(live())),
   );
 
@@ -487,7 +441,102 @@ describe("standing permissions", () => {
   );
 });
 
+describe("a thread folder that is a link", () => {
+  /** The fake harness's folder question, as Claude Code and Codex ask it before starting in a linked folder. */
+  const folder = (file_path: string, startsIn: string | null = null) =>
+    `folder Claude ${JSON.stringify({ description: `The folder ${file_path} points elsewhere`, file_path, startsIn })}`;
+
+  it.live("asks a one-time question that offers no standing permission and refuses Always allow", () =>
+    Effect.gen(function* () {
+      const started = yield* start(folder("/somewhere/linked"));
+      const asked = openQuestion(yield* settle(started.missionId, isAsking));
+      expect(asked).toMatchObject({ pattern: null, permission: null, source: "Harness" });
+      expect(asked.summary).toContain("/somewhere/linked");
+      const refused = yield* failureOf({
+        _tag: "AnswerQuestion",
+        answer: "AlwaysAllow",
+        message: null,
+        questionId: asked.id,
+      });
+      expect(refused.message).toContain("one-time");
+      expect((yield* call({ _tag: "ReadPermissions", missionId: null })).permissions).toEqual([]);
+      yield* answer(asked, "Allow");
+      expect(lastReply(yield* settle(started.missionId, isReplied))).toBe("Echo: prompt allowed");
+      expect((yield* call({ _tag: "ReadPermissions", missionId: null })).permissions).toEqual([]);
+    }).pipe(Effect.provide(live())),
+  );
+
+  it.live("never lets an earlier standing permission answer it", () =>
+    Effect.gen(function* () {
+      // A row as the earlier OpenCode folder question saved it: "Run without a sandbox" for the folder.
+      const linked = "/somewhere/linked";
+      const first = yield* start(`prompt OpenCode ${JSON.stringify({ file_path: linked })}`);
+      yield* answer(openQuestion(yield* settle(first.missionId, isAsking)), "AlwaysAllow");
+      yield* settle(first.missionId, isReplied);
+      expect((yield* call({ _tag: "ReadPermissions", missionId: null })).permissions).toHaveLength(1);
+      yield* send(first.threadId, folder(linked));
+      const asking = yield* settle(first.missionId, (d) => d.questions.length === 2 && isAsking(d));
+      expect(openQuestion(asking)).toMatchObject({ outcome: null, pattern: null, permission: null });
+    }).pipe(Effect.provide(unprotected())),
+  );
+
+  /** A service whose browsable root holds a workspace folder and a folder outside it, both real paths. */
+  const withWorkspace = () => {
+    const filename = databaseFile();
+    const base = realpathSync(join(filename, ".."));
+    const workspace = join(base, "workspace");
+    const elsewhere = join(base, "elsewhere");
+    mkdirSync(workspace);
+    mkdirSync(elsewhere);
+    return { elsewhere, layer: serviceOn(filename), workspace };
+  };
+  const edit = (file_path: string) => `prompt Edit ${JSON.stringify({ file_path })}`;
+
+  it.live("counts a file in the link's target as outside the thread's folder", () => {
+    const { elsewhere, layer, workspace } = withWorkspace();
+    return Effect.gen(function* () {
+      const started = yield* start("hello", workspace);
+      yield* settle(started.missionId, isReplied);
+      rmSync(workspace, { recursive: true });
+      symlinkSync(elsewhere, workspace);
+      for (const file of [join(elsewhere, "plan.md"), join(workspace, "plan.md")]) {
+        yield* send(started.threadId, edit(file));
+        const asking = yield* settle(started.missionId, isAsking);
+        expect(openQuestion(asking)).toMatchObject({ permission: "Change a file outside the workspace" });
+        yield* answer(openQuestion(asking), "Deny");
+        yield* settle(started.missionId, isReplied);
+      }
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("counts a file in the link's target as inside once the owner allowed the start there", () => {
+    const { elsewhere, layer, workspace } = withWorkspace();
+    return Effect.gen(function* () {
+      const started = yield* start("hello", workspace);
+      yield* settle(started.missionId, isReplied);
+      rmSync(workspace, { recursive: true });
+      symlinkSync(elsewhere, workspace);
+      yield* send(started.threadId, `${folder(workspace, elsewhere)}\n${edit(join(elsewhere, "plan.md"))}`);
+      yield* answer(openQuestion(yield* settle(started.missionId, isAsking)), "Allow");
+      const detail = yield* settle(started.missionId, isReplied);
+      expect(lastReply(detail)).toBe("Echo: prompt allowed | prompt allowed");
+      expect(detail.questions.at(-1)?.outcome).toBe("AllowedAutomatically");
+      // Pointed elsewhere again, the earlier answer no longer counts.
+      const other = join(elsewhere, "..", "other");
+      mkdirSync(other);
+      rmSync(workspace);
+      symlinkSync(other, workspace);
+      yield* send(started.threadId, edit(join(other, "plan.md")));
+      expect(openQuestion(yield* settle(started.missionId, isAsking))).toMatchObject({
+        permission: "Change a file outside the workspace",
+      });
+    }).pipe(Effect.provide(layer));
+  });
+});
+
 describe("withdrawing questions", () => {
+  const escapeInput = { command: "git push origin feature", dangerouslyDisableSandbox: true };
+
   it.live("Stop withdraws the open question and marks the thread Stopped", () =>
     Effect.gen(function* () {
       const started = yield* start(ask(push));
@@ -500,16 +549,18 @@ describe("withdrawing questions", () => {
     }).pipe(Effect.provide(live())),
   );
 
-  it.live("opens no question for a prompt that arrives after Stop, while the harness is still exiting", () =>
+  it.live("allows nothing for a prompt that arrives after Stop, while the harness is still exiting", () =>
     Effect.gen(function* () {
       const started = yield* start(ask(push));
       yield* settle(started.missionId, isAsking);
       yield* call({ _tag: "StopThread", threadId: started.threadId });
       const approvals = yield* Approvals;
-      const late = yield* approvals
-        .answerPrompt(started.threadId, "Bash", { command: "git push origin feature" })
-        .pipe(Effect.timeoutOption("1 second"));
-      expect(Option.getOrThrow(late).isAllowed).toBe(false);
+      for (const input of [escapeInput, { command: "ls" }]) {
+        const late = yield* approvals
+          .answerPrompt(started.threadId, "Bash", input)
+          .pipe(Effect.timeoutOption("1 second"));
+        expect(Option.getOrThrow(late).isAllowed).toBe(false);
+      }
       expect(yield* call({ _tag: "ListOpenQuestions" })).toEqual([]);
       expect((yield* read(started.missionId)).thread.state).toBe("Stopped");
     }).pipe(Effect.provide(live())),
@@ -520,9 +571,7 @@ describe("withdrawing questions", () => {
       const started = yield* start(ask(push));
       yield* settle(started.missionId, isAsking);
       const approvals = yield* Approvals;
-      const call = yield* approvals
-        .answerPrompt(started.threadId, "Bash", { command: "git push origin feature" })
-        .pipe(Effect.forkChild);
+      const call = yield* approvals.answerPrompt(started.threadId, "Bash", escapeInput).pipe(Effect.forkChild);
       yield* settle(started.missionId, (detail) => detail.questions.length === 2);
       yield* Fiber.interrupt(call);
       const detail = yield* read(started.missionId);
@@ -562,10 +611,9 @@ describe("command patterns", () => {
     expect(matchesPattern("git push *", "git push $(curl evil)")).toBe(false);
   });
 
-  it("refuses patterns without a literal start and saves the exact target instead", () => {
+  it("refuses patterns without a literal start", () => {
     expect(isSavablePattern("*")).toBe(false);
-    expect(savedPatternOf("*", "git push origin main")).toBe("git push origin main");
-    expect(savedPatternOf("npm publish *", "git push origin main")).toBe("git push origin main");
+    expect(matchesPattern("*", "git push origin main")).toBe(false);
   });
 
   it("names a harness target by its command, file, or address", () => {
@@ -580,114 +628,5 @@ describe("command patterns", () => {
     expect(targetOf("Bash", { command: "zsh -lc 'a' ; rm -rf ~ ; echo 'b'" })).toBe(
       "zsh -lc 'a' ; rm -rf ~ ; echo 'b'",
     );
-  });
-});
-
-describe("recognizing sensitive actions", () => {
-  const kindOf = (command: string) => sensitivityOf("Bash", { command })?.permission ?? null;
-
-  it("recognizes actions that leave the computer or cannot be undone", () => {
-    const cases: ReadonlyArray<readonly [string, string]> = [
-      ["git push origin main", "Push code"],
-      ["git -c user.name=x push --force", "Push code"],
-      ["cd app && git push", "Push code"],
-      ["npm publish", "Publish"],
-      ["bun publish --access public", "Publish"],
-      ["cargo publish", "Publish"],
-      ["docker push me/app", "Publish"],
-      ["gh release create v1.0.0", "Publish"],
-      ["wrangler deploy", "Deploy"],
-      ["bunx wrangler deploy", "Deploy"],
-      ["vercel --prod", "Deploy"],
-      ["terraform apply", "Deploy"],
-      ["kubectl delete pod web", "Deploy"],
-      ["gh pr create --fill", "Post on GitHub"],
-      ["gh issue comment 3 --body hi", "Post on GitHub"],
-      ["gh api -X POST repos/x/y/issues", "Post on GitHub"],
-      ["mail -s hi alice@example.com < note.txt", "Send a message"],
-      ["osascript -e 'tell app \"Messages\" to send'", "Send a message"],
-      ["curl -X POST https://api.example.com/orders", "Send data to a website"],
-      ["curl -d 'a=1' https://example.com/form", "Send data to a website"],
-      ["curl --upload-file report.pdf https://example.com", "Send data to a website"],
-      ["ssh server.example.com uptime", "Connect to another computer"],
-      ["scp build.zip me@host:/srv", "Connect to another computer"],
-      ["rm -rf ~/Documents/old", "Delete files outside the workspace"],
-      ["rm /etc/hosts", "Delete files outside the workspace"],
-      ["rm -r ../sibling", "Delete files outside the workspace"],
-      ["rm -rf .git", "Discard work"],
-      ["git reset --hard", "Discard work"],
-      ["git clean -fd", "Discard work"],
-      ["git checkout -- hello.txt", "Discard work"],
-      ["git restore hello.txt", "Discard work"],
-      ["git stash drop", "Discard work"],
-      ["git branch -D feature", "Discard work"],
-      ["git switch --discard-changes main", "Discard work"],
-      ["sudo rm /tmp/x", "Change this computer's system"],
-      ["defaults write com.apple.dock autohide -bool true", "Change this computer's system"],
-      ["brew install ffmpeg", "Change this computer's system"],
-      ["npm install -g typescript", "Change this computer's system"],
-      ["crontab -e", "Change this computer's system"],
-      ["cat ~/.ssh/id_ed25519", "Read passwords or keys"],
-      ["cat ~/.aws/credentials", "Read passwords or keys"],
-      ["security find-generic-password -s github", "Read passwords or keys"],
-      ["gh auth token", "Read passwords or keys"],
-    ];
-    for (const [command, kind] of cases) expect(kindOf(command), command).toBe(kind);
-  });
-
-  it("recognizes a sensitive command wrapped in a shell, an environment, or a launcher", () => {
-    const cases: ReadonlyArray<readonly [string, string]> = [
-      ["bash -lc 'git push origin main'", "Push code"],
-      ['/bin/zsh -lc "git push"', "Push code"],
-      ["sh -c 'cd app && npm publish'", "Publish"],
-      ["env GIT_SSH_COMMAND=ssh git push", "Push code"],
-      ["NODE_ENV=production bunx wrangler deploy", "Deploy"],
-      ["command git push", "Push code"],
-      ["time git push --force", "Push code"],
-      ["nohup terraform apply", "Deploy"],
-      ["exec /usr/bin/git push", "Push code"],
-      ["nice -n 10 rm -rf ~/old", "Delete files outside the workspace"],
-      ["eval 'git reset --hard'", "Discard work"],
-    ];
-    for (const [command, kind] of cases) expect(kindOf(command), command).toBe(kind);
-  });
-
-  it("lets ordinary work run: reading, building, testing, installing, and local git", () => {
-    for (const command of [
-      'for f in controllers/*.js; do echo "=== $f"; cat -n $f; done; ls images node_modules 2>&1 | head -5',
-      "bun install",
-      "bun run test",
-      "npm install",
-      "bun add effect",
-      "git init",
-      'git add . && git commit -m "Add hello"',
-      "git switch -c feature",
-      "git fetch origin",
-      "git pull",
-      "git log --oneline | head",
-      "curl https://example.com",
-      "rm -rf node_modules dist",
-      "rm build/output.txt",
-      "ls ~/Downloads",
-      "echo pushed",
-      "bash -lc 'bun run test'",
-      "env CI=1 bun test",
-      "time bun run build",
-      "",
-    ]) {
-      expect(kindOf(command), command).toBeNull();
-    }
-  });
-
-  it("treats a file change outside the workspace as a system change and a key file as a secret", () => {
-    expect(sensitivityOf("Write", { file_path: "/Users/me/.zshrc" })?.permission).toBe(
-      "Change a file outside the workspace",
-    );
-    expect(sensitivityOf("Edit", { file_path: "/Users/me/.ssh/config" })?.permission).toBe("Read passwords or keys");
-    expect(sensitivityOf("Read", { file_path: "/Users/me/.aws/credentials" })?.permission).toBe(
-      "Read passwords or keys",
-    );
-    expect(sensitivityOf("Read", { file_path: "/Users/me/Downloads/notes.txt" })).toBeNull();
-    expect(sensitivityOf("WebFetch", { url: "https://example.com" })).toBeNull();
   });
 });

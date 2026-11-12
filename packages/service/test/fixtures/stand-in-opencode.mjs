@@ -4,15 +4,70 @@
 // A prompt's text decides what it does: "run <command>" or "edit <path>" asks permission for that command or
 // file change first and says which option was chosen; "slow <millis>" keeps the turn running; anything else
 // is echoed. "fragile run <command>" asks the same way, then hangs on the next prompt and exits when cancelled,
-// as a process that dies during an interrupt.
-import { appendFileSync } from "node:fs";
+// as a process that dies during an interrupt. "write <path>" asks to run a command, then writes the file as that
+// command would, and says whether the write went through (as inside Iskios's sandbox). STAND_IN_OPENCODE_CHILD starts
+// a child in its own process group, as OpenCode's `serve` does, and logs its pid as { grandchild }. `acp` starts its own
+// `serve --stdio --port 0` child as the executor of OpenCode 2.2.0 does (probed 2026-11-12), and logs its pid as
+// { executor }, unless STAND_IN_OPENCODE_EXECUTOR is "none" (an `acp` that served from a process outside its own tree).
+// That executor ends when its parent does; STAND_IN_OPENCODE_EXECUTOR "survivor" makes it outlive its parent, in a
+// process group of its own, as an orphan `serve` did on 2026-11-12 (a check using it must end it itself).
+// `auth export`, `auth import` and `auth logout <integration> <id>` act on a `credential` table in
+// $XDG_DATA_HOME/opencode/opencode.db, as OpenCode 2.2.0 does (probed 2026-11-12): an import skips an id already
+// present, and each logs { auth, data } instead of a process start. `session/new` names its session `ses-<pid>`;
+// STAND_IN_OPENCODE_MISSING_SESSIONS makes `session/load` fail for the sessions it lists.
+import { spawn } from "node:child_process";
+import { appendFileSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { createServer } from "node:http";
-import { resolve } from "node:path";
+import { join, resolve } from "node:path";
 import { createInterface } from "node:readline";
+import { DatabaseSync } from "node:sqlite";
 
 const log = (entry) => {
   if (process.env.STAND_IN_LOG) appendFileSync(process.env.STAND_IN_LOG, `${JSON.stringify(entry)}\n`);
 };
+
+const authCommand = process.argv[2] === "auth" ? process.argv[3] : undefined;
+if (authCommand !== undefined) {
+  const data = process.env.XDG_DATA_HOME;
+  // Never the computer's own folder: a check names its folders.
+  if (data === undefined) process.exit(2);
+  mkdirSync(join(data, "opencode"), { recursive: true });
+  const database = new DatabaseSync(join(data, "opencode", "opencode.db"));
+  database.exec(
+    "CREATE TABLE IF NOT EXISTS credential (id TEXT PRIMARY KEY, integration_id TEXT, label TEXT NOT NULL, value TEXT NOT NULL, active INTEGER)",
+  );
+  log({ auth: authCommand, data });
+  if (authCommand === "export") {
+    const rows = database.prepare("SELECT id, integration_id, label, value, active FROM credential ORDER BY id").all();
+    process.stdout.write(
+      JSON.stringify(
+        rows.map((row) => ({
+          active: row.active === 1,
+          id: row.id,
+          integrationID: row.integration_id,
+          label: row.label,
+          value: JSON.parse(row.value),
+        })),
+        null,
+        2,
+      ),
+    );
+  } else if (authCommand === "import") {
+    const entries = JSON.parse(readFileSync(0, "utf8"));
+    const insert = database.prepare(
+      "INSERT OR IGNORE INTO credential (id, integration_id, label, value, active) VALUES (?, ?, ?, ?, ?)",
+    );
+    for (const entry of entries)
+      insert.run(entry.id, entry.integrationID, entry.label, JSON.stringify(entry.value), entry.active ? 1 : 0);
+    process.stdout.write(`Imported ${entries.length} credentials\n`);
+  } else if (authCommand === "logout") {
+    const [integration, id] = process.argv.slice(4).filter((arg) => !arg.startsWith("--"));
+    database.prepare("DELETE FROM credential WHERE integration_id = ? AND id = ?").run(integration, id);
+  } else process.exit(1);
+  database.close();
+  process.exit(0);
+}
+
 log({
   args: process.argv.slice(2),
   config: JSON.parse(process.env.OPENCODE_CONFIG_CONTENT ?? "null"),
@@ -20,7 +75,37 @@ log({
   env: Object.keys(process.env).filter((key) => key.startsWith("ISKIOS_")),
   home: process.env.XDG_DATA_HOME ?? null,
   pid: process.pid,
+  xdg: {
+    cache: process.env.XDG_CACHE_HOME ?? null,
+    config: process.env.XDG_CONFIG_HOME ?? null,
+    data: process.env.XDG_DATA_HOME ?? null,
+    state: process.env.XDG_STATE_HOME ?? null,
+    tmp: process.env.TMPDIR ?? null,
+  },
 });
+if (process.env.STAND_IN_OPENCODE_EXECUTOR !== "none" && process.argv.includes("acp")) {
+  const isSurvivor = process.env.STAND_IN_OPENCODE_EXECUTOR === "survivor";
+  // It ends when its parent does, so a stand-in killed without its tree leaves nothing behind; a survivor does not.
+  const executor = spawn(
+    process.execPath,
+    [
+      "-e",
+      isSurvivor
+        ? "setInterval(() => {}, 1000)"
+        : `const parent = ${process.pid}; setInterval(() => process.ppid !== parent && process.exit(), 300)`,
+      "serve",
+      "--stdio",
+      "--port",
+      "0",
+    ],
+    { detached: isSurvivor, stdio: "ignore" },
+  );
+  log({ executor: executor.pid });
+}
+if (process.env.STAND_IN_OPENCODE_CHILD && process.argv.includes("acp")) {
+  const child = spawn(process.execPath, ["-e", "setInterval(() => {}, 1000)"], { detached: true, stdio: "ignore" });
+  log({ grandchild: child.pid });
+}
 
 // `serve`: OpenCode's local API, shaped after OpenCode 2.2.0 (probed 2026-11-12). It answers only
 // `/api/experimental/usage/limits`, behind basic authentication with OPENCODE_SERVER_PASSWORD, and logs each read as
@@ -122,6 +207,27 @@ const runPrompt = async (prompt, text) => {
   }
   const run = /^run (.+)$/.exec(text);
   if (run !== null) return askPermission(prompt, run[1], { kind: "execute", rawInput: { command: run[1] } });
+  const write = /^write (.+)$/.exec(text);
+  if (write !== null) {
+    const command = `touch ${write[1]}`;
+    update(prompt.sessionId, { kind: "execute", sessionUpdate: "tool_call", status: "pending", toolCallId: "call-1" });
+    const answer = await ask("session/request_permission", {
+      options: [
+        { kind: "allow_once", name: "Allow once", optionId: "once" },
+        { kind: "reject_once", name: "Reject", optionId: "reject" },
+      ],
+      sessionId: prompt.sessionId,
+      toolCall: { kind: "execute", rawInput: { command }, title: command, toolCallId: "call-1" },
+    });
+    if (answer.outcome.optionId === "reject") return finish("cancelled", null);
+    let result = "written";
+    try {
+      writeFileSync(write[1], "x");
+    } catch (error) {
+      result = error.code;
+    }
+    return finish("end_turn", `${write[1]}: ${result}`);
+  }
   // "edit <path>" asks to change that file as OpenCode's edit tool did live on 2026-11-08: the input keeps the
   // path as the model wrote it, and the locations and diff carry it resolved against the folder.
   const edit = /^edit (.+)$/.exec(text);
@@ -153,6 +259,10 @@ createInterface({ input: process.stdin }).on("line", (line) => {
     return send({ id, result: { agentCapabilities: { loadSession: true }, protocolVersion: 1 } });
   if (method === "session/new") return send({ id, result: { sessionId: `ses-${process.pid}` } });
   if (method === "session/load") {
+    // A session listed in STAND_IN_OPENCODE_MISSING_SESSIONS (comma-separated ids) is not in this data folder, as an
+    // earlier session kept in the real folder is not in the sandbox's copy: loading it fails.
+    if ((process.env.STAND_IN_OPENCODE_MISSING_SESSIONS ?? "").split(",").includes(params.sessionId))
+      return send({ error: { code: -32603, message: `Session not found: ${params.sessionId}` }, id });
     // Loading replays the conversation before answering, as OpenCode does.
     update(params.sessionId, { content: { text: "old reply", type: "text" }, sessionUpdate: "agent_message_chunk" });
     return send({ id, result: {} });

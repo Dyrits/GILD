@@ -2,11 +2,13 @@ import { Settings } from "@iskios/contracts";
 import { Effect, Schema } from "effect";
 import { readSettings, type ToolAnswer, writeSettings } from "../core/index.ts";
 import { changed, unchanged, type WithFollowUps } from "./commands.ts";
-import { isGuildmasterThread, isQuotedByOwner } from "./guildmaster.ts";
+import { isGuildmasterThread } from "./guildmaster.ts";
+import { consumeReceipt, isStructuralCaller, notAuthorizedText } from "./guildmasterProvenance.ts";
 import type { ArgumentsOf } from "./threadTools.ts";
 
-// Iskios's settings tools (quest coordination, CHG-0193): it reads the owner's settings, and changes one at the owner's
-// request, which their own quoted words prove. Only Iskios calls them, and never on its own.
+// Iskios's settings tools (quest coordination, CHG-0193): it reads the owner's settings, and changes one once the exact
+// change is authorized by provenance (guildmasterProvenance.ts, CHG-0208). Iskios calls them, and a Ritual's own thread
+// within its reviewed scope; never on its own initiative.
 
 /**
  * The settings Iskios never changes: what agents may do without asking and what they may spend. The owner sets them in
@@ -55,11 +57,8 @@ export const readSettingsByGuildmaster = (callerId: string) =>
  */
 export const changeSettingByGuildmaster = (callerId: string, args: ArgumentsOf<"change_setting">) =>
   Effect.gen(function* () {
-    if (!(yield* isGuildmasterThread(callerId))) return refused("Only Iskios changes the settings here.");
-    if (!(yield* isQuotedByOwner(callerId, args.quote)))
-      return refused(
-        "Not done: change a setting only when the owner asks for it in their latest message. Quote their exact words as quote, or ask them first.",
-      );
+    if (!(yield* isStructuralCaller(callerId, "change_setting")))
+      return refused("Only Iskios changes the settings here.");
     if (isKept(args.setting))
       return refused(`Not done: ${args.setting} is the owner's alone to change, in the Charter. Tell them where.`);
     if (!(changeableSettings as ReadonlyArray<string>).includes(args.setting))
@@ -74,6 +73,7 @@ export const changeSettingByGuildmaster = (callerId: string, args: ArgumentsOf<"
       return refused(
         `Not done: ${JSON.stringify(value)} is not a value ${args.setting} accepts. Read the settings for its shape.`,
       );
+    if (!(yield* consumeReceipt(callerId, "change_setting", args))) return refused(notAuthorizedText);
     yield* writeSettings(after as Settings);
     return changed({
       isError: false,

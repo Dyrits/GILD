@@ -19,7 +19,15 @@
     }
   },
   "files": {
-    "includes": ["**", "!**/node_modules", "!**/dist", "!**/.expo", "!**/*.md", "!documentation/art-direction"]
+    "includes": [
+      "**",
+      "!**/node_modules",
+      "!**/dist",
+      "!**/.expo",
+      "!**/*.md",
+      "!documentation/art-direction",
+      "!**/.agents/skills/security-audit"
+    ]
   },
   "formatter": {
     "indentStyle": "space",

@@ -1,6 +1,7 @@
 // A scripted stand-in for `claude -p` in stream-json mode, shaped after
 // transcripts captured from Claude Code 2.1.302. Behavior is set by environment:
-// STAND_IN_LOG: file that receives one JSON line per process start ({ pid, args, cwd, env }).
+// STAND_IN_LOG: file that receives one JSON line per process start ({ pid, args, cwd, env, pwd }); `cwd` is the folder
+// the system reports, a link's target, and `pwd` the folder the adapter said it started in.
 // STAND_IN_INPUT: file that receives each line written to the stand-in's stdin.
 // STAND_IN_COST: set to report a running total_cost_usd of 0.01 per turn.
 // STAND_IN_API_KEY_SOURCE: set to report that `apiKeySource` in the init event ("none" for a subscription sign-in).
@@ -9,6 +10,9 @@
 // and is echoed with its uuid (--replay-user-messages), unless its text contains "unseen": that one is
 // held, as when it arrives just after the turn ends, and runs as a turn of its own 200 ms after the
 // result, as Claude Code does. An `interrupt` control request ends the running turn.
+// A message "ask-net <host>" makes the turn send a `can_use_tool` control request for the blocked host, as Claude Code 2.1.322
+// does for a host outside `allowedDomains` (live probe of 2026-11-12), and reply with the answer it got; "ask-bash-escape"
+// does the same for a Bash call outside the sandbox. A turn waits 300 ms for an answer and reports "unanswered" otherwise.
 import { appendFileSync } from "node:fs";
 import { createInterface } from "node:readline";
 
@@ -24,7 +28,7 @@ if (process.env.STAND_IN_LOG) {
   const home = process.env.CLAUDE_CONFIG_DIR ?? null;
   appendFileSync(
     process.env.STAND_IN_LOG,
-    `${JSON.stringify({ args, cwd: process.cwd(), env, home, pid: process.pid })}\n`,
+    `${JSON.stringify({ args, cwd: process.cwd(), env, home, pid: process.pid, pwd: process.env.PWD ?? null })}\n`,
   );
 }
 if (mode === "fail-start") {
@@ -42,6 +46,8 @@ emit({
 });
 
 let turn = 0;
+/** The answers a control request of the stand-in waits for, by request id. */
+const answers = new Map();
 /** The running turn: its first message, messages joined to it, held messages, and its timer. */
 let current = null;
 
@@ -106,6 +112,33 @@ const startTurn = (input) => {
     return;
   }
   // The turn's note, when there is one, precedes the messages after a "---" line.
+  const ask = /(?:^|\n---\n\n)(ask-net (\S+)|ask-bash-escape)$/.exec(text);
+  if (ask !== null) {
+    const requestId = `ask-${turn}`;
+    const isNetwork = ask[2] !== undefined;
+    emit({
+      request: {
+        input: isNetwork ? { host: ask[2] } : { command: "echo hi", dangerouslyDisableSandbox: true },
+        subtype: "can_use_tool",
+        tool_name: isNetwork ? "SandboxNetworkAccess" : "Bash",
+        tool_use_id: `toolu_${turn}`,
+      },
+      request_id: requestId,
+      type: "control_request",
+    });
+    current = { held: [], joined: [], text, timer: null, turn };
+    current.timer = setTimeout(() => {
+      answers.delete(requestId);
+      current.joined.push("unanswered");
+      finish(false);
+    }, 300);
+    answers.set(requestId, (behavior) => {
+      clearTimeout(current.timer);
+      current.joined.push(`answered ${behavior}`);
+      finish(false);
+    });
+    return;
+  }
   const slow = /(?:^|\n---\n\n)slow (\d+)$/.exec(text);
   current = { held: [], joined: [], text, timer: null, turn };
   if (slow === null) finish(false);
@@ -115,6 +148,12 @@ const startTurn = (input) => {
 createInterface({ input: process.stdin }).on("line", (line) => {
   if (process.env.STAND_IN_INPUT) appendFileSync(process.env.STAND_IN_INPUT, `${line}\n`);
   const input = JSON.parse(line);
+  if (input.type === "control_response") {
+    const respond = answers.get(input.response?.request_id);
+    answers.delete(input.response?.request_id);
+    respond?.(input.response?.response?.behavior ?? "none");
+    return;
+  }
   if (input.type === "control_request") {
     const stillQueued = current === null ? [] : current.held.map((held) => held.uuid);
     emit({

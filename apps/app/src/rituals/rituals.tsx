@@ -4,6 +4,8 @@ import {
   type RitualId,
   type RitualRunState,
   type RitualSchedule,
+  type RitualScopeEntry,
+  RitualScopeOperation,
   startingModel,
 } from "@iskios/contracts";
 import { type ReactNode, useState } from "react";
@@ -36,6 +38,18 @@ import {
 
 /** The Rituals, the latest first; they refetch when anything changes. */
 export const useRituals = (client: ServiceClient) => useServiceQuery(client, { _tag: "ListRituals" }, "rituals").data;
+
+/** How the Ritual form names each action its scope can allow. */
+const scopeOperationLabels: Record<RitualScopeEntry["operation"], string> = {
+  Archive: "Archive a quest",
+  ChangeSetting: "Change a setting",
+  Done: "Mark a quest Done",
+  Rename: "Rename a quest",
+  Stop: "Stop a quest's threads",
+};
+
+/** Whether the action takes an exact new value: a quest's new title, or a setting's new value. */
+const isValued = (operation: RitualScopeEntry["operation"]) => operation === "Rename" || operation === "ChangeSetting";
 
 const weekdays = ["0", "1", "2", "3", "4", "5", "6"] as const;
 const monthDays = Array.from({ length: 28 }, (_, index) => String(index + 1));
@@ -165,6 +179,9 @@ export function RitualForm({
   const { data: known } = useServiceQuery(client, allMissions.request, allMissions.key);
   const [title, setTitle] = useState(ritual?.title ?? "");
   const [instruction, setInstruction] = useState(ritual?.instruction ?? "");
+  const [scope, setScope] = useState<ReadonlyArray<RitualScopeEntry & { readonly id: string }>>(
+    (ritual?.scope ?? []).map((entry) => ({ ...entry, id: newRequestId() })),
+  );
   const [schedule, setSchedule] = useState<RitualSchedule>(ritual?.schedule ?? { _tag: "Daily", time: "07:00" });
   const [primary, setPrimary] = useState<Runner>(
     ritual?.primary ?? { accountId: null, effort: "default", harness: "claude", model: startingModel },
@@ -174,7 +191,21 @@ export function RitualForm({
   const [workspacePath, setWorkspacePath] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isSaving, setIsSaving] = useState(false);
-  const canSave = title.trim() !== "" && instruction.trim() !== "" && isScheduleValid(schedule) && !isSaving;
+  const canSave =
+    title.trim() !== "" &&
+    instruction.trim() !== "" &&
+    scope.every(
+      (entry) => entry.target.trim() !== "" && (!isValued(entry.operation) || (entry.payload ?? "").trim() !== ""),
+    ) &&
+    isScheduleValid(schedule) &&
+    !isSaving;
+  const scopeToSave = scope.map(({ operation, payload, target }) => ({
+    operation,
+    payload: isValued(operation) ? (payload ?? "").trim() : null,
+    target: target.trim(),
+  }));
+  const changeEntry = (index: number, change: Partial<RitualScopeEntry>) =>
+    setScope(scope.map((entry, at) => (at === index ? { ...entry, ...change } : entry)));
   const addFallback = () => {
     // The first harness other than the primary's, on its first listed model.
     const other = harnesses?.harnesses.find((candidate) => candidate.name !== primary.harness);
@@ -201,6 +232,7 @@ export function RitualForm({
               primary,
               requestId: newRequestId(),
               schedule,
+              scope: scopeToSave,
               title: title.trim(),
               workspacePath,
             })
@@ -214,6 +246,7 @@ export function RitualForm({
               primary,
               ritualId: ritual.id,
               schedule,
+              scope: scopeToSave,
               title: title.trim(),
             })
             .then(() => ritual.missionId);
@@ -247,6 +280,55 @@ export function RitualForm({
           style={[styles.input, local.instruction]}
           value={instruction}
         />
+      </Part>
+      <Part name="Actions its runs may take without asking">
+        <Text style={styles.muted}>
+          Commands run on their own in the sandbox. Only these exact actions on a quest or a setting run unasked in this
+          Ritual's runs; anything else asks you. Remove one to revoke it.
+        </Text>
+        {scope.map((entry, index) => (
+          <View key={entry.id}>
+            <Menu
+              accessibilityLabel={`Allowed action ${index + 1}`}
+              label={(operation) => scopeOperationLabels[operation]}
+              onChange={(operation) =>
+                changeEntry(index, { operation, payload: isValued(operation) ? entry.payload : null })
+              }
+              options={RitualScopeOperation.literals}
+              value={entry.operation}
+            />
+            <TextInput
+              accessibilityLabel={`Allowed action target ${index + 1}`}
+              onChangeText={(target) => changeEntry(index, { target })}
+              placeholder={
+                entry.operation === "ChangeSetting"
+                  ? "Setting name, such as shouldShowFinishedQuests"
+                  : "Quest title or id"
+              }
+              placeholderTextColor={colors.placeholder}
+              style={styles.input}
+              value={entry.target}
+            />
+            {isValued(entry.operation) ? (
+              <TextInput
+                accessibilityLabel={`Allowed action new value ${index + 1}`}
+                onChangeText={(payload) => changeEntry(index, { payload })}
+                placeholder={entry.operation === "ChangeSetting" ? "New value as JSON, such as true" : "New title"}
+                placeholderTextColor={colors.placeholder}
+                style={styles.input}
+                value={entry.payload ?? ""}
+              />
+            ) : null}
+            <Pressable onPress={() => setScope(scope.filter((_, at) => at !== index))}>
+              <Text style={styles.link}>Remove this action</Text>
+            </Pressable>
+          </View>
+        ))}
+        <Pressable
+          onPress={() => setScope([...scope, { id: newRequestId(), operation: "Archive", payload: null, target: "" }])}
+        >
+          <Text style={styles.link}>Allow an action</Text>
+        </Pressable>
       </Part>
       <Part name="Runs">
         <ScheduleRow onChange={setSchedule} value={schedule} />

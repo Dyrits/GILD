@@ -17,10 +17,6 @@ export const matchesPattern = (pattern: string, target: string) => {
   return new RegExp(`^${source}$`).test(target.trim());
 };
 
-/** The pattern Always allow saves: the proposed one when savable, else the exact target. */
-export const savedPatternOf = (proposed: string | null, target: string) =>
-  proposed !== null && isSavablePattern(proposed) && matchesPattern(proposed, target) ? proposed.trim() : target.trim();
-
 const plainActions: Record<string, string> = {
   Bash: "Run a command",
   Edit: "Change a file",
@@ -68,215 +64,48 @@ export const targetOf = (toolName: string, input: unknown) => {
   return `${toolName} ${subject}`;
 };
 
-/** A sensitive action: the kind Always allow saves, and what it affects, in plain words (CHG-0035). */
-export interface Sensitivity {
-  readonly consequence: string;
-  readonly permission: string;
-  /** Words that name this kind of action in the owner's message, such as "push" (quotes.ts). */
-  readonly verbs: ReadonlyArray<string>;
-}
+// Sandbox-first autonomy (CHG-0208): no command is judged by its words. What asks is decided by where an action runs:
+// leaving an active sandbox, or running where none protects the computer. These capabilities name what such a
+// question allows, and a standing permission of one covers only actions needing that same capability.
 
-// Where a command word may begin: the start, or after a shell operator, a
-// substitution, or a wrapper. Wrappers include `bunx`, `npx`, `xargs`, a shell's
-// `-c` script (Codex sends `bash -lc '…'`), `eval`, `env` and variable
-// assignments, and launchers such as `time` or `nohup` (CHG-0063).
-const commandStart = [
-  /^|[;&|({\n`]|\$\(/.source,
-  String.raw`\b(?:bunx|npx|xargs|command|builtin|time|nohup|exec|caffeinate)\s+(?:-\w+\s+)*`,
-  String.raw`\bnice\s+(?:-n\s*-?\d+\s+|-\d+\s+)?`,
-  String.raw`\btimeout\s+(?:-\S+\s+)*\S+\s+`,
-  String.raw`\b(?:ba|z|da|k|fi)?sh\s+(?:-\w+\s+)*-\w*c\w*\s+['"]?`,
-  String.raw`\beval\s+['"]?`,
-  String.raw`\benv\s+(?:-\S+\s+)*`,
-  String.raw`(?:^|\s)[A-Za-z_]\w*=\S*\s+`,
-]
-  .map((start) => `(?:${start})`)
-  .join("|");
-// A command word may carry its folder, as in `/usr/bin/git`.
-const command = (body: string) => new RegExp(`(?:${commandStart})\\s*(?:[\\w.~-]*/)*${body}`);
-// A git subcommand, after any global options such as `-c key=value` or `-C path`.
-const git = (body: string) => command(String.raw`git(?:\s+-[cC]\s+\S+|\s+--?[\w-]+(?:=\S+)?)*\s+${body}`);
-const secretPath =
-  /(?:^|[\s'"=/])(?:~|\$HOME|\/Users\/[^/\s]+|\/home\/[^/\s]+)?\/?\.(?:ssh|aws|gnupg|netrc|docker\/config\.json|config\/gh|kube)\b/;
+/** What a harness action needs beyond its sandbox, as its question names it and Always allow saves it. */
+export const capabilities = {
+  /** A file change outside the thread's folder made by the harness itself, which no sandbox confines. */
+  fileOutsideWorkspace: "Change a file outside the workspace",
+  /** A command that leaves its harness's active sandbox (Claude Code's `dangerouslyDisableSandbox`, Codex's escalation). */
+  outsideSandbox: "Run outside the sandbox",
+  /** Any action of a harness that runs with no enforced sandbox here. */
+  unsandboxed: "Run without a sandbox",
+  /** Codex's request to widen its sandbox for the turn. */
+  widenSandbox: "Widen the sandbox",
+} as const;
 
-const sensitiveCommands: ReadonlyArray<readonly [RegExp, Sensitivity]> = [
-  [
-    git(String.raw`push\b`),
-    {
-      consequence:
-        "This sends your commits off this computer, where everyone with access to the repository can see them.",
-      permission: "Push code",
-      verbs: ["push"],
-    },
-  ],
-  [
-    command(
-      String.raw`(?:(?:npm|bun|yarn|pnpm|cargo|poetry|gem)\s+(?:publish|push)\b|twine\s+upload\b|docker\s+push\b|gh\s+release\s+(?:create|upload|edit|delete)\b)`,
-    ),
-    {
-      consequence: "This makes a package or release public, and a published version usually cannot be taken back.",
-      permission: "Publish",
-      verbs: ["publish", "release"],
-    },
-  ],
-  [
-    command(
-      String.raw`(?:wrangler\s+(?:deploy|publish|pages\s+deploy)\b|vercel\b|netlify\s+deploy\b|fly(?:ctl)?\s+deploy\b|firebase\s+deploy\b|terraform\s+(?:apply|destroy)\b|pulumi\s+(?:up|destroy)\b|kubectl\s+(?:apply|delete|create|replace|rollout|scale)\b|serverless\s+deploy\b|heroku\b|cf\s+deploy\b)`,
-    ),
-    {
-      consequence: "This changes a live service that other people may be using.",
-      permission: "Deploy",
-      verbs: ["deploy", "ship", "release", "launch", "apply", "destroy"],
-    },
-  ],
-  [
-    command(
-      String.raw`gh\s+(?:(?:pr|issue)\s+(?:create|comment|merge|close|reopen|edit|review|delete)\b|repo\s+(?:create|delete|edit|rename|archive)\b|api\b.*\s(?:-X\s*(?:POST|PUT|PATCH|DELETE)|--method\s+(?:POST|PUT|PATCH|DELETE)|-[fF]\s))`,
-    ),
-    {
-      consequence: "This writes something under your GitHub account that other people can see.",
-      permission: "Post on GitHub",
-      verbs: [
-        "post",
-        "open",
-        "create",
-        "comment",
-        "merge",
-        "close",
-        "reopen",
-        "review",
-        "file",
-        "delete",
-        "archive",
-        "rename",
-      ],
-    },
-  ],
-  [
-    command(String.raw`(?:mail|mailx|sendmail|mutt|osascript)\b`),
-    {
-      consequence: "This sends a message or controls another app in your name.",
-      permission: "Send a message",
-      verbs: ["send", "mail", "email", "message", "text", "tell"],
-    },
-  ],
-  [
-    command(
-      String.raw`(?:curl\b.*\s(?:-X\s*(?:POST|PUT|PATCH|DELETE)|--request\s+(?:POST|PUT|PATCH|DELETE)|-d\b|--data\S*|-F\b|--form\b|-T\b|--upload-file\b)|wget\b.*--post)`,
-    ),
-    {
-      consequence: "This submits information to a server outside this computer.",
-      permission: "Send data to a website",
-      verbs: ["send", "post", "submit", "upload"],
-    },
-  ],
-  [
-    command(String.raw`(?:ssh|scp|sftp)\b|rsync\b.*\S:`),
-    {
-      consequence: "This runs commands on, or copies files to, another machine.",
-      permission: "Connect to another computer",
-      verbs: ["connect", "ssh", "copy", "upload", "sync"],
-    },
-  ],
-  [
-    git(
-      String.raw`(?:reset\s+.*--hard|reset\s+--hard|clean\s+-\w*f|checkout\s+(?:-f\b|.*\s--\s)|checkout\s+--\s|restore\b|stash\s+(?:drop|clear)\b|branch\s+.*-D\b|branch\s+-D\b|switch\s+(?:.*\s)?(?:-f\b|--force|--discard-changes))`,
-    ),
-    {
-      consequence: "Changes that were never committed, or a branch, are deleted and cannot be recovered.",
-      permission: "Discard work",
-      verbs: ["discard", "reset", "clean", "drop", "delete", "remove", "restore", "revert", "wipe", "throw"],
-    },
-  ],
-  [
-    command(String.raw`rm\s+(?:-\w+\s+)*(?:\S+\s+)*\.git(?:\s|/|$)`),
-    {
-      consequence: "Changes that were never committed, or a branch, are deleted and cannot be recovered.",
-      permission: "Discard work",
-      verbs: ["discard", "reset", "clean", "drop", "delete", "remove", "restore", "revert", "wipe", "throw"],
-    },
-  ],
-  [
-    command(String.raw`rm\s+(?:-\w+\s+)*(?:\S+\s+)*(?:\/|~|\$HOME|\.\.(?:\/|\s|$))`),
-    {
-      consequence: "They do not go to the Trash and cannot be recovered.",
-      permission: "Delete files outside the workspace",
-      verbs: ["delete", "remove", "erase", "wipe", "clean"],
-    },
-  ],
-  [
-    command(
-      String.raw`(?:sudo|doas|su)\b|(?:launchctl|systemctl|crontab|shutdown|reboot|halt|diskutil|mkfs\S*|scutil|networksetup|csrutil|chsh)\b|defaults\s+(?:write|delete)\b|dd\s+\S*of=|(?:brew|apt|apt-get|dnf|yum|pacman|port)\s+(?:install|uninstall|remove|upgrade|reinstall)\b|(?:npm|pnpm|yarn)\s+(?:install|i|add|uninstall|remove)\s+(?:.*\s)?(?:-g|--global)\b|bun\s+(?:add|install|i|remove)\s+(?:.*\s)?(?:-g|--global)\b|yarn\s+global\b`,
-    ),
-    {
-      consequence: "This alters settings or software outside the workspace, for every program on this computer.",
-      permission: "Change this computer's system",
-      verbs: [
-        "install",
-        "uninstall",
-        "remove",
-        "upgrade",
-        "update",
-        "change",
-        "set",
-        "configure",
-        "enable",
-        "disable",
-        "schedule",
-        "restart",
-        "reboot",
-      ],
-    },
-  ],
-];
+/** What each capability lets an action do, in plain words, after its reason in the question. */
+export const consequenceOf = {
+  [capabilities.outsideSandbox]:
+    "This runs outside the sandbox, with your full access to this computer's files and programs.",
+  [capabilities.fileOutsideWorkspace]:
+    "This changes a file outside the workspace that other programs on this computer may rely on.",
+  [capabilities.widenSandbox]: "This widens what the sandbox allows for the rest of the turn.",
+  [capabilities.unsandboxed]: "No sandbox protects this computer here, so this runs with your full access.",
+} as const satisfies Record<string, string>;
 
-const secrets: Sensitivity = {
-  consequence: "This opens credentials that give access to your accounts.",
-  permission: "Read passwords or keys",
-  verbs: ["read", "show", "get", "print", "use", "token", "key", "password", "credential"],
-};
-const secretCommand = command(String.raw`(?:security\s+(?:find|dump|export)-|gh\s+auth\s+token\b)`);
+const capabilityNames = new Set<string>(Object.values(capabilities));
 
-// Claude Code's file tools raise a prompt only outside the working folder at the default level.
+/**
+ * The capability a standing permission's sentence names, or null for an ordinary action: a permission covers only
+ * actions needing its own capability, so one saved for an ordinary command never covers that command's escape.
+ */
+export const kindOfPermission = (sentence: string) => (capabilityNames.has(sentence) ? sentence : null);
+
+// The harness tools that change files themselves, outside any command sandbox.
 const fileWritingTools = ["Write", "Edit", "MultiEdit", "NotebookEdit"];
-const fileChange: Sensitivity = {
-  consequence: "This changes a file that other programs on this computer may rely on.",
-  permission: "Change a file outside the workspace",
-  verbs: ["change", "edit", "write", "update", "modify"],
-};
 
-const sensitiveKinds = new Set([
-  ...sensitiveCommands.map(([, sensitivity]) => sensitivity.permission),
-  secrets.permission,
-  fileChange.permission,
-]);
-
-/**
- * The sensitive kind a standing permission's sentence names, such as "Push code", or null for an ordinary
- * action: a permission covers only actions of its own kind, so a broad pattern cannot reach another kind.
- */
-export const kindOfPermission = (sentence: string) => (sensitiveKinds.has(sentence) ? sentence : null);
-
-/**
- * The sensitive action a harness tool call is, or null for ordinary work that runs without a
- * question (CHG-0035). A best-effort list: the thread flags what it misses through `request_approval`.
- */
-export const sensitivityOf = (toolName: string, input: unknown): Sensitivity | null => {
-  if (toolName === "Bash") {
-    const text = (textFieldOf(input, "command") ?? "").trim();
-    if (secretPath.test(text) || secretCommand.test(text)) return secrets;
-    return sensitiveCommands.find(([pattern]) => pattern.test(text))?.[1] ?? null;
-  }
-  const path = pathFieldOf(input);
-  if (path !== null && secretPath.test(path)) return secrets;
-  return fileWritingTools.includes(toolName) ? fileChange : null;
-};
+/** Whether a harness tool call changes files with the harness's own tool rather than a command. */
+export const isFileWriting = (toolName: string) => fileWritingTools.includes(toolName);
 
 const pathFieldOf = (input: unknown) =>
   textFieldOf(input, "file_path") ?? textFieldOf(input, "notebook_path") ?? textFieldOf(input, "path");
-
-/** Whether a sensitivity is a file change, which Approvals clears when every changed file is inside the thread's folder. */
-export const isFileChange = (sensitivity: Sensitivity | null) => sensitivity === fileChange;
 
 /**
  * The files a file-writing call names. Codex lists several in one field joined by ", " (codex.ts), so the field is

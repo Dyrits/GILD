@@ -14,8 +14,9 @@ import { invalid, readSettings, type ToolAnswer } from "../core/index.ts";
 import { claudeCheapestModel, type Runner, runnerOf } from "../harness/index.ts";
 import { changed, unchanged } from "./commands.ts";
 import { endMission, previewEnding, readWorkingIds } from "./ending.ts";
+import { consumeReceipt, isStructuralCaller, notAuthorizedText } from "./guildmasterProvenance.ts";
 import { timeOf } from "./journal.ts";
-import { insertMessage, readOwnerTextsOfTurn } from "./messaging.ts";
+import { insertMessage } from "./messaging.ts";
 import { insertQuest, listMissionSummaries } from "./missions.ts";
 import { createRitual } from "./rituals.ts";
 import type { ArgumentsOf } from "./threadTools.ts";
@@ -340,65 +341,52 @@ export const reportToGuildmaster = Effect.gen(function* () {
 
 // ----- Acting on quests, at the owner's request -----
 
-/** Whether the owner's words from the message that started the thread's current turn contain the quoted words. */
-export const isQuotedByOwner = (threadId: string, quote: string) =>
-  Effect.gen(function* () {
-    const wanted = quote.trim().toLowerCase();
-    if (wanted.length < 2) return false;
-    const texts = yield* readOwnerTextsOfTurn(threadId);
-    return texts.some((text) => text.toLowerCase().includes(wanted));
-  });
-
-/** What `act_on_mission` came to: done, a confirmation to put to the owner first, or a refusal. */
+/** What `act_on_mission` came to: done, threads to stop outside the transaction, or a refusal. */
 export type ActedOnQuest =
   | { readonly _tag: "Done"; readonly text: string }
-  | { readonly _tag: "ToStop"; readonly missionId: string; readonly text: string }
+  | { readonly _tag: "ToStop"; readonly ids: ReadonlyArray<string>; readonly text: string }
   | { readonly _tag: "Refused"; readonly text: string };
 
 /** The outcome of an action the Guildmaster may not take, with the words that tell it why. */
 export const refusedAction = (text: string) => unchanged<ActedOnQuest>({ _tag: "Refused", text });
 
 /**
- * `act_on_mission`: at the owner's request, which the owner's own words in the latest message prove, the Guildmaster
- * renames a quest, ends it, or asks to stop it. Ending a quest with threads at work asks first, with the dashboard's
- * question, and goes ahead only on the snapshot it gave. Only the Guildmaster calls it, and never on its own.
+ * `act_on_mission`: renames a quest, ends it, or stops its threads at work, once its exact action was authorized by
+ * provenance (guildmasterProvenance.ts): the owner's own words of this turn, a Ritual's reviewed scope in one of its
+ * runs, or the owner's Allow. Iskios calls it, and a Ritual's own thread within its scope; never on its own initiative.
  */
 export const actOnMission = (callerId: string, args: ArgumentsOf<"act_on_mission">) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    if (!(yield* isGuildmasterThread(callerId))) return refusedAction("Only Iskios acts on quests.");
+    if (!(yield* isStructuralCaller(callerId, "act_on_mission"))) return refusedAction("Only Iskios acts on quests.");
     const [quest] = yield* sql<{ title: string }>`
       SELECT m.title FROM missions m JOIN threads top ON top.id = m.top_thread_id
       WHERE m.id = ${args.mission} AND m.is_guildmaster = 0 AND top.is_deleting = 0`;
     if (quest === undefined) return refusedAction("Not done: no such quest.");
-    if (!(yield* isQuotedByOwner(callerId, args.quote)))
-      return refusedAction(
-        "Not done: act on a quest only when the owner asks for it in their latest message. Quote their exact words as quote, or ask them first.",
-      );
+    if (args.action === "Rename" && (args.title === undefined || titleOf(args.title) === ""))
+      return refusedAction("Not done: give the new title.");
+    const ids = args.action === "Stop" ? yield* readWorkingIds(args.mission) : [];
+    if (args.action === "Stop" && ids.length === 0)
+      return refusedAction(`"${quest.title}" has no thread at work to stop.`);
+    if (!(yield* consumeReceipt(callerId, "act_on_mission", args))) return refusedAction(notAuthorizedText);
     if (args.action === "Rename") {
-      if (args.title === undefined || titleOf(args.title) === "") return refusedAction("Not done: give the new title.");
-      yield* renameMission(args.mission, args.title);
+      yield* renameMission(args.mission, args.title ?? "");
       return changed<ActedOnQuest>({
         _tag: "Done",
-        text: `Renamed the quest "${quest.title}" to "${titleOf(args.title)}".`,
+        text: `Renamed the quest "${quest.title}" to "${titleOf(args.title ?? "")}".`,
       });
     }
     if (args.action === "Stop") {
-      const ids = yield* readWorkingIds(args.mission);
-      if (ids.length === 0) return refusedAction(`"${quest.title}" has no thread at work to stop.`);
-      // Stopping runs outside the transaction, in the tool handler, which ends each turn.
+      // Stopping runs outside the transaction, in the tool handler, which ends each turn; the receipt bound this set.
       return unchanged<ActedOnQuest>({
         _tag: "ToStop",
-        missionId: args.mission,
+        ids,
         text: `Stopped ${ids.length === 1 ? "1 thread" : `${ids.length} threads`} of "${quest.title}".`,
       });
     }
     const ending = args.action === "Done" ? "Done" : "Archived";
+    // The receipt matched the threads at work the question named, so the snapshot taken now is that one.
     const preview = yield* previewEnding(args.mission, ending);
-    if (preview.question !== null && args.snapshot !== preview.snapshot)
-      return refusedAction(
-        `Confirmation needed first. Ask the owner: "${preview.question}" If they agree in their next message, call act_on_mission again with the same arguments, snapshot "${preview.snapshot}", and their words as quote.`,
-      );
     const done = yield* endMission(args.mission, ending, preview.snapshot);
     return changed<ActedOnQuest>(
       { _tag: "Done", text: `Marked "${quest.title}" ${ending === "Done" ? "Done" : "Archived"}.` },
@@ -441,8 +429,9 @@ export const refusedRitual = (reason: string) => unchanged<RitualCreatedByGuildm
 
 /**
  * `create_ritual`: the Guildmaster makes a Ritual, an instruction that runs by itself on a schedule in a quest of its
- * own, in a realm it names or none, on its own Companion unless it chooses another. Nothing runs until it is due. The
- * owner sees it as a card with a link. Only the Guildmaster calls it.
+ * own, in a realm it names or none, on its own Companion unless it chooses another, once authorized by provenance. Its
+ * reviewed scope starts empty: only the owner sets it, in the Ritual's form. Nothing runs until it is due. The owner sees
+ * it as a card with a link. Only the Guildmaster calls it.
  */
 export const createRitualByGuildmaster = (callerId: string, args: ArgumentsOf<"create_ritual">) =>
   Effect.gen(function* () {
@@ -454,6 +443,7 @@ export const createRitualByGuildmaster = (callerId: string, args: ArgumentsOf<"c
       return refusedRitual(
         `Not created: no realm "${args.realm}". Name one of the realms in your context, or leave it out.`,
       );
+    if (!(yield* consumeReceipt(callerId, "create_ritual", args))) return refusedRitual(notAuthorizedText);
     const runner = companionOf(yield* readSettings, args.tier, {
       effort: args.effort,
       harness: args.harness,

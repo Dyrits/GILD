@@ -2,6 +2,7 @@ import { tmpdir } from "node:os";
 import type { BillingKind, EffortChoice, HarnessName, TokenUsage } from "@iskios/contracts";
 import { type Duration, Effect, Queue } from "effect";
 import {
+  type Containment,
   fieldOf,
   HarnessFailure,
   type ImageAttachment,
@@ -21,6 +22,7 @@ import {
 } from "./harnessProcesses.ts";
 import { approvalInstructionsOf } from "./instructions.ts";
 import { harnessEnvironmentOf, type Incoming, type RpcProcess, startRpcProcess } from "./lineProcess.ts";
+import { resolvedFolderOf, startFolderOf } from "./threadFolder.ts";
 import { toolServerName } from "./toolNames.ts";
 
 // Codex through its app server (ADR 0008; protocol of codex-cli 0.160.1, probed 2026-11-07): one
@@ -51,9 +53,9 @@ const noTimeLimitSeconds = 2_147_483;
 const effortOf = (effort: EffortChoice) => (effort === "default" ? null : effort);
 
 /**
- * How Codex asks, by approval level (CHG-0031, CHG-0035). At the default level commands run in Codex's
- * workspace sandbox and ask only to leave it, which Iskios answers as Claude Code's prompts: unasked
- * unless sensitive. At "Also commands and edits" every command it does not trust asks.
+ * How Codex asks, by approval level (CHG-0031, CHG-0208). Commands always run in Codex's own workspace sandbox, never
+ * its full-access mode. At the default level they ask only to leave it, and every such request asks the owner with
+ * the exact command. At "Also commands and edits" every command it does not trust asks.
  */
 const policyOf = (access: ThreadAccess) => ({
   approvalPolicy: access.approvalLevel === "RiskyOnly" ? "on-request" : "untrusted",
@@ -67,7 +69,7 @@ const inputOf = (text: string, images: ReadonlyArray<ImageAttachment>) => [
   ...images.map((image) => ({ path: image.path, type: "localImage" })),
 ];
 
-const threadSettingsOf = (request: TurnRequest) => ({
+const threadSettingsOf = (request: TurnRequest, cwd: string) => ({
   ...policyOf(request.access),
   config: {
     // One thread is one Codex conversation; threads open threads with open_thread instead (ADR 0007).
@@ -76,8 +78,11 @@ const threadSettingsOf = (request: TurnRequest) => ({
     [`mcp_servers.${toolServerName}.url`]: request.access.mcpUrl,
     // The starting context already holds the folder's own instructions (workspaces.ts).
     project_doc_max_bytes: 0,
+    // The sandbox contains file and process damage, not data: its network is open, so a command can reach any host
+    // (verified with command/exec on Codex 0.167.2, 2026-11-12).
+    "sandbox_workspace_write.network_access": true,
   },
-  cwd: request.cwd,
+  cwd,
   developerInstructions: `${request.context}\n\n${approvalInstructionsOf(request.access, false, "codex")}`,
   ...(request.model === "default" ? {} : { model: request.model }),
 });
@@ -177,8 +182,9 @@ const answerRequest = (
   Effect.gen(function* () {
     const { id, method, params } = incoming;
     const { rpc } = connection;
+    // At the default level Codex asks only to go beyond its sandbox, so each of its requests is an escape.
     const ask = (toolName: string, input: object) =>
-      request.askOwner({ input, toolName }).pipe(Effect.map((answer) => answer.isAllowed));
+      request.askOwner({ input, isOutsideSandbox: true, toolName }).pipe(Effect.map((answer) => answer.isAllowed));
     if (method === "item/commandExecution/requestApproval") {
       const isAllowed = yield* ask("Bash", {
         command: textFieldOf(params, "command") ?? "",
@@ -276,7 +282,9 @@ const codexProtocolOf = (options: CodexOptions): HarnessProtocol<CodexConnection
 
   // A changed level, set of permissions, context, model, folder, or account restarts the process, resuming
   // its thread; the effort goes with each turn.
-  restartKeyOf: (request) => JSON.stringify([threadSettingsOf(request), request.configDirectory]),
+  // Where the folder really points too: a link pointed elsewhere restarts the process, whose start checks it again.
+  restartKeyOf: (request) =>
+    JSON.stringify([threadSettingsOf(request, request.cwd), request.configDirectory, resolvedFolderOf(request.cwd)]),
 
   runTurn: (connection, request, turn) =>
     Effect.gen(function* () {
@@ -297,11 +305,15 @@ const codexProtocolOf = (options: CodexOptions): HarnessProtocol<CodexConnection
 
   start: (request) =>
     Effect.gen(function* () {
+      // A thread folder that is a link asks the owner; allowed, Codex starts where it really points, as its process
+      // folder and its thread's, so its workspace sandbox writes there (threadFolder.ts). Codex 0.167.2 refuses a
+      // writable root holding a link, and treats its process folder, resolved by the system, as writable (CHG-0208).
+      const cwd = yield* startFolderOf(request, "Codex");
       const rpc = yield* startRpcProcess({
         args: [...(options.prefixArgs ?? []), "app-server"],
         command: options.command,
-        cwd: request.cwd,
-        env: harnessEnvironmentOf(accountEnvironmentOf("codex", request.configDirectory)),
+        cwd,
+        env: harnessEnvironmentOf({ ...accountEnvironmentOf("codex", request.configDirectory), PWD: cwd }),
         isJsonRpc2: false,
         label: "Codex",
       });
@@ -312,7 +324,7 @@ const codexProtocolOf = (options: CodexOptions): HarnessProtocol<CodexConnection
           clientInfo: { name: "iskios", title: "Iskios", version: "0.0.0" },
         });
         rpc.notify("initialized", {});
-        const settings = threadSettingsOf(request);
+        const settings = threadSettingsOf(request, cwd);
         billing = yield* billingOf(rpc);
         return request.sessionId === null
           ? yield* rpc.request("thread/start", settings)
@@ -357,6 +369,8 @@ export const makeCodexHarness = (options: CodexOptions) =>
   makeHarnessProcesses(codexProtocolOf(options), options).pipe(
     Effect.map((adapter) => ({
       ...adapter,
+      // Codex enforces its own workspace sandbox wherever it runs.
+      containmentOf: (): Containment => "Sandboxed",
       readPlanLimits: (_harness: HarnessName, configDirectory: string | null) =>
         readCodexPlanLimits(options, configDirectory),
     })),

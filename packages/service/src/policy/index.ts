@@ -1,10 +1,10 @@
 export {
+  capabilities,
   changedFilesOf,
-  isFileChange,
+  consequenceOf,
+  isFileWriting,
   plainActionOf,
   reasonOf,
-  savedPatternOf,
-  sensitivityOf,
   targetOf,
 } from "./patterns.ts";
 export {
@@ -16,4 +16,3 @@ export {
   widenPermission,
 } from "./permissions.ts";
 export { listOpenQuestions, listQuestionHistory, listThreadQuestions, readQuestion } from "./questions.ts";
-export { isNamingQuote } from "./quotes.ts";

@@ -4,6 +4,8 @@ import {
   type RitualCompanion,
   RitualCompanion as RitualCompanionSchema,
   type RitualSchedule,
+  type RitualScope,
+  RitualScope as RitualScopeSchema,
 } from "@iskios/contracts";
 import { Clock, Effect, Exit, Layer, PubSub, Schema } from "effect";
 import { SqlClient } from "effect/sql";
@@ -24,8 +26,10 @@ const graceMillis = 5 * 60 * 1000;
 
 const decodeCompanion = Schema.decodeUnknownSync(RitualCompanionSchema);
 const decodeFallbacks = Schema.decodeUnknownSync(Schema.Array(RitualCompanionSchema));
+const decodeScope = Schema.decodeUnknownSync(RitualScopeSchema);
 
 interface RitualRow {
+  readonly authority: string;
   readonly createdAt: number;
   readonly fallbackStep: number;
   readonly fallbacks: string;
@@ -59,7 +63,7 @@ const readRows = (
             : sql`m.top_thread_id = ${condition.threadId}`;
     return yield* sql<RitualRow>`
       SELECT r.id, r.mission_id AS missionId, m.top_thread_id AS threadId, t.state AS threadState, m.title,
-        r.instruction, r.schedule, r.primary_companion AS primaryCompanion, r.fallbacks, r.is_on AS isOn,
+        r.authority, r.instruction, r.schedule, r.primary_companion AS primaryCompanion, r.fallbacks, r.is_on AS isOn,
         r.next_run_at AS nextRunAt, r.last_run_at AS lastRunAt, r.last_run_state AS lastRunState,
         r.fallback_step AS fallbackStep, r.created_at AS createdAt
       FROM rituals r JOIN missions m ON m.id = r.mission_id JOIN threads t ON t.id = m.top_thread_id
@@ -78,6 +82,8 @@ const ritualOf = (row: RitualRow): Ritual =>
     nextRunAt: row.nextRunAt,
     primary: decodeCompanion(JSON.parse(row.primaryCompanion)),
     schedule: scheduleOf(row.schedule),
+    // Stored as `authority` (migration 0044): the owner's reviewed scope, empty by default.
+    scope: decodeScope(JSON.parse(row.authority)),
     threadId: row.threadId,
     title: row.title,
   }) as Ritual;
@@ -105,6 +111,8 @@ const renameQuest = (missionId: string, threadId: string, title: string) =>
 
 /** Creates a Ritual and its quest, whose thread takes the primary Companion. Nothing runs yet. */
 export const createRitual = (input: {
+  /** The owner's reviewed scope, already validated (ritualScope.ts); empty when left out. */
+  readonly scope?: RitualScope;
   readonly fallbacks: ReadonlyArray<RitualCompanion>;
   readonly instruction: string;
   readonly primary: RitualCompanion;
@@ -128,14 +136,16 @@ export const createRitual = (input: {
     );
     const now = yield* Clock.currentTimeMillis;
     const ritualId = crypto.randomUUID();
-    yield* sql`INSERT INTO rituals (id, mission_id, instruction, schedule, primary_companion, fallbacks, is_on, next_run_at, created_at)
+    yield* sql`INSERT INTO rituals (id, mission_id, instruction, schedule, primary_companion, fallbacks, is_on, next_run_at, created_at, authority)
       VALUES (${ritualId}, ${quest.missionId}, ${input.instruction}, ${JSON.stringify(input.schedule)},
-        ${JSON.stringify(input.primary)}, ${JSON.stringify(input.fallbacks)}, 1, ${nextRunAfter(input.schedule, now)}, ${now})`;
+        ${JSON.stringify(input.primary)}, ${JSON.stringify(input.fallbacks)}, 1, ${nextRunAfter(input.schedule, now)}, ${now}, ${JSON.stringify(input.scope ?? [])})`;
     return changed({ missionId: quest.missionId, ritualId, threadId: quest.threadId });
   });
 
 /** Replaces a Ritual's fields; the next run is worked out again only when the schedule or the switch changed. */
 export const updateRitual = (input: {
+  /** The owner's reviewed scope, already validated, replacing the current one; kept when left out. */
+  readonly scope?: RitualScope;
   readonly fallbacks: ReadonlyArray<RitualCompanion>;
   readonly instruction: string;
   readonly isOn: boolean;
@@ -152,7 +162,7 @@ export const updateRitual = (input: {
     const schedule = JSON.stringify(input.schedule);
     const isSameTiming = row.schedule === schedule && (row.isOn === 1) === input.isOn;
     const nextRunAt = input.isOn ? (isSameTiming ? row.nextRunAt : nextRunAfter(input.schedule, now)) : null;
-    yield* sql`UPDATE rituals SET instruction = ${input.instruction}, schedule = ${schedule},
+    yield* sql`UPDATE rituals SET authority = ${input.scope === undefined ? row.authority : JSON.stringify(input.scope)}, instruction = ${input.instruction}, schedule = ${schedule},
       primary_companion = ${JSON.stringify(input.primary)}, fallbacks = ${JSON.stringify(input.fallbacks)},
       is_on = ${input.isOn ? 1 : 0}, next_run_at = ${nextRunAt} WHERE id = ${input.ritualId}`;
     yield* renameQuest(row.missionId, row.threadId, input.title);
@@ -197,13 +207,15 @@ const beginRun = (
     yield* changeThreadRunner(row.threadId, decodeCompanion(JSON.parse(row.primaryCompanion)));
     const now = yield* Clock.currentTimeMillis;
     const label = isManual ? "Ritual · run by you" : `Ritual · scheduled ${clockOf(trigger.dueAt)}`;
-    yield* insertMessage({
+    const messageId = yield* insertMessage({
       fromThreadId: null,
       isQueued: false,
       isResult: false,
       text: `${label}\n\n${row.instruction}`,
       threadId: row.threadId,
     });
+    // The run's message is the service's, not the owner's: marked so it never counts as the owner's words (CHG-0208).
+    yield* sql`INSERT INTO ritual_run_messages (message_id, ritual_id) VALUES (${messageId}, ${row.id})`;
     yield* sql`UPDATE rituals SET last_run_at = ${now}, last_run_state = 'Underway', fallback_step = 0 WHERE id = ${row.id}`;
     return true;
   });

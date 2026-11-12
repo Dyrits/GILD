@@ -4,6 +4,7 @@ import { Pressable, Text, TextInput, View } from "react-native";
 import { messageOf, type ServiceClient } from "../foundation/client";
 import { clockOf } from "../foundation/formatting";
 import { styles } from "../foundation/styles";
+import { answersOf } from "./questionAnswers";
 
 const outcomeLabels = {
   Allowed: "Allowed",
@@ -101,7 +102,9 @@ export function QuestionCard({
       )}
       <View style={styles.chips}>
         <AnswerButton isPrimary label="Allow" onPress={() => send("Allow")} />
-        <AnswerButton label="Always allow" onPress={() => send("AlwaysAllow")} />
+        {answersOf(question).includes("AlwaysAllow") && (
+          <AnswerButton label="Always allow" onPress={() => send("AlwaysAllow")} />
+        )}
         <AnswerButton label="Deny" onPress={() => send("Deny", denial.trim() === "" ? null : denial)} />
       </View>
       <TextInput

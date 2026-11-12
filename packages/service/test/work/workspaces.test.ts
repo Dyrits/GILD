@@ -420,7 +420,8 @@ describe("standing permissions in a workspace", () => {
       const { asking, permission } = yield* alwaysAllowIn(app);
       expect(permission).toMatchObject({
         missionId: null,
-        pattern: "git push *",
+        // Always allow saves the exact command, never a pattern the thread proposed (CHG-0208).
+        pattern: "git push origin main",
         workspaceId: asking.thread.workspace?.id,
         workspaceName: "app",
       });

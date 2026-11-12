@@ -17,6 +17,28 @@ export const RitualCompanion = Schema.Struct({
 });
 export type RitualCompanion = typeof RitualCompanion.Type;
 
+/**
+ * The structural actions a Ritual's reviewed scope can let its runs take without asking (CHG-0208): acting on one
+ * quest, or changing one setting. Commands need no scope: inside the sandbox they run unasked.
+ */
+export const RitualScopeOperation = Schema.Literals(["Stop", "Done", "Archive", "Rename", "ChangeSetting"]);
+export type RitualScopeOperation = typeof RitualScopeOperation.Type;
+
+/**
+ * One action a Ritual's runs may take unasked: the operation, its exact target (a quest's id or title, or a setting's
+ * name), and its exact new value (the new title, or the setting's value as JSON) where the operation has one.
+ */
+export const RitualScopeEntry = Schema.Struct({
+  operation: RitualScopeOperation,
+  payload: Schema.NullOr(Schema.String.check(Schema.isMaxLength(2000))),
+  target: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200)),
+});
+export type RitualScopeEntry = typeof RitualScopeEntry.Type;
+
+/** A Ritual's reviewed scope: empty by default, set and revoked by the owner in the Ritual's form. */
+export const RitualScope = Schema.Array(RitualScopeEntry).check(Schema.isMaxLength(20));
+export type RitualScope = typeof RitualScope.Type;
+
 const RitualTitle = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(80));
 const RitualInstruction = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(100_000));
 /** The Companions tried in order after the primary one fails a run. */
@@ -34,6 +56,8 @@ export const Ritual = Schema.Struct({
   nextRunAt: Schema.NullOr(Schema.Number),
   primary: RitualCompanion,
   schedule: RitualSchedule,
+  /** What its runs may do unasked beyond the sandbox; empty unless the owner set it. */
+  scope: RitualScope,
   /** The quest's top thread, where each run happens. */
   threadId: ThreadId,
   title: RitualTitle,
@@ -54,6 +78,8 @@ export const CreateRitual = Schema.TaggedStruct("CreateRitual", {
   ),
   requestId: RequestId,
   schedule: RitualSchedule,
+  /** The owner's reviewed scope; left out, it is empty. */
+  scope: Schema.optionalKey(RitualScope),
   title: RitualTitle,
   /** An existing folder, or null for the quest's scratch folder. */
   workspacePath: Schema.NullOr(Schema.String),
@@ -66,6 +92,8 @@ export const UpdateRitual = Schema.TaggedStruct("UpdateRitual", {
   primary: RitualCompanion,
   ritualId: RitualId,
   schedule: RitualSchedule,
+  /** The owner's reviewed scope, replacing the current one; left out, it is kept; empty revokes it. */
+  scope: Schema.optionalKey(RitualScope),
   title: RitualTitle,
 });
 /** Runs a Ritual now, whatever its schedule and switch. */

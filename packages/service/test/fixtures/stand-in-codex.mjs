@@ -17,6 +17,7 @@ log({
   env: Object.keys(process.env).filter((key) => key.startsWith("ISKIOS_")),
   home: Object.fromEntries(accountKeys.filter((key) => process.env[key]).map((key) => [key, process.env[key]])),
   pid: process.pid,
+  pwd: process.env.PWD ?? null,
 });
 
 const send = (message) => process.stdout.write(`${JSON.stringify(message)}\n`);

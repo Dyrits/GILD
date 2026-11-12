@@ -34,6 +34,7 @@ import {
   deliverSteered,
   isCurrentTurn,
   recordTurnFailure,
+  saveTurnNotice,
   saveTurnReply,
 } from "./turns.ts";
 import { ScratchRoot } from "./workspaces.ts";
@@ -172,6 +173,7 @@ export const threadsLayer = Layer.effect(
           Match.valueTags(event, {
             Delivered: (delivered) => local(deliverSteered(turn, delivered.messageId)).pipe(Effect.orDie),
             Draft: (written) => (shouldStreamReplies ? draft(threadId, written.text).pipe(Effect.asVoid) : Effect.void),
+            Notice: (notice) => local(saveTurnNotice(threadId, turn, notice.text)).pipe(Effect.orDie),
             Reply: (reply) =>
               local(saveTurnReply(threadId, turn, reply.text, reply.model ?? null, reply.usage ?? null)).pipe(
                 Effect.andThen(draft(threadId, "")),
@@ -192,8 +194,10 @@ export const threadsLayer = Layer.effect(
             askOwner: askOwnerFor(approvals, sql, threadId),
             configDirectory: turn.accountId === null ? null : join(accountsRoot, turn.accountId),
             context,
+            conversationSoFar: local(readConversationSoFar(threadId, turn.turnId, turn.model)).pipe(Effect.orDie),
             cwd,
             effort: turn.effort,
+            folderRoot: isInWorkspace ? cwd : scratchRoot,
             harness: turn.harness,
             images: imagesOf(turn.attachments),
             model: turn.model,

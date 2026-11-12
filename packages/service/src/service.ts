@@ -94,6 +94,7 @@ import { insertMission, insertQuest } from "./work/missions.ts";
 import { PlanLimits, planLimitsLayer } from "./work/planLimits.ts";
 import { priceRefreshLayer } from "./work/priceRefresh.ts";
 import { moveQuest } from "./work/questMoves.ts";
+import { validateScope } from "./work/ritualScope.ts";
 import {
   createRitual,
   deleteRitual,
@@ -287,15 +288,18 @@ const make = Effect.gen(function* () {
             once(
               create.requestId,
               create._tag,
-              createRitual({
-                fallbacks: create.fallbacks,
-                instruction: create.instruction,
-                primary: create.primary,
-                realm: create.realm ?? null,
-                schedule: create.schedule,
-                title: create.title,
-                workspacePath: create.workspacePath,
-              }),
+              Effect.flatMap(validateScope(create.scope ?? []), (scope) =>
+                createRitual({
+                  fallbacks: create.fallbacks,
+                  instruction: create.instruction,
+                  primary: create.primary,
+                  realm: create.realm ?? null,
+                  schedule: create.schedule,
+                  scope,
+                  title: create.title,
+                  workspacePath: create.workspacePath,
+                }),
+              ),
             ),
           ),
         DeleteIntel: (given) => change(deleteLoreEntryByOwner(given.loreEntryId)),
@@ -581,15 +585,19 @@ const make = Effect.gen(function* () {
           ),
         UpdateRitual: (update) =>
           commands.run(
-            updateRitual({
-              fallbacks: update.fallbacks,
-              instruction: update.instruction,
-              isOn: update.isOn,
-              primary: update.primary,
-              ritualId: update.ritualId,
-              schedule: update.schedule,
-              title: update.title,
-            }),
+            Effect.flatMap(validateScope(update.scope ?? []), (scope) =>
+              updateRitual({
+                fallbacks: update.fallbacks,
+                instruction: update.instruction,
+                isOn: update.isOn,
+                primary: update.primary,
+                ritualId: update.ritualId,
+                schedule: update.schedule,
+                // Left out, the reviewed scope stays; given, it replaces it, and empty revokes it.
+                ...(update.scope === undefined ? {} : { scope }),
+                title: update.title,
+              }),
+            ),
           ),
         UpdateSettings: (update) =>
           Effect.gen(function* () {

@@ -1,4 +1,5 @@
 import { tmpdir } from "node:os";
+import { join } from "node:path";
 import type { EffortChoice, HarnessName, ModelOption } from "@iskios/contracts";
 import { type Duration, Effect, Queue, type Scope } from "effect";
 import { fieldOf, type HarnessAdapter, routeHarnesses, type ServiceFailure, textFieldOf } from "../core/index.ts";
@@ -7,6 +8,7 @@ import { makeCodexHarness } from "./codex.ts";
 import { accountEnvironmentOf, claudeModels, type HarnessFacts, harnessFacts } from "./harnessCatalog.ts";
 import type { SignInStatus } from "./harnessTools.ts";
 import { harnessEnvironmentOf, runHarnessCommand, startRpcProcess } from "./lineProcess.ts";
+import { detectOpenCodeSandbox } from "./openCodeSandbox.ts";
 import { listOpenCodeEfforts, makeOpenCodeHarness } from "./opencode.ts";
 
 // The harness registry (provider-accounts): each harness defined once, by its facts, its turn adapter, and
@@ -16,6 +18,8 @@ import { listOpenCodeEfforts, makeOpenCodeHarness } from "./opencode.ts";
 export interface AdapterOptions {
   /** The executable. */
   readonly command: string;
+  /** The service's own folder, where a wrapped OpenCode keeps its state; the system's temporary folder when left out. */
+  readonly dataDirectory?: string;
   /** How long an idle thread keeps its process. */
   readonly idleTimeout: Duration.Input;
   /** Why the sandbox cannot run here, or null (CHG-0031). */
@@ -128,7 +132,16 @@ const codex: HarnessDefinition = {
 
 const opencode: HarnessDefinition = {
   ...harnessFacts.opencode,
-  makeAdapter: ({ command, idleTimeout }) => makeOpenCodeHarness({ command, idleTimeout }),
+  makeAdapter: ({ command, dataDirectory, idleTimeout, sandboxProblem }) =>
+    makeOpenCodeHarness({
+      command,
+      idleTimeout,
+      sandbox: detectOpenCodeSandbox({
+        platform: process.platform,
+        root: join(dataDirectory ?? tmpdir(), "opencode-sandbox"),
+        sandboxProblem,
+      }),
+    }),
   readEfforts: listOpenCodeEfforts,
   readModels: (command, configDirectory) =>
     runHarnessCommand(command, ["models"], accountEnvironmentOf("opencode", configDirectory)).pipe(
