@@ -104,7 +104,7 @@ A theme's dark or light variant; the owner may follow the system's. Called the c
 _Avoid_: Mode, appearance
 
 **Gild**:
-The theme beside Iskios: brown, gilt, and parchment colors, gilt and bronze sidebar icons, and a hooded figure as the Dock icon.
+The theme beside Iskios: brown, gilt, and parchment colors, and a hooded figure as the Dock icon.
 
 **The Keep**:
 The navigation group containing Library, Lore, and Archive.

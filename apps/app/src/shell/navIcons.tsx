@@ -18,10 +18,9 @@ export type NavIconName =
   | "workshop";
 
 /**
- * The sidebar's own icons, one per destination, cropped to their drawing and sized for a high-density screen. Both
- * themes share the same flat drawings: ivory on a dark page (`assets/nav/dark/`) and the same drawings in slate blue on
- * a light one (`assets/nav/light/`). The bundler needs each `require` written out, so the sets are spelled in full; the
- * type below fails when a look or an icon is missing from one.
+ * The sidebar's own icons, one per destination, cropped to their drawing and sized for a high-density screen.
+ * Both looks share the same flat drawings, whatever the theme: ivory on a dark page (`assets/nav/dark/`) and the same drawings in slate blue on a light one (`assets/nav/light/`).
+ * The bundler needs each `require` written out, so the sets are spelled in full; the type below fails when a look or an icon is missing from one.
  */
 const sources = {
   dark: {
