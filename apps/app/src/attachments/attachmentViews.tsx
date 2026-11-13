@@ -3,6 +3,7 @@ import { useEffect, useState } from "react";
 import { Image, Pressable, StyleSheet, Text, View } from "react-native";
 import type { ServiceClient } from "../foundation/client";
 import { colors, fontSizes, fonts, radii } from "../foundation/theme";
+import { imageCache } from "./imageCache";
 import type { AttachedFile } from "./useAttachments";
 
 // How attached images show (message-attachments): thumbnails above the message box with a × to remove them, and on the messages sent.
@@ -49,21 +50,15 @@ export function AttachmentStrip({
   );
 }
 
-/** The bytes already fetched, by identifier: a sent image never changes, so a refresh or a scroll does not fetch it again. */
-const fetched = new Map<string, Promise<string>>();
+/** The images already fetched, so a refresh or a scroll does not fetch a sent image again; bounded, as each one is held as base64. */
+const fetched = imageCache(64 * 1024 * 1024);
 
-const addressOf = (client: ServiceClient, card: AttachmentCard) => {
-  let address = fetched.get(card.id);
-  if (address === undefined) {
-    address = client
+const addressOf = (client: ServiceClient, card: AttachmentCard) =>
+  fetched.load(card.id, () =>
+    client
       .request({ _tag: "ReadAttachment", attachmentId: card.id })
-      .then((content) => `data:${content.mediaType};base64,${content.data}`);
-    // A failed fetch is tried again the next time it is shown.
-    address.catch(() => fetched.delete(card.id));
-    fetched.set(card.id, address);
-  }
-  return address;
-};
+      .then((content) => `data:${content.mediaType};base64,${content.data}`),
+  );
 
 function SentImage({ card, client }: { card: AttachmentCard; client: ServiceClient }) {
   const [uri, setUri] = useState<string | null>(null);

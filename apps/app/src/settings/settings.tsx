@@ -152,7 +152,7 @@ export function SettingsScreen({
   const [active, setActive] = useState<SettingsSectionId>("permissions");
   const save = (change: Partial<Settings>) => {
     if (settings === null) return;
-    client.request({ _tag: "UpdateSettings", settings: { ...settings, ...change } }).then(
+    client.request({ _tag: "ChangeSettings", change }).then(
       () => setSaveError(null),
       (reason) => setSaveError(messageOf(reason)),
     );
@@ -301,7 +301,7 @@ export function SettingsScreen({
                   key={`default:${JSON.stringify(settings.defaultMissionBudget)}`}
                   limits={settings.defaultMissionBudget}
                   onSave={(defaultMissionBudget) =>
-                    client.request({ _tag: "UpdateSettings", settings: { ...settings, defaultMissionBudget } })
+                    client.request({ _tag: "ChangeSettings", change: { defaultMissionBudget } })
                   }
                   saveLabel="Save default"
                 />
@@ -406,9 +406,7 @@ export function SettingsScreen({
                 <BudgetEditor
                   key={`global:${JSON.stringify(settings.globalBudget)}`}
                   limits={settings.globalBudget}
-                  onSave={(globalBudget) =>
-                    client.request({ _tag: "UpdateSettings", settings: { ...settings, globalBudget } })
-                  }
+                  onSave={(globalBudget) => client.request({ _tag: "ChangeSettings", change: { globalBudget } })}
                   saveLabel="Save global budget"
                 />
               </SettingsCard>

@@ -1,4 +1,4 @@
-import { Schema } from "effect";
+import { Schema, Struct } from "effect";
 import { AttachmentCard, AttachmentContent, maxAttachmentsPerMessage } from "./attachments.ts";
 import { AccountBudget, BudgetLimits, BudgetPeriod, BudgetWindow, PriceStatus } from "./budgets.ts";
 import { Crest } from "./crest.ts";
@@ -41,6 +41,7 @@ import {
   StartingContext,
   Suggestion,
   ThreadPanel,
+  ThreadSummary,
   Viewing,
 } from "./records.ts";
 import {
@@ -188,6 +189,8 @@ export const ReadMission = Schema.TaggedStruct("ReadMission", {
   missionId: MissionId,
   threadId: Schema.NullOr(ThreadId),
 });
+/** Reads a mission's thread tree alone, without any conversation: what the sidebar and the quest list show. */
+export const ReadThreadTree = Schema.TaggedStruct("ReadThreadTree", { missionId: MissionId });
 /** Reads what the thread panel shows of a thread: its context gauge and what it spent (thread-panel). */
 export const ReadThreadPanel = Schema.TaggedStruct("ReadThreadPanel", { threadId: ThreadId });
 /** The owner opens a thread beneath any thread of a mission, with its first message (thread-tree, Opening a thread). */
@@ -411,6 +414,10 @@ export const WidenPermission = Schema.TaggedStruct("WidenPermission", { permissi
 export const RemovePermission = Schema.TaggedStruct("RemovePermission", { permissionId: PermissionId });
 /** Saves the owner's settings. */
 export const UpdateSettings = Schema.TaggedStruct("UpdateSettings", { settings: Settings });
+/** Changes some of the owner's settings, merged into the saved ones by the service, so a change made elsewhere meanwhile is kept. */
+export const ChangeSettings = Schema.TaggedStruct("ChangeSettings", {
+  change: Settings.mapFields(Struct.map(Schema.optionalKey)),
+});
 // The folder picker (CHG-0253): browsing, searching, and making folders. A paired device reaches only the browsable roots the host set in the Workshop; the host's own window may reach any folder.
 /** Lists a folder's subfolders (under the browsable roots for a paired device); null lists the roots. */
 export const BrowseFolders = Schema.TaggedStruct("BrowseFolders", {
@@ -503,6 +510,7 @@ export const Request = Schema.Union([
   DismissMissionPrompt,
   ReadMission,
   ReadThreadPanel,
+  ReadThreadTree,
   ReadSettings,
   ReadPriceStatus,
   RefreshPrices,
@@ -511,6 +519,7 @@ export const Request = Schema.Union([
   AddCredit,
   SwitchAtBudget,
   UpdateSettings,
+  ChangeSettings,
   ReadJournal,
   RewriteBriefing,
   AddJournalEntry,
@@ -607,6 +616,7 @@ export const Results = {
   AnswerQuestion: Question,
   AnswerSuggestion: Suggestion,
   BrowseFolders: FolderListing,
+  ChangeSettings: Settings,
   ChangeThreadRunner: Schema.Null,
   CreateFolder: Folder,
   CreatePairingCode: PairingCode,
@@ -655,6 +665,7 @@ export const Results = {
   ReadSettings: Settings,
   ReadStartChoices: StartChoices,
   ReadThreadPanel: ThreadPanel,
+  ReadThreadTree: Schema.Array(ThreadSummary),
   ReadUsage: UsageReport,
   RefreshPrices: PriceStatus,
   RemoveAccount: HarnessList,

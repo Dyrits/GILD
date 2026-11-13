@@ -323,11 +323,11 @@ export function BudgetScreen({
       ? client.request({ _tag: "SetMissionBudget", limits, missionId })
       : settings === null
         ? Promise.reject(new Error("The Workshop is still loading."))
-        : client.request({ _tag: "UpdateSettings", settings: { ...settings, globalBudget: limits } });
+        : client.request({ _tag: "ChangeSettings", change: { globalBudget: limits } });
   const savePeriod = (period: BudgetPeriod) =>
     settings === null
       ? Promise.resolve()
-      : client.request({ _tag: "UpdateSettings", settings: { ...settings, globalBudgetPeriod: period } });
+      : client.request({ _tag: "ChangeSettings", change: { globalBudgetPeriod: period } });
   return (
     <ScrollView contentContainerStyle={styles.screen}>
       <View style={styles.header}>

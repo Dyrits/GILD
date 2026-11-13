@@ -1,5 +1,5 @@
 import { dirname, join } from "node:path";
-import type { Request } from "@iskios/contracts";
+import type { Request, Settings } from "@iskios/contracts";
 import { Effect, Layer, Match, Semaphore } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
 import {
@@ -104,7 +104,7 @@ import { markThreadDone } from "./work/lifecycle.ts";
 import { toolServerLayer } from "./work/mcp.ts";
 import { listMentionables } from "./work/mentions.ts";
 import { insertUserMessage } from "./work/messaging.ts";
-import { readMission } from "./work/missionDetail.ts";
+import { readMission, readThreadTree } from "./work/missionDetail.ts";
 import { insertMission, insertQuest } from "./work/missions.ts";
 import { PlanLimits, planLimitsLayer } from "./work/planLimits.ts";
 import { priceRefreshLayer } from "./work/priceRefresh.ts";
@@ -181,6 +181,21 @@ const make = Effect.gen(function* () {
     );
   /** Runs storage work as a command whose only follow-up is announcing the change. */
   const change = <A, E, R>(work: Effect.Effect<A, E, R>) => commands.run(Effect.map(work, (value) => changed(value)));
+  /** Saves the settings `next` makes from the saved ones, read in the same transaction as the write so no concurrent change is lost. */
+  const saveSettings = (next: (saved: Settings) => Settings) =>
+    Effect.gen(function* () {
+      let before: Settings["globalBudget"] | undefined;
+      const saved = yield* change(
+        Effect.gen(function* () {
+          const current = yield* readSettings;
+          before = current.globalBudget;
+          return yield* writeSettings(next(current));
+        }),
+      );
+      // A changed global budget stops work at its limit or releases the threads it held, and leaves its line in the Guildmaster.
+      if (before !== undefined) yield* commands.run(applyGlobalBudget(before));
+      return saved;
+    });
   /** Runs an account change, then lists the harnesses as they stand after it. */
   const thenListHarnesses = <A, R>(work: Effect.Effect<A, ServiceFailure | SqlError.SqlError, R>) =>
     change(work).pipe(
@@ -262,6 +277,7 @@ const make = Effect.gen(function* () {
             Effect.map(({ value }) => value),
           ),
         BrowseFolders: (browse) => browseFolders(browse.path, browse.shouldIncludeHidden, folderAccess),
+        ChangeSettings: (given) => saveSettings((saved) => ({ ...saved, ...given.change })),
         ChangeThreadRunner: (change) =>
           Effect.gen(function* () {
             // Messages still waiting that hold images stay with a runner that cannot read them: refused.
@@ -419,6 +435,7 @@ const make = Effect.gen(function* () {
             Effect.provideService(ScratchRoot, scratchRoot),
             Effect.provideService(PlanLimits, planLimits),
           ),
+        ReadThreadTree: (read) => readThreadTree(read.missionId),
         ReadUsage: (read) => readUsage(read.period, read.filters),
         RefreshPrices: () =>
           prices.refresh.pipe(
@@ -585,14 +602,7 @@ const make = Effect.gen(function* () {
               }),
             ),
           ),
-        UpdateSettings: (update) =>
-          Effect.gen(function* () {
-            const before = (yield* readSettings).globalBudget;
-            return yield* change(writeSettings(update.settings)).pipe(
-              // A changed global budget stops work at its limit or releases the threads it held, and leaves its line in the Guildmaster.
-              Effect.tap(() => commands.run(applyGlobalBudget(before))),
-            );
-          }),
+        UpdateSettings: (update) => saveSettings(() => update.settings),
         // The deployment takes seconds and is not a command: only its result, the new address, is stored.
         UseOwnRelay: (given) => hostControl.useOwnRelay(given.token),
         UseSharedRelay: hostControl.useSharedRelay,

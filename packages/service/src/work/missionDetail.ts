@@ -49,6 +49,14 @@ const listThreads = (missionId: string, topThreadId: string) =>
 const accountLabelOf = (accountId: string | null, label: string | null) =>
   accountId === null ? ownAccountLabel : (label ?? "Removed account");
 
+/** A mission's thread tree alone, for the views that show only where its threads stand. */
+export const readThreadTree = (missionId: string) =>
+  Effect.gen(function* () {
+    const [summary] = yield* listMissionSummaries([missionId]);
+    if (summary === undefined) return yield* notFound("No such mission.");
+    return yield* listThreads(missionId, summary.topThreadId);
+  });
+
 /** A mission with its thread tree and the conversation of one thread, the top thread by default. */
 export const readMission = (missionId: string, threadId: string | null) =>
   Effect.gen(function* () {

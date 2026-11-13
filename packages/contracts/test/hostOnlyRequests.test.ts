@@ -4,13 +4,15 @@ import { hostOnlyRequestTags, Results } from "../src/index.ts";
 // Every request that manages pairing, the relay or other hosts is classified here, so a new request of that kind
 // cannot reach a paired device unnoticed: adding one to the contract means deciding, in this test, which side it is on.
 describe("the requests only a host may answer", () => {
-  it("are exactly the ones that manage pairing, the relay or other hosts", () => {
+  it("are exactly the ones that manage pairing, the relay, other hosts or the browsable roots (CHG-0253)", () => {
     expect([...hostOnlyRequestTags].sort()).toEqual([
+      "AddBrowsableRoot",
       "AddHost",
       "CreatePairingCode",
       "DisconnectDevice",
       "ListHosts",
       "ReadRemoteAccess",
+      "RemoveBrowsableRoot",
       "RemoveHost",
       "SetRemoteAccess",
       "UseOwnRelay",

@@ -66,9 +66,7 @@ export function PermissionsScreen({ client, onBack }: { client: ServiceClient; o
             <Text style={styles.label}>Approval level</Text>
             <Choice
               label={(level) => levelLabels[level]}
-              onChange={(approvalLevel) =>
-                act(client.request({ _tag: "UpdateSettings", settings: { ...settings, approvalLevel } }))
-              }
+              onChange={(approvalLevel) => act(client.request({ _tag: "ChangeSettings", change: { approvalLevel } }))}
               options={ApprovalLevels.literals}
               value={view.level}
             />

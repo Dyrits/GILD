@@ -10,17 +10,21 @@ export function useServiceQuery<R extends Request>(client: ServiceClient, reques
   // biome-ignore lint/correctness/useExhaustiveDependencies: the key identifies the request.
   useEffect(() => {
     let isCurrent = true;
-    const load = () =>
-      client.request(request).then(
+    // Only the latest read may show its outcome, so a slow older reply cannot replace a newer one.
+    let latest = 0;
+    const load = () => {
+      const mine = ++latest;
+      return client.request(request).then(
         (value) => {
-          if (!isCurrent) return;
+          if (!isCurrent || mine !== latest) return;
           setData(value);
           setError(null);
         },
         (reason: Error) => {
-          if (isCurrent) setError(reason.message);
+          if (isCurrent && mine === latest) setError(reason.message);
         },
       );
+    };
     load();
     const unsubscribe = client.subscribe(load);
     return () => {

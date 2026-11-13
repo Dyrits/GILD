@@ -13,6 +13,7 @@ import { RitualsScreen } from "./src/rituals/rituals";
 import { SettingsScreen } from "./src/settings/settings";
 import { AddHostModal } from "./src/shell/addHostModal";
 import { Dashboard } from "./src/shell/dashboard";
+import { detailsModeOf } from "./src/shell/navigation";
 import { useAttentionNotice } from "./src/shell/notifications";
 import { UnbuiltScreen } from "./src/shell/places";
 import { QuestListScreen } from "./src/shell/questListPage";
@@ -146,76 +147,98 @@ export default function App() {
     setSelectedMission(id);
     if (id !== null) setAreDetailsOpen(true);
   };
-  // The quest board always has its panel open, with the overview when no quest is chosen.
-  const isBoard = openMission === null && place === "Quests";
-  const content =
-    openMission !== null ? (
-      <Conversation
-        client={client}
-        key={`${openMission}:${openCount}`}
-        missionId={openMission}
-        onBack={() => setOpenMission(null)}
-        onOpenMission={openMissionFromAnywhere}
-        onSelectThread={setOpenThread}
-        onSetDetails={setAreDetailsOpen}
-        selectedThreadId={openThread}
-      />
-    ) : place === "Lore" ? (
-      <LoreScreen client={client} onBack={() => goTo("Guildmaster")} threadId={null} title="All lore" />
-    ) : place === "Settings" && isPermissionsOpen ? (
-      <PermissionsScreen client={client} onBack={() => setIsPermissionsOpen(false)} />
-    ) : place === "Settings" ? (
-      <SettingsScreen
-        client={client}
-        onBack={() => goTo("Guildmaster")}
-        onPermissions={() => setIsPermissionsOpen(true)}
-      />
-    ) : place === "Guildmaster" ? (
-      <GuildmasterScreen client={client} onOpenMission={openMissionFromAnywhere} onViewAll={() => goTo("Quests")} />
-    ) : place === "Borderlands" ? (
-      <QuestListScreen client={client} listing={null} onOpen={openMissionFromAnywhere} onOpenThread={openSideQuest} />
-    ) : place === "RealmQuests" ? (
-      <QuestListScreen
-        client={client}
-        listing={listedRealm}
-        onOpen={openMissionFromAnywhere}
-        onOpenThread={openSideQuest}
-      />
-    ) : place === "Rituals" ? (
-      <RitualsScreen client={client} onOpen={openMissionFromAnywhere} />
-    ) : place === "Charter" || place === "Craft" || place === "Library" || place === "Realms" ? (
-      <UnbuiltScreen place={place} />
-    ) : place === "Reserves" ? (
-      <UsageScreen client={client} />
-    ) : (
-      <Dashboard
-        client={client}
-        isArchived={place === "Archived"}
-        key={place}
-        onArchived={() => goTo("Archived")}
-        onBack={() => goTo("Guildmaster")}
-        onLore={() => goTo("Lore")}
-        onOpen={openMissionFromAnywhere}
-        onSelect={selectMission}
-        onSendToGuildmaster={(path) => {
-          goTo("Guildmaster");
-          setGuildmasterRealm(path);
-        }}
-        onSettings={() => goTo("Settings")}
-        selectedId={selectedMission}
-        workspaceId={null}
-      />
-    );
+  const screen = () => {
+    if (openMission !== null) {
+      return (
+        <Conversation
+          client={client}
+          key={`${openMission}:${openCount}`}
+          missionId={openMission}
+          onBack={() => setOpenMission(null)}
+          onOpenMission={openMissionFromAnywhere}
+          onSelectThread={setOpenThread}
+          onSetDetails={setAreDetailsOpen}
+          selectedThreadId={openThread}
+        />
+      );
+    }
+    switch (place) {
+      case "Lore":
+        return <LoreScreen client={client} onBack={() => goTo("Guildmaster")} threadId={null} title="All lore" />;
+      case "Settings":
+        return isPermissionsOpen ? (
+          <PermissionsScreen client={client} onBack={() => setIsPermissionsOpen(false)} />
+        ) : (
+          <SettingsScreen
+            client={client}
+            onBack={() => goTo("Guildmaster")}
+            onPermissions={() => setIsPermissionsOpen(true)}
+          />
+        );
+      case "Guildmaster":
+        return (
+          <GuildmasterScreen client={client} onOpenMission={openMissionFromAnywhere} onViewAll={() => goTo("Quests")} />
+        );
+      case "Borderlands":
+        return (
+          <QuestListScreen
+            client={client}
+            listing={null}
+            onOpen={openMissionFromAnywhere}
+            onOpenThread={openSideQuest}
+          />
+        );
+      case "RealmQuests":
+        return (
+          <QuestListScreen
+            client={client}
+            listing={listedRealm}
+            onOpen={openMissionFromAnywhere}
+            onOpenThread={openSideQuest}
+          />
+        );
+      case "Rituals":
+        return <RitualsScreen client={client} onOpen={openMissionFromAnywhere} />;
+      case "Charter":
+      case "Craft":
+      case "Library":
+      case "Realms":
+        return <UnbuiltScreen place={place} />;
+      case "Reserves":
+        return <UsageScreen client={client} />;
+      default:
+        return (
+          <Dashboard
+            client={client}
+            isArchived={place === "Archived"}
+            key={place}
+            onArchived={() => goTo("Archived")}
+            onBack={() => goTo("Guildmaster")}
+            onLore={() => goTo("Lore")}
+            onOpen={openMissionFromAnywhere}
+            onSelect={selectMission}
+            onSendToGuildmaster={(path) => {
+              goTo("Guildmaster");
+              setGuildmasterRealm(path);
+            }}
+            onSettings={() => goTo("Settings")}
+            selectedId={selectedMission}
+            workspaceId={null}
+          />
+        );
+    }
+  };
+  const detailsMode = detailsModeOf({ hasListedRealm: listedRealm !== null, openMission, place, selectedMission });
+  const details =
+    detailsMode === "pinned"
+      ? { isOpen: true, isPinned: true, onToggle: () => {} }
+      : detailsMode === "toggle"
+        ? { isOpen: areDetailsOpen, onToggle: () => setAreDetailsOpen(!areDetailsOpen) }
+        : null;
   const shell = (
     <Shell
       client={client}
-      details={
-        isBoard
-          ? { isOpen: true, isPinned: true, onToggle: () => {} }
-          : openMission === null && selectedMission === null && !(place === "RealmQuests" && listedRealm !== null)
-            ? null
-            : { isOpen: areDetailsOpen, onToggle: () => setAreDetailsOpen(!areDetailsOpen) }
-      }
+      details={details}
       iskios={{ onRealm: setGuildmasterRealm, realmPath: guildmasterRealm }}
       listedRealm={listedRealm}
       onOpenMission={openMissionFromAnywhere}
@@ -229,7 +252,7 @@ export default function App() {
       openThread={openThread}
       place={place}
     >
-      {content}
+      {screen()}
     </Shell>
   );
   return (

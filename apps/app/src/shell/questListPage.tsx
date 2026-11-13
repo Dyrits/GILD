@@ -103,13 +103,8 @@ function QuestTreeLines({
   onToggle: (id: string) => void;
   shouldShowAgentThreads: boolean;
 }) {
-  const { data } = useServiceQuery(
-    client,
-    { _tag: "ReadMission", missionId: mission.id, threadId: null },
-    `${mission.id}:top`,
-  );
-  const threads: ReadonlyArray<ThreadSummary> | null =
-    mission.threadCount > 1 && data !== null && data.mission.id === mission.id ? data.threads : null;
+  const { data } = useServiceQuery(client, { _tag: "ReadThreadTree", missionId: mission.id }, `${mission.id}:tree`);
+  const threads: ReadonlyArray<ThreadSummary> | null = mission.threadCount > 1 ? data : null;
   return (
     <>
       {questListRowsOf(mission, threads, collapsed, shouldShowAgentThreads).map((row) => (
@@ -158,8 +153,7 @@ export function QuestListScreen({
   const quests = (data?.missions ?? []).filter((mission) => mission.workspaceId === (listing?.id ?? null));
   const now = Date.now();
   const hasSidebar = useHasSidebar();
-  const { data: realms } = useServiceQuery(client, allMissions.request, allMissions.key);
-  const realm = listing === null ? null : (realms?.workspaces.find((each) => each.id === listing.id) ?? null);
+  const realm = listing === null ? null : (data?.workspaces.find((each) => each.id === listing.id) ?? null);
   // The realm whose crest studio or lore is open; showing another realm closes them.
   const [designingId, setDesigningId] = useState<WorkspaceId | null>(null);
   const [loreId, setLoreId] = useState<WorkspaceId | null>(null);

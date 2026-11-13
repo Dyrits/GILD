@@ -92,10 +92,12 @@ export function useAttachments(client: ServiceClient | null) {
     if (client !== null && removed?.card) discard(client, removed.card.id);
   };
 
-  // What is sent is no longer the box's: the files are forgotten without erasing them.
-  const clear = () => {
-    for (const file of current.current) if (file.previewUrl !== null) URL.revokeObjectURL(file.previewUrl);
-    change(() => []);
+  // What is sent is no longer the box's: the files are forgotten without erasing them. Files added since stay.
+  const clear = (sent: ReadonlyArray<AttachmentId>) => {
+    const isSent = (file: AttachedFile) => file.card !== null && sent.includes(file.card.id);
+    for (const file of current.current)
+      if (isSent(file) && file.previewUrl !== null) URL.revokeObjectURL(file.previewUrl);
+    change((all) => all.filter((file) => !isSent(file)));
     setError(null);
   };
 

@@ -431,8 +431,7 @@ function SideQuests({
   selectedThread: ThreadId | null;
   shouldShowAgentThreads: boolean;
 }) {
-  const { data } = useServiceQuery(client, { _tag: "ReadMission", missionId, threadId: null }, `${missionId}:top`);
-  const threads = data !== null && data.mission.id === missionId ? data.threads : null;
+  const { data: threads } = useServiceQuery(client, { _tag: "ReadThreadTree", missionId }, `${missionId}:tree`);
   // The sidebar always shows where the owner is: the path to the open side-quest expands.
   useEffect(() => {
     if (threads !== null && selectedThread !== null) onReveal(ancestorIdsOf(threads, selectedThread));

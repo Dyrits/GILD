@@ -30,6 +30,9 @@ type Pending = { tag: RequestTag; resolve: (value: unknown) => void; reject: (er
 /** One connection to the local service, or through it to a paired host: requests with replies, and change announcements. */
 export class ServiceClient {
   private socket: WebSocket | null = null;
+  /** The socket still connecting, so that closing the client can end it. */
+  private attempt: WebSocket | null = null;
+  private retryTimer: ReturnType<typeof setTimeout> | null = null;
   private nextId = 0;
   private failures = 0;
   private isEnded = false;
@@ -79,13 +82,22 @@ export class ServiceClient {
   /** Ends the connection for good, as when the window shows another host. */
   close() {
     this.isEnded = true;
+    if (this.retryTimer !== null) clearTimeout(this.retryTimer);
+    this.retryTimer = null;
+    this.attempt?.close();
     this.socket?.close();
   }
 
-  private open() {
+  /** Opens a socket; a failed first attempt is reported to the caller, while a failed reconnection is retried. */
+  private open(isReconnection = false) {
     return new Promise<void>((resolve, reject) => {
       const socket = new WebSocket(this.endpoint);
+      this.attempt = socket;
+      let hasOpened = false;
       socket.onopen = () => {
+        hasOpened = true;
+        if (this.attempt === socket) this.attempt = null;
+        if (this.isEnded) return socket.close();
         this.socket = socket;
         resolve();
         this.notify();
@@ -97,6 +109,7 @@ export class ServiceClient {
         this.receive(event.data);
       };
       socket.onclose = (event) => {
+        if (this.attempt === socket) this.attempt = null;
         const failure = linkFailureOf(event.code, event.reason);
         if (isFinalLinkClose(event.code)) this.isEnded = true;
         if (failure !== null) this.setFailure(failure);
@@ -104,11 +117,13 @@ export class ServiceClient {
           request.reject(new Error(failure ?? "The connection to the service closed."));
         }
         this.pending.clear();
-        if (this.socket !== socket || this.isEnded) return;
+        if (this.isEnded || !(hasOpened || isReconnection)) return;
+        if (this.socket === socket) this.socket = null;
         this.failures += 1;
-        setTimeout(
+        this.retryTimer = setTimeout(
           () => {
-            if (!this.isEnded) this.open().catch(() => void 0);
+            this.retryTimer = null;
+            if (!this.isEnded) this.open(true).catch(() => void 0);
           },
           retryDelayOf(this.failures, this.hostId !== null),
         );

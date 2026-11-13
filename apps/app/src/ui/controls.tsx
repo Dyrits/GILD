@@ -128,6 +128,8 @@ export function Composer({
   hasContent?: boolean;
 }) {
   const [text, setText] = useState("");
+  // The text now in the box, which differs from `text` in a step that started before the last keystroke.
+  const latestText = useRef("");
   const editor = useRef<ChipEditorHandle>(null);
   const [isSending, setIsSending] = useState(false);
   const files = useAttachments(attachable?.client ?? null);
@@ -144,10 +146,13 @@ export function Composer({
   const send = async (handler: (text: string, attachmentIds: ReadonlyArray<AttachmentId>) => Promise<unknown>) => {
     if (cannotSend || isSending) return;
     setIsSending(true);
+    const sent = text.trim();
+    const sentIds = files.ids;
     try {
-      await handler(text.trim(), files.ids);
-      editor.current?.clear();
-      files.clear();
+      await handler(sent, sentIds);
+      // Text typed while the send was pending was never sent, so it stays.
+      if (latestText.current.trim() === sent) editor.current?.clear();
+      files.clear(sentIds);
       setError(null);
     } catch (reason) {
       setError((reason as Error).message);
@@ -195,6 +200,7 @@ export function Composer({
             {...(onBang === undefined ? {} : { onBang })}
             {...(attachable === undefined ? {} : { onFiles: files.attach })}
             onChange={(value, typed) => {
+              latestText.current = value;
               setText(value);
               list.onTyped(typed);
               onChangeText?.(value);
