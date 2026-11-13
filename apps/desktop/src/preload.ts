@@ -4,8 +4,6 @@ import type { Theme } from "../../app/src/foundation/themeName.ts";
 
 // The endpoint carries the per-launch owner token for the local service.
 contextBridge.exposeInMainWorld("iskios", {
-  /** Opens the system's folder dialog; resolves the chosen folder, or null when cancelled. */
-  chooseFolder: (): Promise<string | null> => ipcRenderer.invoke("iskios:chooseFolder"),
   endpoint: (): Promise<string> => ipcRenderer.invoke("iskios:endpoint"),
   /** Whether the window has no system title bar on macOS, so the app draws its own beside the traffic lights. */
   hasOwnTitleBar: process.platform === "darwin",

@@ -10,6 +10,7 @@ import {
   createFolder,
   endpointsLayer,
   type Harness,
+  HomeFolder,
   invalid,
   noPriceSourceLayer,
   type PriceSource,
@@ -17,8 +18,10 @@ import {
   priceTableLayer,
   readSettings,
   readStartChoices,
+  removeBrowsableRoot,
   ServiceFailure,
   sandboxProblem,
+  searchFolders,
   seedBrowsableRoots,
   sessionsLayer,
   storeLayer,
@@ -157,6 +160,7 @@ const make = Effect.gen(function* () {
   const remoteConfig = yield* RemoteConfig;
   const threads = yield* Threads;
   const scratchRoot = yield* ScratchRoot;
+  const homeFolder = yield* HomeFolder;
   const commands = yield* Commands;
   const approvals = yield* Approvals;
   const suggestions = yield* Suggestions;
@@ -217,7 +221,15 @@ const make = Effect.gen(function* () {
   /** A request's follow-ups that only wake one thread, as a repeated request still does. */
   const wakingOnly = (threadId: string): FollowUps => ({ ...noFollowUps, threadsToWake: [threadId] });
 
-  const handle = (request: Request): Effect.Effect<unknown, ServiceFailure> => {
+  /**
+   * Answers one request. A paired device's folder requests reach only the browsable roots; the host's own window,
+   * the default, reaches any folder (device-pairing, CHG-0253).
+   */
+  const handle = (
+    request: Request,
+    source: { readonly isPairedDevice: boolean } = { isPairedDevice: false },
+  ): Effect.Effect<unknown, ServiceFailure> => {
+    const folderAccess = source.isPairedDevice ? "roots" : "anywhere";
     // One handler per request tag; Match.valueTags fails to compile when a tag has none.
     const run: Effect.Effect<unknown, ServiceFailure | SqlError.SqlError, SqlClient.SqlClient> = Match.valueTags(
       request,
@@ -249,7 +261,7 @@ const make = Effect.gen(function* () {
             Effect.tap(({ followUps }) => commands.apply(followUps)),
             Effect.map(({ value }) => value),
           ),
-        BrowseFolders: (browse) => browseFolders(browse.path, browse.shouldIncludeHidden),
+        BrowseFolders: (browse) => browseFolders(browse.path, browse.shouldIncludeHidden, folderAccess),
         ChangeThreadRunner: (change) =>
           Effect.gen(function* () {
             // Messages still waiting that hold images stay with a runner that cannot read them: refused.
@@ -273,7 +285,7 @@ const make = Effect.gen(function* () {
               }),
             );
           }),
-        CreateFolder: (create) => createFolder(create.parent, create.name),
+        CreateFolder: (create) => createFolder(create.parent, create.name, folderAccess),
         CreatePairingCode: () => hostControl.createPairingCode,
         CreateRealm: (create) => change(createRealm(create.path, create.name, create.crest)),
         CreateRitual: (create) =>
@@ -415,6 +427,7 @@ const make = Effect.gen(function* () {
             ),
           ),
         RemoveAccount: (remove) => thenListHarnesses(removeAccount(remove.accountId)),
+        RemoveBrowsableRoot: (remove) => change(removeBrowsableRoot(remove.path)),
         RemoveHost: (given) => change(forgetHost(given.hostId)).pipe(Effect.andThen(withRemote(listKnownHosts))),
         RemovePermission: (remove) => change(removePermission(remove.permissionId)),
         RenameAccount: (rename) => thenListHarnesses(renameAccount(rename.accountId, rename.label)),
@@ -449,6 +462,7 @@ const make = Effect.gen(function* () {
           );
         },
         RunRitual: (given) => commands.run(runRitual(given.ritualId)),
+        SearchFolders: (search) => searchFolders(search.query, folderAccess, homeFolder),
         SendMessage: (send) =>
           Effect.gen(function* () {
             const attachmentIds = send.attachmentIds ?? [];
@@ -634,6 +648,7 @@ export const serviceLayer = (options: ServiceOptions) => {
     options.harness,
     options.harnessTools ?? fakeHarnessToolsLayer(),
     Layer.succeed(ScratchRoot, options.scratchRoot),
+    Layer.succeed(HomeFolder, options.homeFolder),
     Layer.succeed(AccountsRoot, options.accountsRoot ?? join(dirname(options.filename), "accounts")),
     Layer.succeed(AttachmentsRoot, attachmentsRoot),
   ).pipe(

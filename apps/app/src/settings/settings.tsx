@@ -38,6 +38,7 @@ import { Button } from "../ui/button";
 import { Choice } from "../ui/pickers";
 import { AccountBudgetsCard } from "./accountBudgetsCard";
 import { AccountsCard, HarnessesCard } from "./accounts";
+import { BrowsableRootsCard } from "./browsableRootsCard";
 import { GuildmasterSettings } from "./guildmasterSettings";
 import { PricesCard } from "./pricesCard";
 import { RemoteAccessCard } from "./remoteAccessCard";
@@ -319,6 +320,7 @@ export function SettingsScreen({
             </Section>
             <Section id="remote" tops={tops}>
               <RemoteAccessCard client={client} />
+              <BrowsableRootsCard client={client} />
             </Section>
             <Section id="messaging" tops={tops}>
               <SettingsCard

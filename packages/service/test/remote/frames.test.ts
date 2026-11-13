@@ -6,12 +6,14 @@ import { answerText } from "../../src/remote/frames.ts";
 
 /** A well-formed request of each kind this test sends. */
 const requests = {
+  AddBrowsableRoot: { path: "/tmp" },
   AddHost: { code: "iskios1-x", deviceName: "Laptop" },
   CreatePairingCode: {},
   DisconnectDevice: { deviceId: "d" },
   ListHosts: {},
   ReadHostName: {},
   ReadRemoteAccess: {},
+  RemoveBrowsableRoot: { path: "/tmp" },
   RemoveHost: { hostId: "h" },
   RenameHost: { name: "Studio" },
   SetRemoteAccess: { isEnabled: false },

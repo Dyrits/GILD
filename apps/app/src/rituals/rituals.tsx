@@ -368,6 +368,7 @@ export function RitualForm({
       {ritual === null ? (
         <Part name="Realm">
           <RealmChooser
+            client={client}
             onChange={setWorkspacePath}
             onCreate={(realm) =>
               client

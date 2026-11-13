@@ -101,11 +101,13 @@ export const RenameHost = Schema.TaggedStruct("RenameHost", { name: Schema.Strin
 
 /** The request tags a paired device may not send to a host. */
 export const hostOnlyRequestTags = [
+  "AddBrowsableRoot",
   "AddHost",
   "CreatePairingCode",
   "DisconnectDevice",
   "ListHosts",
   "ReadRemoteAccess",
+  "RemoveBrowsableRoot",
   "RemoveHost",
   "SetRemoteAccess",
   "UseOwnRelay",

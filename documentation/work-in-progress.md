@@ -1,5 +1,9 @@
 # Work in progress
 
+## Folder picker on a host · 2026-11-13 · built and checked headlessly, window drive and owner review pending
+
+Batch 3a of device pairing, agreed in CHG-0253 and delivered in CHG-0254 (starting commit `ae217e4`, uncommitted): one picker for this computer and a paired host; a paired device reaches only the host's browsable roots, set in the Workshop (Remote access section, "Folders open to Iskios"); the host's own window reaches any folder. Checks: typecheck, Biome, 751 app and service tests passed, an end-to-end paired-device test, the web export. Open: drive the picker in a window (this computer, and a paired host through a local relay) and have the owner look at it and the Workshop card; run the full suite. Next in device pairing: 3b the terminal on a host (needs the owner's choice, backlog), then a mini-prototype of the direct path before batch 4 (backlog), then batch 5 measurement.
+
 ## Expanded Iskios width · 2026-11-13 · live check pending
 
 CHG-0247 removes the expanded conversation's centered 900 px cap so the conversation and composer use the full available panel width. CHG-0248 restores expanded Iskios when the owner navigates from the left sidebar, including choosing the current destination again. Pending: check a wide window, resizing, and sidebar navigation to pages, realms, quests, and side-quests while Iskios is expanded in the running app.

@@ -889,6 +889,7 @@ export function Sidebar({
       )}
       {isCreating && (
         <NewRealmModal
+          client={client}
           initial={{ crest: null, name: "", path: "" }}
           isFolderRequired={false}
           onCancel={() => setIsCreating(false)}

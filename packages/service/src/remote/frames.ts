@@ -22,17 +22,22 @@ const frameIdOf = (raw: string) => {
   }
 };
 
-/** What serves requests: the service's `handle`. */
-export type Handle = (request: ClientFrame["request"]) => Effect.Effect<unknown, ServiceFailure>;
-
 /** Where a client text frame came from; a paired device is the owner, except for what only the host may do. */
 export interface FrameSource {
   readonly isPairedDevice: boolean;
 }
 
+/** What serves requests: the service's `handle`, told whether a paired device asks. */
+export type Handle = (request: ClientFrame["request"], source: FrameSource) => Effect.Effect<unknown, ServiceFailure>;
+
 /** Runs one request frame and sends its answer, as a Success or a Failure carrying the frame's identifier. */
-export const answerFrame = (handle: Handle, frame: ClientFrame, send: (frame: ServerFrame) => void) =>
-  handle(frame.request).pipe(
+export const answerFrame = (
+  handle: Handle,
+  frame: ClientFrame,
+  send: (frame: ServerFrame) => void,
+  source: FrameSource,
+) =>
+  handle(frame.request, source).pipe(
     Effect.map((value) =>
       Schema.encodeUnknownSync(Results[frame.request._tag] as unknown as Schema.Codec<unknown>)(value),
     ),
@@ -73,7 +78,7 @@ export const answerText = (
         }),
       );
     }
-    return answerFrame(handle, frame, send);
+    return answerFrame(handle, frame, send, source);
   }
   const id = frameIdOf(raw);
   return Effect.sync(() => {

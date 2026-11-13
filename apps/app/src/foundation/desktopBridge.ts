@@ -10,7 +10,6 @@ export interface TerminalSession {
 
 /** Capabilities exposed exclusively to the desktop window by its isolated preload. */
 export interface DesktopBridge {
-  chooseFolder(): Promise<string | null>;
   endpoint(): Promise<string>;
   readonly hasOwnTitleBar: boolean;
   /** Gives the Dock and the window the icon of the theme in use. */

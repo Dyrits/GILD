@@ -176,15 +176,6 @@ app
       app.dock?.setIcon(iconPathOf(theme));
       window.setIcon(iconPathOf(theme));
     });
-    // Choose folder… opens the system's own dialog, Finder or Explorer (CHG-0035); null when cancelled.
-    ipcMain.handle("iskios:chooseFolder", async () => {
-      const chosen = await dialog.showOpenDialog(window, {
-        buttonLabel: "Use this folder",
-        properties: ["openDirectory", "createDirectory"],
-        title: "Choose a workspace folder",
-      });
-      return chosen.canceled ? null : (chosen.filePaths[0] ?? null);
-    });
     if (!(await load(window))) quitWith(`Could not load ${appUrl}`);
   })
   .catch((error: Error) => quitWith(error.message));

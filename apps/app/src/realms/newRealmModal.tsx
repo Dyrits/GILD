@@ -3,22 +3,10 @@ import { useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { CrestBadge } from "../crest/crest";
 import { CrestStudio } from "../crest/crestStudio";
+import type { ServiceClient } from "../foundation/client";
 import { messageOf } from "../foundation/client";
-import { useIsRemoteHost } from "../foundation/hostContext";
 import { colors, fontSizes, fonts, outline, radii } from "../foundation/theme";
-
-/**
- * Opens the system's folder dialog through the desktop shell; null when cancelled. The dialog shows this computer's
- * folders, so it is refused while a paired host is shown, whose folders are the ones wanted (device-pairing, draft).
- */
-export const chooseFolder = (isRemote: boolean) =>
-  isRemote
-    ? Promise.reject(
-        new Error("Choosing a folder on a host is not built yet. Make the realm on the host itself for now."),
-      )
-    : window.iskios === undefined
-      ? Promise.reject(new Error("Choosing a folder needs the desktop app."))
-      : window.iskios.chooseFolder();
+import { FolderPicker } from "./folderPicker";
 
 /** A realm being made: named and given a crest. The path is empty until a folder is chosen, and stays so for a realm tied to none. */
 export type NewRealm = { crest: Crest | null; name: string; path: string };
@@ -34,13 +22,16 @@ export const folderNameOf = (path: string) =>
  * The menu that makes a realm: its folder, its name, and its crest. It opens with a folder chosen, or with none and a
  * button to choose one; the realm is made once a name is given, and a folder where one is required
  * (workspace-attachment; CHG-0035). Where the folder is optional, a realm made without one is tied to no folder (CHG-0161).
+ * The folder is chosen in the folder picker, which shows the folders of the computer whose Iskios the window shows.
  */
 export function NewRealmModal({
+  client,
   isFolderRequired = true,
   initial,
   onCancel,
   onCreate,
 }: {
+  client: ServiceClient;
   /** Whether the realm must be tied to a folder; where it need not, the folder can be chosen, changed, or left out. */
   isFolderRequired?: boolean;
   initial: NewRealm;
@@ -51,17 +42,13 @@ export function NewRealmModal({
   const [editing, setEditing] = useState(initial);
   const [isStudioOpen, setIsStudioOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const isRemote = useIsRemoteHost();
+  const [isPicking, setIsPicking] = useState(false);
   const isReady = editing.name.trim() !== "" && (!isFolderRequired || editing.path !== "");
-  const choose = () =>
-    chooseFolder(isRemote).then(
-      (path) => {
-        setError(null);
-        if (path !== null)
-          setEditing({ ...editing, name: editing.name.trim() === "" ? folderNameOf(path) : editing.name, path });
-      },
-      (reason) => setError(messageOf(reason)),
-    );
+  const choose = (path: string) => {
+    setIsPicking(false);
+    setError(null);
+    setEditing({ ...editing, name: editing.name.trim() === "" ? folderNameOf(path) : editing.name, path });
+  };
   return (
     <Modal animationType="fade" onRequestClose={onCancel} transparent visible>
       <View style={local.backdrop}>
@@ -76,7 +63,7 @@ export function NewRealmModal({
                   ? "No folder chosen"
                   : "No folder: optional, the realm's quests then have none"}
             </Text>
-            <Pressable accessibilityRole="button" onPress={choose} style={local.menuButton}>
+            <Pressable accessibilityRole="button" onPress={() => setIsPicking(true)} style={local.menuButton}>
               <Text style={local.menuButtonText}>{editing.path === "" ? "Choose folder…" : "Change folder…"}</Text>
             </Pressable>
             {!isFolderRequired && editing.path !== "" && (
@@ -128,6 +115,7 @@ export function NewRealmModal({
           </View>
         </View>
       </View>
+      {isPicking && <FolderPicker client={client} onCancel={() => setIsPicking(false)} onChoose={choose} />}
       {isStudioOpen && (
         <CrestStudio
           id={editing.path === "" ? "new-realm" : editing.path}

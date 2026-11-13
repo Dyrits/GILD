@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
@@ -226,6 +226,8 @@ describe("controlling one installation from another through the relay", () => {
           ["c", { _tag: "SetRemoteAccess", isEnabled: false }],
           ["d", { _tag: "DisconnectDevice", deviceId: "anything" }],
           ["e", { _tag: "ListHosts" }],
+          ["f", { _tag: "AddBrowsableRoot", path: tmpdir() }],
+          ["g", { _tag: "RemoveBrowsableRoot", path: tmpdir() }],
         ] as const) {
           expect(yield* w.ask(link, id, request)).toMatchObject({ _tag: "Failure", error: { kind: "AccessRefused" } });
         }
@@ -233,6 +235,40 @@ describe("controlling one installation from another through the relay", () => {
         link.socket.close();
       }),
     ),
+  );
+
+  it.live(
+    "lets a paired device look for folders only under the roots the host set, and the host's own window anywhere",
+    () =>
+      Effect.scoped(
+        Effect.gen(function* () {
+          const w = yield* world;
+          yield* w.allowPairing;
+          const host = yield* w.pair(yield* w.newCode());
+          const link = yield* w.bridge(host.id);
+          // Another folder on the host's computer, outside its only root (its home folder).
+          const outside = mkdtempSync(join(tmpdir(), "iskios-outside-"));
+          directories.push(outside);
+          mkdirSync(join(outside, "secrets"));
+          const search = (id: string, query: string) => w.ask(link, id, { _tag: "SearchFolders", query });
+          expect(yield* search("typed", join(outside, "secrets"))).toMatchObject({ _tag: "Success", value: [] });
+          expect(
+            yield* w.ask(link, "browse", { _tag: "BrowseFolders", path: outside, shouldIncludeHidden: false }),
+          ).toMatchObject({
+            _tag: "Failure",
+            error: { kind: "InvalidInput" },
+          });
+          expect(yield* w.ask(link, "make", { _tag: "CreateFolder", name: "x", parent: outside })).toMatchObject({
+            _tag: "Failure",
+            error: { kind: "InvalidInput" },
+          });
+          // The host sets the root in its Workshop; the paired device then reaches it.
+          yield* w.host({ _tag: "AddBrowsableRoot", path: outside });
+          const found = yield* search("added", "secrets");
+          expect(found).toMatchObject({ _tag: "Success", value: [{ path: join(realpathSync(outside), "secrets") }] });
+          link.socket.close();
+        }),
+      ),
   );
 
   it.live("ends a device's connection at once when the host disconnects it, and forgets it", () =>

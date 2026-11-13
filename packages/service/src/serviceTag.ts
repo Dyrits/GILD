@@ -5,5 +5,11 @@ import type { ServiceFailure } from "./core/index.ts";
 /** The entry point shared by app commands, paired devices, and, later, MCP calls. */
 export class Service extends Context.Service<
   Service,
-  { readonly handle: (request: Request) => Effect.Effect<unknown, ServiceFailure> }
+  {
+    /** Answers a request; a paired device's folder requests are limited to the browsable roots (CHG-0253). */
+    readonly handle: (
+      request: Request,
+      source?: { readonly isPairedDevice: boolean },
+    ) => Effect.Effect<unknown, ServiceFailure>;
+  }
 >()("iskios/Service") {}

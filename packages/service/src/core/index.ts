@@ -23,12 +23,16 @@ export {
   type TurnRequest,
   turnMessageOf,
 } from "./execution.ts";
+export { searchFolders } from "./folderSearch.ts";
 export {
   addBrowsableRoot,
   browseFolders,
   createFolder,
+  type FolderAccess,
+  HomeFolder,
   isInsideFolder,
   realFolderOf,
+  removeBrowsableRoot,
   seedBrowsableRoots,
 } from "./folders.ts";
 export { modelsDevSourceLayer, noPriceSourceLayer, rowsOfModelsDev } from "./priceSources.ts";

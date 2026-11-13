@@ -44,6 +44,13 @@ const failureOf = <R extends Request>(request: R) =>
     return yield* Effect.flip(service.handle(request));
   });
 
+/** A failure as a paired device meets it: its folder requests reach only the browsable roots (CHG-0253). */
+const failureOfPairedDevice = <R extends Request>(request: R) =>
+  Effect.gen(function* () {
+    const service = yield* Service;
+    return yield* Effect.flip(service.handle(request, { isPairedDevice: true }));
+  });
+
 const read = (missionId: MissionId) => call({ _tag: "ReadMission", missionId, threadId: null });
 
 const settle = (missionId: MissionId, check: (detail: MissionDetail) => boolean) =>
@@ -135,13 +142,17 @@ describe("browsing folders for the phone", () => {
     }).pipe(Effect.provide(layer));
   });
 
-  it.live("refuses folders outside the roots, including through a link", () => {
+  it.live("refuses a paired device folders outside the roots, including through a link", () => {
     const { home, layer, outside } = setUp();
     symlinkSync(outside, join(home, "shortcut"));
     return Effect.gen(function* () {
-      const refused = yield* failureOf({ _tag: "BrowseFolders", path: outside, shouldIncludeHidden: false });
+      const refused = yield* failureOfPairedDevice({
+        _tag: "BrowseFolders",
+        path: outside,
+        shouldIncludeHidden: false,
+      });
       expect(refused.kind).toBe("InvalidInput");
-      const linked = yield* failureOf({
+      const linked = yield* failureOfPairedDevice({
         _tag: "BrowseFolders",
         path: join(home, "shortcut"),
         shouldIncludeHidden: false,

@@ -47,9 +47,9 @@ When adding a handoff, keep only the three newest current handoffs linked below;
 
 Latest handoffs:
 
+- To resume device pairing's folder picker (batch 3a built and checked, CHG-0253 and CHG-0254, uncommitted: commit and push it to `main`, sync the original checkout; the picker was not driven in a window; the terminal on a host, 3b, and the direct-path prototype wait), read the [current handoff](.agents/handoffs/2026-11-13-0852-folder-picker-on-a-host.md). Handoffs are shared and committed.
+
 - To resume side-quest controls, expanded Iskios context, local sync, or the unresolved sidebar rendering errors, read the [current handoff](.agents/handoffs/2026-11-13-0051-side-quest-and-expanded-iskios.md). Handoffs are shared and committed.
 
 - To resume the architecture audit of 2026-11-12 (all five candidates built in part and recorded as CHG-0216 to CHG-0219: Containment, realm checks, message admission, Host access, the OpenCode launch; the remaining parts and the owner decisions of the 2026-11-11 audit wait), read the [current handoff](.agents/handoffs/2026-11-13-0017-architecture-audit-candidates-done.md). The CHG-0208 review follow-up it touches stays in the [sandbox handoff](.agents/handoffs/2026-11-12-1405-sandbox-review-follow-up.md). Handoffs are shared and committed.
-
-- To resume release readiness for 0.1.0-Alpha and Iskios's app guide (the two failing hosted tests fixed and the Apache 2.0 license added and pushed, CHG-0210; the app guide and its `read_app_guide` tool built and checked, CHG-0211; manual installer builds, their smoke tests on real systems, and the version tag remain, and the guide's text awaits the owner's review), read the [current handoff](.agents/handoffs/2026-11-12-2143-release-readiness-and-app-guide.md). Handoffs are shared and committed.
 

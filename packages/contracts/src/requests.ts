@@ -411,8 +411,8 @@ export const WidenPermission = Schema.TaggedStruct("WidenPermission", { permissi
 export const RemovePermission = Schema.TaggedStruct("RemovePermission", { permissionId: PermissionId });
 /** Saves the owner's settings. */
 export const UpdateSettings = Schema.TaggedStruct("UpdateSettings", { settings: Settings });
-// Folder browsing under the browsable roots, kept for the phone; the desktop uses the system dialog (CHG-0035).
-/** Lists a folder's subfolders under the browsable roots; null lists the roots. */
+// The folder picker (CHG-0253): browsing, searching, and making folders. A paired device reaches only the browsable roots the host set in the Workshop; the host's own window may reach any folder.
+/** Lists a folder's subfolders (under the browsable roots for a paired device); null lists the roots. */
 export const BrowseFolders = Schema.TaggedStruct("BrowseFolders", {
   path: Schema.NullOr(Schema.String),
   /** Whether folders whose names start with a dot are listed too (Show hidden). */
@@ -430,8 +430,15 @@ export const ListWorkspaceEntries = Schema.TaggedStruct("ListWorkspaceEntries", 
 export const ListMentionables = Schema.TaggedStruct("ListMentionables", {});
 /** Makes a folder inside a browsable folder (New folder). */
 export const CreateFolder = Schema.TaggedStruct("CreateFolder", { name: Schema.String, parent: Schema.String });
-/** Adds an existing folder to the browsable roots (Add root). */
+/** Adds an existing folder to the browsable roots (Add root); only the host itself may. */
 export const AddBrowsableRoot = Schema.TaggedStruct("AddBrowsableRoot", { path: Schema.String });
+/** Removes a folder from the browsable roots (Remove root); only the host itself may. */
+export const RemoveBrowsableRoot = Schema.TaggedStruct("RemoveBrowsableRoot", { path: Schema.String });
+/**
+ * Folders matching what was typed, best first: a typed path that exists, then names that match exactly, by prefix, by
+ * part, and loosely. An empty query lists the folders quests already used, newest first.
+ */
+export const SearchFolders = Schema.TaggedStruct("SearchFolders", { query: Schema.String });
 
 /** Every harness with its accounts, sign-in states, and models (provider-accounts). */
 export const ListHarnesses = Schema.TaggedStruct("ListHarnesses", {});
@@ -550,6 +557,8 @@ export const Request = Schema.Union([
   ListMentionables,
   CreateFolder,
   AddBrowsableRoot,
+  RemoveBrowsableRoot,
+  SearchFolders,
   ListHarnesses,
   ListModelEfforts,
   AddAccount,
@@ -649,6 +658,7 @@ export const Results = {
   ReadUsage: UsageReport,
   RefreshPrices: PriceStatus,
   RemoveAccount: HarnessList,
+  RemoveBrowsableRoot: FolderListing,
   RemoveHost: Schema.Array(KnownHost),
   RemovePermission: Schema.Null,
   RenameAccount: HarnessList,
@@ -664,6 +674,7 @@ export const Results = {
   RetryThread: Schema.Null,
   RewriteBriefing: JournalView,
   RunRitual: Schema.Null,
+  SearchFolders: Schema.Array(Folder),
   SendMessage: SendMessageResult,
   SetAccountBudget: Schema.Null,
   SetMissionBudget: Schema.Null,

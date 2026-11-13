@@ -3,11 +3,11 @@ import { type ReactNode, useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { CrestBadge } from "../crest/crest";
 import { messageOf, type ServiceClient } from "../foundation/client";
-import { useIsRemoteHost } from "../foundation/hostContext";
 import { samePath } from "../foundation/paths";
 import { styles } from "../foundation/styles";
 import { colors, fontSizes, fonts, radii } from "../foundation/theme";
-import { chooseFolder, folderNameOf, type NewRealm, NewRealmModal } from "./newRealmModal";
+import { FolderPicker } from "./folderPicker";
+import { folderNameOf, type NewRealm, NewRealmModal } from "./newRealmModal";
 import { tiedRealmsOf } from "./tiedRealms";
 
 /**
@@ -16,11 +16,13 @@ import { tiedRealmsOf } from "./tiedRealms";
  * and give it a crest, and becomes a realm when imported, before any quest starts in it (workspace-attachment; CHG-0035).
  */
 export function RealmChooser({
+  client,
   onChange,
   onCreate,
   realms,
   value,
 }: {
+  client: ServiceClient;
   onChange: (path: string | null) => void;
   /** Imports the folder as a realm, named and given a crest; rejects with the reason when refused. */
   onCreate: (realm: NewRealm) => Promise<unknown>;
@@ -29,21 +31,15 @@ export function RealmChooser({
   /** The chosen folder, or null for the quest's scratch folder. */
   value: string | null;
 }) {
-  const [chooseError, setChooseError] = useState<string | null>(null);
+  const [isPicking, setIsPicking] = useState(false);
   // The folder being named in the menu that opens when one is chosen; null while the menu is closed.
   const [editing, setEditing] = useState<NewRealm | null>(null);
-  const isRemote = useIsRemoteHost();
-  const choose = () =>
-    chooseFolder(isRemote).then(
-      (path) => {
-        setChooseError(null);
-        if (path === null) return;
-        const known = realms.find((realm) => samePath(realm.path, path));
-        if (known !== undefined) onChange(known.path);
-        else setEditing({ crest: null, name: folderNameOf(path), path });
-      },
-      (reason) => setChooseError(messageOf(reason)),
-    );
+  const choose = (path: string) => {
+    setIsPicking(false);
+    const known = realms.find((realm) => samePath(realm.path, path));
+    if (known !== undefined) onChange(known.path);
+    else setEditing({ crest: null, name: folderNameOf(path), path });
+  };
   const sorted = tiedRealmsOf(realms);
   return (
     <View style={styles.section}>
@@ -62,13 +58,15 @@ export function RealmChooser({
             </Text>
           </Chip>
         ))}
-        <Chip isSelected={false} onPress={choose}>
+        <Chip isSelected={false} onPress={() => setIsPicking(true)}>
           <Text style={local.chipPlus}>+</Text>
           <Text style={local.chipText}>Choose folder…</Text>
         </Chip>
       </View>
-      {editing !== null && <NewRealmModal initial={editing} onCancel={() => setEditing(null)} onCreate={onCreate} />}
-      {chooseError !== null && <Text style={styles.error}>{chooseError}</Text>}
+      {isPicking && <FolderPicker client={client} onCancel={() => setIsPicking(false)} onChoose={choose} />}
+      {editing !== null && (
+        <NewRealmModal client={client} initial={editing} onCancel={() => setEditing(null)} onCreate={onCreate} />
+      )}
     </View>
   );
 }
