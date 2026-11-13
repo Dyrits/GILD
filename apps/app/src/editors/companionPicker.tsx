@@ -17,21 +17,19 @@ const miniWidth = 288;
 /** What the picker shows and can change; `RunnerPickers` owns the rules for each change. */
 export type CompanionPickerProps = {
   accountId: AccountId | null;
-  accountLabel: (id: AccountId | null) => string;
-  accountOptions: ReadonlyArray<AccountId | null>;
   effort: EffortChoice;
   effortOptions: ReadonlyArray<EffortChoice>;
   /** A fold at the foot of the panel for what belongs to the thread alone: its backup Companions. Keyed by the thread. */
   extra?: ReactElement;
   harness: HarnessName;
   harnesses: HarnessList | null;
-  isAccountChosen: boolean;
+  /** Whether each harness has a tab for every account; the Workshop's default Companion has its own sign-in only. */
+  isAccountShown: boolean;
   /** Whether this is Iskios's own Companion, which the Companions tab marks with Iskios's ✦. */
   isIskios?: boolean;
   model: ModelChoice;
-  onAccount: (accountId: AccountId | null) => void;
   onEffort: (effort: EffortChoice) => void;
-  onModel: (harness: HarnessName, model: ModelChoice) => void;
+  onModel: (harness: HarnessName, accountId: AccountId | null, model: ModelChoice) => void;
   /** Replaces the tab's own folds altogether, for a page whose Companions are several (the Workshop's). Keyed by what it shows. */
   panel?: ReactElement;
   /** The presets the owner has set, offered in their own card above the thread's Companion; none, and the tab has no such card. */

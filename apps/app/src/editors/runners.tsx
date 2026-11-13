@@ -1,10 +1,11 @@
-import type { AccountId, EffortChoice, HarnessInfo, HarnessList, HarnessName, ModelChoice } from "@iskios/contracts";
+import type { AccountId, EffortChoice, HarnessList, HarnessName, ModelChoice } from "@iskios/contracts";
 import { type ComponentProps, type ReactElement, useCallback, useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { messageOf, type ServiceClient } from "../foundation/client";
 import { harnessLabels, modelLabelOf } from "../foundation/formatting";
 import { styles } from "../foundation/styles";
 import { Choice, Menu, Steps } from "../ui/pickers";
+import { harnessNames, harnessOfAccount } from "./accountModels";
 import { CompanionBody } from "./companionBody";
 import { CompanionPicker } from "./companionPicker";
 import type { PresetChoice } from "./presets";
@@ -18,35 +19,78 @@ export interface Runner {
   readonly model: ModelChoice;
 }
 
+/** What every screen of one host connection shows of the harnesses: one list, so a change made anywhere reaches all. */
+interface HarnessStore {
+  data: HarnessList | null;
+  error: string | null;
+  /** Counts the lists a request returned, so a read that began before one cannot put an older list back. */
+  generation: number;
+  /** The read being waited on, shared by every screen that asks while it runs. */
+  inflight: Promise<void> | null;
+  readonly listeners: Set<() => void>;
+}
+
+const harnessStores = new WeakMap<ServiceClient, HarnessStore>();
+
+const storeOf = (client: ServiceClient) => {
+  const existing = harnessStores.get(client);
+  if (existing !== undefined) return existing;
+  const made: HarnessStore = { data: null, error: null, generation: 0, inflight: null, listeners: new Set() };
+  harnessStores.set(client, made);
+  return made;
+};
+
+const publish = (store: HarnessStore, change: Partial<Pick<HarnessStore, "data" | "error">>) => {
+  Object.assign(store, change);
+  for (const listener of store.listeners) listener();
+};
+
 /**
- * The harnesses with their accounts and models, read once when shown and again on `refresh`: reading them
- * asks each harness's own tool, too slow to repeat on every change.
+ * The harnesses with their accounts and models, read when a screen shows them and again on `refresh`: reading them
+ * asks each harness's own tool, too slow to repeat on every change. The list is shared by every screen of the host
+ * connection, so renaming or adding an account in Settings shows in the pickers at once, and `setData` publishes a
+ * list a request returned.
  */
 export function useHarnesses(client: ServiceClient) {
-  const [data, setData] = useState<HarnessList | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const refresh = useCallback(
-    () =>
-      client.request({ _tag: "ListHarnesses" }).then(
-        (value) => {
-          setData(value);
-          setError(null);
-        },
-        (reason) => setError(messageOf(reason)),
-      ),
+  const store = storeOf(client);
+  const [, setVersion] = useState(0);
+  const refresh = useCallback(() => {
+    const current = storeOf(client);
+    if (current.inflight !== null) return current.inflight;
+    const generation = current.generation;
+    const read = client.request({ _tag: "ListHarnesses" }).then(
+      (value) => {
+        if (generation === current.generation) publish(current, { data: value, error: null });
+      },
+      (reason) => publish(current, { error: messageOf(reason) }),
+    );
+    current.inflight = read.finally(() => {
+      current.inflight = null;
+    });
+    return current.inflight;
+  }, [client]);
+  const setData = useCallback(
+    (value: HarnessList) => {
+      const current = storeOf(client);
+      current.generation += 1;
+      publish(current, { data: value, error: null });
+    },
     [client],
   );
   useEffect(() => {
+    const current = storeOf(client);
+    const listener = () => setVersion((version) => version + 1);
+    current.listeners.add(listener);
+    // Each screen asks again when it shows, as before; what is already known shows meanwhile.
     refresh();
-  }, [refresh]);
-  return { data, error, refresh, setData };
+    return () => void current.listeners.delete(listener);
+  }, [client, refresh]);
+  return { data: store.data, error: store.error, refresh, setData };
 }
 
-const harnessNames: ReadonlyArray<HarnessName> = ["claude", "codex", "opencode"];
-
-/** A harness's model list, with the chosen model kept in it when the harness no longer lists it. */
-const modelIdsOf = (harness: HarnessInfo | undefined, model: ModelChoice) => {
-  const ids = harness?.models.map((option) => option.id) ?? [];
+/** The model list of a harness's account, with the chosen model kept in it when the list no longer holds it. */
+const modelIdsOf = (models: ReadonlyArray<{ id: string }>, model: ModelChoice) => {
+  const ids = models.map((option) => option.id);
   return ids.includes(model) ? ids : [...ids, model];
 };
 
@@ -93,30 +137,33 @@ export function RunnerPickers({
   trigger?: ComponentProps<typeof CompanionPicker>["trigger"];
   value: Runner;
 }) {
-  const harness = harnesses?.harnesses.find((candidate) => candidate.name === value.harness);
+  const harnessInfo = harnesses?.harnesses.find((candidate) => candidate.name === value.harness);
+  // The harness as the chosen account sees it: its models are that account's own.
+  const harness = harnessOfAccount(harnessInfo, value.accountId);
   const models = harness?.models ?? [];
-  const accounts = harness?.accounts ?? [];
+  const accounts = harnessInfo?.accounts ?? [];
   const accountIds = accounts.map((account) => account.id);
   const harnessLabel = (name: HarnessName) => {
     const problem = harnesses?.harnesses.find((candidate) => candidate.name === name)?.problem ?? null;
     return problem === null ? harnessLabels[name] : `${harnessLabels[name]} (not installed)`;
   };
+  const infoOf = (name: HarnessName, accountId: AccountId | null) =>
+    harnessOfAccount(
+      harnesses?.harnesses.find((candidate) => candidate.name === name),
+      accountId,
+    );
   const chooseHarness = (harnessName: HarnessName) => {
     if (harnessName === value.harness) return onChange(value);
-    const next = harnesses?.harnesses.find((candidate) => candidate.name === harnessName);
+    const next = infoOf(harnessName, null);
     // The harness's first listed model; "default" only while its list is not read yet.
     const model = next?.models[0]?.id ?? "default";
     onChange({ accountId: null, effort: effortFor(next, model, value.effort), harness: harnessName, model });
   };
-  // A model of another harness: that harness with its own sign-in, the chosen model, and the effort kept when it offers it.
-  const chooseHarnessModel = (harnessName: HarnessName, model: ModelChoice) =>
+  // A model of an account's tab, which may be another harness or account: that harness with that sign-in, the chosen model, and the effort kept when the model offers it.
+  const chooseCompanion = (harnessName: HarnessName, accountId: AccountId | null, model: ModelChoice) =>
     onChange({
-      accountId: null,
-      effort: effortFor(
-        harnesses?.harnesses.find((candidate) => candidate.name === harnessName),
-        model,
-        value.effort,
-      ),
+      accountId,
+      effort: effortFor(infoOf(harnessName, accountId), model, value.effort),
       harness: harnessName,
       model,
     });
@@ -135,22 +182,18 @@ export function RunnerPickers({
   };
   const accountOptions = accountIds.includes(value.accountId) ? accountIds : [...accountIds, value.accountId];
   const isAccountChosen = isAccountShown && accountIds.length > 1;
-  const modelOptions = modelIdsOf(harness, value.model);
+  const modelOptions = modelIdsOf(models, value.model);
   if (isCompact || isPanel) {
     const picker = {
       accountId: value.accountId,
-      accountLabel,
-      accountOptions,
       effort: value.effort,
       effortOptions,
       harness: value.harness,
       harnesses,
-      isAccountChosen,
+      isAccountShown,
       model: value.model,
-      onAccount: (accountId: AccountId | null) => onChange({ ...value, accountId }),
       onEffort: (effort: EffortChoice) => onChange({ ...value, effort }),
-      onModel: (harnessName: HarnessName, model: ModelChoice) =>
-        harnessName === value.harness ? chooseModel(model) : chooseHarnessModel(harnessName, model),
+      onModel: chooseCompanion,
       // A preset must never fall back to a primary-only change.
       ...(presetChoice == null ? {} : { presetChoice }),
     };

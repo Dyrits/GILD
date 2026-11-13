@@ -8,12 +8,11 @@ export const isSamePicker = (previous: CompanionPickerProps | null, next: Compan
   previous.effort === next.effort &&
   previous.harness === next.harness &&
   previous.harnesses === next.harnesses &&
-  previous.isAccountChosen === next.isAccountChosen &&
+  previous.isAccountShown === next.isAccountShown &&
   previous.model === next.model &&
   previous.isIskios === next.isIskios &&
   isSameBackups(previous.presetChoice?.backups, next.presetChoice?.backups) &&
   isSamePresets(previous.presetChoice?.presets, next.presetChoice?.presets) &&
   previous.extra?.key === next.extra?.key &&
   previous.panel?.key === next.panel?.key &&
-  previous.effortOptions.join() === next.effortOptions.join() &&
-  previous.accountOptions.join() === next.accountOptions.join();
+  previous.effortOptions.join() === next.effortOptions.join();

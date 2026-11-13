@@ -2930,3 +2930,22 @@ Summary: The owner accepted the CHG-0262 correction in commit `2a2d46f` after re
 References: CHG-0262, [specification](capabilities/thread-panel/specifications.md#panel-ownership-across-navigation), [future candidate](backlog.md).
 Validation: Owner: "It's okay like that." Previously run for the implementation: `bun run check`, `bun run typecheck`, full `CI=1 bun run test` (1,404 passed, 14 skipped), and the four-group rendered Electron drive. Those checks are recorded evidence, not rerun for this documentation-only acceptance update. The owner authorized commit, local sync, and push to `main` with `--no-verify`; the original checkout needs attachment or direct-edit permission before local sync.
 Evidence: [Reproduction, window checks, screenshots, acceptance, and limits](verification/2026-11-13-panel-ownership.md).
+
+## CHG-0264 · 2026-11-13 · The Companion picker has a tab for each provider account
+Type: Code
+Event: Agreement and Delivery
+Scope: Companions picker, provider accounts
+
+Summary: The owner asked for the Companion selection to be based on account too, so two Claude subscriptions appear as different options. The picker now has one tab per harness account (a mark and the account's name where a harness has several), each listing that account's own models; choosing a model chooses harness, account, and model together, replacing the Account menu. `AccountStatus` gains optional `models`, which the host reads per signed-in account (cached per account for 10 minutes); a host or device without it falls back to the harness's list. Settled by the implementation, not by the owner: the Workshop's default Companion keeps showing each harness's own sign-in only (it has no account field, CHG-0257); a signed-out account's tab is dimmed and empty; the Companion summary names the account when a harness has several; the form's Account field stays and its model list follows the account.
+References: [provider-accounts specification](capabilities/provider-accounts/specifications.md), [backlog](backlog.md), CHG-0257, CHG-0260.
+Validation: `bun run typecheck` and `bunx biome check` clean; full `bun run test` 1,411 passed, 14 skipped, plus a new service test (each account carries its models) and `accountModels.test.ts` (tabs per account, fallback, signed-out, removed account, accounts hidden). Not checked: the tabs in a window (look, wrapping with several or long account names, light and Gild looks), a real second subscription with differing lists, a paired device, the phone build.
+
+## CHG-0265 · 2026-11-13 · Accounts rename apart from the computer's name
+Type: Code
+Event: Agreement and Delivery
+Scope: Provider accounts
+
+Summary: The owner asked to rename an account independently of the device name. Each account row in the Workshop's Accounts section now has Rename. An added account uses the existing `RenameAccount` request, which had no control in the app. A harness's own sign-in gets a name of its own through the new `RenameOwnAccount` request, kept per harness in a new `own_account_labels` table (migration 0045); until named it shows the host's name, and a blank name returns to it. Chosen by the implementation, not the owner: names are per harness, not one for the computer's sign-ins together; the Computer name card's text now says it is the default for the sign-ins. Owner's note after seeing it: the new name needed a refresh to show. Cause: every screen kept its own copy of the harness list, read once when it opened. `useHarnesses` now shares one list per host connection, so adding, removing, or renaming an account, or renaming the computer, reaches every open picker at once.
+References: [provider-accounts specification](capabilities/provider-accounts/specifications.md), CHG-0257, CHG-0264.
+Validation: typecheck and Biome clean; full `bun run test` 1,413 passed, 14 skipped, including a service test of renaming a sign-in apart from the host (later host renames leave it, blank returns, budgets show the names). Not checked: the shared list in a window (no hook test exists; the change is typechecked only), the rename controls in a window, a paired device renaming an account, usage-page names after a rename.
+

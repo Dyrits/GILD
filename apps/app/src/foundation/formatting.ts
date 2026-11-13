@@ -1,4 +1,12 @@
-import type { EffortChoice, HarnessList, HarnessName, ModelChoice, ModelOption, TokenUsage } from "@iskios/contracts";
+import type {
+  AccountId,
+  EffortChoice,
+  HarnessList,
+  HarnessName,
+  ModelChoice,
+  ModelOption,
+  TokenUsage,
+} from "@iskios/contracts";
 
 /** Each harness by the name the owner reads. */
 export const harnessLabels = {
@@ -14,13 +22,20 @@ export const modelLabelOf = (model: ModelChoice, options: ReadonlyArray<ModelOpt
     ? "Default model"
     : (knownModelOf(model)?.name ?? model.charAt(0).toUpperCase() + model.slice(1)));
 
-/** A runner in few words: its Companion, then its effort when not the model's own. */
+/**
+ * A runner in few words: its Companion, then its effort when not the model's own, and the account it runs on when the
+ * harness has several, so two subscriptions of one harness read apart.
+ */
 export const runnerSummaryOf = (
   harnesses: HarnessList | null,
-  runner: { effort: EffortChoice; harness: HarnessName; model: ModelChoice },
+  runner: { accountId?: AccountId | null; effort: EffortChoice; harness: HarnessName; model: ModelChoice },
 ) => {
-  const models = harnesses?.harnesses.find((candidate) => candidate.name === runner.harness)?.models;
-  return `${modelLabelOf(runner.model, models)}${runner.effort === "default" ? "" : ` · ${runner.effort}`}`;
+  const info = harnesses?.harnesses.find((candidate) => candidate.name === runner.harness);
+  const accountId = runner.accountId ?? null;
+  const models = info?.accounts.find((account) => account.id === accountId)?.models ?? info?.models;
+  const account =
+    info !== undefined && info.accounts.length > 1 ? info.accounts.find(({ id }) => id === accountId) : undefined;
+  return `${modelLabelOf(runner.model, models)}${runner.effort === "default" ? "" : ` · ${runner.effort}`}${account === undefined ? "" : ` · ${account.label}`}`;
 };
 
 /** Each harness's usual model company, when the model's own identifier names none. */

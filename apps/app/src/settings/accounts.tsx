@@ -44,6 +44,8 @@ function AccountRow({
   onError: (message: string | null) => void;
 }) {
   const [isSigningIn, setIsSigningIn] = useState(false);
+  // The new name while renaming; null when not. A harness's own sign-in may be left blank to take the computer's name.
+  const [name, setName] = useState<string | null>(null);
   const status = [signInLabels[account.signIn], account.detail].filter((part) => part !== null).join(" · ");
   const signIn = () =>
     client.request({ _tag: "SignInAccount", accountId: account.id, harness }).then(
@@ -61,14 +63,60 @@ function AccountRow({
       },
       (reason) => onError(messageOf(reason)),
     );
+  const rename = (label: string) =>
+    client
+      .request(
+        account.id === null
+          ? { _tag: "RenameOwnAccount", harness, label }
+          : { _tag: "RenameAccount", accountId: account.id, label },
+      )
+      .then(
+        (list) => {
+          setName(null);
+          onChanged(list);
+          onError(null);
+        },
+        (reason) => onError(messageOf(reason)),
+      );
   return (
     <View style={local.account}>
       <View style={styles.flex}>
-        <Text style={local.accountName}>{account.label}</Text>
+        {name === null ? (
+          <Text style={local.accountName}>{account.label}</Text>
+        ) : (
+          <TextInput
+            accessibilityLabel={`Name of the ${harnessLabels[harness]} account ${account.label}`}
+            autoFocus
+            maxLength={80}
+            onChangeText={setName}
+            onSubmitEditing={() => rename(name)}
+            placeholder={account.id === null ? "Blank takes the computer's name" : "Name of the account"}
+            style={[styles.input, local.renameInput]}
+            value={name}
+          />
+        )}
         <Text style={styles.muted}>
           {isSigningIn ? "Finish signing in in the Terminal window, then press Refresh." : status}
         </Text>
       </View>
+      {name === null ? (
+        <Pressable accessibilityRole="button" onPress={() => setName(account.label)}>
+          <Text style={styles.link}>Rename</Text>
+        </Pressable>
+      ) : (
+        <>
+          <Pressable
+            accessibilityRole="button"
+            disabled={name.trim() === account.label || (account.id !== null && name.trim() === "")}
+            onPress={() => rename(name)}
+          >
+            <Text style={styles.link}>Save</Text>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => setName(null)}>
+            <Text style={styles.link}>Cancel</Text>
+          </Pressable>
+        </>
+      )}
       <Pressable accessibilityRole="button" onPress={signIn}>
         <Text style={styles.link}>{account.signIn === "SignedIn" ? "Sign in again" : "Sign in"}</Text>
       </Pressable>
@@ -275,4 +323,5 @@ const local = StyleSheet.create({
     fontSize: fontSizes.lg,
     fontWeight: "700",
   },
+  renameInput: { fontWeight: "700" },
 });

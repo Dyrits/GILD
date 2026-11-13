@@ -5,7 +5,7 @@ import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, notFound } from "../core/index.ts";
 import { HarnessTools, harnessLabels, harnessNames, type SignInStatus } from "../harness/index.ts";
-import { ownAccountLabel } from "../remote/index.ts";
+import { ownAccountLabelOf } from "../remote/index.ts";
 import { AccountsRoot } from "./threads.ts";
 
 // Provider accounts (provider-accounts): each harness's own sign-in on this computer, and accounts the owner
@@ -20,13 +20,13 @@ interface AccountRow {
 /** An added account's folder. */
 const accountFolderOf = (accountsRoot: string, accountId: string) => join(accountsRoot, accountId);
 
-/** One harness with its accounts' sign-ins and the models its first signed-in account offers. */
+/** One harness with its accounts' sign-ins, each account's own models, and the models its first signed-in account offers. */
 const readHarness = (harness: HarnessName, rows: ReadonlyArray<AccountRow>) =>
   Effect.gen(function* () {
     const tools = yield* HarnessTools;
     const accountsRoot = yield* AccountsRoot;
     const installation = yield* tools.inspect(harness);
-    const ownLabel = yield* ownAccountLabel;
+    const ownLabel = yield* ownAccountLabelOf(harness);
     const listed = [
       { configDirectory: null, id: null, label: ownLabel },
       ...rows
@@ -57,9 +57,21 @@ const readHarness = (harness: HarnessName, rows: ReadonlyArray<AccountRow>) =>
     const signedIn = accounts.find((account) => account.signIn === "SignedIn") ?? accounts[0];
     const models =
       installation.problem === null ? yield* tools.listModels(harness, signedIn?.configDirectory ?? null) : [];
+    // Each account's own list, read at once and kept per account; a signed-out account lists none.
+    const accountModels = yield* Effect.forEach(
+      accounts,
+      (account) =>
+        installation.problem !== null || account.signIn === "SignedOut"
+          ? Effect.succeed(undefined)
+          : tools.listModels(harness, account.configDirectory),
+      { concurrency: "unbounded" },
+    );
     const update = installation.problem === null ? yield* tools.findUpdate(harness, installation.version) : null;
     return {
-      accounts: accounts.map(({ configDirectory: _, ...account }) => account),
+      accounts: accounts.map(({ configDirectory: _, ...account }, index) => {
+        const own = accountModels[index];
+        return own === undefined ? account : { ...account, models: own };
+      }),
       models,
       name: harness,
       problem: installation.problem,
@@ -149,6 +161,16 @@ export const renameAccount = (accountId: string, label: string) =>
     yield* readAccount(accountId);
     const name = yield* trimmedLabel(label);
     yield* sql`UPDATE accounts SET label = ${name} WHERE id = ${accountId}`;
+  });
+
+/** Names a harness's own sign-in on this computer apart from the computer's name; a blank name returns it to the computer's. */
+export const renameOwnAccount = (harness: HarnessName, label: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const name = label.trim();
+    if (name === "") return yield* sql`DELETE FROM own_account_labels WHERE harness = ${harness}`;
+    yield* sql`INSERT INTO own_account_labels (harness, label) VALUES (${harness}, ${name})
+      ON CONFLICT (harness) DO UPDATE SET label = excluded.label`;
   });
 
 /**

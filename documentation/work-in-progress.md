@@ -1,5 +1,9 @@
 # Work in progress
 
+## Companion picker tabs per account · 2026-11-13 · built and checked headlessly, window look pending
+
+The owner asked for the Companion selection to be based on account, so two Claude subscriptions show as different options (CHG-0264; starting commit `170a43c`, uncommitted; no push authorized). The picker has a tab per harness account with that account's own models; choosing a model sets harness, account, and model. Open for the owner: the look of the tabs in a window (several or long account names wrap), and whether the Workshop's default Companion should gain an account (today it shows each harness's own sign-in only, as CHG-0257 settled the new quest's account). Renaming accounts apart from the computer's name followed in CHG-0265 (a Rename control on each Accounts row; a harness's own sign-in has its own name, per harness; window look pending). Not checked: a real second subscription with differing model lists, a paired device, the phone build. Model lists are now read once per signed-in account, which can make the first open slower (backlog: slow model lists).
+
 ## Panel-ownership publication and next focus · 2026-11-13
 
 The owner accepted the right-hand panel fix (`2a2d46f`, CHG-0263) after restarting `bun run dev`: "It's okay like that." Behavior and verification now live in the [specification](capabilities/thread-panel/specifications.md#panel-ownership-across-navigation) and [evidence](verification/2026-11-13-panel-ownership.md). A possible later restoration of each quest's own sidebar state is a candidate in the [backlog](backlog.md), not an approved change.

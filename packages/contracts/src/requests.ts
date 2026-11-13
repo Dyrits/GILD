@@ -468,6 +468,15 @@ export const AddAccount = Schema.TaggedStruct("AddAccount", { harness: HarnessNa
 /** Renames a provider account added in Iskios. */
 export const RenameAccount = Schema.TaggedStruct("RenameAccount", { accountId: AccountId, label: AccountLabel });
 
+/**
+ * Names a harness's own sign-in on this computer, apart from the computer's name; a blank name returns it to the
+ * computer's.
+ */
+export const RenameOwnAccount = Schema.TaggedStruct("RenameOwnAccount", {
+  harness: HarnessName,
+  label: Schema.String.check(Schema.isMaxLength(80)),
+});
+
 /** Updates a harness to its latest version through the harness's own update command, then lists the harnesses again. */
 export const UpdateHarness = Schema.TaggedStruct("UpdateHarness", { harness: HarnessName });
 
@@ -572,6 +581,7 @@ export const Request = Schema.Union([
   ListModelEfforts,
   AddAccount,
   RenameAccount,
+  RenameOwnAccount,
   RemoveAccount,
   SignInAccount,
   UpdateHarness,
@@ -675,6 +685,7 @@ export const Results = {
   RenameAccount: HarnessList,
   RenameHost: Schema.String,
   RenameMission: Schema.Null,
+  RenameOwnAccount: HarnessList,
   RenameRealm: Schema.Null,
   ReopenMission: Schema.Null,
   ResolveChatter: Schema.Null,

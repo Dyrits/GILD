@@ -100,6 +100,14 @@ export const ownAccountLabel = Effect.gen(function* () {
   return row?.hostName ?? computerNameOf();
 });
 
+/** What one harness's own sign-in is called: the owner's name for it, else the host's name ({@link ownAccountLabel}). */
+export const ownAccountLabelOf = (harness: string) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const [row] = yield* sql<{ label: string }>`SELECT label FROM own_account_labels WHERE harness = ${harness}`;
+    return row?.label ?? (yield* ownAccountLabel);
+  });
+
 /** Names the host; a blank name returns it to the computer's. */
 export const renameHost = (name: string) =>
   Effect.gen(function* () {

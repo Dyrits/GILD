@@ -47,7 +47,7 @@ When adding a handoff, keep only the three newest current handoffs linked below;
 
 Latest handoffs:
 
-- To resume panel-ownership publication/local sync and choose the next UI follow-up after the accepted fix, read the [current handoff](.agents/handoffs/2026-11-13-1745-panel-ownership-and-follow-ups.md). Handoffs are shared and committed.
+- To resume the Companion picker's tab per account and the renaming of accounts apart from the computer's name (CHG-0264, CHG-0265; the owner's look in a window is pending, and a stale name needing a refresh was fixed by a shared harness list that is only typechecked; also open: whether the Workshop's default Companion gets an account, and one name versus per-harness names for a computer's sign-ins), read the [current handoff](.agents/handoffs/2026-11-13-2039-companion-account-tabs-and-rename.md). Handoffs are shared and committed.
 
 - To resume the Companion preset stacks (CHG-0258 to CHG-0261: a preset as a primary and its backups applied together, the presets in a card above the Companion; committed locally as `cbd8666`, to push to `main` with `--no-verify`; the owner's notes after seeing it: the Companions column carrying over into the Workshop, slow model lists, choosing models per account; the provisional choices wait on the owner), read the [current handoff](.agents/handoffs/2026-11-13-1705-companion-preset-stacks.md). Handoffs are shared and committed.
 

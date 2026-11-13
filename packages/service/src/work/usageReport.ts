@@ -13,7 +13,7 @@ import {
 import { Clock, Effect, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, isReportedColumn, knownCostColumn } from "../core/index.ts";
-import { ownAccountLabel } from "../remote/index.ts";
+import { ownAccountLabelOf } from "../remote/index.ts";
 import { readMessages, readTurnsWithoutUsage } from "./usageGaps.ts";
 import { type AmountRow, amountColumns, amountsOf, compareRows, harnessOf, names, sumAmounts } from "./usageRows.ts";
 import { boundsOf, keyOf, questJoinsOf, type UsageBounds, usageColumns, whereOf } from "./usageScope.ts";
@@ -89,15 +89,23 @@ const readBreakdown = (scope: Scope, dimension: UsageDimension) =>
        ${scope.from} WHERE ${scope.where} GROUP BY 1`,
       scope.params,
     );
-    // A harness's own sign-in has no account row to name it, so it carries the computer's name.
-    const computerName = dimension === "Account" ? yield* ownAccountLabel : null;
+    // A harness's own sign-in has no account row to name it, so it carries the owner's name for it, else the computer's.
+    const ownNames = new Map<string, string>();
+    if (dimension === "Account") {
+      for (const row of rows) {
+        if (row.rowName === null && row.rowKey.endsWith("/")) {
+          const harness = row.rowKey.slice(0, -1);
+          ownNames.set(harness, yield* ownAccountLabelOf(harness));
+        }
+      }
+    }
     const sorted = rows
       .map(
         (row): UsageRow => ({
           amounts: amountsOf(row),
           harness: harnessOf(row.rowHarness),
           key: row.rowKey,
-          name: row.rowName ?? (row.rowKey.endsWith("/") ? computerName : null),
+          name: row.rowName ?? ownNames.get(row.rowKey.slice(0, -1)) ?? null,
         }),
       )
       .sort(compareRows(dimension));

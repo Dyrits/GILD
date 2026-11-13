@@ -210,9 +210,10 @@ export function Shell(
             key={pillId}
             {...companionPicker}
             // The button's latest handlers, whatever the tab last drew.
-            onAccount={(accountId) => pills.current.get(pillId ?? "")?.picker?.onAccount(accountId)}
             onEffort={(effort) => pills.current.get(pillId ?? "")?.picker?.onEffort(effort)}
-            onModel={(harness, model) => pills.current.get(pillId ?? "")?.picker?.onModel(harness, model)}
+            onModel={(harness, accountId, model) =>
+              pills.current.get(pillId ?? "")?.picker?.onModel(harness, accountId, model)
+            }
           />
         ))}
     </QuestColumn>

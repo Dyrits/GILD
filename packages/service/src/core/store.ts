@@ -664,6 +664,11 @@ export const migrations = {
     yield* sql`ALTER TABLE rituals ADD COLUMN authority TEXT NOT NULL DEFAULT '[]'`;
     yield* sql`CREATE TABLE ritual_run_messages (message_id TEXT PRIMARY KEY REFERENCES messages(id) ON DELETE CASCADE, ritual_id TEXT NOT NULL REFERENCES rituals(id) ON DELETE CASCADE)`;
   }),
+  // The owner's own name for a harness's sign-in on this computer, kept apart from the computer's name (provider-accounts).
+  "0045_own_account_labels": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    yield* sql`CREATE TABLE own_account_labels (harness TEXT PRIMARY KEY, label TEXT NOT NULL)`;
+  }),
 };
 
 /** The service's one SQLite database, migrated before use. */

@@ -28,7 +28,8 @@ export function ComputerNameCard({ client, onRenamed }: { client: ServiceClient;
   return (
     <SettingsCard icon="monitor" title="Computer name">
       <Text style={styles.muted}>
-        Names this computer's own sign-ins below, its spending, and the host that paired devices connect to.
+        Names this computer, the host that paired devices connect to, and, until you rename one in the list below, its
+        own sign-ins and their spending.
       </Text>
       <View style={local.row}>
         <TextInput

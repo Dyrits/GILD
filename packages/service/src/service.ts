@@ -74,6 +74,7 @@ import {
   listModelEfforts,
   removeAccount,
   renameAccount,
+  renameOwnAccount,
   signInAccount,
   updateHarness,
 } from "./work/accounts.ts";
@@ -445,6 +446,7 @@ const make = Effect.gen(function* () {
         RenameAccount: (rename) => thenListHarnesses(renameAccount(rename.accountId, rename.label)),
         RenameHost: (given) => change(withRemote(renameHost(given.name))),
         RenameMission: (rename) => change(renameMission(rename.missionId, rename.title)),
+        RenameOwnAccount: (rename) => thenListHarnesses(renameOwnAccount(rename.harness, rename.label)),
         RenameRealm: (rename) => change(renameRealm(rename.workspaceId, rename.name)),
         ReopenMission: (reopen) => commands.run(reopenMission(reopen.missionId)),
         ResolveChatter: (given) =>

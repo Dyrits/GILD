@@ -17,7 +17,7 @@ import {
   tokensText,
 } from "../core/index.ts";
 import { harnessLabels } from "../harness/index.ts";
-import { ownAccountLabel } from "../remote/index.ts";
+import { ownAccountLabelOf } from "../remote/index.ts";
 
 // The scopes a budget can cover (budget-control, Budgets): a mission's own, one provider account's, and the global
 // one. Each scope says what it limits, what it has spent, which threads it stops, and how its stops are found, so
@@ -58,7 +58,7 @@ export const accountOfThread = (threadId: string) =>
 const accountNameOf = (ref: AccountRef) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    if (ref.accountId === null) return yield* ownAccountLabel;
+    if (ref.accountId === null) return yield* ownAccountLabelOf(ref.harness);
     const [row] = yield* sql<{ label: string }>`SELECT label FROM accounts WHERE id = ${ref.accountId}`;
     return row?.label ?? "Removed account";
   });

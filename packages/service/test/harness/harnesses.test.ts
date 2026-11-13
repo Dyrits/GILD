@@ -1419,6 +1419,28 @@ describe("managing provider accounts", () => {
     }).pipe(Effect.provide(layer));
   });
 
+  it.live("renames each sign-in apart from the computer's name, and a blank name returns to it", () => {
+    const { layer } = withHarnesses();
+    return Effect.gen(function* () {
+      yield* call({ _tag: "RenameHost", name: "Studio" });
+      const renamed = yield* call({ _tag: "RenameOwnAccount", harness: "claude", label: " Personal " });
+      const labelsOf = (list: typeof renamed) => list.harnesses.map((harness) => harness.accounts[0]?.label);
+      expect(labelsOf(renamed)).toEqual(["Personal", "Studio", "Studio"]);
+      // A later rename of the computer leaves the sign-in's own name alone.
+      yield* call({ _tag: "RenameHost", name: "Laptop" });
+      expect(labelsOf(yield* call({ _tag: "ListHarnesses" }))).toEqual(["Personal", "Laptop", "Laptop"]);
+      // An added account renames the same way, and shows in the budgets that name it.
+      const added = yield* call({ _tag: "AddAccount", harness: "codex", label: "Work" });
+      const accountId = added.harnesses[1]?.accounts[1]?.id as AccountId;
+      yield* call({ _tag: "RenameAccount", accountId, label: "Client" });
+      const budgets = yield* call({ _tag: "ReadAccountBudgets" });
+      expect(budgets.map((budget) => budget.label)).toContain("Personal");
+      expect(budgets.map((budget) => budget.label)).toContain("Client");
+      const reset = yield* call({ _tag: "RenameOwnAccount", harness: "claude", label: "  " });
+      expect(labelsOf(reset)[0]).toBe("Laptop");
+    }).pipe(Effect.provide(layer));
+  });
+
   it.live("lists every harness with the computer's own sign-in first", () => {
     const { layer } = withHarnesses();
     return Effect.gen(function* () {
@@ -1466,6 +1488,16 @@ describe("managing provider accounts", () => {
     return Effect.gen(function* () {
       const result = yield* call({ _tag: "InstallHarness", harness: "codex" }).pipe(Effect.flip);
       expect(result.message).toContain("already installed");
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("lists the models of each signed-in account, so two subscriptions of one harness show apart", () => {
+    const { layer } = withHarnesses();
+    return Effect.gen(function* () {
+      const added = yield* call({ _tag: "AddAccount", harness: "claude", label: "Work" });
+      const claude = added.harnesses.find((harness) => harness.name === "claude");
+      expect(claude?.accounts.map((account) => account.label)).toHaveLength(2);
+      for (const account of claude?.accounts ?? []) expect(account.models).toEqual(claude?.models);
     }).pipe(Effect.provide(layer));
   });
 

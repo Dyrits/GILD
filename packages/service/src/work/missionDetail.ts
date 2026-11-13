@@ -4,7 +4,7 @@ import { SqlClient } from "effect/sql";
 import { notFound } from "../core/index.ts";
 import { listThreadLoreChanges, readGauge } from "../lore/index.ts";
 import { listThreadQuestions } from "../policy/index.ts";
-import { ownAccountLabel } from "../remote/index.ts";
+import { ownAccountLabelOf } from "../remote/index.ts";
 import { readCards } from "./attachments.ts";
 import { listBudgetEvents, readHeldStop } from "./budgetViews.ts";
 import { readChatter } from "./chatter.ts";
@@ -73,7 +73,7 @@ export const readMission = (missionId: string, threadId: string | null) =>
     >`SELECT t.id, t.model, t.effort, t.failure, t.blocker, t.harness, t.account_id AS accountId, a.label AS accountLabel
       FROM threads t LEFT JOIN accounts a ON a.id = t.account_id WHERE t.id = ${selected.id}`;
     if (thread === undefined) return yield* notFound("No such thread in this mission.");
-    const computerName = yield* ownAccountLabel;
+    const computerName = yield* ownAccountLabelOf(thread.harness);
     const workspace = yield* readThreadWorkspace(selected.id);
     const messages = yield* sql<
       Omit<Message, "attachments" | "isResult" | "isQueued" | "usage"> & {

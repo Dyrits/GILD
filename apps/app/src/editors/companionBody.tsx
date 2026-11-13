@@ -5,83 +5,89 @@ import { effortLabel, harnessLabels, modelLabelOf } from "../foundation/formatti
 import { styles } from "../foundation/styles";
 import { colors, fontSizes, fonts, outline, radii, round } from "../foundation/theme";
 import { modelsMatching } from "../ui/modelSearch";
-import { Menu, Steps } from "../ui/pickers";
+import { Steps } from "../ui/pickers";
 import { ProviderMark } from "../ui/providerMarks";
-
-const harnessNames: ReadonlyArray<HarnessName> = ["claude", "codex", "opencode"];
+import { type PickerTab, tabsOf } from "./accountModels";
 
 /** What the by-hand picker shows and can change; `RunnerPickers` owns the rules for each change. */
 export type CompanionBodyProps = {
   accountId: AccountId | null;
-  accountLabel: (id: AccountId | null) => string;
-  accountOptions: ReadonlyArray<AccountId | null>;
   effort: EffortChoice;
   effortOptions: ReadonlyArray<EffortChoice>;
   harness: HarnessName;
   harnesses: HarnessList | null;
-  isAccountChosen: boolean;
+  /** Whether each harness has a tab for every account; without it, for its own sign-in on this computer only. */
+  isAccountShown: boolean;
   model: ModelChoice;
-  onAccount: (accountId: AccountId | null) => void;
   onEffort: (effort: EffortChoice) => void;
-  onModel: (harness: HarnessName, model: ModelChoice) => void;
+  /** Choosing a model also chooses the harness and the account whose tab it was chosen in. */
+  onModel: (harness: HarnessName, accountId: AccountId | null, model: ModelChoice) => void;
 };
 
-/** The by-hand picker, drawn in the Companions tab's folds: the harnesses as tabs, a search field, the chosen harness's models, and the effort as a line of stops. */
+/**
+ * The by-hand picker, drawn in the Companions tab's folds: a tab for each harness and each of its accounts, a search
+ * field, the models of the chosen tab, and the effort as a line of stops. Two Claude subscriptions are two tabs.
+ */
 export function CompanionBody(props: CompanionBodyProps) {
-  const { harness, harnesses, model } = props;
-  const [browsed, setBrowsed] = useState<HarnessName>(harness);
+  const { accountId, harness, harnesses, model } = props;
+  const tabs = tabsOf(harnesses, props.isAccountShown, { accountId, harness });
+  const [browsed, setBrowsed] = useState<{ accountId: AccountId | null; harness: HarnessName }>({ accountId, harness });
   const [query, setQuery] = useState("");
-  const infoOf = (name: HarnessName) => harnesses?.harnesses.find((candidate) => candidate.name === name);
-  const models = infoOf(browsed)?.models ?? [];
-  const isCurrent = browsed === harness;
+  const isCurrentTab = (tab: { accountId: AccountId | null; harness: HarnessName }) =>
+    tab.harness === harness && tab.accountId === accountId;
+  const isBrowsedTab = (tab: PickerTab) => tab.harness === browsed.harness && tab.accountId === browsed.accountId;
+  // A browsed tab that no longer exists (an account removed meanwhile) gives way to the runner's own.
+  const tab = tabs.find(isBrowsedTab) ?? tabs.find(isCurrentTab) ?? tabs[0];
+  if (tab === undefined) return null;
+  const hasSeveral = (name: HarnessName) => tabs.filter((candidate) => candidate.harness === name).length > 1;
+  const isCurrent = isCurrentTab(tab);
   // The chosen model stays listed when its harness no longer lists it.
   const listed =
-    isCurrent && !models.some((option) => option.id === model)
-      ? [...models, { id: model, label: modelLabelOf(model, models) }]
-      : models;
+    isCurrent && !tab.models.some((option) => option.id === model)
+      ? [...tab.models, { id: model, label: modelLabelOf(model, tab.models) }]
+      : tab.models;
   const isEffortChosen = isCurrent && props.effortOptions.length > 1;
   const shown = modelsMatching(listed, query);
+  const caption = [harnessLabels[tab.harness], hasSeveral(tab.harness) ? tab.label : null, tab.problem]
+    .filter((part) => part !== null && part !== "")
+    .join(" · ");
   return (
     <View style={local.inner}>
-      <View accessibilityLabel="Harness" accessibilityRole="radiogroup" style={local.tabs}>
-        {harnessNames.map((name) => {
-          const isBrowsed = name === browsed;
-          const info = infoOf(name);
+      <View accessibilityLabel="Harness and account" accessibilityRole="radiogroup" style={local.tabs}>
+        {tabs.map((candidate) => {
+          const isBrowsed = candidate === tab;
+          const hasLabel = hasSeveral(candidate.harness);
           return (
             <Pressable
-              accessibilityLabel={`${harnessLabels[name]}${info?.problem == null ? "" : " (not installed)"}`}
+              accessibilityLabel={`${harnessLabels[candidate.harness]}${hasLabel ? `, ${candidate.label}` : ""}${candidate.problem === null ? "" : ` (${candidate.problem})`}`}
               accessibilityRole="radio"
               accessibilityState={{ checked: isBrowsed }}
-              key={name}
+              key={`${candidate.harness}:${candidate.accountId ?? ""}`}
               onPress={() => {
-                setBrowsed(name);
+                setBrowsed({ accountId: candidate.accountId, harness: candidate.harness });
                 setQuery("");
               }}
               style={({ pressed }) => [
                 local.tab,
+                hasLabel && local.tabLabelled,
                 (pressed || isBrowsed) && local.tabActive,
-                info?.problem != null && local.dimmed,
+                candidate.problem !== null && local.dimmed,
               ]}
             >
-              <ProviderMark harness={name} size={16} />
-              {name === harness && <View style={local.tabDot} />}
+              <ProviderMark harness={candidate.harness} size={16} />
+              {hasLabel && (
+                <Text numberOfLines={1} style={local.tabLabel}>
+                  {candidate.label}
+                </Text>
+              )}
+              {isCurrentTab(candidate) && <View style={local.tabDot} />}
             </Pressable>
           );
         })}
-        <Text numberOfLines={1} style={local.tabsName}>
-          {harnessLabels[browsed]}
-          {infoOf(browsed)?.problem == null ? "" : " · not installed"}
-        </Text>
-        {isCurrent && props.isAccountChosen && (
-          <Menu
-            accessibilityLabel="Account"
-            label={props.accountLabel}
-            onChange={props.onAccount}
-            options={props.accountOptions}
-            value={props.accountId}
-          />
-        )}
       </View>
+      <Text numberOfLines={1} style={local.tabsName}>
+        {caption}
+      </Text>
       <TextInput
         accessibilityLabel="Search models"
         autoCapitalize="none"
@@ -94,7 +100,13 @@ export function CompanionBody(props: CompanionBodyProps) {
       />
       <ScrollView style={local.list}>
         {shown.length === 0 && (
-          <Text style={local.empty}>{models.length === 0 ? "No models listed" : "No model matches"}</Text>
+          <Text style={local.empty}>
+            {tab.problem === "signed out"
+              ? "Signed out: sign in from the Workshop's Accounts"
+              : tab.models.length === 0
+                ? "No models listed"
+                : "No model matches"}
+          </Text>
         )}
         {shown.map((option) => {
           const isChosen = isCurrent && option.id === model;
@@ -102,7 +114,7 @@ export function CompanionBody(props: CompanionBodyProps) {
             <Pressable
               accessibilityRole="menuitem"
               key={option.id}
-              onPress={() => props.onModel(browsed, option.id)}
+              onPress={() => props.onModel(tab.harness, tab.accountId, option.id)}
               style={({ pressed }) => [
                 styles.menuItem,
                 pressed && local.itemHovered,
@@ -163,13 +175,15 @@ const local = StyleSheet.create({
     right: 3,
     width: 6,
   },
-  tabs: { alignItems: "center", flexDirection: "row", gap: 4 },
-  tabsName: {
-    color: colors.textMuted,
-    flex: 1,
+  // A harness with several accounts names each beside its mark.
+  tabLabel: {
+    color: colors.textSecondary,
+    flexShrink: 1,
     fontFamily: fonts.sans,
     fontSize: fontSizes.xs,
     fontWeight: "600",
-    marginLeft: 6,
   },
+  tabLabelled: { flexDirection: "row", gap: 5, maxWidth: 130, paddingHorizontal: 7, width: "auto" },
+  tabs: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 4 },
+  tabsName: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.xs, fontWeight: "600" },
 });

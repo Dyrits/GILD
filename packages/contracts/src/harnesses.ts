@@ -41,6 +41,12 @@ export const AccountStatus = Schema.Struct({
   detail: Schema.NullOr(Schema.String),
   id: Schema.NullOr(AccountId),
   label: Schema.String,
+  /**
+   * The models this account's harness offers it, since what a subscription lists can differ from another's; absent
+   * when it was not read (a signed-out account, an uninstalled harness, or a host older than this field), and the
+   * harness's own list stands then.
+   */
+  models: Schema.optionalKey(Schema.Array(ModelOption)),
   signIn: SignInState,
 });
 export type AccountStatus = typeof AccountStatus.Type;

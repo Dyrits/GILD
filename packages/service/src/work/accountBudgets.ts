@@ -11,7 +11,7 @@ import {
   periodStartOf,
 } from "../core/index.ts";
 import { harnessNames } from "../harness/index.ts";
-import { ownAccountLabel } from "../remote/index.ts";
+import { ownAccountLabelOf } from "../remote/index.ts";
 import {
   type AccountRef,
   accountNextStartOf,
@@ -94,9 +94,9 @@ export const readAccountBudgets = Effect.gen(function* () {
   const now = yield* Clock.currentTimeMillis;
   const added = yield* sql<{ harness: HarnessName; id: string; label: string }>`
     SELECT id, harness, label FROM accounts ORDER BY created_at`;
-  const ownLabel = yield* ownAccountLabel;
-  const accounts = harnessNames.flatMap((harness) => [
-    { accountId: null, harness, label: ownLabel },
+  const ownLabels = yield* Effect.forEach(harnessNames, (harness) => ownAccountLabelOf(harness));
+  const accounts = harnessNames.flatMap((harness, index) => [
+    { accountId: null, harness, label: ownLabels[index] ?? harness },
     ...added
       .filter((account) => account.harness === harness)
       .map((account) => ({ accountId: account.id, harness, label: account.label })),
