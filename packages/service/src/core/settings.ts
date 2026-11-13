@@ -30,7 +30,6 @@ export const defaultSettings: Settings = {
   shouldOpenOffTopicMissions: false,
   shouldShowAgentThreads: true,
   shouldShowFinishedQuests: false,
-  shouldShowGuildmaster: true,
   shouldStreamReplies: true,
   tiers: { Balanced: null, Heavy: null, Light: null },
 };
@@ -77,24 +76,27 @@ const choicesOf = (text: string) => {
   }
 };
 
-/** The last mission's choices, or the Settings defaults with no workspace before any (mission-tracking). */
+/**
+ * A new mission's choices: always the Workshop's default Companion (harness, model, and effort, on the computer's own
+ * sign-in), with the folder of the last mission started, or none before any (mission-tracking).
+ */
 export const readStartChoices = Effect.gen(function* () {
   const sql = yield* SqlClient.SqlClient;
   const [row] = yield* sql<{ value: string }>`SELECT value FROM settings WHERE key = 'start_choices'`;
-  // A value no longer valid falls back to the defaults below.
+  // A value no longer valid leaves no folder.
   const decoded = row === undefined ? null : choicesOf(row.value);
-  if (decoded !== null && Exit.isSuccess(decoded)) return decoded.value;
+  const workspacePath = decoded !== null && Exit.isSuccess(decoded) ? decoded.value.workspacePath : null;
   const settings = yield* readSettings;
   return {
     accountId: null,
     effort: settings.defaultEffort,
     harness: settings.defaultHarness,
     model: settings.defaultModel,
-    workspacePath: null,
+    workspacePath,
   } satisfies StartChoices;
 });
 
-/** Remembers a started mission's choices for the next one. Callers run it in a transaction. */
+/** Remembers a started mission's choices; the next mission takes its folder. Callers run it in a transaction. */
 export const saveStartChoices = (choices: StartChoices) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;

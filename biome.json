@@ -27,6 +27,7 @@
       "!**/*.md",
       "!**/*.generated.ts",
       "!documentation/art-direction",
+      "!documentation/verification",
       "!**/.agents/skills/security-audit"
     ]
   },

@@ -1,5 +1,5 @@
 import type { AccountId, EffortChoice, HarnessInfo, HarnessList, HarnessName, ModelChoice } from "@iskios/contracts";
-import { type ReactElement, useCallback, useEffect, useState } from "react";
+import { type ComponentProps, type ReactElement, useCallback, useEffect, useState } from "react";
 import { Text, View } from "react-native";
 import { messageOf, type ServiceClient } from "../foundation/client";
 import { harnessLabels, modelLabelOf } from "../foundation/formatting";
@@ -124,6 +124,8 @@ export function RunnerPickers({
   isIskios = false,
   isPanel = false,
   onChange,
+  panel,
+  trigger,
   value,
 }: {
   /** Asks the provider for a model's effort levels when its model list does not give them (OpenCode); without it, none are offered there. */
@@ -142,6 +144,10 @@ export function RunnerPickers({
   /** The picker's own content, as drawn in a fold of the Companions tab; `isCompact` is then ignored. */
   isPanel?: boolean;
   onChange: (runner: Runner) => void;
+  /** The Companions tab's own content in place of its folds; see `CompanionPickerProps`. */
+  panel?: ReactElement;
+  /** Another control in place of a composer's runner button; see `CompanionPicker`. */
+  trigger?: ComponentProps<typeof CompanionPicker>["trigger"];
   value: Runner;
 }) {
   const harness = harnesses?.harnesses.find((candidate) => candidate.name === value.harness);
@@ -210,7 +216,9 @@ export function RunnerPickers({
       <CompanionPicker
         {...(dockRank === undefined ? {} : { rank: dockRank })}
         {...(extra === undefined ? {} : { extra })}
+        {...(panel === undefined ? {} : { panel })}
         {...(isIskios ? { isIskios } : {})}
+        {...(trigger === undefined ? {} : { trigger })}
         {...picker}
       />
     );

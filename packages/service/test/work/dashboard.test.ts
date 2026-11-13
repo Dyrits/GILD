@@ -107,7 +107,7 @@ describe("prefilling a new mission's choices", () => {
     }).pipe(Effect.provide(make().layer)),
   );
 
-  it.effect("offers the last mission's model, effort, and workspace", () => {
+  it.effect("offers the default Companion always, and the last mission's workspace", () => {
     const value = make();
     const folder = join(value.directory, "project");
     mkdirSync(folder);
@@ -120,13 +120,27 @@ describe("prefilling a new mission's choices", () => {
         text: "Hello",
         workspacePath: folder,
       });
+      // The mission chose Haiku with high effort; the next one starts on the default Companion all the same.
       expect(yield* call({ _tag: "ReadStartChoices" })).toEqual({
         accountId: null,
-        effort: "high",
+        effort: "default",
         harness: "claude",
-        model: "haiku",
+        model: "claude-sonnet-5-5",
         workspacePath: folder,
       });
+      const settings = yield* call({ _tag: "ReadSettings" });
+      yield* call({
+        _tag: "ChangeSettings",
+        change: { defaultEffort: "low", defaultHarness: "codex", defaultModel: "gpt-5" },
+      });
+      expect(yield* call({ _tag: "ReadStartChoices" })).toMatchObject({
+        accountId: null,
+        effort: "low",
+        harness: "codex",
+        model: "gpt-5",
+        workspacePath: folder,
+      });
+      expect(settings.defaultHarness).toBe("claude");
     }).pipe(Effect.provide(value.layer));
   });
 });

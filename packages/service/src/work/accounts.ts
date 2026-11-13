@@ -4,7 +4,8 @@ import type { AccountId, AccountStatus, HarnessInfo, HarnessList, HarnessName } 
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, notFound } from "../core/index.ts";
-import { HarnessTools, harnessLabels, harnessNames, ownAccountLabel, type SignInStatus } from "../harness/index.ts";
+import { HarnessTools, harnessLabels, harnessNames, type SignInStatus } from "../harness/index.ts";
+import { ownAccountLabel } from "../remote/index.ts";
 import { AccountsRoot } from "./threads.ts";
 
 // Provider accounts (provider-accounts): each harness's own sign-in on this computer, and accounts the owner
@@ -25,8 +26,9 @@ const readHarness = (harness: HarnessName, rows: ReadonlyArray<AccountRow>) =>
     const tools = yield* HarnessTools;
     const accountsRoot = yield* AccountsRoot;
     const installation = yield* tools.inspect(harness);
+    const ownLabel = yield* ownAccountLabel;
     const listed = [
-      { configDirectory: null, id: null, label: ownAccountLabel },
+      { configDirectory: null, id: null, label: ownLabel },
       ...rows
         .filter((row) => row.harness === harness)
         .map((row) => ({

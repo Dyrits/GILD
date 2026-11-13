@@ -1,6 +1,7 @@
 import { describe, expect, it } from "@effect/vitest";
 import type { BackupCompanion } from "@iskios/contracts";
 import { Effect } from "effect";
+import { SqlClient } from "effect/sql";
 import { afterEach } from "vitest";
 import { call, fixture, open, settle, start } from "./fixtures/service.ts";
 
@@ -55,6 +56,25 @@ describe("the Charter's default backup Companions", () => {
         expect((yield* call({ _tag: "ReadThreadPanel", threadId })).backups).toEqual([codex]);
         const opened = yield* open(threadId, "wait 2000");
         expect((yield* call({ _tag: "ReadThreadPanel", threadId: opened.threadId })).backups).toEqual([codex]);
+      }),
+    ),
+  );
+});
+
+describe("settings saved before the Guild Hall became always shown", () => {
+  it.live("keep their other choices and drop the retired one", () =>
+    withService(
+      Effect.gen(function* () {
+        const sql = yield* SqlClient.SqlClient;
+        const settings = yield* call({ _tag: "ReadSettings" });
+        yield* sql`INSERT INTO settings (key, value) VALUES ('settings', ${JSON.stringify({ ...settings, inactivityDays: 30, shouldShowGuildmaster: false })})
+          ON CONFLICT (key) DO UPDATE SET value = excluded.value`;
+        const read = yield* call({ _tag: "ReadSettings" });
+        expect(read.inactivityDays).toBe(30);
+        expect(read).not.toHaveProperty("shouldShowGuildmaster");
+        yield* call({ _tag: "ChangeSettings", change: { inactivityDays: 31 } });
+        const [row] = yield* sql<{ value: string }>`SELECT value FROM settings WHERE key = 'settings'`;
+        expect(JSON.parse(row?.value ?? "{}")).not.toHaveProperty("shouldShowGuildmaster");
       }),
     ),
   );

@@ -18,7 +18,7 @@ The owner works with several harnesses and, for some, several subscriptions: two
 
 ### Accounts
 
-- Every harness has the **computer's own sign-in** ("This computer"): what the harness uses outside Iskios.
+- Every harness has the **computer's own sign-in**: what the harness uses outside Iskios. It is named after the computer: the host's name (the machine's until the owner renames it in the Workshop's **Computer name** card, the Accounts section's first card; a blank name returns to the machine's). Accounts, plan-limit rings, budgets, usage and a thread's header all show that name, and follow a rename (CHG-0257).
 - The owner adds more accounts in Settings, **Harnesses and accounts**, by name (for example "Work"). Each added account has its own folder, where the harness keeps that account's sign-in and conversations: `CLAUDE_CONFIG_DIR` for Claude Code, `CODEX_HOME` for Codex, `XDG_DATA_HOME` for OpenCode.
 - **Sign in** opens the harness's own sign-in (`claude auth login`, `codex login`, `opencode auth login`) in a Terminal window, pointed at the account's folder. Iskios never sees, reads, or stores the credentials (requirements, Comply with provider terms). **Refresh** reads each account's state again.
 - The Charter's Harnesses card offers **Update** beside a harness whose newest release (the `latest` tag of its npm package: `@anthropic-ai/claude-code`, `@openai/codex`, `opencode-ai`) is higher than the installed version, saying "Ready · 2.1.322 is available". Update runs the harness's own command (`claude update`, `codex update`, `opencode upgrade`), which updates it the way it was installed, then lists the harnesses again; a failure shows its last lines. A newest release that cannot be read (offline) offers nothing; one lower than the installed version is ignored. Threads already running keep the version they started on until they restart.
@@ -26,7 +26,7 @@ The owner works with several harnesses and, for some, several subscriptions: two
 - An account's row also carries its **account budget** and **credits**, and a subscription's **plan limits** where its harness reports them, agreed in [budget-control](../budget-control/specifications.md#account-budgets-and-credits) (CHG-0126). Each turn records the **billing kind** of the sign-in it ran with.
 - A thread runs on the account chosen when it starts; a thread beneath keeps its opener's account on the same harness, and takes the computer's own sign-in on another harness.
 - **Remove** deletes an added account and its folder. It is refused while a mission that is not ended has a thread on that account, since the thread's conversation lives in that folder. Threads of ended missions keep the account's identifier and show "Removed account".
-- The mission start remembers the last mission's harness and account with its model and effort. Settings holds the default harness, model, and effort before any mission.
+- A new mission always starts on the Workshop's default Companion (harness, model, effort) and the computer's own sign-in; only the folder is remembered from the last mission (CHG-0257, replacing the last mission's harness, account, model, and effort). The account is chosen per mission.
 
 ### Approvals on every harness
 

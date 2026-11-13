@@ -51,13 +51,12 @@ function PlanRings({
             cy={size / 2}
             fill="none"
             key={`fill:${ring.window.label}`}
-            origin={`${size / 2}, ${size / 2}`}
             r={ring.radius}
-            rotation={-90}
             stroke={levelColors[ring.level]}
             strokeDasharray={`${ring.filled} ${ring.circumference}`}
             strokeLinecap="round"
             strokeWidth={stroke}
+            transform={`rotate(-90 ${size / 2} ${size / 2})`}
           />
         ))}
       </Svg>
@@ -126,14 +125,14 @@ export function PlanLimitRings({ client }: { client: ServiceClient }) {
       {detailed !== undefined && (
         <UsageCard
           harness={detailed.harness}
-          name={detailed.label === "This computer" ? detailed.harness : detailed.label}
+          name={detailed.accountId === null ? detailed.harness : detailed.label}
           windows={currentWindowsOf(detailed.planLimits?.windows ?? [], Date.now())}
         />
       )}
       <View style={local.row}>
         {reported.map((budget) => {
           const key = `${budget.harness}:${budget.accountId ?? ""}`;
-          const name = budget.label === "This computer" ? budget.harness : budget.label;
+          const name = budget.accountId === null ? budget.harness : budget.label;
           const windows = currentWindowsOf(budget.planLimits?.windows ?? [], Date.now());
           const isThin = windows.length > 2;
           const ringStroke = isThin ? thinStroke : stroke;

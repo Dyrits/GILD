@@ -75,16 +75,6 @@ export default function App() {
   useEffect(() => rememberPlace(place), [place]);
   // The browser's own chrome, the page behind the app, and the Dock's icon follow the theme and look in use.
   useEffect(() => applyAppearance(colors.ground), []);
-  // With the Guildmaster hidden in the Charter, the window opens on the Rituals instead.
-  useEffect(() => {
-    client
-      ?.request({ _tag: "ReadSettings" })
-      .then((settings) => {
-        if (!settings.shouldShowGuildmaster) setPlace((current) => (current === "Guildmaster" ? "Rituals" : current));
-      })
-      .catch(() => {});
-  }, [client]);
-
   const hostMenu = useMemo(
     () => ({
       activeId: hostId,

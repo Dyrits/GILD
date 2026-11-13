@@ -106,7 +106,7 @@ export function ThreadPanel({
       : `${harnessLabels[thread.harness]} · ${thread.accountLabel}`;
   const companions = (
     <>
-      <Row icon="chip" label="Harness" value={harnessValue} />
+      <Row icon="chip" label="Harness" mark={thread.harness} value={harnessValue} />
       {panel !== null && <Row icon="chart" label="Plan limits" value={planLimitsSummaryOf(panel.planLimits)} />}
       <Row icon="model" label="Model" value={modelValue} />
       <View style={local.contextRow}>

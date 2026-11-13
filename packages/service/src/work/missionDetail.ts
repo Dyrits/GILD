@@ -2,9 +2,9 @@ import type { Message, MissionDetail, ThreadSummary } from "@iskios/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { notFound } from "../core/index.ts";
-import { ownAccountLabel } from "../harness/index.ts";
 import { listThreadLoreChanges, readGauge } from "../lore/index.ts";
 import { listThreadQuestions } from "../policy/index.ts";
+import { ownAccountLabel } from "../remote/index.ts";
 import { readCards } from "./attachments.ts";
 import { listBudgetEvents, readHeldStop } from "./budgetViews.ts";
 import { readChatter } from "./chatter.ts";
@@ -45,9 +45,9 @@ const listThreads = (missionId: string, topThreadId: string) =>
     );
   });
 
-/** An account's label: the computer's own sign-in reads "This computer", and an account removed since says so. */
-const accountLabelOf = (accountId: string | null, label: string | null) =>
-  accountId === null ? ownAccountLabel : (label ?? "Removed account");
+/** An account's label: the computer's own sign-in reads as the computer's name, and an account removed since says so. */
+const accountLabelOf = (accountId: string | null, label: string | null, computerName: string) =>
+  accountId === null ? computerName : (label ?? "Removed account");
 
 /** A mission's thread tree alone, for the views that show only where its threads stand. */
 export const readThreadTree = (missionId: string) =>
@@ -73,6 +73,7 @@ export const readMission = (missionId: string, threadId: string | null) =>
     >`SELECT t.id, t.model, t.effort, t.failure, t.blocker, t.harness, t.account_id AS accountId, a.label AS accountLabel
       FROM threads t LEFT JOIN accounts a ON a.id = t.account_id WHERE t.id = ${selected.id}`;
     if (thread === undefined) return yield* notFound("No such thread in this mission.");
+    const computerName = yield* ownAccountLabel;
     const workspace = yield* readThreadWorkspace(selected.id);
     const messages = yield* sql<
       Omit<Message, "attachments" | "isResult" | "isQueued" | "usage"> & {
@@ -138,7 +139,7 @@ export const readMission = (missionId: string, threadId: string | null) =>
       suggestions,
       thread: {
         ...thread,
-        accountLabel: accountLabelOf(thread.accountId, thread.accountLabel),
+        accountLabel: accountLabelOf(thread.accountId, thread.accountLabel, computerName),
         actions: threadActionsOf({ blocker: thread.blocker, depth: selected.depth, state: selected.state }),
         depth: selected.depth,
         parentId: selected.parentId,

@@ -165,7 +165,7 @@ The account that bills model use, such as an Anthropic subscription or an OpenAI
 _Avoid_: Vendor
 
 **Provider account**:
-One sign-in a harness runs with: the computer's own, or one added in Iskios with its own folder, such as a second Claude account named "Work".
+One sign-in a harness runs with: the computer's own, named after the computer's name, or one added in Iskios with its own folder, such as a second Claude account named "Work".
 _Avoid_: Profile, login, credential
 
 **Companion preset**:

@@ -16,7 +16,8 @@ import {
   tokenCountText,
   tokensText,
 } from "../core/index.ts";
-import { harnessLabels, ownAccountLabel } from "../harness/index.ts";
+import { harnessLabels } from "../harness/index.ts";
+import { ownAccountLabel } from "../remote/index.ts";
 
 // The scopes a budget can cover (budget-control, Budgets): a mission's own, one provider account's, and the global
 // one. Each scope says what it limits, what it has spent, which threads it stops, and how its stops are found, so
@@ -53,14 +54,18 @@ export const accountOfThread = (threadId: string) =>
     return row === undefined ? null : ({ accountId: row.accountId, harness: row.harness } satisfies AccountRef);
   });
 
-/** An account's name as the owner reads it, for example "Claude Code · Work" or "Claude Code · This computer". */
-export const accountLabelOf = (ref: AccountRef) =>
+/** An account's own name, for example "Work", or the computer's name for the harness's own sign-in. */
+const accountNameOf = (ref: AccountRef) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    if (ref.accountId === null) return `${harnessLabels[ref.harness]} · ${ownAccountLabel}`;
+    if (ref.accountId === null) return yield* ownAccountLabel;
     const [row] = yield* sql<{ label: string }>`SELECT label FROM accounts WHERE id = ${ref.accountId}`;
-    return `${harnessLabels[ref.harness]} · ${row?.label ?? "Removed account"}`;
+    return row?.label ?? "Removed account";
   });
+
+/** An account's name as the owner reads it, for example "Claude Code · Work" or "Claude Code · Studio". */
+export const accountLabelOf = (ref: AccountRef) =>
+  Effect.map(accountNameOf(ref), (name) => `${harnessLabels[ref.harness]} · ${name}`);
 
 /** What an account's budget holds, as stored. */
 export interface AccountBudgetRow {
@@ -240,8 +245,7 @@ export const budgetLineOf = (missionId: string, account: AccountRef | null = nul
             yield* accountSpendingOf(account, accountStartOf(accountRow, yield* Clock.currentTimeMillis)),
             accountRow.period === null ? "the credit's" : periodWords[accountRow.period],
           );
-    const accountName =
-      accountParts.length === 0 || account === null ? "" : (yield* accountLabelOf(account)).split(" · ")[1];
+    const accountName = accountParts.length === 0 || account === null ? "" : yield* accountNameOf(account);
     return `Budget: ${mission}${globalParts.length === 0 ? "" : `; global: ${globalParts.join(", ")}`}${accountParts.length === 0 ? "" : `; account ${accountName}: ${accountParts.join(", ")}`}. At a limit, Iskios stops the work under it and asks the owner.`;
   });
 

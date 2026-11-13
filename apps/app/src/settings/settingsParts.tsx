@@ -94,7 +94,7 @@ export function SettingsMenu({
   }
   return (
     <View style={local.menu}>
-      <Text style={local.menuTitle}>Settings</Text>
+      <Text style={local.menuTitle}>Workshop</Text>
       <View style={local.rule} />
       {entries}
     </View>

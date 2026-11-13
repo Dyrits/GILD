@@ -47,9 +47,8 @@ When adding a handoff, keep only the three newest current handoffs linked below;
 
 Latest handoffs:
 
+- To resume the computer name, the Workshop's one-section-at-a-time page and its Companions section (CHG-0257: the name on the computer's own sign-in, the default Companion always chosen for a new quest, Default and Presets tabs, the right-hand column's rules; the owner's open note that the Computer name card may belong elsewhere; the proof is in `documentation/verification/`), read the [current handoff](.agents/handoffs/2026-11-13-1352-computer-name-and-companions.md). Handoffs are shared and committed.
+
 - To resume the reliability work on the hosted check (CHG-0256: the interrupt during harness startup, racy tests, the pre-commit hook; committed, to push to `main` with `--no-verify`; the hosted run has not been seen; the audit of the other fixed waits in tests is open), read the [current handoff](.agents/handoffs/2026-11-13-1127-ci-reliability.md). Handoffs are shared and committed.
 
 - To resume the review fixes of 2026-11-13 (client reconnection, query ordering, composer clearing, `ChangeSettings`, `ReadThreadTree`, bounded image cache, navigation, test stability, CHG-0255; the Companion dock extraction, service consolidations, component tests and deterministic timing tests wait), read the [current handoff](.agents/handoffs/2026-11-13-1106-react-native-review-fixes.md). Handoffs are shared and committed.
-
-- To resume device pairing's folder picker (batch 3a built and checked, CHG-0253 and CHG-0254, uncommitted: commit and push it to `main`, sync the original checkout; the picker was not driven in a window; the terminal on a host, 3b, and the direct-path prototype wait), read the [current handoff](.agents/handoffs/2026-11-13-0852-folder-picker-on-a-host.md). Handoffs are shared and committed.
-

@@ -1,4 +1,4 @@
-import type { MissionDetail, MissionId, MissionSummary, WorkspaceChoice } from "@iskios/contracts";
+import type { HarnessName, MissionDetail, MissionId, MissionSummary, WorkspaceChoice } from "@iskios/contracts";
 import { type ReactNode, useRef, useState } from "react";
 import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { CrestBadge } from "../crest/crest";
@@ -18,6 +18,7 @@ import { styles } from "../foundation/styles";
 import { colors, fontSizes, fonts, outline, radii, stateLabels, stateTones } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
 import { RitualControls } from "../rituals/rituals";
+import { ProviderMark } from "../ui/providerMarks";
 import { RowChevron, RowIcon, type RowIconName } from "../ui/rowIcons";
 import { MissionEndingActions, MissionTitle } from "./missionActions";
 
@@ -36,12 +37,15 @@ export function Group({ children, label }: { children: ReactNode; label: string 
 /** One row of a group: an icon, its name, a short value, and a chevron when pressing it opens something. */
 export function Row({
   icon,
-  onPress,
   label,
+  mark,
+  onPress,
   value,
 }: {
   icon?: RowIconName;
   label: string;
+  /** A harness whose logo stands before the value. */
+  mark?: HarnessName;
   onPress?: () => void;
   value?: string;
 }) {
@@ -51,6 +55,7 @@ export function Row({
       <Text numberOfLines={1} style={local.rowLabel}>
         {label}
       </Text>
+      {mark !== undefined && <ProviderMark harness={mark} size={14} />}
       {value !== undefined && (
         <Text numberOfLines={1} style={local.rowValue}>
           {value}

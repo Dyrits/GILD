@@ -19,7 +19,7 @@ import {
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid } from "../core/index.ts";
-import { RemoteConfig } from "./config.ts";
+import { computerNameOf, RemoteConfig } from "./config.ts";
 
 // This installation as a host: its identity, its pairing codes and its paired devices (device-pairing). Everything
 // here is storage; the connections are in the host runtime.
@@ -89,6 +89,16 @@ export const hostNameOf = (record: HostRecord | null) =>
     const config = yield* RemoteConfig;
     return record?.hostName ?? config.computerName;
   });
+
+/**
+ * What the computer's own sign-ins and spending are called in the app: the host's name as the owner chose it, else the
+ * machine's. It reads the database alone, so any screen can ask for it without the pairing settings.
+ */
+export const ownAccountLabel = Effect.gen(function* () {
+  const sql = yield* SqlClient.SqlClient;
+  const [row] = yield* sql<{ hostName: string | null }>`SELECT host_name AS hostName FROM host_identity WHERE id = 1`;
+  return row?.hostName ?? computerNameOf();
+});
 
 /** Names the host; a blank name returns it to the computer's. */
 export const renameHost = (name: string) =>

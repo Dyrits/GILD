@@ -1,0 +1,26 @@
+const clickText = (t: string, nth = 0) => `(() => { const els=[...document.querySelectorAll('div,span')].filter(e=>e.children.length===0 && e.textContent.trim()===${JSON.stringify(t)}); const e=els[${nth}]; if(!e) return 'NOTFOUND'; e.click(); return 'ok'; })()`;
+const chevrons = `[...document.querySelectorAll('[aria-label="Change this Companion in the Companions tab"]')]`;
+const tabsText = `JSON.stringify([...document.querySelectorAll('[role="tab"]')].map(t=>t.textContent.trim()+(t.getAttribute('aria-selected')==='true'?'*':'')))`;
+export default async ({ evaluate, shot, sleep, send, logs }: any) => {
+  await send("Page.reload");
+  await sleep(5000);
+  await evaluate(clickText("Workshop"));
+  await sleep(2000);
+  await evaluate(clickText("Companions", 1));
+  await sleep(1500);
+  console.log("chevrons:", await evaluate(`${chevrons}.length`));
+  await shot("21-companions-page");
+  console.log("press Default:", await evaluate(`${chevrons}[0].click(); 'ok'`));
+  await sleep(1500);
+  console.log("tabs:", await evaluate(tabsText));
+  await shot("22-tab-default");
+  console.log("press Heavy:", await evaluate(`${chevrons}[3].click(); 'ok'`));
+  await sleep(1500);
+  console.log("tabs:", await evaluate(tabsText));
+  await shot("23-tab-heavy");
+  console.log("set:", await evaluate(clickText("Set a Companion", 0)));
+  await sleep(1500);
+  await shot("24-heavy-set");
+  console.log("page after set:", await evaluate(`(() => { const t=document.body.innerText; const a=t.indexOf('Presets'); return t.slice(a, a+600).replace(/\\n/g,' | '); })()`));
+  console.log("errors besides nested-button:", logs.filter((l: string) => /^(error|exception)/.test(l) && !/nested|descendant/.test(l)).join("\n") || "none");
+};

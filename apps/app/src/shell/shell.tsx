@@ -11,7 +11,7 @@ import {
   TopBarShown,
 } from "../foundation/shellContext";
 import { colors, radii } from "../foundation/theme";
-import { isCompanionInScope } from "./companionScope";
+import { isCompanionOffered } from "./companionScope";
 import { EdgeResizer } from "./edgeResizer";
 import { IskiosColumn, IskiosFloating, IskiosLauncher, iskiosColumnWidth } from "./iskiosDock";
 import type { RealmListing } from "./questTree";
@@ -45,6 +45,7 @@ const isSamePicker = (a: CompanionPickerProps | null, b: CompanionPickerProps) =
   a.model === b.model &&
   a.isIskios === b.isIskios &&
   a.extra?.key === b.extra?.key &&
+  a.panel?.key === b.panel?.key &&
   a.effortOptions.join() === b.effortOptions.join() &&
   a.accountOptions.join() === b.accountOptions.join();
 
@@ -156,12 +157,13 @@ export function Shell(
   // Open with no quest panel on this screen (the Guild Hall): the column then holds the Companion tab alone.
   const [isCompanionOnly, setCompanionOnly] = useState(false);
   const hasQuestPanel = !isIskiosFull && details !== null && questPanel !== null;
-  const isColumnOpen = hasQuestPanel ? details.isOpen : isCompanionOnly;
   const activeTab = hasQuestPanel ? tab : "companion";
   const bestPill = () => {
     let best: [string, { rank: number; seq: number }] | null = null;
     for (const [id, entry] of pills.current) {
-      if (entry.picker === null || !isCompanionInScope(entry.picker.isIskios === true, isIskiosFull)) continue;
+      if (entry.picker === null || !isCompanionOffered(entry.picker.isIskios === true, isIskiosFull, isIskiosOpen)) {
+        continue;
+      }
       if (best === null || entry.rank < best[1].rank || (entry.rank === best[1].rank && entry.seq > best[1].seq)) {
         best = [id, entry];
       }
@@ -171,9 +173,17 @@ export function Shell(
   // The pressed button while it is mounted, else the best-ranked, latest one.
   const pressedPicker = pressedPill === null ? null : pills.current.get(pressedPill)?.picker;
   const pillId =
-    pressedPicker != null && isCompanionInScope(pressedPicker.isIskios === true, isIskiosFull)
+    pressedPicker != null && isCompanionOffered(pressedPicker.isIskios === true, isIskiosFull, isIskiosOpen)
       ? pressedPill
       : bestPill();
+  // Without a quest panel the column holds Companions alone, and only while one is offered: on the Workshop's Companions
+  // section its own, elsewhere Iskios's while Iskios is open. Closing Iskios closes the column it alone held.
+  const hasCompanion = pillId !== null;
+  const isColumnOpen = hasQuestPanel ? details.isOpen : isCompanionOnly && hasCompanion;
+  // A column that lost its Companions (the page changed, or Iskios closed) stays closed when one is offered again.
+  useEffect(() => {
+    if (!hasQuestPanel && !hasCompanion) setCompanionOnly(false);
+  }, [hasCompanion, hasQuestPanel]);
   const isCompanionShown = isColumnOpen && activeTab === "companion";
   const latest = useRef({ closeColumn: () => {}, isCompanionShown, openColumn: () => {}, pillId });
   latest.current = {
@@ -207,6 +217,8 @@ export function Shell(
         // Only a shown tab draws it, and only when what it shows changed: the frame's own redraw renders the button
         // again, which would hand over the same state and loop.
         if (latest.current.isCompanionShown && latest.current.pillId === id && !isSamePicker(before, picker)) redraw();
+        // A Companion that is offered for the first time may bring the column's handle.
+        else if (before === null) redraw();
       },
       register: (id: string) => {
         pillCount.current += 1;
@@ -226,12 +238,7 @@ export function Shell(
   for (const [id, entry] of pills.current) {
     const isIskios = entry.picker?.isIskios === true;
     // Iskios's Companion is offered only while Iskios is open on the right.
-    if (
-      entry.picker !== null &&
-      isCompanionInScope(isIskios, isIskiosFull) &&
-      isIskios !== isIskiosShown &&
-      (!isIskios || isIskiosOpen)
-    )
+    if (entry.picker !== null && isCompanionOffered(isIskios, isIskiosFull, isIskiosOpen) && isIskios !== isIskiosShown)
       otherPillId = id;
   }
   const companionPicker = pillId === null ? null : (pills.current.get(pillId)?.picker ?? null);
@@ -414,7 +421,7 @@ export function Shell(
                       {iskiosChat}
                     </IskiosColumn>
                   )}
-                  {(!hasQuestPanel || details.isPinned !== true) && (
+                  {(hasQuestPanel ? details.isPinned !== true : hasCompanion) && (
                     <Pressable
                       accessibilityLabel={isColumnOpen ? "Hide quest panel" : "Show quest panel"}
                       accessibilityRole="button"

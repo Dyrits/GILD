@@ -33,6 +33,8 @@ export interface CompanionPickerProps {
   onAccount: (accountId: AccountId | null) => void;
   onEffort: (effort: EffortChoice) => void;
   onModel: (harness: HarnessName, model: ModelChoice) => void;
+  /** Replaces the tab's own folds altogether, for a page whose Companions are several (the Workshop's). Keyed by what it shows. */
+  panel?: ReactElement;
 }
 
 /** A runner in few words: its Companion, then its effort when not the model's own. */
@@ -49,7 +51,7 @@ export const runnerSummaryOf = (
  * stops at the foot. Choosing a model keeps it open so the effort can be set next. It sizes itself to what it holds,
  * and is drawn in the Companions tab's folds, one for the thread's Companion and one for each backup.
  */
-export function CompanionBody(props: Omit<CompanionPickerProps, "extra">) {
+export function CompanionBody(props: Omit<CompanionPickerProps, "extra" | "panel">) {
   const { harness, harnesses, model } = props;
   const [browsed, setBrowsed] = useState<HarnessName>(harness);
   const [query, setQuery] = useState("");
@@ -160,10 +162,10 @@ export function CompanionBody(props: Omit<CompanionPickerProps, "extra">) {
  * alone (`extra`: its backup Companions, one fold each). One fold is unfolded at a time.
  */
 export function CompanionPanel({ onClose, ...props }: CompanionPickerProps & { onClose?: () => void }) {
-  const { extra, ...picker } = props;
+  const { extra, panel, ...picker } = props;
   return (
     <FoldGroup initial="main">
-      <View style={local.body}>
+      <View style={[local.body, panel !== undefined && local.bodyOfPanel]}>
         {onClose !== undefined && (
           <View style={local.title}>
             <Text style={local.titleText}>Companions</Text>
@@ -173,10 +175,19 @@ export function CompanionPanel({ onClose, ...props }: CompanionPickerProps & { o
           </View>
         )}
         <ScrollView contentContainerStyle={local.stack} style={local.scroll}>
-          <Fold harness={props.harness} id="main" summary={runnerSummaryOf(props.harnesses, props)} title="Companion">
-            <CompanionBody {...picker} />
-          </Fold>
-          {extra}
+          {panel ?? (
+            <>
+              <Fold
+                harness={props.harness}
+                id="main"
+                summary={runnerSummaryOf(props.harnesses, props)}
+                title="Companion"
+              >
+                <CompanionBody {...picker} />
+              </Fold>
+              {extra}
+            </>
+          )}
         </ScrollView>
       </View>
     </FoldGroup>
@@ -188,7 +199,15 @@ export function CompanionPanel({ onClose, ...props }: CompanionPickerProps & { o
  * a right-hand column it opens that column on its Companion tab, beside the quest's tab, and hands it the picker's
  * state; in a narrow window, with no such column, it opens the picker as a panel over the window's right edge.
  */
-export function CompanionPicker({ rank = 0, ...props }: CompanionPickerProps & { rank?: number }) {
+export function CompanionPicker({
+  rank = 0,
+  trigger,
+  ...props
+}: CompanionPickerProps & {
+  rank?: number;
+  /** Another control in place of the runner button, such as a card's "Change"; it opens and closes the same tab. */
+  trigger?: (control: { isOpen: boolean; onPress: () => void }) => ReactElement;
+}) {
   const { harness, harnesses, model } = props;
   const id = useId();
   const dock = useContext(CompanionDockActions);
@@ -206,21 +225,26 @@ export function CompanionPicker({ rank = 0, ...props }: CompanionPickerProps & {
     model,
     harnesses?.harnesses.find((candidate) => candidate.name === harness)?.models,
   );
+  const press = () => (dock === null ? setIsOverlayOpen(!isOverlayOpen) : dock.open(id));
   return (
-    <View style={styles.menu}>
-      <Pressable
-        accessibilityLabel="Companion (model)"
-        accessibilityRole="button"
-        onPress={() => (dock === null ? setIsOverlayOpen(!isOverlayOpen) : dock.open(id))}
-        style={[styles.menuButton, local.trigger, isOpen && styles.menuButtonOpen]}
-      >
-        <ProviderMark harness={harness} size={14} />
-        <Text numberOfLines={1} style={local.triggerText}>
-          {currentLabel}
-        </Text>
-        {props.effort !== "default" && <Text style={local.triggerEffort}>{props.effort}</Text>}
-        <Text style={styles.menuCaret}>⌄</Text>
-      </Pressable>
+    <View style={[styles.menu, trigger !== undefined && local.triggerFrame]}>
+      {trigger === undefined ? (
+        <Pressable
+          accessibilityLabel="Companion (model)"
+          accessibilityRole="button"
+          onPress={press}
+          style={[styles.menuButton, local.trigger, isOpen && styles.menuButtonOpen]}
+        >
+          <ProviderMark harness={harness} size={14} />
+          <Text numberOfLines={1} style={local.triggerText}>
+            {currentLabel}
+          </Text>
+          {props.effort !== "default" && <Text style={local.triggerEffort}>{props.effort}</Text>}
+          <Text style={styles.menuCaret}>⌄</Text>
+        </Pressable>
+      ) : (
+        trigger({ isOpen, onPress: press })
+      )}
       {dock === null && (
         <Modal animationType="none" onRequestClose={() => setIsOverlayOpen(false)} transparent visible={isOverlayOpen}>
           <Pressable
@@ -239,6 +263,8 @@ export function CompanionPicker({ rank = 0, ...props }: CompanionPickerProps & {
 
 const local = StyleSheet.create({
   body: { backgroundColor: colors.page, flex: 1, gap: 8, padding: 12 },
+  // A panel of its own starts with tabs, which sit closer to the column's.
+  bodyOfPanel: { paddingTop: 6 },
   dimmed: { opacity: 0.45 },
   empty: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.md, padding: 10 },
   footer: { borderColor: colors.border, borderTopWidth: 1, gap: 4, paddingTop: 8 },
@@ -294,6 +320,8 @@ const local = StyleSheet.create({
   titleText: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.xs, fontWeight: "600" },
   trigger: { gap: 6 },
   triggerEffort: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.sm },
+  // A control of the caller's own may fill the frame it is placed in.
+  triggerFrame: { flexGrow: 1 },
   triggerText: {
     color: colors.textSecondary,
     flexShrink: 1,

@@ -7,7 +7,6 @@ export {
   harnessFacts,
   harnessLabels,
   harnessNames,
-  ownAccountLabel,
 } from "./harnessCatalog.ts";
 export { harnesses, makeHarnessRouter } from "./harnesses.ts";
 export {

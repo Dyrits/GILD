@@ -50,11 +50,11 @@ export const dayLabelOf = (day: string) => {
 
 const isHarnessKey = (key: string): key is HarnessName => Object.hasOwn(harnessLabels, key);
 
-/** An account row's name: its harness and the account's own name, or "This computer" for the harness's own sign-in. */
+/** An account row's name: its harness and the account's own name, or the computer's name, sent by the service, for the harness's own sign-in. */
 const accountLabelOf = (row: UsageRow) => {
   const [harness = "", account = ""] = row.key.split("/");
   if (row.key === "" || !isHarnessKey(harness)) return unrecorded;
-  return `${harnessLabels[harness]} · ${account === "" ? "This computer" : (row.name ?? "Account")}`;
+  return `${harnessLabels[harness]} · ${row.name ?? (account === "" ? "This computer" : "Account")}`;
 };
 
 /** A realm row's name: the Borderlands for the empty key; Iskios's own quests carry their name from the service. */

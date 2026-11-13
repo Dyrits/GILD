@@ -32,8 +32,9 @@ describe("naming breakdown rows", () => {
     expect(rowLabelOf("Model", row(""))).toBe("Not recorded");
   });
 
-  it("names an account by its harness and its own name, or This computer", () => {
+  it("names an account by its harness and its own name, or the computer's name the service sends", () => {
     expect(rowLabelOf("Account", row("codex/acct-1", "Work"))).toBe("Codex · Work");
+    expect(rowLabelOf("Account", row("claude/", "Studio"))).toBe("Claude Code · Studio");
     expect(rowLabelOf("Account", row("claude/"))).toBe("Claude Code · This computer");
     expect(rowLabelOf("Account", row(""))).toBe("Not recorded");
   });

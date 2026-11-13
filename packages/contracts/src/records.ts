@@ -115,8 +115,6 @@ export const Settings = Schema.Struct({
   shouldShowAgentThreads: Schema.Boolean,
   /** Whether the rail lists finished (Done) quests among the quests; off by default, the board still shows them. */
   shouldShowFinishedQuests: Schema.Boolean,
-  /** Whether the rail shows the Guildmaster, on by default (quest coordination, Place). */
-  shouldShowGuildmaster: Schema.Boolean,
   shouldStreamReplies: Schema.Boolean,
   /** The Companions the Guildmaster picks from by a request's complexity; none set means the defaults above. */
   tiers: Schema.Struct({ Balanced: Schema.NullOr(Tier), Heavy: Schema.NullOr(Tier), Light: Schema.NullOr(Tier) }),
@@ -186,7 +184,7 @@ export const EndingPreview = Schema.Struct({
 });
 export type EndingPreview = typeof EndingPreview.Type;
 
-/** A new mission's choices, prefilled from the last mission started (mission-tracking, Starting a mission). */
+/** A new mission's choices: the default Companion and the last mission's folder (mission-tracking, Starting a mission). */
 export const StartChoices = Schema.Struct({
   /** The provider account, or null for the harness's own sign-in on this computer. */
   accountId: Schema.NullOr(AccountId),

@@ -44,6 +44,7 @@ import {
   Service,
   serviceLayer,
 } from "../../src/index.ts";
+import { computerNameOf } from "../../src/remote/config.ts";
 import { turnRequestOf } from "../fixtures/turns.ts";
 
 const fixtures = join(import.meta.dirname, "..", "fixtures");
@@ -328,7 +329,7 @@ describe("running Codex threads", () => {
       const started = yield* start({ effort: "high", harness: "codex", model: "gpt-x", text: "Hello" });
       const detail = yield* settle(started.missionId, idleWith(1));
       expect(replies(detail)).toEqual(["Echo: Hello"]);
-      expect(detail.thread).toMatchObject({ accountId: null, accountLabel: "This computer", harness: "codex" });
+      expect(detail.thread).toMatchObject({ accountId: null, accountLabel: computerNameOf(), harness: "codex" });
       // The input counts Codex reports include the cached part, which is counted apart.
       expect(detail.mission.usage).toEqual({ cacheCreation: 1, cacheRead: 30, input: 69, output: 7 });
       // The context is the latest call's input, which includes the cached part, and its output.
@@ -1406,13 +1407,25 @@ const sendTo = (threadId: ThreadId, text: string) =>
   call({ _tag: "SendMessage", delivery: null, requestId: crypto.randomUUID(), text, threadId });
 
 describe("managing provider accounts", () => {
+  it.live("names the computer's own sign-in after the host, and follows a rename", () => {
+    const { layer } = withHarnesses();
+    return Effect.gen(function* () {
+      yield* call({ _tag: "RenameHost", name: "Studio" });
+      const { harnesses } = yield* call({ _tag: "ListHarnesses" });
+      for (const harness of harnesses) expect(harness.accounts[0]).toMatchObject({ id: null, label: "Studio" });
+      yield* call({ _tag: "RenameHost", name: "" });
+      const reset = yield* call({ _tag: "ListHarnesses" });
+      expect(reset.harnesses[0]?.accounts[0]?.label).toBe(computerNameOf());
+    }).pipe(Effect.provide(layer));
+  });
+
   it.live("lists every harness with the computer's own sign-in first", () => {
     const { layer } = withHarnesses();
     return Effect.gen(function* () {
       const { harnesses } = yield* call({ _tag: "ListHarnesses" });
       expect(harnesses.map((harness) => harness.name)).toEqual(["claude", "codex", "opencode"]);
       for (const harness of harnesses) {
-        expect(harness.accounts[0]).toMatchObject({ id: null, label: "This computer", signIn: "SignedIn" });
+        expect(harness.accounts[0]).toMatchObject({ id: null, label: computerNameOf(), signIn: "SignedIn" });
         expect(harness.models.map((model) => model.id)).not.toContain("default");
       }
       expect(harnesses[0]?.models.map((model) => model.label)).toEqual([
@@ -1469,7 +1482,8 @@ describe("managing provider accounts", () => {
       expect(logged().find((entry) => entry.pid !== undefined)?.home).toEqual({
         CODEX_HOME: join(accountsRoot, accountId),
       });
-      expect(yield* call({ _tag: "ReadStartChoices" })).toMatchObject({ accountId, harness: "codex" });
+      // The next quest starts on the default Companion and the computer's own sign-in, not on this account.
+      expect(yield* call({ _tag: "ReadStartChoices" })).toMatchObject({ accountId: null, harness: "claude" });
     }).pipe(Effect.provide(layer));
   });
 

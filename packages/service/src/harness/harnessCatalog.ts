@@ -92,6 +92,3 @@ export const harnessNames: ReadonlyArray<HarnessName> = ["claude", "codex", "ope
 /** The environment that points a harness at an account's folder; empty for the computer's own sign-in. */
 export const accountEnvironmentOf = (harness: HarnessName, configDirectory: string | null): Record<string, string> =>
   configDirectory === null ? {} : { [harnessFacts[harness].configVariable]: configDirectory };
-
-/** The label of a harness's own sign-in on this computer, outside Iskios. */
-export const ownAccountLabel = "This computer";

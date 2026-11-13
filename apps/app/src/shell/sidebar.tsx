@@ -640,8 +640,6 @@ export function Sidebar({
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
   const placements = placementsOf(data?.missions ?? [], data?.workspaces ?? []);
   const isHere = (each: Place) => openMission === null && place === each;
-  // A setting hides the Guild Hall entry; its screen is still where a realm page's message goes.
-  const hasGuildHall = settings?.shouldShowGuildmaster !== false;
   // The menu that makes a realm, tied to a folder or to none.
   const [isCreating, setIsCreating] = useState(false);
   // Realms start open and quests start closed, so a long list of quests stays short; side-quests start open.
@@ -754,18 +752,14 @@ export function Sidebar({
   return (
     <View style={[local.sidebar, { width }]}>
       <ScrollView contentContainerStyle={local.group} style={local.flex}>
-        {hasGuildHall && (
-          <>
-            <Row
-              icon="guild-hall"
-              isMain
-              isSelected={isHere("Guildmaster")}
-              label="Guild Hall"
-              onPress={() => onPlace("Guildmaster")}
-            />
-            <Divider />
-          </>
-        )}
+        <Row
+          icon="guild-hall"
+          isMain
+          isSelected={isHere("Guildmaster")}
+          label="Guild Hall"
+          onPress={() => onPlace("Guildmaster")}
+        />
+        <Divider />
 
         <Heading
           icon="realms"

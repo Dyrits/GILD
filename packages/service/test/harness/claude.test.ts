@@ -604,7 +604,6 @@ describe("running Claude Code threads", () => {
           shouldOpenOffTopicMissions: false,
           shouldShowAgentThreads: true,
           shouldShowFinishedQuests: false,
-          shouldShowGuildmaster: true,
           shouldStreamReplies: false,
           tiers: { Balanced: null, Heavy: null, Light: null },
         },
@@ -852,7 +851,6 @@ describe("reading and saving settings", () => {
         shouldOpenOffTopicMissions: false,
         shouldShowAgentThreads: true,
         shouldShowFinishedQuests: false,
-        shouldShowGuildmaster: true,
         shouldStreamReplies: true,
         tiers: { Balanced: null, Heavy: null, Light: null },
       });
@@ -878,7 +876,6 @@ describe("reading and saving settings", () => {
         shouldOpenOffTopicMissions: true,
         shouldShowAgentThreads: true,
         shouldShowFinishedQuests: false,
-        shouldShowGuildmaster: true,
         shouldStreamReplies: false,
         tiers: { Balanced: null, Heavy: null, Light: null },
       } as const;
@@ -913,7 +910,6 @@ describe("reading and saving settings", () => {
         shouldOpenOffTopicMissions: false,
         shouldShowAgentThreads: true,
         shouldShowFinishedQuests: false,
-        shouldShowGuildmaster: true,
         shouldStreamReplies: false,
         tiers: { Balanced: null, Heavy: null, Light: null },
       });

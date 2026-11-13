@@ -18,7 +18,7 @@ import {
 import { SettingsCard, SettingsRule, ToggleRow } from "./settingsParts";
 
 /**
- * Charter's remote access section: whether other devices may pair with this computer, its name as a host, a pairing
+ * Charter's remote access section: whether other devices may pair with this computer, a pairing
  * code to give to another Iskios, and the devices already paired, each with a Disconnect (device-pairing).
  */
 export function RemoteAccessCard({ client }: { client: ServiceClient }) {
@@ -26,7 +26,6 @@ export function RemoteAccessCard({ client }: { client: ServiceClient }) {
   if (host.hostId !== null) {
     return (
       <SettingsCard icon="monitor" title="Remote access · paired devices">
-        <HostNameEditor client={client} />
         <Text style={styles.muted}>
           Paired devices are managed on {host.name} itself. Switch to this computer in the host menu to manage the
           devices paired with it.
@@ -85,8 +84,6 @@ function RemoteAccessOnHost({ client }: { client: ServiceClient }) {
       <Text accessibilityLabel="Relay status" style={styles.muted}>
         {relayStatusTextOf(view.status, view.isEnabled)}
       </Text>
-      <SettingsRule />
-      <HostNameEditor client={client} />
       <SettingsRule />
       <RelayChoice client={client} deviceCount={view.devices.length} view={view} />
       <SettingsRule />
@@ -238,43 +235,6 @@ function RelayChoice({
         </View>
       )}
       {error !== null && <Text style={styles.error}>{error}</Text>}
-    </View>
-  );
-}
-
-/** Edits the host's name from either its own window or a paired device. */
-function HostNameEditor({ client }: { client: ServiceClient }) {
-  const { data: current, error: readError } = useServiceQuery(client, { _tag: "ReadHostName" }, "host-name");
-  const [name, setName] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
-  const shown = name ?? current ?? "";
-  return (
-    <View style={{ gap: 8 }}>
-      <Text style={local.label}>This host's name</Text>
-      <View style={local.row}>
-        <TextInput
-          accessibilityLabel="Host name"
-          maxLength={60}
-          onChangeText={setName}
-          style={local.input}
-          value={shown}
-        />
-        <Button
-          isDisabled={current === null || shown.trim() === current}
-          isPrimary={false}
-          label="Rename"
-          onPress={() => {
-            void client.request({ _tag: "RenameHost", name: shown }).then(
-              () => {
-                setName(null);
-                setError(null);
-              },
-              (reason) => setError(messageOf(reason)),
-            );
-          }}
-        />
-      </View>
-      {(error ?? readError) !== null && <Text style={styles.error}>{error ?? readError}</Text>}
     </View>
   );
 }

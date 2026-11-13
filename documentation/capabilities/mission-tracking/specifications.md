@@ -15,7 +15,7 @@ When work runs in many threads across harnesses, the user loses track of which m
 ### Starting a mission
 
 - The user starts a mission from the dashboard with a first message, a harness, agent, model, effort, and workspace (or none).
-- All but the message are prefilled from the user's last choices, so a mission starts with one message and Enter.
+- All but the message are prefilled, so a mission starts with one message and Enter: the Companion is always the Workshop's default Companion (harness, model, effort, on the computer's own sign-in; CHG-0257, replacing the last mission's choices), and the folder is the last mission's.
 - A new mission's top thread starts as **Open as new mission** does in [thread-tree](../thread-tree/specifications.md#off-topic-requests): with global skills and intel, and nothing from another mission.
 - The owner can create a quest directly from a Realm or the Borderlands without going through Guildmaster.
   The quest belongs to that realm and receives its lore; a Realm tied to a workspace also supplies its workspace.

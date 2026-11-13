@@ -2,6 +2,7 @@ import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { afterEach } from "vitest";
+import { computerNameOf } from "../../src/remote/config.ts";
 import { call, fixture, settle, start } from "../fixtures/service.ts";
 import { dayAt, dayText, isIdle, quests, seed, standard, usage } from "../fixtures/usage.ts";
 
@@ -159,6 +160,9 @@ describe("reading the usage page", () => {
           "codex/acct-work",
           "opencode/",
         ]);
+        // A harness's own sign-in has no account row to name it, so it carries the computer's name; a turn with no harness has none.
+        expect(accounts.find((row) => row.key === "claude/")?.name).toBe(computerNameOf());
+        expect(accounts.find((row) => row.key === "")?.name).toBeNull();
         const days = breakdowns.find((breakdown) => breakdown.dimension === "Day")?.rows ?? [];
         expect(days.map((row) => row.key).sort()).toEqual([dayText(3), dayText(2), dayText(1)].sort());
       }),

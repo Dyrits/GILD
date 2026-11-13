@@ -1,0 +1,21 @@
+const clickText = (t: string) => `(() => { const e=[...document.querySelectorAll('div,span')].find(e=>e.children.length===0 && e.textContent.trim()===${JSON.stringify(t)}); if(!e) return 'NOTFOUND'; e.click(); return 'ok'; })()`;
+export default async ({ evaluate, shot, sleep, send, logs }: any) => {
+  await send("Page.reload");
+  await sleep(5000);
+  console.log("sidebar Guild Hall:", await evaluate(`document.body.innerText.includes('Guild Hall')`));
+  await evaluate(clickText("Workshop"));
+  await sleep(2500);
+  console.log("menu:", await evaluate(`(() => { const t=document.body.innerText; const a=t.indexOf('Settings'); return t.slice(a, a+150).replace(/\\n/g,' | '); })()`));
+  await shot("17-workshop-top");
+  await evaluate(clickText("Providers"));
+  await sleep(1500);
+  await shot("18-providers");
+  await evaluate(clickText("Companions"));
+  await sleep(1500);
+  await shot("19-companions");
+  console.log("toggle gone:", !(await evaluate(`document.body.innerText.includes('Show the Guild Hall in the rail')`)));
+  console.log("button:", await evaluate(`(() => { const b=document.querySelector('[aria-label="Change the default Companion and its backups"]'); if(!b) return 'NOBUTTON'; const r=b.getBoundingClientRect(); b.click(); return JSON.stringify({w:Math.round(r.width),h:Math.round(r.height)}); })()`));
+  await sleep(1500);
+  await shot("20-companions-open");
+  console.log("errors besides nested-button:", logs.filter((l: string) => /^(error|exception)/.test(l) && !/nested|descendant/.test(l)).join("\n") || "none");
+};

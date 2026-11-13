@@ -5,21 +5,10 @@ import {
   type Settings,
 } from "@iskios/contracts";
 import { type ReactNode, useRef, useState } from "react";
-import {
-  type NativeScrollEvent,
-  type NativeSyntheticEvent,
-  Pressable,
-  ScrollView,
-  type ScrollViewInstance,
-  StyleSheet,
-  Text,
-  TextInput,
-  View,
-} from "react-native";
-import { BackupsEditor } from "../editors/backupsEditor";
+import { Pressable, ScrollView, type ScrollViewInstance, StyleSheet, Text, TextInput, View } from "react-native";
 import { BudgetEditor } from "../editors/budgets";
 import { levelLabels } from "../editors/permissions";
-import { RunnerPickers, useHarnesses } from "../editors/runners";
+import { useHarnesses } from "../editors/runners";
 import { messageOf, type ServiceClient } from "../foundation/client";
 import {
   canChooseColorScheme,
@@ -39,11 +28,14 @@ import { Choice } from "../ui/pickers";
 import { AccountBudgetsCard } from "./accountBudgetsCard";
 import { AccountsCard, HarnessesCard } from "./accounts";
 import { BrowsableRootsCard } from "./browsableRootsCard";
-import { GuildmasterSettings } from "./guildmasterSettings";
+import { ComputerNameCard } from "./computerNameCard";
+import { DefaultCompanionCard } from "./defaultCompanionCard";
+import { PresetsCard } from "./presetsCard";
 import { PricesCard } from "./pricesCard";
 import { RemoteAccessCard } from "./remoteAccessCard";
 import { SettingsCard, SettingsHeading, SettingsMenu, SettingsRule, ToggleRow } from "./settingsParts";
-import { activeSectionOf, type SettingsSectionId } from "./settingsSections";
+import type { SettingsSectionId } from "./settingsSections";
+import { WorkshopTabsProvider } from "./workshopTabs";
 
 // Stored and wire names keep `intel` so existing data and agents still work: settings keys (`intelHalfLives`, `intelWarningPercent`).
 
@@ -111,26 +103,9 @@ function NumberSetting(props: Parameters<typeof NumberField>[0]) {
   );
 }
 
-/** One section of the page: its cards, with its top measured for the menu to scroll to and to mark. */
-function Section({
-  children,
-  id,
-  tops,
-}: {
-  children: ReactNode;
-  id: SettingsSectionId;
-  tops: { current: Partial<Record<SettingsSectionId, number>> };
-}) {
-  return (
-    <View
-      onLayout={(event) => {
-        tops.current[id] = event.nativeEvent.layout.y;
-      }}
-      style={local.section}
-    >
-      {children}
-    </View>
-  );
+/** One section of the page: its cards, drawn only while the menu has it chosen. */
+function Section({ active, children, id }: { active: SettingsSectionId; children: ReactNode; id: SettingsSectionId }) {
+  return id === active ? <View style={local.section}>{children}</View> : null;
 }
 
 /** The Charter (Settings), where the owner chooses how Iskios runs their threads. */
@@ -148,7 +123,6 @@ export function SettingsScreen({
   const [saveError, setSaveError] = useState<string | null>(null);
   const harnesses = useHarnesses(client);
   const scroll = useRef<ScrollViewInstance>(null);
-  const tops = useRef<Partial<Record<SettingsSectionId, number>>>({});
   const [active, setActive] = useState<SettingsSectionId>("permissions");
   const save = (change: Partial<Settings>) => {
     if (settings === null) return;
@@ -157,31 +131,15 @@ export function SettingsScreen({
       (reason) => setSaveError(messageOf(reason)),
     );
   };
-  const mark = (event: NativeSyntheticEvent<NativeScrollEvent>) => {
-    const { contentOffset, contentSize, layoutMeasurement } = event.nativeEvent;
-    setActive(
-      activeSectionOf({
-        isAtEnd: contentOffset.y + layoutMeasurement.height >= contentSize.height - 4,
-        scrollTop: contentOffset.y,
-        tops: tops.current,
-      }),
-    );
-  };
   const choose = (id: SettingsSectionId) => {
     setActive(id);
-    scroll.current?.scrollTo({ animated: true, y: Math.max(0, (tops.current[id] ?? 0) - 4) });
+    scroll.current?.scrollTo({ animated: false, y: 0 });
   };
   const menu = <SettingsMenu active={active} isCompact={!hasSidebar} onChoose={choose} />;
   return (
     <View style={[local.page, hasSidebar && local.pageWide]}>
       {hasSidebar && <View style={local.menuColumn}>{menu}</View>}
-      <ScrollView
-        contentContainerStyle={local.content}
-        onScroll={mark}
-        ref={scroll}
-        scrollEventThrottle={50}
-        style={styles.flex}
-      >
+      <ScrollView contentContainerStyle={local.content} ref={scroll} style={styles.flex}>
         {!hasSidebar && (
           <Pressable onPress={onBack}>
             <Text style={[styles.link, local.back]}>← Back</Text>
@@ -193,7 +151,7 @@ export function SettingsScreen({
         {saveError !== null && <Text style={local.error}>{saveError}</Text>}
         {settings && (
           <>
-            <Section id="permissions" tops={tops}>
+            <Section active={active} id="permissions">
               <SettingsCard
                 icon="shield"
                 onPress={onPermissions}
@@ -201,12 +159,11 @@ export function SettingsScreen({
                 title="Permissions"
               />
             </Section>
-            <Section id="defaults" tops={tops}>
+            <Section active={active} id="defaults">
               {canChooseColorScheme && (
-                <SettingsCard
-                  icon="sliders"
-                  title="Theme · Iskios or Gild"
-                  trailing={
+                <SettingsCard icon="sliders" title="Look">
+                  <View style={local.choiceRow}>
+                    <Text style={[styles.body, local.choiceLabel]}>Theme · Iskios or Gild</Text>
                     <Choice
                       accessibilityLabel="Theme"
                       label={(name) => themeLabels[name]}
@@ -214,14 +171,10 @@ export function SettingsScreen({
                       options={themes}
                       value={theme}
                     />
-                  }
-                />
-              )}
-              {canChooseColorScheme && (
-                <SettingsCard
-                  icon="sliders"
-                  title="Appearance · light, dark, or the system's"
-                  trailing={
+                  </View>
+                  <SettingsRule />
+                  <View style={local.choiceRow}>
+                    <Text style={[styles.body, local.choiceLabel]}>Appearance · light, dark, or the system's</Text>
                     <Choice
                       accessibilityLabel="Appearance"
                       label={(preference) => colorSchemeLabels[preference]}
@@ -229,40 +182,9 @@ export function SettingsScreen({
                       options={colorSchemePreferences}
                       value={colorPreference}
                     />
-                  }
-                />
+                  </View>
+                </SettingsCard>
               )}
-              <SettingsCard icon="sliders" title="Default harness, model, and effort before your first quest">
-                <RunnerPickers
-                  harnesses={harnesses.data}
-                  isAccountShown={false}
-                  isCompact={false}
-                  onChange={(runner) =>
-                    save({ defaultEffort: runner.effort, defaultHarness: runner.harness, defaultModel: runner.model })
-                  }
-                  // The account is chosen per mission; new missions otherwise start as the last one did.
-                  value={{
-                    accountId: null,
-                    effort: settings.defaultEffort,
-                    harness: settings.defaultHarness,
-                    model: settings.defaultModel,
-                  }}
-                />
-              </SettingsCard>
-              <SettingsCard icon="layers" title="Backup companions">
-                <Text style={styles.body}>
-                  When a turn fails, as when a usage limit is reached, a quest carries on with the first of these that
-                  differs from its own Companion. New quests and their side-quests start with this list; each quest can
-                  change its own from its panel.
-                </Text>
-                <BackupsEditor
-                  backups={settings.backups}
-                  harnesses={harnesses.data}
-                  isCompact={false}
-                  onChange={(backups) => save({ backups })}
-                />
-              </SettingsCard>
-              <GuildmasterSettings client={client} onSave={save} settings={settings} />
               <SettingsCard icon="hourglass" title="Quest upkeep">
                 <NumberSetting
                   label="Ask about a quest after this many days without activity"
@@ -307,22 +229,27 @@ export function SettingsScreen({
                 />
               </SettingsCard>
             </Section>
-            <Section id="harnesses" tops={tops}>
+            <Section active={active} id="providers">
+              <ComputerNameCard client={client} onRenamed={harnesses.refresh} />
               <HarnessesCard
                 client={client}
                 harnesses={harnesses.data}
                 onChanged={harnesses.setData}
                 onRefresh={harnesses.refresh}
               />
-            </Section>
-            <Section id="accounts" tops={tops}>
               <AccountsCard client={client} harnesses={harnesses.data} onChanged={harnesses.setData} />
             </Section>
-            <Section id="remote" tops={tops}>
+            <Section active={active} id="companions">
+              <WorkshopTabsProvider>
+                <DefaultCompanionCard client={client} harnesses={harnesses.data} onSave={save} settings={settings} />
+                <PresetsCard client={client} onSave={save} settings={settings} />
+              </WorkshopTabsProvider>
+            </Section>
+            <Section active={active} id="remote">
               <RemoteAccessCard client={client} />
               <BrowsableRootsCard client={client} />
             </Section>
-            <Section id="messaging" tops={tops}>
+            <Section active={active} id="messaging">
               <SettingsCard
                 icon="hourglass"
                 title="Send, while work is underway"
@@ -355,7 +282,7 @@ export function SettingsScreen({
                 }
               />
             </Section>
-            <Section id="limits" tops={tops}>
+            <Section active={active} id="limits">
               <SettingsCard
                 icon="layers"
                 title="Briefing limit · tokens a quest's briefing may hold"
@@ -420,6 +347,8 @@ export function SettingsScreen({
 
 const local = StyleSheet.create({
   back: { color: colors.highlight },
+  choiceLabel: { flex: 1 },
+  choiceRow: { alignItems: "center", flexDirection: "row", gap: 12, justifyContent: "space-between" },
   content: { gap: 18, paddingHorizontal: 28, paddingVertical: 20 },
   error: { color: colors.highlight, fontFamily: fonts.sans, fontSize: fontSizes.md },
   menuColumn: { paddingLeft: 20, paddingTop: 20 },

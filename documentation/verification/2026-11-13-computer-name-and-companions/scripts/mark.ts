@@ -1,0 +1,28 @@
+const clickText = (t: string, nth = 0) => `(() => { const els=[...document.querySelectorAll('div,span')].filter(e=>e.children.length===0 && e.textContent.trim()===${JSON.stringify(t)}); const e=els[${nth}]; if(!e) return 'NOTFOUND'; e.click(); return 'ok'; })()`;
+const chevrons = `[...document.querySelectorAll('[aria-label="Change this Companion in the Companions tab"]')]`;
+const marked = `JSON.stringify(${chevrons}.map(c=>getComputedStyle(c).backgroundColor==='rgb(228, 218, 205)'))`;
+const tabTab = (t: string) => `(() => { const e=[...document.querySelectorAll('[role="tab"]')].find(e=>e.textContent.trim()===${JSON.stringify(t)}); if(!e) return 'NOTFOUND'; e.click(); return 'ok'; })()`;
+export default async ({ evaluate, shot, sleep, send, logs }: any) => {
+  await send("Page.reload");
+  await sleep(5000);
+  await evaluate(clickText("Workshop"));
+  await sleep(2000);
+  await evaluate(clickText("Companions", 1));
+  await sleep(1000);
+  console.log("closed         [Default,Light,Balanced,Heavy]:", await evaluate(marked));
+  await evaluate(`${chevrons}[3].click()`); await sleep(1200);
+  console.log("attrs:", await evaluate(`JSON.stringify([...${chevrons}[3].attributes].map(a=>a.name+'='+a.value))`));
+  console.log("bg of chevrons:", await evaluate(`JSON.stringify(${chevrons}.map(c=>getComputedStyle(c).backgroundColor))`));
+  console.log("press Heavy    :", await evaluate(marked));
+  await shot("29-heavy-marked");
+  await evaluate(tabTab("Default")); await sleep(1200);
+  console.log("tab Default    :", await evaluate(marked));
+  await evaluate(tabTab("Presets")); await sleep(1200);
+  console.log("tab Presets    :", await evaluate(marked), "(returns to the last preset, Heavy)");
+  await evaluate(tabTab("Balanced")); await sleep(1200);
+  console.log("tab Balanced   :", await evaluate(marked));
+  await shot("30-balanced-marked");
+  await evaluate(`${chevrons}[2].click()`); await sleep(1200);
+  console.log("press Balanced again (closes):", await evaluate(marked), "tabs open:", await evaluate(`document.querySelectorAll('[role="tab"]').length`));
+  console.log("errors besides nested-button:", logs.filter((l: string) => /^(error|exception)/.test(l) && !/nested|descendant/.test(l)).join("\n") || "none");
+};
