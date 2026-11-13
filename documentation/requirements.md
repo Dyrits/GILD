@@ -21,6 +21,9 @@
 - **Price table read carries no owner data**: the local service's read of the model price table sends nothing about missions, workspaces, accounts, or the owner, and the owner can switch it off, leaving the price table shipped with Iskios.
   Source: the user, 2026-11-10 (CHG-0126). Reason: Local data allows only what a harness, provider, or connected service needs for the work; a price lookup is not needed for the work.
   Check: a test on the request the service sends for the price table, and the Charter switch.
+- **Update check carries no owner data**: the installed app's check for a newer release sends one HTTPS request for the repository's public release list, with the app's name and version in its user agent, and nothing about missions, workspaces, accounts, or the owner. The owner can switch checking off, and then the app makes no such request.
+  Source: the user, 2026-11-13 (CHG-0266). Reason: Local data allows only what the work needs; looking for a new release is not needed for the work, so it is open and switchable.
+  Check: a test on the request the updater sends, and the Updates switch.
 - **Bring your own provider**: users connect their own provider subscriptions or API keys; Iskios resells no model use.
   Source: the user. Reason: product decision.
 - **Comply with provider terms**: Iskios never offers a provider's sign-in as its own, nor collects, stores, or relays provider credentials or session tokens; each harness signs in through its own unmodified tool and the provider's own flow, and the documentation states each provider's terms plainly.

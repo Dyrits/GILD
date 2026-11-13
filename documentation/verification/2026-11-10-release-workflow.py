@@ -22,12 +22,13 @@ with tempfile.TemporaryDirectory(prefix="gild-release-check-") as folder:
     log = directory / "commands"
     fake = '''#!/bin/bash
 printf '%s\\n' "$*" >> "$COMMAND_LOG"
+if [[ "${0##*/}" == sha512sum ]]; then echo "hash  Gild-mac-arm64.dmg"; fi
 if [[ "$1 $2" == "release view" ]]; then
   if [[ "$GH_STATE" == missing ]]; then exit 1; fi
   if [[ "$*" == *--json* ]]; then printf '%s\\n' "$GH_STATE"; fi
 fi
 '''
-    for name in ("gh", "bun"):
+    for name in ("gh", "bun", "sha512sum"):
         executable = binaries / name
         executable.write_text(fake)
         executable.chmod(0o755)
@@ -35,6 +36,9 @@ fi
     installers.mkdir()
     for name in ("Gild-mac-arm64.dmg", "Gild-mac-x64.dmg", "Gild-win-x64.exe", "Gild-linux-x64.AppImage"):
         (installers / name).write_text("fake installer")
+
+    for name in ("latest.yml", "latest-linux.yml"):
+        (installers / name).write_text("version: 1")
 
     def run(script, **values):
         log.write_text("")
@@ -50,10 +54,18 @@ fi
         assert commands.index("release upload") < commands.index("release edit")
         assert f"--draft=false --prerelease={prerelease}" in commands
         assert ".dmg" in commands and ".exe" in commands and ".AppImage" in commands
+        # The update files and the checksums of the installers are published with them.
+        assert "-- Gild-mac-arm64.dmg Gild-mac-x64.dmg Gild-win-x64.exe Gild-linux-x64.AppImage" in commands
+        assert "installers/latest.yml" in commands and "installers/latest-linux.yml" in commands
+        assert "installers/SHA512SUMS.txt --clobber" in commands
     code, commands = run(publish, RELEASE_TAG="v1.0.0", GH_STATE="true")
     assert code == 0 and "release create" not in commands and "release upload" in commands
     code, commands = run(publish, RELEASE_TAG="v1.0.0", GH_STATE="false")
     assert code != 0 and "release upload" not in commands and "release edit" not in commands
+    (installers / "latest-linux.yml").unlink()
+    code, commands = run(publish, RELEASE_TAG="v1.0.0", GH_STATE="missing")
+    assert code != 0 and "release upload" not in commands, (code, commands)
+    (installers / "latest-linux.yml").write_text("version: 1")
     (installers / "Gild-linux-x64.AppImage").unlink()
     code, commands = run(publish, RELEASE_TAG="v1.0.0", GH_STATE="missing")
     assert code != 0 and commands == ""
@@ -64,4 +76,4 @@ fi
 assert workflow["jobs"]["release"]["needs"] == "package"
 assert workflow["jobs"]["release"]["permissions"] == {"contents": "write"}
 assert workflow["permissions"] == {"contents": "read"}
-print("Passed 7 offline shell scenarios and release dependency/permission checks; no network or real GitHub commands ran.")
+print("Passed 8 offline shell scenarios and release dependency/permission checks; no network or real GitHub commands ran.")

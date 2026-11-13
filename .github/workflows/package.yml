@@ -119,6 +119,15 @@ jobs:
           archive: false
           if-no-files-found: error
           retention-days: 14
+      # electron-updater reads this file on Windows and Linux; the macOS updater uses SHA512SUMS.txt, made at release.
+      - name: Upload update file
+        if: runner.os != 'macOS'
+        uses: actions/upload-artifact@v7
+        with:
+          path: apps/desktop/release/latest*.yml
+          archive: false
+          if-no-files-found: error
+          retention-days: 14
 
   release:
     name: Publish installers
@@ -134,6 +143,11 @@ jobs:
           pattern: Iskios-*
           path: installers
           merge-multiple: true
+      - uses: actions/download-artifact@v8
+        with:
+          pattern: "latest*.yml"
+          path: installers
+          merge-multiple: true
       - name: Publish GitHub Release
         shell: bash
         env:
@@ -145,6 +159,12 @@ jobs:
           files=(installers/*.dmg installers/*.exe installers/*.AppImage)
           [[ ${#files[@]} -eq 4 ]]
           for file in "${files[@]}"; do test -s "$file"; done
+          # The Windows and Linux update files, and the checksums the installed macOS app checks its download against.
+          updates=(installers/latest*.yml)
+          test "${#updates[@]}" -eq 2
+          for file in "${updates[@]}"; do test -s "$file"; done
+          (cd installers && sha512sum -- *.dmg *.exe *.AppImage > SHA512SUMS.txt)
+          test -s installers/SHA512SUMS.txt
           isPrerelease=false
           if [[ "$RELEASE_TAG" == *-* ]]; then isPrerelease=true; fi
           if gh release view "$RELEASE_TAG" >/dev/null 2>&1; then
@@ -153,5 +173,5 @@ jobs:
           else
             gh release create "$RELEASE_TAG" --verify-tag --generate-notes --draft --prerelease="$isPrerelease"
           fi
-          gh release upload "$RELEASE_TAG" "${files[@]}" --clobber
+          gh release upload "$RELEASE_TAG" "${files[@]}" "${updates[@]}" installers/SHA512SUMS.txt --clobber
           gh release edit "$RELEASE_TAG" --draft=false --prerelease="$isPrerelease"

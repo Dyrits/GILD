@@ -35,6 +35,7 @@ import { PricesCard } from "./pricesCard";
 import { RemoteAccessCard } from "./remoteAccessCard";
 import { SettingsCard, SettingsHeading, SettingsMenu, SettingsRule, ToggleRow } from "./settingsParts";
 import type { SettingsSectionId } from "./settingsSections";
+import { UpdatesCard } from "./updatesCard";
 import { WorkshopTabsProvider } from "./workshopTabs";
 
 // Stored and wire names keep `intel` so existing data and agents still work: settings keys (`intelHalfLives`, `intelWarningPercent`).
@@ -291,6 +292,9 @@ export function SettingsScreen({
                   saveLabel="Save global budget"
                 />
               </SettingsCard>
+            </Section>
+            <Section active={active} id="updates">
+              <UpdatesCard />
             </Section>
           </>
         )}

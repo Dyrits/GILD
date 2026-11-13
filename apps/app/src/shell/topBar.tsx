@@ -6,6 +6,7 @@ import { usedTextOf } from "../foundation/labels";
 import { colors, fontSizes, fonts, radii } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
 import { HostMenu } from "./hostMenu";
+import { UpdateNotice } from "./updateNotice";
 
 // The window's top bar: the host menu, the spending, the quest panel's icon, and the column that
 // holds the quest panel.
@@ -62,6 +63,9 @@ export function TopBar({
         </View>
       )}
       <View style={local.spacer} />
+      <View style={noDragRegion}>
+        <UpdateNotice />
+      </View>
       <SpendingLine client={client} />
       <Pressable
         accessibilityLabel={iskios.isOpen ? "Fold Iskios" : "Ask Iskios"}

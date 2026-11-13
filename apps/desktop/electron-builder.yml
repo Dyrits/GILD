@@ -5,6 +5,11 @@ artifactName: "${productName}-${version}-${os}-${arch}.${ext}"
 # Reuses the Electron the repository already installed, so packaging downloads no second copy.
 electronDist: node_modules/electron/dist
 electronVersion: 45.2.3
+# The installed app looks for its updates in this repository's releases; electron-builder writes the update files that Windows and Linux read (macOS, ad hoc signed, updates through its own updater).
+publish:
+  provider: github
+  owner: Dyrits
+  repo: ISKIOS
 # Linux has no node-pty prebuild; rebuild native dependencies for the packaged Electron.
 npmRebuild: true
 directories:

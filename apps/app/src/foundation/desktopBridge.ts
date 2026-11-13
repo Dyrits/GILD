@@ -1,4 +1,5 @@
 import type { Theme } from "./themeName";
+import type { UpdatesBridge } from "./updateState";
 
 /** A bounded replay of the owner's local shell, held only until the desktop app quits. */
 export interface TerminalSession {
@@ -19,4 +20,6 @@ export interface DesktopBridge {
   terminalOpen(id: string, cwd: string | null): Promise<TerminalSession>;
   terminalResize(id: string, cols: number, rows: number): Promise<void>;
   terminalWrite(id: string, data: string): Promise<void>;
+  /** Finding and installing a newer release of the installed app. */
+  readonly updates: UpdatesBridge;
 }

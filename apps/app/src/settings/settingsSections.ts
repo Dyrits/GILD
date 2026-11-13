@@ -7,6 +7,7 @@ export const settingsSections = [
   { icon: "monitor", id: "remote", label: "Remote access" },
   { icon: "chat", id: "messaging", label: "Messaging" },
   { icon: "layers", id: "limits", label: "Limits" },
+  { icon: "gear", id: "updates", label: "Updates" },
 ] as const;
 
 /** The identifier of a section of the Workshop. */

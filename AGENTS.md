@@ -47,8 +47,8 @@ When adding a handoff, keep only the three newest current handoffs linked below;
 
 Latest handoffs:
 
+- To resume app updates (the installed app finds new releases and updates itself: CHG-0266, built and checked on a packaged macOS app, the owner asked for a commit and a push to `main` with `--no-verify`, so read the live refs; waits on the owner's look and on two real tagged releases to prove it; Windows and Linux unrun), read the [current handoff](.agents/handoffs/2026-11-13-2041-app-updates.md). Handoffs are shared and committed.
+
 - To resume the Companion picker's tab per account and the renaming of accounts apart from the computer's name (CHG-0264, CHG-0265; the owner's look in a window is pending, and a stale name needing a refresh was fixed by a shared harness list that is only typechecked; also open: whether the Workshop's default Companion gets an account, and one name versus per-harness names for a computer's sign-ins), read the [current handoff](.agents/handoffs/2026-11-13-2039-companion-account-tabs-and-rename.md). Handoffs are shared and committed.
 
-- To resume the Companion preset stacks (CHG-0258 to CHG-0261: a preset as a primary and its backups applied together, the presets in a card above the Companion; committed locally as `cbd8666`, to push to `main` with `--no-verify`; the owner's notes after seeing it: the Companions column carrying over into the Workshop, slow model lists, choosing models per account; the provisional choices wait on the owner), read the [current handoff](.agents/handoffs/2026-11-13-1705-companion-preset-stacks.md). Handoffs are shared and committed.
-
-- To resume the computer name, the Workshop's one-section-at-a-time page and its Companions section (CHG-0257: the name on the computer's own sign-in, the default Companion always chosen for a new quest, Default and Presets tabs, the right-hand column's rules; the owner's open note that the Computer name card may belong elsewhere; the proof is in `documentation/verification/`), read the [current handoff](.agents/handoffs/2026-11-13-1352-computer-name-and-companions.md). Handoffs are shared and committed.
+- To resume panel-ownership publication/local sync and choose the next UI follow-up after the accepted fix, read the [current handoff](.agents/handoffs/2026-11-13-1745-panel-ownership-and-follow-ups.md). Handoffs are shared and committed.

@@ -9,6 +9,7 @@ import { moveFormerData } from "./formerData.ts";
 import { instanceOf } from "./instance.ts";
 import { mergedPathOf, readLoginPath } from "./shellPath.ts";
 import { Terminals } from "./terminals.ts";
+import { setUpUpdates } from "./updates/setup.ts";
 
 const here = dirname(fileURLToPath(import.meta.url));
 /** The app's icons, beside `dist` in the desktop app's own `assets`: Iskios's, and Gild's hooded figure. */
@@ -176,7 +177,16 @@ app
       app.dock?.setIcon(iconPathOf(theme));
       window.setIcon(iconPathOf(theme));
     });
+    // The installed app looks for a newer release once its window is up; the owner decides when it installs.
+    const updates = await setUpUpdates(
+      window,
+      (event) =>
+        event.sender === window.webContents &&
+        event.senderFrame === window.webContents.mainFrame &&
+        new URL(event.senderFrame.url).origin === new URL(appUrl).origin,
+    );
     if (!(await load(window))) quitWith(`Could not load ${appUrl}`);
+    else updates.start();
   })
   .catch((error: Error) => quitWith(error.message));
 

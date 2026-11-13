@@ -115,7 +115,10 @@ Manual builds are also available from the **Artifacts** section of the [desktop 
 | Windows | x64 | `.exe` (NSIS) |
 | Linux | x64 | `.AppImage` |
 
-Automatic updates are not configured.
+The installed app finds new releases and updates itself: it looks at start and every 6 hours, downloads in the background, and installs only when you press **Restart and update** in the notice or in the Workshop's **Updates** section, where you can also turn checking off.
+It asks GitHub's public release list for newer releases and sends nothing about you; a prerelease build follows prereleases, a stable build only stable releases.
+On macOS Iskios replaces its own app after checking the download against the release's `SHA512SUMS.txt`; on Windows and Linux it uses `electron-updater`, which has not been run on those systems yet.
+A development run (`bun run dev`) never updates.
 
 Before uploading a macOS installer, the workflow verifies and mounts its DMG, copies the app to a fresh location, and checks the rendered Guild Hall screen, service bridge, and native terminal on temporary data.
 Run that same application check locally with `bun apps/desktop/scripts/check-package.ts /Applications/Iskios.app`.
@@ -184,6 +187,7 @@ Iskios stores its application data locally, with a `iskios.sqlite` database in E
 Workspaces remain in their chosen locations.
 The desktop interface communicates with the local service over an authenticated loopback connection.
 
+Looking for a new release is one request to GitHub's public release list, with the app's name and version and nothing about you; the Workshop's Updates section turns it off.
 Agent requests still send the context needed for the work to your chosen harness, provider, and connected tools.
 You use your own provider accounts and pay for their use directly; Iskios does not resell model access.
 Each harness handles its own sign-in, including accounts added through Iskios.
@@ -219,6 +223,8 @@ In PowerShell, set a variable with `$env:ISKIOS_HARNESS = "fake"` before running
 | `ISKIOS_CODEX_PATH` | Override the `codex` executable. |
 | `ISKIOS_OPENCODE_PATH` | Override the `opencode` executable. |
 | `ISKIOS_HARNESS=fake` | Replace real harnesses with the echo harness. |
+| `ISKIOS_UPDATE_URL` | With `ISKIOS_DATA_DIR` set, the packaged macOS app reads this release list instead of GitHub's; for [checking updates](documentation/verification/2026-11-13-app-updates.md). |
+| `ISKIOS_UPDATE_OPENER` | With `ISKIOS_DATA_DIR` set, the program that starts the new app after an update, in place of `open`. |
 
 ### Checks
 
@@ -265,6 +271,8 @@ Push a version tag such as `0.1.0-Prototype` (no `v` prefix) to build macOS arm6
 The tag sets the packaged app version (a leading `v`, if present, is dropped); tags containing a hyphen produce prereleases.
 The release is published only after all four builds and uploads succeed.
 Installers download directly as `.dmg`, `.exe`, and `.AppImage` files without an extra ZIP wrapper.
+A release also carries `SHA512SUMS.txt` (what the macOS app checks its download against) and the `latest*.yml` files that `electron-updater` reads on Windows and Linux; the release is not published without them.
+Run `bun apps/desktop/scripts/check-update.ts <older Iskios.app> <newer Iskios-…-mac-…dmg>` to watch a packaged app update itself from a local stand-in for GitHub.
 The workflow also supports **Run workflow** manually for test builds, which upload direct installer files to the run's **Artifacts** section without publishing a release.
 Actions artifacts expire after 14 days; release assets remain until removed.
 

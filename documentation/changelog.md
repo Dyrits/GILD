@@ -2949,3 +2949,13 @@ Summary: The owner asked to rename an account independently of the device name. 
 References: [provider-accounts specification](capabilities/provider-accounts/specifications.md), CHG-0257, CHG-0264.
 Validation: typecheck and Biome clean; full `bun run test` 1,413 passed, 14 skipped, including a service test of renaming a sign-in apart from the host (later host renames leave it, blank returns, budgets show the names). Not checked: the shared list in a window (no hook test exists; the change is typechecked only), the rename controls in a window, a paired device renaming an account, usage-page names after a rename.
 
+## CHG-0266 · 2026-11-13 · The installed app finds new releases and updates itself
+
+Type: Documentation
+Event: Agreement
+Scope: App updates
+
+Summary: The installed app detects a newer release and updates itself, as in the [specification](capabilities/app-updates/specifications.md): on macOS through an updater of our own (Squirrel.Mac, under `electron-updater`, refuses an app with no Developer ID), on Windows and Linux through `electron-updater`, the latter two reported unverified until run on those systems. It checks at start and every 6 hours and on demand, follows prereleases from a prerelease build and stable releases from a stable one, downloads in the background, and installs only when the owner presses "Restart and update" (never on quit, never unasked). An Updates section of the Workshop and a notice in the app show it. Checking is on by default and switchable, with a new requirement that the request carries nothing about the owner. An update is trusted when it arrives over HTTPS from the repository's own release and matches `SHA512SUMS.txt` published by the release workflow; signing that file, a data backup before updating, and Developer ID signing stay out of the batch.
+Reason: The owner asked that the app detect new versions and update itself; the installed app had no way to learn of a release, and the build is ad hoc signed, which rules out the standard macOS updater.
+References: [specification](capabilities/app-updates/specifications.md), [requirement](requirements.md#privacy-and-data), [desktop packaging](verification/2026-11-10-desktop-packaging.md).
+Validation: The owner, 2026-11-13, accepted all seven recommendations put to them ("Ye sto all"): platform scope, install only on request, check schedule, privacy and off switch, channel, where it is shown, and trust without a signing key. Starting commit `170a43c`.
