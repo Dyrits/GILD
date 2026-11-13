@@ -1,0 +1,8 @@
+pg.get_by_label('Open side-quest').click(); pg.wait_for_timeout(900)
+pg.get_by_label('Companion (model)').last.click(); pg.wait_for_timeout(1100)
+pg.get_by_text('Sonnet 5.5', exact=True).last.click(); pg.wait_for_timeout(700)
+pg.get_by_text('medium', exact=True).last.click(); pg.wait_for_timeout(900)
+box().click(); pg.wait_for_timeout(300)
+typed('Write regression tests for half-cent lines.'); pg.wait_for_timeout(400)
+pg.keyboard.press('Enter'); pg.wait_for_timeout(4500)
+pg.get_by_text('Fix checkout rounding').first.click(); pg.wait_for_timeout(2500); bottom(); pg.wait_for_timeout(1500)

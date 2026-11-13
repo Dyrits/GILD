@@ -1,0 +1,6 @@
+pg.get_by_text('Iskios', exact=True).first.click(); pg.wait_for_timeout(1300)
+box().click(); pg.wait_for_timeout(300)
+typed('Ship the checkout fix and tell me what is left for 2.4.'); pg.wait_for_timeout(400)
+pg.keyboard.press('Enter'); pg.wait_for_timeout(3800)
+pg.get_by_text('Continue in "Fix checkout rounding"', exact=False).first.click(); pg.wait_for_timeout(2500)
+pg.get_by_label('Continued in quest: Fix checkout rounding').click(); pg.wait_for_timeout(1500); hide_panel(); bottom(); pg.wait_for_timeout(2500)

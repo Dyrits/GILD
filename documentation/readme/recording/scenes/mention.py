@@ -1,0 +1,6 @@
+box().click(); pg.wait_for_timeout(300)
+typed('@', 0); pg.wait_for_timeout(1000); pg.keyboard.press('Enter'); pg.wait_for_timeout(1000)
+typed('Fix', 120); pg.wait_for_timeout(900); pg.keyboard.press('Enter'); pg.wait_for_timeout(700)
+typed(' is the fix ready? Ask it to tell you once merged.'); pg.wait_for_timeout(400)
+pg.keyboard.press('Enter'); pg.wait_for_timeout(2500); bottom(); pg.wait_for_timeout(2500); bottom(); pg.wait_for_timeout(2500); bottom(); pg.wait_for_timeout(1500)
+pg.get_by_text('Fix checkout rounding').first.click(); pg.wait_for_timeout(1500); bottom(); pg.wait_for_timeout(2500)

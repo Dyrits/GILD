@@ -1,0 +1,4 @@
+PROMPT='%F{4}%1~%f %F{8}main%f %# '
+unsetopt PROMPT_SP
+export PATH="$HOME/.bun/bin:/opt/homebrew/bin:/usr/bin:/bin"
+export NO_COLOR=

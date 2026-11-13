@@ -1,0 +1,30 @@
+[
+  {
+    "lines": ["call set_mission_title {\"title\":\"Fix checkout rounding\"}"],
+    "match": "Checkout totals are off by a cent",
+    "reply": "The total is computed once over the whole cart, but invoices round **each discounted line** to the cent before VAT. The two disagree whenever a line's discount lands on a half cent.\n\n```ts\n// src/cart.ts, today\nconst subtotal = lines.reduce((sum, line) => sum + line.price * line.quantity, 0);\nreturn Math.round(subtotal * (1 - discount) * (1 + vat) * 100) / 100;\n```\n\nFor `3 \u00d7 19.99` and `4.35` at 15% off, the cart says **65.61** and the invoice **65.60**.\n\nPlan:\n1. Round each line after its discount, in cents.\n2. Apply VAT once to the rounded subtotal.\n3. Add regression cases for half-cent lines.\n\nRun the tests to confirm before I change anything?"
+  },
+  {
+    "match": "Received: 65.61",
+    "reply": "Confirmed: one pass, one failure, off by exactly one cent.\n\nI changed `totalOf` to work in integer cents:\n\n```ts\nconst cents = (value: number) => Math.round(value * 100);\nconst subtotal = lines.reduce(\n  (sum, line) => sum + cents(line.price * line.quantity * (1 - discount)), 0);\nreturn Math.round(subtotal * (1 + vat)) / 100;\n```\n\n`bun test`: **2 pass, 0 fail**. I'll open a side-quest for the regression cases."
+  },
+  {
+    "match": "Review the diff before I merge",
+    "reply": "Reviewed `src/cart.ts` and `test/cart.test.ts`.\n\n- **Correct:** totals now match the invoice service on all 8 cases.\n- **Suggestion:** `cents()` belongs in `src/money.ts`; `refund.ts` repeats the same float math.\n- **Risk:** none for existing orders; totals are recomputed at checkout only.\n\nGood to merge."
+  },
+  {
+    "lines": ["call set_mission_title {\"title\":\"Dark-mode tokens\"}"],
+    "match": "Propose dark-mode color tokens",
+    "reply": "Proposed 14 semantic tokens (`surface`, `surface-raised`, `text-muted`, `accent`\u2026) mapped from the light palette, each meeting WCAG AA contrast on its background. The table is in the journal."
+  },
+  {
+    "lines": ["call set_mission_title {\"title\":\"Postgres hosting\"}"],
+    "match": "Compare managed Postgres hosts",
+    "reply": "Shortlist for a 20 GB database with daily backups: **Neon** (branching, scale to zero), **Supabase** (auth included), **Crunchy Bridge** (plain Postgres, best support). Pricing and limits are in the journal."
+  },
+  {
+    "lines": ["call set_mission_title {\"title\":\"Release 2.4\"}"],
+    "match": "Prepare the 2.4 release",
+    "reply": "I'll gather what shipped since 2.3 and draft the notes once the checkout fix lands."
+  }
+]

@@ -1,0 +1,6 @@
+box().click(); pg.wait_for_timeout(500)
+typed('!', 0); pg.wait_for_timeout(1400)
+typed('bun test', 90); pg.wait_for_timeout(300); pg.keyboard.press('Enter'); pg.wait_for_timeout(2200)
+box().click(); pg.wait_for_timeout(300)
+typed('Confirmed. Go ahead with the fix.'); pg.wait_for_timeout(400); pg.keyboard.press('Enter')
+pg.wait_for_timeout(4500)

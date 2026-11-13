@@ -1,0 +1,61 @@
+diff --git a/apps/desktop/src/terminals.ts b/apps/desktop/src/terminals.ts
+index a61891f..f178547 100644
+--- a/apps/desktop/src/terminals.ts
++++ b/apps/desktop/src/terminals.ts
+@@ -38,7 +38,7 @@ export class Terminals {
+   constructor(
+     private readonly onData: (id: string, data: string, sequence: number) => void,
+     private readonly onExit: (id: string) => void,
+-    private readonly options = { home: homedir(), shell: userInfo().shell || process.env.SHELL || "/bin/sh" },
++    private readonly options = { home: homedir(), shell: process.env.ISKIOS_DEMO_SHELL || userInfo().shell || process.env.SHELL || "/bin/sh" },
+   ) {}
+ 
+   /** Starts a shell or returns its retained output without restarting its process. */
+diff --git a/packages/service/src/harness/fakeHarness.ts b/packages/service/src/harness/fakeHarness.ts
+index f16cc2f..9b06eb5 100644
+--- a/packages/service/src/harness/fakeHarness.ts
++++ b/packages/service/src/harness/fakeHarness.ts
+@@ -159,6 +159,25 @@ export const fakeHarnessLayer = (replyDelay: Duration.Input, containment: Contai
+             }
+             return results.length === 0 ? text : results.join(" | ");
+           });
++        // DEMO-ONLY (README recording, not committed): canned replies keyed by message text.
++        const demoPath = process.env.ISKIOS_DEMO_SCRIPT;
++        if (demoPath !== undefined) {
++          const { readFileSync } = yield* Effect.promise(() => import("node:fs"));
++          const entries = JSON.parse(readFileSync(demoPath, "utf8")) as Array<{ match: string; lines?: Array<string>; reply: string; delay?: number }>;
++          const entry = entries.find((candidate) => request.text.includes(candidate.match));
++          if (entry !== undefined) {
++            if (entry.delay !== undefined) yield* Effect.sleep(entry.delay);
++            for (const line of entry.lines ?? []) {
++              const call = scriptedCall(request, line, turn);
++              if (call !== null) yield* call;
++            }
++            turn.spent.kinds = { cacheCreation: 0, cacheRead: 18200, input: 3400, output: 900 };
++            turn.spent.isReported = true;
++            running.delete(request.threadId);
++            yield* request.onEvent({ _tag: "Reply", text: entry.reply, usage: null });
++            return false;
++          }
++        }
+         let echo = (yield* echoOf(request.text)) + imagesNoteOf(request.images);
+         // Steered messages are acted on too, including those steered in while one is acted on.
+         for (let index = 0; index < turn.steered.length; index++) {
+diff --git a/packages/service/src/harness/harnessTools.ts b/packages/service/src/harness/harnessTools.ts
+index dd8dd1a..9e0baa7 100644
+--- a/packages/service/src/harness/harnessTools.ts
++++ b/packages/service/src/harness/harnessTools.ts
+@@ -272,7 +272,12 @@ export const fakeHarnessToolsLayer = (
+       Effect.succeed(harnessFacts[harness].fixedModels?.find((option) => option.id === model)?.efforts ?? []),
+     listModels: (harness) =>
+       Effect.succeed(
+-        harnessFacts[harness].fixedModels ?? [{ id: `${harness}-fake-model`, label: `${harness} fake model` }],
++        harnessFacts[harness].fixedModels ??
++          (process.env.ISKIOS_DEMO_SCRIPT !== undefined
++            ? harness === "codex"
++              ? [{ id: "gpt-5.5", label: "GPT-5.5" }, { id: "gpt-5.5-codex", label: "GPT-5.5 Codex" }]
++              : [{ id: "kimi-k2.5", label: "Kimi K2.5" }, { id: "glm-5", label: "GLM-5" }]
++            : [{ id: `${harness}-fake-model`, label: `${harness} fake model` }]),
+       ),
+     openSignIn: (harness, configDirectory) =>
+       Effect.sync(() => void signIns.push(`${harness}:${configDirectory ?? ""}`)),

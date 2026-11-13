@@ -1,0 +1,7 @@
+pg.get_by_text('Companions', exact=True).first.click(); pg.wait_for_timeout(1000)
+pg.get_by_text('+ Add a backup Companion').click(); pg.wait_for_timeout(1000)
+pg.get_by_role('radio', name='Codex').last.click(); pg.wait_for_timeout(900)
+pg.get_by_text('GPT-5.5', exact=True).last.click(); pg.wait_for_timeout(1200)
+box().click(); pg.wait_for_timeout(300)
+typed('Draft the 2.4 release notes.'); pg.wait_for_timeout(400)
+pg.keyboard.press('Enter'); pg.wait_for_timeout(2000); bottom(); pg.wait_for_timeout(2500); bottom(); pg.wait_for_timeout(2000); bottom(); pg.wait_for_timeout(1000)

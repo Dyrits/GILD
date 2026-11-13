@@ -11,10 +11,74 @@ See the [work in progress](documentation/work-in-progress.md) for current verifi
 
 [Download installers](https://github.com/Dyrits/ISKIOS/releases) · [Report an issue](https://github.com/Dyrits/ISKIOS/issues) · [Documentation](#documentation)
 
+<picture>
+  <source media="(prefers-color-scheme: dark)" srcset="documentation/readme/quest-dark.png">
+  <img alt="A quest in Iskios: the realm and quest tree on the left, a conversation handed over from Claude Code to Codex in the middle, and the quest's context, journal, and lore on the right." src="documentation/readme/quest-light.png">
+</picture>
+
+## A task, not a bot
+
+Moving from one project to another, you rarely need the same context, the same memory, or the same model.
+Iskios starts from the task instead of from an agent with a role.
+
+Each piece of work is a **quest**, with its goal, its journal, its lore, and its tree of conversations.
+A thread can open side-quests, each with the model and effort that suits it.
+The model is a choice, not an identity.
+
+Lore has a scope: one quest, one realm, or the whole application, and each thread receives the context that matches it.
+A **realm** is a workspace, tied to a local folder or to none, with its own customizable crest.
+
+## See it work
+
+The recordings below come from the real application.
+The agents' replies are scripted, so the demonstration runs without a provider account.
+
+### A terminal in the conversation
+
+Type `!` in the message box to open a shell in the quest's folder.
+Its output goes with your next message as context.
+
+![Typing ! opens a shell; bun test fails by one cent, and the output is sent to the agent with the message.](documentation/readme/terminal.gif)
+
+### Side-quests with their own Companion
+
+Open a side-quest beneath any thread and give it another model and effort.
+It reports back to its parent when it is done.
+
+![A side-quest opened on Sonnet 5.5 at medium effort writes the tests and reports back to the quest running on Opus 5.5.](documentation/readme/side-quest.gif)
+
+### Switch agents mid-conversation
+
+Change the harness, model, or effort between turns.
+The conversation goes with it, and each reply keeps the name of the model that wrote it.
+
+![The quest moves from Claude Code to Codex; the next reply comes from GPT-5.5 with the whole conversation.](documentation/readme/switch-companion.gif)
+
+### Backup Companions
+
+List the Companions a thread falls back to when a turn fails, on any harness.
+The next one takes over with the conversation so far.
+
+![A Codex backup is added; Claude Code hits its usage limit, and the thread falls back to Codex, which writes the release notes.](documentation/readme/backup-companion.gif)
+
+### Quests that reference and call each other
+
+Mention a quest with `@` so that a thread can read its journal or write to it.
+The other quest answers back when it has news.
+
+![Release 2.4 mentions Fix checkout rounding, reads its journal, and asks to be told once the fix is merged; the other quest replies.](documentation/readme/mentions.gif)
+
+### Iskios
+
+Iskios is the assistant you tell what you need.
+It finds the quest that already covers the request and offers to continue there, or proposes a new one.
+
+![Iskios suggests continuing in Fix checkout rounding, forwards the request, and the quest answers.](documentation/readme/iskios.gif)
+
 ## What you can do
 
 - Work with Claude Code, Codex, and OpenCode in the same application, using your own subscriptions or API keys through their command-line tools.
-- Start or continue quests through the Guildmaster, a permanent conversation that coordinates your work.
+- Start or continue quests through Iskios, a permanent assistant that routes your requests to the right quest.
 - Open side-quests beneath a thread, give them different models, and exchange messages along the tree.
 - Change a thread's harness, account, model, or effort between turns without discarding its conversation.
 - Attach a local folder or repository, or give a thread its own Git worktree.
@@ -32,7 +96,7 @@ The interface uses guild names for familiar concepts:
 | Side-quest | A thread opened beneath another thread |
 | Companion | The model selected for a thread |
 | Realm | A workspace folder or repository |
-| Guildmaster | The conversation that opens and coordinates quests |
+| Iskios | The assistant that opens and coordinates quests |
 | Ritual | A recurring instruction on a schedule |
 | Workshop | Settings (accounts, harnesses, permissions, defaults, budgets) |
 | Summons | A thread needs your attention |
@@ -52,7 +116,7 @@ Manual builds are also available from the **Artifacts** section of the [desktop 
 
 Automatic updates are not configured.
 
-Before uploading a macOS installer, the workflow verifies and mounts its DMG, copies the app to a fresh location, and checks the rendered Guildmaster screen, service bridge, and native terminal on temporary data.
+Before uploading a macOS installer, the workflow verifies and mounts its DMG, copies the app to a fresh location, and checks the rendered Guild Hall screen, service bridge, and native terminal on temporary data.
 Run that same application check locally with `bun apps/desktop/scripts/check-package.ts /Applications/Iskios.app`.
 This check proves packaged startup; Apple trust checks on other computers still require Developer ID signing and notarization.
 
@@ -107,7 +171,7 @@ You only need the harnesses you intend to use.
 
 1. Open Iskios and visit the Workshop to check harness availability and accounts.
 2. Add a realm if you want agents to work in a local folder or repository.
-3. Tell the Guildmaster what you want to do, then open the quest it creates or continues.
+3. Tell Iskios what you want to do, then open the quest it creates or continues.
 4. Choose a Companion, send a message, and open side-quests as needed.
 
 Rituals run through the local service, so leave Iskios running for scheduled work.

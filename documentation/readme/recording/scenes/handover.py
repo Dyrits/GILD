@@ -1,0 +1,6 @@
+pg.get_by_label('Companion (model)').last.click(); pg.wait_for_timeout(1200)
+pg.get_by_role('radio', name='Codex').last.click(); pg.wait_for_timeout(1000)
+pg.get_by_text('GPT-5.5', exact=True).last.click(); pg.wait_for_timeout(1200)
+box().click(); pg.wait_for_timeout(300)
+typed('Review the diff before I merge.'); pg.wait_for_timeout(400)
+pg.keyboard.press('Enter'); pg.wait_for_timeout(1500); bottom(); pg.wait_for_timeout(3000); bottom(); pg.wait_for_timeout(1200)
