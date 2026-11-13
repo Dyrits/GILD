@@ -2,7 +2,7 @@
 
 - **Verdict:** not proven (one claim unproven, the look awaits the owner)
 - **Work:** working tree on `b7ccc6c` (CHG-0068)
-- **Agreement:** the owner's requests of 2026-11-08 in session; CHG-0069 in `documentation/changelog.md`
+- **Agreement:** the owner's requests of 2026-11-08 in session; CHG-0069 in `documentation/changelog/0.1.0-Prototype.md`
 - **Environment:** macOS 26, Bun, Electron's Node for Vitest. Metro `CI=1 BROWSER=none bunx expo start --port 8097` in `apps/app`; Electron `env -i HOME PATH USER TMPDIR LANG CANOPY_HARNESS=fake CANOPY_DATA_DIR=/tmp/canopy-ui2/data CANOPY_APP_URL=http://localhost:8097 bunx electron dist/main.js --remote-debugging-port=9361` in `apps/desktop`, after `bun run build`; `playwright-cli attach --cdp=http://localhost:9361`. Clicks by coordinates (`mousemove`, `mousedown`, `mouseup`): `click <ref>` timed out after re-attaching.
 - **Date:** 2026-11-08
 

@@ -15,7 +15,7 @@ A thread needs the tools and instructions in scope for its work, even when its h
 
 ### Sources and management
 
-- Workshop lists global skills and MCP servers, replacing their management location in Charter under the [left navigation agreement](../mission-tracking/specifications.md#left-navigation-structure) (CHG-0134, specification only).
+- Workshop lists global skills and MCP servers, replacing their management location in the Workshop under the [left navigation agreement](../mission-tracking/specifications.md#left-navigation-structure) (CHG-0134, specification only).
   Each workspace lists its own.
   Each thread shows its effective list, sources, disabled entries, and which copy won a name conflict.
 - Global skills come from the existing skill folders, including `~/.agents/skills` and `~/.claude/skills`. Workspace skills come from its `.agents/skills`, `.claude/skills`, and equivalent supported harness folders.

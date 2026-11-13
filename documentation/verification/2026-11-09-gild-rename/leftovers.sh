@@ -4,7 +4,7 @@
 # Exits 1 when any remain. Usage: sh leftovers.sh <repository>
 cd "$1" || exit 2
 git grep --untracked -n -i -E 'canopy' -- . ':!bun.lock' ':!.agents/handoffs' ':!documentation/verification' \
-  ':!documentation/changelog.md' ':!documentation/architecture-audit' ':!documentation/architecture-decision-record' \
+  ':!documentation/changelog' ':!documentation/architecture-audit' ':!documentation/architecture-decision-record' \
   ':!documentation/art-direction' ':!documentation/brand' ':!.zcode' ':!.codegraph' ':!.playwright-cli' \
   ':!apps/desktop/dist' ':!apps/desktop/src/formerData.ts' ':!apps/desktop/test/formerData.test.ts' \
   > /tmp/gild-matches.txt

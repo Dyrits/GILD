@@ -1,6 +1,6 @@
 # App updates
 
-Status: **agreed (CHG-0266); being built. Look and the unverified platforms await the owner** (2026-11-13).
+Status: **agreed and built (CHG-0266), released in 0.1.2-Prototype. The look, an update from a published release, and the Windows and Linux updaters await the owner** (2026-11-13).
 
 ## Problem and outcome
 

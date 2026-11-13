@@ -19,7 +19,7 @@ Read the documents that apply to the task before making changes:
 - First-slice implementation or review: read [first-slice design](documentation/first-slice-design.md) and the relevant `documentation/capabilities/<capability>/blueprint.md`; settle the listed review decisions before production code.
 - Choosing the next work: [backlog](documentation/backlog.md) for candidates and deferrals.
 - Designing a capability covered by an inspiration: [inspirations](documentation/inspirations.md) for ideas adopted and follow-up checks; date new findings.
-- Recording agreements or verified deliveries: append each to the [changelog](documentation/changelog.md).
+- Recording agreements or verified deliveries: append each to the file of the release it ships in, in the [changelog](documentation/changelog/) (one file per release, named by its version, such as `0.1.2-Prototype.md`; work after the newest tag goes in the next version's file, created with its first entry).
 - Re-verifying a batch or relying on its claims: read its [verification evidence](documentation/verification/) and distinguish recorded results from checks run now.
 - Proposing structural refactors: read previous [architecture audits](documentation/architecture-audit/).
 - Writing or reviewing code: read [conventions](documentation/conventions.md).
@@ -47,7 +47,7 @@ When adding a handoff, keep only the three newest current handoffs linked below;
 
 Latest handoffs:
 
-- To resume app updates (the installed app finds new releases and updates itself: CHG-0266, built and checked on a packaged macOS app, the owner asked for a commit and a push to `main` with `--no-verify`, so read the live refs; waits on the owner's look and on two real tagged releases to prove it; Windows and Linux unrun), read the [current handoff](.agents/handoffs/2026-11-13-2041-app-updates.md). Handoffs are shared and committed.
+- To resume app updates and releases (0.1.2-Prototype is published and is the first release with the updater: CHG-0266, CHG-0267; the changelog is now one file per release in `documentation/changelog/`; the documentation and README were refreshed; the owner asked for a commit and a push to `main` with `--no-verify`, so read the live refs; waits on the owner's look and on a release after 0.1.2 to prove the update for real; Windows and Linux unrun), read the [current handoff](.agents/handoffs/2026-11-13-2248-release-0-1-2-and-changelog-per-release.md). Handoffs are shared and committed.
 
 - To resume the Companion picker's tab per account and the renaming of accounts apart from the computer's name (CHG-0264, CHG-0265; the owner's look in a window is pending, and a stale name needing a refresh was fixed by a shared harness list that is only typechecked; also open: whether the Workshop's default Companion gets an account, and one name versus per-harness names for a computer's sign-ins), read the [current handoff](.agents/handoffs/2026-11-13-2039-companion-account-tabs-and-rename.md). Handoffs are shared and committed.
 

@@ -25,7 +25,7 @@ User-authored text and historical service messages are not rewritten.
 | Running | Underway |
 | Idle | Resting |
 | Waiting | Awaiting word |
-| Settings | Charter |
+| Settings | Workshop (formerly Charter, CHG-0146) |
 
 Journal, briefing, harness, effort, budget, approval, and archive keep their meanings and names.
 Done and its former interface name Fulfilled are retired for quests and side-quests (CHG-0135 and CHG-0136); work remains idle, running, or asking for the owner until the quest is archived.
@@ -96,7 +96,7 @@ Whom a thread may message and whose journal it may read beyond its own tree: wha
 _Avoid_: Permission, access, scope
 
 **Theme**:
-The app's look in colors and icons: Iskios, or Gild. The owner chooses it in the Charter, and each theme comes in a dark and a light **Look**.
+The app's look in colors and icons: Iskios, or Gild. The owner chooses it in the Workshop, and each theme comes in a dark and a light **Look**.
 _Avoid_: Skin, style
 
 **Look**:
@@ -114,8 +114,7 @@ The place for generated and uploaded artifacts, including those from quests with
 Collection and lifecycle behavior remain to be specified.
 
 **Workshop**:
-The place to manage MCP servers, connectors, and skills.
-Charter retains application settings, accounts, permissions, and defaults.
+The page of application settings, accounts, permissions, and defaults, shown one section at a time: Permissions, Look and feel, Providers (computer name, harnesses, accounts), Companions (the default Companion and the Light, Balanced, and Heavy presets), Remote access, Messaging, Limits, and Updates. Formerly the Charter (CHG-0146). A separate place for MCP servers, connectors, and skills was withdrawn for now.
 
 **Reserves**:
 The usage summary and destination for detailed consumption, budgets, remaining allowances, and reported plan limits.
@@ -132,7 +131,7 @@ The one place for autonomous quests: no workspace, no shared lore. A quest there
 _Avoid_: Free Realm, Realmless
 
 **Browsable root**:
-A folder set in the Charter (Settings) under which the user and threads can browse and choose workspaces.
+A folder set in the Workshop (Settings) under which the user and threads can browse and choose workspaces.
 _Avoid_: Allowed folder, sandbox
 
 **Scratch folder**:

@@ -2,7 +2,7 @@
 
 - **Verdict:** not proven overall. 11 claims proven or observed, 1 unproven (C9), the appearance of every changed screen awaits the owner's look.
 - **Work:** `163667a`..working tree on `163667a` (uncommitted; the owner's requests came during the session, so the work grew from one batch to seven rounds).
-- **Agreement:** the owner's requests in the session, recorded in CHG-0257 ([changelog](../changelog.md)); the [provider-accounts](../capabilities/provider-accounts/specifications.md), [mission-tracking](../capabilities/mission-tracking/specifications.md) and [device-pairing](../capabilities/device-pairing/specifications.md) specifications, edited in the same change.
+- **Agreement:** the owner's requests in the session, recorded in CHG-0257 ([changelog](../changelog/0.1.2-Prototype.md)); the [provider-accounts](../capabilities/provider-accounts/specifications.md), [mission-tracking](../capabilities/mission-tracking/specifications.md) and [device-pairing](../capabilities/device-pairing/specifications.md) specifications, edited in the same change.
 - **Environment:** macOS (Darwin 27.2.0), bun 1.4.4, Electron 45, vitest 5.1. Windows: a throwaway Electron started with `ISKIOS_HARNESS=fake`, its own data folder, the web export served on `localhost:8099` (`bunx expo export --platform web`), driven over the DevTools protocol by [scripts/cdp.ts](2026-11-13-computer-name-and-companions/scripts/cdp.ts); the plan-limit reading was seeded in the data folder's `plan_limits` table. The window shows "fake" as the harness version because the fake harness has no real CLI.
 - **Date:** 2026-11-13
 

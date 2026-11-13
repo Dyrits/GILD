@@ -2,7 +2,7 @@
 
 - **Verdict:** proven for C1 to C5 and C7; C6 (the app still looks and behaves as before in a running window) is not driven and stays unproven.
 - **Work:** working tree on `d421b47`, uncommitted when proven (`git mv` renames plus import rewrites; the starting commit is the unmoved tree).
-- **Agreement:** the owner's request of 2026-11-10 to apply the recommendations of `documentation/architecture-audit/architecture-audit-2026-11-10-2119.html` (candidates 1, 3, 4; candidate 2 not applied); recorded as CHG-0125 in `documentation/changelog.md`; rules in `documentation/conventions.md` (Layout).
+- **Agreement:** the owner's request of 2026-11-10 to apply the recommendations of `documentation/architecture-audit/architecture-audit-2026-11-10-2119.html` (candidates 1, 3, 4; candidate 2 not applied); recorded as CHG-0125 in `documentation/changelog/0.1.0-Prototype.md`; rules in `documentation/conventions.md` (Layout).
 - **Environment:** macOS (Darwin 27.2.0), Bun 1.4.4, Node v26.13.0 for tooling, Electron as Node for the test runner, Vitest 5.1.0, Expo web export.
 - **Date:** 2026-11-10
 

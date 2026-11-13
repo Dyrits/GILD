@@ -2,7 +2,7 @@
 
 - **Verdict:** not proven overall: five claims proven, the owner's real install moving and the look unproven.
 - **Work:** working tree on `e24a66d` (branch `main`), committed after this proof.
-- **Agreement:** the owner's instruction of 2026-11-09: "We'll do another rebranding. We'll rename the solution 'Gild' instead of Canopy. Use this logo for now."; `documentation/changelog.md` (CHG-0072).
+- **Agreement:** the owner's instruction of 2026-11-09: "We'll do another rebranding. We'll rename the solution 'Gild' instead of Canopy. Use this logo for now."; `documentation/changelog/0.1.0-Prototype.md` (CHG-0072).
 - **Environment:** macOS 26 (Darwin 25.6), Bun 1.4.4, Electron 45.2.3 run as Node for Vitest and as the window; Metro `CI=1 BROWSER=none bunx expo start --port 8097`; Electron `GILD_HARNESS=fake GILD_DATA_DIR=<temp> GILD_APP_URL=http://localhost:8097` with `--remote-debugging-port=9361`; `playwright-cli attach --cdp=http://localhost:9361`; a copy of the owner's data taken with `sqlite3 .backup`.
 - **Date:** 2026-11-09
 

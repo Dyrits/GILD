@@ -5,9 +5,10 @@ A local-first desktop workspace for working with AI agents across Claude Code, C
 Keep a piece of work in one quest, delegate parts of it into side-quests, and choose the harness, model, account, and effort for each thread.
 Follow their conversations, answer approval requests, and hand a thread over to another harness with its history intact.
 
-Iskios is in **alpha** and serves one user on one computer.
+Iskios is in **alpha** and serves one user.
 Until the first stable release, what you save (settings, quests, accounts) is not guaranteed to carry over from one release to the next; each release's notes list its breaking changes.
-Phone pairing, multiplayer, and Craft workflow automation remain planned work.
+You can pair another Iskios to a computer's Iskios (Workshop → Remote access) and use it from there through an end-to-end encrypted relay; this is built and still under review.
+The phone web app, push notifications, multiplayer, and Craft workflow automation remain planned work.
 See the [work in progress](documentation/work-in-progress.md) for current verification and unfinished acceptance checks.
 
 [Download installers](https://github.com/Dyrits/ISKIOS/releases) · [Report an issue](https://github.com/Dyrits/ISKIOS/issues) · [Documentation](#documentation)
@@ -31,7 +32,7 @@ A **realm** is a workspace, tied to a local folder or to none, with its own cust
 
 ## See it work
 
-The recordings below come from the real application.
+The recordings below, and the screenshot at the top of this page, come from the real application at version 0.1.1-Prototype; later versions may look different.
 The agents' replies are scripted, so the demonstration runs without a provider account.
 
 ### A terminal in the conversation
@@ -82,6 +83,8 @@ It finds the quest that already covers the request and offers to continue there,
 - Start or continue quests through Iskios, a permanent assistant that routes your requests to the right quest.
 - Open side-quests beneath a thread, give them different models, and exchange messages along the tree.
 - Change a thread's harness, account, model, or effort between turns without discarding its conversation.
+- Pick a Companion by its provider account (two subscriptions of one harness appear as two options), or apply a Light, Balanced, or Heavy preset, which sets a Companion and its backups together.
+- Choose folders with one folder picker, on this computer or on a paired host.
 - Attach a local folder or repository, or give a thread its own Git worktree.
 - Keep a shared briefing and journal for each quest, and save lore at thread, workspace, or global scope.
 - Paste, drop, or choose images for a message, and use `!` to open a shell in the desktop composer and send its output as context.
@@ -96,17 +99,18 @@ The interface uses guild names for familiar concepts:
 | Quest | A piece of work and its tree of threads |
 | Side-quest | A thread opened beneath another thread |
 | Companion | The model selected for a thread |
+| Preset | A named Companion with its backups, chosen as a whole (Light, Balanced, Heavy) |
 | Realm | A workspace folder or repository |
 | Iskios | The assistant that opens and coordinates quests |
 | Ritual | A recurring instruction on a schedule |
-| Workshop | Settings (accounts, harnesses, permissions, defaults, budgets) |
+| Workshop | Settings (permissions, look and feel, providers, Companions, remote access, messaging, limits, updates) |
 | Summons | A thread needs your attention |
 
 The [glossary](documentation/glossary.md) explains the full vocabulary and the technical names used in the code.
 
 ## Install and start
 
-Download an installer from [GitHub Releases](https://github.com/Dyrits/ISKIOS/releases) when a release is available.
+Download an installer from [GitHub Releases](https://github.com/Dyrits/ISKIOS/releases); every release so far is a prerelease.
 Manual builds are also available from the **Artifacts** section of the [desktop workflow](https://github.com/Dyrits/ISKIOS/actions/workflows/package.yml); these expire after 14 days.
 
 | Platform | Build | Installer |
@@ -115,7 +119,7 @@ Manual builds are also available from the **Artifacts** section of the [desktop 
 | Windows | x64 | `.exe` (NSIS) |
 | Linux | x64 | `.AppImage` |
 
-The installed app finds new releases and updates itself: it looks at start and every 6 hours, downloads in the background, and installs only when you press **Restart and update** in the notice or in the Workshop's **Updates** section, where you can also turn checking off.
+From 0.1.2-Prototype on, the installed app finds new releases and updates itself (earlier releases cannot): it looks at start and every 6 hours, downloads in the background, and installs only when you press **Restart and update** in the notice or in the Workshop's **Updates** section, where you can also turn checking off.
 It asks GitHub's public release list for newer releases and sends nothing about you; a prerelease build follows prereleases, a stable build only stable releases.
 On macOS Iskios replaces its own app after checking the download against the release's `SHA512SUMS.txt`; on Windows and Linux it uses `electron-updater`, which has not been run on those systems yet.
 A development run (`bun run dev`) never updates.
@@ -186,6 +190,7 @@ Runs missed while the app is closed or the computer is asleep are skipped.
 Iskios stores its application data locally, with a `iskios.sqlite` database in Electron's user-data folder and supporting files alongside it.
 Workspaces remain in their chosen locations.
 The desktop interface communicates with the local service over an authenticated loopback connection.
+When you pair another Iskios to a computer, their traffic passes through a relay Worker that cannot read it: it is end-to-end encrypted, and its keys travel only in the pairing code.
 
 Looking for a new release is one request to GitHub's public release list, with the app's name and version and nothing about you; the Workshop's Updates section turns it off.
 Agent requests still send the context needed for the work to your chosen harness, provider, and connected tools.
@@ -255,6 +260,8 @@ Commits run Biome on staged files and then the workspace typecheck.
 | [`apps/app`](apps/app/) | Expo / React Native interface, rendered on the web inside Electron |
 | [`packages/service`](packages/service/) | Local Node service, SQLite storage, harness adapters, scheduling, and MCP thread tools, built with Effect |
 | [`packages/contracts`](packages/contracts/) | Shared records and requests defined with Effect Schema |
+| [`packages/channel`](packages/channel/) | The end-to-end encrypted channel and pairing code used between paired devices |
+| [`packages/relay`](packages/relay/) | The Cloudflare Worker that forwards paired devices' encrypted traffic |
 | [`documentation`](documentation/) | Product specifications, architecture, decisions, and verification evidence |
 
 ## Build and release
@@ -275,6 +282,7 @@ A release also carries `SHA512SUMS.txt` (what the macOS app checks its download 
 Run `bun apps/desktop/scripts/check-update.ts <older Iskios.app> <newer Iskios-…-mac-…dmg>` to watch a packaged app update itself from a local stand-in for GitHub.
 The workflow also supports **Run workflow** manually for test builds, which upload direct installer files to the run's **Artifacts** section without publishing a release.
 Actions artifacts expire after 14 days; release assets remain until removed.
+A release's notes on GitHub are written from its file in [`documentation/changelog/`](documentation/changelog/), which lists what changed and any breaking changes.
 
 ## License
 
@@ -300,5 +308,5 @@ Check the [work in progress](documentation/work-in-progress.md) for ongoing work
 - [First slice design and capability blueprints](documentation/first-slice-design.md): implementation designs.
 - [Backlog](documentation/backlog.md) and [work in progress](documentation/work-in-progress.md): deferred work and current batches.
 - [Conventions](documentation/conventions.md): code and test conventions.
-- [Changelog](documentation/changelog.md): agreements and deliveries.
+- [Changelog](documentation/changelog/): agreements and deliveries, one file per release.
 - [Verification](documentation/verification/): reproducible checks and screenshots.

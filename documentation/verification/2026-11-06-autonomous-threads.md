@@ -2,7 +2,7 @@
 
 - **Verdict:** not proven overall. C1 to C9 were observed and shown able to fail by mutation, but were not independently reproduced (see Reproduction). C10 and C11, the native dialog and how the new card, notice, and lines look, await the owner.
 - **Work:** working tree on b3b6303, committed afterwards with the handoff `2026-11-06-0712-autonomous-threads.md`
-- **Agreement:** `documentation/changelog.md` (CHG-0034, CHG-0035); `documentation/capabilities/action-approval/specifications.md`; `documentation/capabilities/workspace-attachment/specifications.md`; `documentation/work-in-progress.md` (Batch 4)
+- **Agreement:** `documentation/changelog/0.1.0-Prototype.md` (CHG-0034, CHG-0035); `documentation/capabilities/action-approval/specifications.md`; `documentation/capabilities/workspace-attachment/specifications.md`; `documentation/work-in-progress.md` (Batch 4)
 - **Environment:** macOS 26.6.2, Bun 1.4.3, Electron 45.2.3 as Node for tests, Claude Code 2.1.302 for the live checks. The mutations ran in a disposable worktree at `/tmp/om-verify-wt` (`git worktree add --detach` at HEAD, the working-tree diff and new files applied, and `node_modules` folders symlinked from the checkout).
 - **Date:** 2026-11-06
 

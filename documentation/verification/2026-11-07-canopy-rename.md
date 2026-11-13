@@ -2,7 +2,7 @@
 
 - **Verdict:** not proven overall: four claims proven, the window after the rename unproven.
 - **Work:** working tree on `d597f91` (branch `harnesses-and-accounts`), committed after this proof.
-- **Agreement:** the owner's instructions of 2026-11-07: "Operate the rebranding overall in Canopy.", Intel kept ("Let's keep Intel for now."), former data migrated, dated records left as written; `documentation/changelog.md` (CHG-0061).
+- **Agreement:** the owner's instructions of 2026-11-07: "Operate the rebranding overall in Canopy.", Intel kept ("Let's keep Intel for now."), former data migrated, dated records left as written; `documentation/changelog/0.1.0-Prototype.md` (CHG-0061).
 - **Environment:** macOS 26 (Darwin 25.6), Bun 1.4.3, Electron 45.2.3 run as Node; the built service (`apps/desktop/dist/service.js`) on the fake harness (`CANOPY_HARNESS=fake`); a copy of the owner's data taken with `sqlite3 .backup`.
 - **Date:** 2026-11-07
 

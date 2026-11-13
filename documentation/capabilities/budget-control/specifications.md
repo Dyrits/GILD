@@ -41,7 +41,7 @@ Version 1 serves the installation's owner. In future hosted missions, guest-trig
 
 - Prices come from [models.dev](https://models.dev) (`api.json`: per million tokens, input, output, cache read, cache write), read at startup and then daily, kept on the computer, with a snapshot shipped with Iskios as the fallback when the computer is offline or the read fails. A failed read leaves the kept table as it was.
 - The request carries nothing about missions, workspaces, accounts, or the owner. It is the same kind of public read as the check for a harness's newest version.
-- The Charter has a **Fetch prices** switch, on by default, a **Refresh now** button, and one line such as "Prices from models.dev · fetched 10 Nov". With the switch off, only the shipped snapshot is used, and the line says "Prices from the snapshot of 3 Nov".
+- The Workshop has a **Fetch prices** switch, on by default, a **Refresh now** button, and one line such as "Prices from models.dev · fetched 10 Nov". With the switch off, only the shipped snapshot is used, and the line says "Prices from the snapshot of 3 Nov".
 - Only US dollars.
 
 ### Setting budgets
@@ -52,7 +52,7 @@ Version 1 serves the installation's owner. In future hosted missions, guest-trig
 
 ### Account budgets and credits
 
-- Each provider account (the computer's own and each added one) can carry an **account budget**: a cost limit, a token limit, or both, over a period (**Day**, **Week**, **Month**) or over no period. It is set from the account's row in the Charter. Empty at first.
+- Each provider account (the computer's own and each added one) can carry an **account budget**: a cost limit, a token limit, or both, over a period (**Day**, **Week**, **Month**) or over no period. It is set from the account's row in the Workshop. Empty at first.
 - It counts only what Iskios's own turns used on that account, by billing kind as every budget does, across all missions and Guildmaster. It cannot see what other tools use on the same account, and the row says so ("Counted by Iskios").
 - **Credits** are an account budget with no period: the user enters the amount and the day it was bought ("$50 bought on 10 Nov"), and the row shows what is left ("$31 left", or "≈ $31 left" when some of the spending was estimated). Iskios counts the account's spending since that day. **Add credit** raises it; a new amount and day start a new count.
 - Iskios cannot read a provider's own balance and does not try: it holds no provider credentials (requirements, Comply with provider terms).
@@ -60,7 +60,7 @@ Version 1 serves the installation's owner. In future hosted missions, guest-trig
 
 ### Seeing budget use and consumption
 
-- A mission with a budget shows a ring per limit (cost, tokens) that fills as it is used: orange from 80%, red at 100%. A mission with no budget shows only its spending. Guildmaster shows the same, the global budget shows its rings at the top of the dashboard, and an account's budget shows on its row in the Charter and beside the account in the thread panel.
+- A mission with a budget shows a ring per limit (cost, tokens) that fills as it is used: orange from 80%, red at 100%. A mission with no budget shows only its spending. Guildmaster shows the same, the global budget shows its rings at the top of the dashboard, and an account's budget shows on its row in the Workshop and beside the account in the thread panel.
 - Spending, with its estimated cost, shows on: the quest card; the information of each quest and each side-quest (the quest panel's and the thread panel's rows for what a thread alone spent, and the quest's total); the dashboard row; the rail beside the reserves as one figure for the global period ("≈ $12 this month"); and the budget window.
 - Selecting a ring opens a budget window, like a context window: what is used out of the limit, the split by thread, by harness, by account, and by model, with each part's tokens by kind, billing kind, and cost (reported or estimated), and for the global budget when the period starts over.
 - **Under each agent reply**, a small line such as `1,240 tokens · ≈ $0.02` shows what the model call behind it used, where the harness reports usage per model call. Where it reports only per turn, the turn's line shows once, under the turn's last reply. Where it reports nothing, no line shows. The lines of a turn always add up to the turn's total. Provisional until a live probe shows which harnesses report per call.
@@ -117,7 +117,7 @@ Recorded Reserves acceptance direction, to refine when the screen is specified f
 
 ### Plan limits
 
-- For each account on a subscription, the owner sees each **plan limit** its harness reports (for example a 5-hour and a weekly window): how much is used and when it resets, with the time of the reading ("as of 14:02"). It shows on the account's row in the Charter, in the rail beside the reserves, and in the thread panel's Companion row. Orange from 80%, red at 100%, no message.
+- For each account on a subscription, the owner sees each **plan limit** its harness reports (for example a 5-hour and a weekly window): how much is used and when it resets, with the time of the reading ("as of 14:02"). It shows on the account's row in the Workshop, in the rail beside the reserves, and in the thread panel's Companion row. Orange from 80%, red at 100%, no message.
 - The figures are the harness's own. **Codex** reports them through its app server, read at most one at a time, a reading standing for four minutes, and after a failed read the next waits 5 minutes, then 10, 20, and 40, up to an hour; the last reading stays shown meanwhile. **Claude Code** shows what its stream reports (`rate_limit_event`). **OpenCode** reports the **Go** plan through its own local API: a short `opencode serve` on a free local port, in the account's data folder and behind a password made for that run, answers `GET /api/experimental/usage/limits` with a 5-hour (`rolling`), a weekly, and a monthly window, each with `percent` used and `resetsAt`, for the Console workspace OpenCode is itself signed in to (probed 2026-11-12, OpenCode 2.2.0; no model call). An account with no Go plan, or not signed in to the Console, shows "Limits not reported"; a plan with three windows draws three thinner rings. Iskios never reads a harness's token or credentials to ask a provider's usage endpoint (requirements, Comply with provider terms). Both probes are in.
 - A limit never reported is never guessed. A reading goes stale when no turn runs, and the row says when it was read.
 - Plan limits are shown only: the provider enforces them. A turn that fails at a provider's usage limit is handled as any failed turn, by the thread's backup Companions ([thread-panel](../thread-panel/specifications.md#backup-companions)).

@@ -20,7 +20,7 @@
   Hosted multiplayer exception (CHG-0021): invited guests may receive shared mission conversations and results. The first hosted version keeps mission documents and data on the host. Future guest local copies require a separate design for their scope, synchronization, and retention. Removing access cannot erase information a guest has already saved or copied.
 - **Price table read carries no owner data**: the local service's read of the model price table sends nothing about missions, workspaces, accounts, or the owner, and the owner can switch it off, leaving the price table shipped with Iskios.
   Source: the user, 2026-11-10 (CHG-0126). Reason: Local data allows only what a harness, provider, or connected service needs for the work; a price lookup is not needed for the work.
-  Check: a test on the request the service sends for the price table, and the Charter switch.
+  Check: a test on the request the service sends for the price table, and the Workshop switch.
 - **Update check carries no owner data**: the installed app's check for a newer release sends one HTTPS request for the repository's public release list, with the app's name and version in its user agent, and nothing about missions, workspaces, accounts, or the owner. The owner can switch checking off, and then the app makes no such request.
   Source: the user, 2026-11-13 (CHG-0266). Reason: Local data allows only what the work needs; looking for a new release is not needed for the work, so it is open and switchable.
   Check: a test on the request the updater sends, and the Updates switch.

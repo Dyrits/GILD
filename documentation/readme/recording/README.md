@@ -1,6 +1,6 @@
 # Recording the README media
 
-The GIFs and screenshots in `documentation/readme/` come from the real desktop app on isolated data, driven by Playwright over the Chrome DevTools Protocol.
+The GIFs and screenshots in `documentation/readme/` come from the real desktop app at version 0.1.1-Prototype (commit `ae217e4`) on isolated data, driven by Playwright over the Chrome DevTools Protocol.
 The agents' replies are scripted: a temporary patch lets the echo harness answer from `demo.base.json` and run thread tools (side-quest reports, mentions, Iskios suggestions, a failed turn for the backup).
 The patch is for recording only; never commit it.
 
