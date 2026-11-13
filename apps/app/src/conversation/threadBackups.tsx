@@ -3,6 +3,7 @@ import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 import { BackupsEditor } from "../editors/backupsEditor";
 import { useHarnesses } from "../editors/runners";
+import { useOwnBackups } from "../editors/useOwnBackups";
 import { messageOf, type ServiceClient } from "../foundation/client";
 import { colors, fontSizes, fonts } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
@@ -15,16 +16,15 @@ import { useServiceQuery } from "../foundation/useServiceQuery";
 export function ThreadBackups({ client, threadId }: { client: ServiceClient; threadId: ThreadId }) {
   const { data: panel } = useServiceQuery(client, { _tag: "ReadThreadPanel", threadId }, threadId);
   const { data: harnesses } = useHarnesses(client);
-  // The list is the owner's own once they change it; until then it is the saved one.
-  const [own, setOwn] = useState<ReadonlyArray<BackupCompanion> | null>(null);
+  const { backups, discard, edit } = useOwnBackups(panel?.backups ?? []);
   const [error, setError] = useState<string | null>(null);
-  const backups = own ?? panel?.backups ?? [];
   const save = (next: ReadonlyArray<BackupCompanion>) => {
-    setOwn(next);
+    edit(next);
     setError(null);
-    client
-      .request({ _tag: "SetThreadBackups", backups: next, threadId })
-      .catch((reason) => setError(messageOf(reason)));
+    client.request({ _tag: "SetThreadBackups", backups: next, threadId }).catch((reason) => {
+      discard();
+      setError(messageOf(reason));
+    });
   };
   return (
     <View style={local.backups}>

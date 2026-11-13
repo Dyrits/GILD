@@ -7,13 +7,15 @@ How code is written in this project. Project-agnostic: every rule could be trans
 - **A module is named for the noun it owns** (`orders.ts`, `sessions.ts`); a React hook lives in `useThing.ts`: it follows the common TypeScript and React practice, so a newcomer or an agent finds code where they expect it.
 - **Functions start with a verb** (`readSettings`, `listOrders`, `insertOrder`); a pure derivation is named `thingOf` (`titleOf`, `summaryOf`), and a layer `thingLayer`: the name says whether a call acts or only computes. Same reason as above: it matches widespread practice.
 - **Words are written out**, except abbreviations everyone reads at once (`sql`, `cwd`, `id`, `url`): a spelled-out name needs no glossary.
+- **A name is never a single letter**, whether a variable, a parameter, a loop index, or a callback argument: a letter says nothing about what it holds, so every use sends the reader back to its declaration. Elements compared in an array are named for their role (`current`, `next`, `previous`), a path is `path` and a position is `index`, never `a`, `b`, `d`, `i`. The exception is `x` and `y` for geometry and coordinates, where the letters are the convention itself.
 - **A local name is one word when the context makes it clear** (`turn`, `draft`, `sql`): the surrounding function already says what kind of turn or draft it is. Fields are nested only where they form a group that travels together (`usage: { input, output }`), never to shorten a name: flat records cross contracts, storage, and schemas without conversion, and nesting cannot express a prefixed boolean.
 - **A boolean carries a prefix** (`is`, `has`, `should`, `can`): the name shows at once that the value is a boolean. A name fixed by an external format, such as a third-party protocol field, keeps its given name.
 - **A test double says what it is**, by the word `fake` or `stand-in` in its name or by living under `test/fixtures/`; no symbol prefix such as `$`: `$` already means streams, stores, or jQuery elsewhere, and a double that is easy to miss can slip into production code.
 
 ## Size
 
-- **A block is extracted once it can carry its own name**, and a file is split by responsibility past about 250 lines: named steps read as an outline of the work, and a small file keeps a review on one responsibility.
+- **A block is extracted once it can carry its own name**: named steps read as an outline of the work.
+- **A file has a soft limit of 256 lines and a hard limit of 512.** Past 256, a change that grows the file splits it by responsibility first. Past 512, no change grows it and any change that touches it shrinks it: a small file keeps a review on one responsibility, and the second limit stops a file from growing unchecked while the first is read as advice. A file already past a limit is debt, not an exemption.
 
 ## Layout
 
@@ -26,6 +28,7 @@ How code is written in this project. Project-agnostic: every rule could be trans
 
 - **Own values are never set to `undefined`; deliberate absence is `null`**: `undefined` only arrives from outside, from a side effect or an API (a missing row or array element, `Map.get`, an omitted optional field), so it never means "decided to be empty". Where an API requires `undefined`, write `void 0`.
 - **No `any` and no non-null `!`**: both switch off the checks the strict compiler options exist for.
+- **An `interface` declares a contract, a type declares data**: an `interface` is what something offers or must satisfy (a service, a port), and a `type` is a value's shape or anything computed from one (an object shape, a component's props, a union, an alias, a type derived from a schema): the keyword tells the reader whether a name is behaviour to implement or data to pass around.
 - **`satisfies` checks a shape; `as` is reserved** for applying a brand to identifiers read from storage and for `as Error` on a caught value: an `as` elsewhere hides a mismatch the compiler would report.
 
 ## Branching
@@ -48,6 +51,14 @@ These follow Effect's own guide (`packages/service/node_modules/effect/AGENTS.md
 
 - **I/O, time, and randomness run inside an Effect; time is read through `Clock`**, and a synchronous platform call is wrapped in `Effect.sync`: tests can then drive time with `TestClock` and replace I/O with fakes.
 - **Service interfaces expose only `readonly` fields**: a caller cannot change a service's state behind its back.
+
+## Components
+
+- **Logic a component decides with lives in a plain `.ts` module and is unit-tested there; the component only draws it**: choosing, comparing, and deriving then run in plain Node, with no renderer or window.
+
+## Stored data
+
+- **A change to stored data keeps what an earlier version saved readable where it can**, by adding a column with a default or filling a missing field when reading, never by requiring existing rows to be rewritten: saved data outlives the version that wrote it. A change that cannot is a breaking change and is named as one in the release's notes; a "saved before" shape gets a test.
 
 ## Comments
 

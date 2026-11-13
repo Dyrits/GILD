@@ -24,6 +24,13 @@ export {
   threadInstructionsOf,
 } from "./instructions.ts";
 export { listOpenCodeEfforts, makeOpenCodeHarness, type OpenCodeOptions } from "./opencode.ts";
-export { checkAccount, type Runner, type RunnerChoice, removedAccountReasonOf, runnerOf } from "./runners.ts";
+export {
+  checkAccount,
+  checkBackups,
+  type Runner,
+  type RunnerChoice,
+  removedAccountReasonOf,
+  runnerOf,
+} from "./runners.ts";
 export { folderEscapeOf, resolvedFolderOf } from "./threadFolder.ts";
 export { toolServerName } from "./toolNames.ts";

@@ -1,4 +1,4 @@
-import type { BackupCompanion, HarnessList, Settings } from "@iskios/contracts";
+import type { BackupCompanion, HarnessList, Settings, SettingsChange } from "@iskios/contracts";
 import type { ServiceClient } from "../foundation/client";
 import { effortLabel, harnessLabels, modelLabelOf } from "../foundation/formatting";
 import { Row } from "../quests/questPanel";
@@ -21,7 +21,7 @@ export function DefaultCompanionCard({
 }: {
   client: ServiceClient;
   harnesses: HarnessList | null;
-  onSave: (change: Partial<Settings>) => void;
+  onSave: (change: SettingsChange) => void;
   settings: Settings;
 }) {
   const models = harnesses?.harnesses.find((candidate) => candidate.name === settings.defaultHarness)?.models;

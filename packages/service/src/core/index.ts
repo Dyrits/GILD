@@ -49,7 +49,14 @@ export { fieldOf, numberFieldOf, textFieldOf } from "./records.ts";
 export { sandboxProblem } from "./sandbox.ts";
 export { removeScratch } from "./scratch.ts";
 export { type SessionSend, Sessions, sessionsLayer } from "./sessions.ts";
-export { dayMillis, readSettings, readStartChoices, saveStartChoices, writeSettings } from "./settings.ts";
+export {
+  dayMillis,
+  mergedSettings,
+  readSettings,
+  readStartChoices,
+  saveStartChoices,
+  writeSettings,
+} from "./settings.ts";
 export {
   changeTextOf,
   consumptionColumns,

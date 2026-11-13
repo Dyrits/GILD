@@ -1,10 +1,11 @@
-import type { BackupCompanion, Settings, TierName } from "@iskios/contracts";
+import type { BackupCompanion, SettingsChange, TierName } from "@iskios/contracts";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { BackupsEditor } from "../editors/backupsEditor";
-import { runnerSummaryOf } from "../editors/companionPicker";
 import { RunnerPickers, useHarnesses } from "../editors/runners";
+import { useOwnBackups } from "../editors/useOwnBackups";
 import { messageOf, type ServiceClient } from "../foundation/client";
+import { runnerSummaryOf } from "../foundation/formatting";
 import { styles } from "../foundation/styles";
 import { colors, fontSizes, fonts, radii } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
@@ -46,34 +47,36 @@ function Tabs<T extends string>({
 }
 
 /**
- * The backup Companions new quests start with, under the default Companion: what the list does, then one fold for each.
- * The tab draws it away from the page, so it reads and saves the list itself, as a thread's does; every change is
- * saved at once.
+ * A list of backup Companions in the tab: what the list does, then one fold for each.
+ * The tab draws it away from the page, so it reads the saved list and saves its own changes at once, as a thread's does; the list is the owner's own once they change it, until the saved one changes elsewhere.
  */
-function DefaultBackups({ client, settings }: { client: ServiceClient; settings: Settings | null }) {
+function WorkshopBackups({
+  backups,
+  client,
+  note,
+  onSave,
+}: {
+  backups: ReadonlyArray<BackupCompanion>;
+  client: ServiceClient;
+  note: string;
+  onSave: (backups: ReadonlyArray<BackupCompanion>) => Promise<unknown>;
+}) {
   const { data: harnesses } = useHarnesses(client);
-  // The list is the owner's own once they change it; until then it is the saved one.
-  const [own, setOwn] = useState<ReadonlyArray<BackupCompanion> | null>(null);
+  const { backups: shown, discard, edit } = useOwnBackups(backups);
   const [error, setError] = useState<string | null>(null);
-  const save = (backups: ReadonlyArray<BackupCompanion>) => {
-    setOwn(backups);
+  const save = (next: ReadonlyArray<BackupCompanion>) => {
+    edit(next);
     setError(null);
-    client.request({ _tag: "ChangeSettings", change: { backups } }).catch((reason) => setError(messageOf(reason)));
+    onSave(next).catch((reason) => {
+      discard();
+      setError(messageOf(reason));
+    });
   };
   return (
     <View style={local.backups}>
       <Text style={local.title}>Backup companions</Text>
-      <Text style={local.note}>
-        When a turn fails, as when a usage limit is reached, a quest carries on with the first of these that differs
-        from its own Companion.
-      </Text>
-      <BackupsEditor
-        backups={own ?? settings?.backups ?? []}
-        harnesses={harnesses}
-        isCompact={false}
-        isFolded={true}
-        onChange={save}
-      />
+      <Text style={local.note}>{note}</Text>
+      <BackupsEditor backups={shown} harnesses={harnesses} isCompact={false} isFolded={true} onChange={save} />
       {error !== null && <Text style={local.error}>{error}</Text>}
     </View>
   );
@@ -102,7 +105,7 @@ export function WorkshopCompanions({
   const isPresets = focus !== "Default";
   const tierName = focus === "Default" ? lastTier : focus;
   const [error, setError] = useState<string | null>(null);
-  const save = (change: Partial<Settings>) => {
+  const save = (change: SettingsChange) => {
     setError(null);
     client.request({ _tag: "ChangeSettings", change }).catch((reason) => setError(messageOf(reason)));
   };
@@ -137,7 +140,12 @@ export function WorkshopCompanions({
               value={defaults}
             />
           </Fold>
-          <DefaultBackups client={client} settings={settings} />
+          <WorkshopBackups
+            backups={settings.backups}
+            client={client}
+            note="When a turn fails, as when a usage limit is reached, a quest carries on with the first of these that differs from its own Companion."
+            onSave={(backups) => client.request({ _tag: "ChangeSettings", change: { backups } })}
+          />
         </FoldGroup>
       ) : (
         <View key={tierName} style={local.tier}>
@@ -149,7 +157,7 @@ export function WorkshopCompanions({
               <Text style={local.note}>Not set: this work starts on the default Companion.</Text>
               <Pressable
                 accessibilityRole="button"
-                onPress={() => save({ tiers: { ...settings.tiers, [tierName]: defaults } })}
+                onPress={() => save({ tiers: { [tierName]: { ...defaults, backups: [] } } })}
               >
                 <Text style={styles.link}>Set a Companion</Text>
               </Pressable>
@@ -162,14 +170,24 @@ export function WorkshopCompanions({
                   harnesses={harnesses}
                   isCompact={false}
                   isPanel={true}
-                  onChange={(runner) => save({ tiers: { ...settings.tiers, [tierName]: runner } })}
+                  onChange={(runner) => save({ tiers: { [tierName]: { ...runner, backups: tier.backups } } })}
                   value={tier}
                 />
               </Fold>
-              <Pressable
-                accessibilityRole="button"
-                onPress={() => save({ tiers: { ...settings.tiers, [tierName]: null } })}
-              >
+              <WorkshopBackups
+                backups={tier.backups}
+                client={client}
+                // The folds belong to this preset alone.
+                key={tierName}
+                note={`Work started on ${tierName} carries on with the first of these when a turn fails. Choosing ${tierName} for a quest puts them in place with the Companion.`}
+                onSave={(backups) =>
+                  client.request({
+                    _tag: "ChangeSettings",
+                    change: { tiers: { [tierName]: { ...tier, backups } } },
+                  })
+                }
+              />
+              <Pressable accessibilityRole="button" onPress={() => save({ tiers: { [tierName]: null } })}>
                 <Text style={styles.link}>Clear</Text>
               </Pressable>
             </FoldGroup>

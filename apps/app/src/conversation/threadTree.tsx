@@ -1,7 +1,16 @@
-import type { AttachmentId, ModelChoice, ThreadId, ThreadSummary, ThreadView } from "@iskios/contracts";
+import type {
+  AttachmentId,
+  BackupCompanion,
+  ModelChoice,
+  ThreadId,
+  ThreadSummary,
+  ThreadView,
+} from "@iskios/contracts";
 import { useEffect, useState } from "react";
 import { Pressable, ScrollView, Text, View } from "react-native";
 import { imageRefusalOf } from "../attachments/attachmentRules";
+import { BackupsEditor } from "../editors/backupsEditor";
+import { presetsOf } from "../editors/presets";
 import { type Runner, RunnerPickers, useHarnesses } from "../editors/runners";
 import { newRequestId, type ServiceClient } from "../foundation/client";
 import { modelLabelOf } from "../foundation/formatting";
@@ -92,6 +101,13 @@ export function OpenThreadForm({
   parent: ThreadView;
 }) {
   const { data: harnesses } = useHarnesses(client);
+  const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
+  const { data: parentPanel } = useServiceQuery(
+    client,
+    { _tag: "ReadThreadPanel", threadId: parent.id },
+    `parent:${parent.id}`,
+  );
+  const [backups, setBackups] = useState<ReadonlyArray<BackupCompanion> | null>(null);
   const skills = useSkills(client, parent.workspace?.path ?? null);
   const [runner, setRunner] = useState<Runner>({
     accountId: parent.accountId,
@@ -119,6 +135,7 @@ export function OpenThreadForm({
       _tag: "OpenThread",
       accountId: runner.accountId,
       attachmentIds,
+      ...(backups === null ? {} : { backups }),
       effort: runner.effort,
       harness: runner.harness,
       model,
@@ -173,7 +190,39 @@ export function OpenThreadForm({
       )}
       <Composer
         accessory={
-          <RunnerPickers client={client} harnesses={harnesses} isCompact onChange={setRunner} value={runner} />
+          <RunnerPickers
+            client={client}
+            // Offered once the parent's list is read, so an edit never starts from an empty list standing in for it.
+            {...(parentPanel === null
+              ? {}
+              : {
+                  extra: (
+                    <BackupsEditor
+                      backups={backups ?? parentPanel.backups}
+                      harnesses={harnesses}
+                      isCompact={false}
+                      isFolded
+                      onChange={setBackups}
+                    />
+                  ),
+                })}
+            harnesses={harnesses}
+            isCompact
+            onChange={setRunner}
+            presetChoice={
+              settings === null
+                ? null
+                : {
+                    backups: backups ?? parentPanel?.backups ?? null,
+                    onPreset: (preset) => {
+                      setRunner(preset.runner);
+                      setBackups(preset.backups);
+                    },
+                    presets: presetsOf(settings.tiers),
+                  }
+            }
+            value={runner}
+          />
         }
         attachments={{ client, refusal: imageRefusalOf(harnesses, runner.harness, model) }}
         mentions={{ client, workspacePath: parent.workspace?.path ?? null }}

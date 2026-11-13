@@ -271,7 +271,7 @@ export const fallBackAfterFailure = (threadId: string, reason: string) =>
     for (let index = row.fallbackStep; index < fallbacks.length; index++) {
       const candidate = fallbacks[index];
       if (candidate === undefined) continue;
-      const outcome = yield* Effect.exit(changeThreadRunner(threadId, candidate, reason));
+      const outcome = yield* Effect.exit(changeThreadRunner(threadId, candidate, { fellBackAfter: reason }));
       // A Companion that cannot be taken, such as one on a removed account, or that is already the thread's, is passed over.
       if (!Exit.isSuccess(outcome) || !outcome.value.followUps.isChanged) continue;
       yield* sql`UPDATE rituals SET fallback_step = ${index + 1} WHERE id = ${row.id}`;

@@ -1,8 +1,8 @@
 import { BackupCompanion } from "@iskios/contracts";
 import { Effect, Exit, Schema } from "effect";
 import { SqlClient } from "effect/sql";
-import { invalid, notFound } from "../core/index.ts";
-import { checkAccount } from "../harness/index.ts";
+import { notFound, readSettings } from "../core/index.ts";
+import { checkBackups } from "../harness/index.ts";
 import { changed, unchanged, type WithFollowUps } from "./commands.ts";
 import { changeThreadRunner } from "./handover.ts";
 
@@ -16,10 +16,17 @@ export const setThreadBackups = (threadId: string, backups: ReadonlyArray<Backup
     const sql = yield* SqlClient.SqlClient;
     const [thread] = yield* sql<{ id: string }>`SELECT id FROM threads WHERE id = ${threadId} AND is_deleting = 0`;
     if (thread === undefined) return yield* notFound("No such thread.");
-    for (const backup of backups) yield* checkAccount(backup);
-    if (backups.length > 5) return yield* invalid("A thread has at most five backup Companions.");
+    yield* checkBackups(backups);
     yield* sql`UPDATE threads SET backups = ${JSON.stringify(backups)}, backup_step = 0 WHERE id = ${threadId}`;
     return changed(null);
+  });
+
+/** Saves the backups a card named for the quest it opened, a refusal rolling back the quest too; a card naming none, or the Workshop's own default list, leaves the list the quest started with. */
+export const setCardBackups = (threadId: string | null, backups: ReadonlyArray<BackupCompanion> | undefined) =>
+  Effect.gen(function* () {
+    const { backups: defaults } = yield* readSettings;
+    if (threadId === null || backups === undefined || JSON.stringify(backups) === JSON.stringify(defaults)) return;
+    yield* setThreadBackups(threadId, backups);
   });
 
 /** The failure chain starts over: a turn completed, or the owner chose a runner. */
@@ -44,7 +51,7 @@ export const fallBackToBackup = (threadId: string, reason: string) =>
     for (let index = row.step; index < backups.length; index++) {
       const candidate = backups[index];
       if (candidate === undefined) continue;
-      const outcome = yield* Effect.exit(changeThreadRunner(threadId, candidate, reason));
+      const outcome = yield* Effect.exit(changeThreadRunner(threadId, candidate, { fellBackAfter: reason }));
       if (!Exit.isSuccess(outcome) || !outcome.value.followUps.isChanged) continue;
       yield* sql`UPDATE threads SET backup_step = ${index + 1} WHERE id = ${threadId}`;
       return { followUps: outcome.value.followUps, value: null } satisfies WithFollowUps<null>;

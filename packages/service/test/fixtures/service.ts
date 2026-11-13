@@ -11,6 +11,7 @@ import type {
   ThreadId,
 } from "@iskios/contracts";
 import { Effect, type Layer } from "effect";
+import { afterEach } from "vitest";
 import { Endpoints, type PriceSource } from "../../src/core/index.ts";
 import { callThreadTool } from "../../src/harness/fakeHarness.ts";
 import { fakeHarnessLayer, type HarnessTools, Service, serviceLayer } from "../../src/index.ts";
@@ -30,6 +31,16 @@ export const fixture = (harnessTools?: Layer.Layer<HarnessTools>, priceSource?: 
     }),
     remove: () => rmSync(directory, { force: true, recursive: true }),
   };
+};
+const running: ReturnType<typeof fixture>[] = [];
+afterEach(() => {
+  for (const value of running.splice(0)) value.remove();
+});
+/** Runs an effect on a fresh isolated service, whose folder is removed after the test. */
+export const withService = <A, E, R>(body: Effect.Effect<A, E, R>) => {
+  const value = fixture();
+  running.push(value);
+  return body.pipe(Effect.provide(value.layer));
 };
 /** Calls the owner's service interface. */
 export const call = <R extends Request>(request: R) =>

@@ -6,6 +6,7 @@ Keep a piece of work in one quest, delegate parts of it into side-quests, and ch
 Follow their conversations, answer approval requests, and hand a thread over to another harness with its history intact.
 
 Iskios is in **alpha** and serves one user on one computer.
+Until the first stable release, what you save (settings, quests, accounts) is not guaranteed to carry over from one release to the next; each release's notes list its breaking changes.
 Phone pairing, multiplayer, and Craft workflow automation remain planned work.
 See the [work in progress](documentation/work-in-progress.md) for current verification and unfinished acceptance checks.
 

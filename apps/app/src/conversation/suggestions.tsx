@@ -1,4 +1,4 @@
-import type { MissionId, Suggestion, SuggestionAnswer, ThreadId } from "@iskios/contracts";
+import type { MissionId, Suggestion, SuggestionAnswer, ThreadId, Tier } from "@iskios/contracts";
 import { useState } from "react";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { type Runner, RunnerPickers, useHarnesses } from "../editors/runners";
@@ -139,12 +139,18 @@ function ProposalCard({ client, suggestion }: { client: ServiceClient; suggestio
   const { error, send } = useSuggestionAnswer(client, suggestion);
   const { data: settings } = useServiceQuery(client, { _tag: "ReadSettings" }, "settings");
   const { data: known } = useServiceQuery(client, allMissions.request, allMissions.key);
-  const [runner, setRunner] = useState<Runner>(suggestionRunnerOf(suggestion));
+  const [runner, setRunner] = useState<Tier>({ ...suggestionRunnerOf(suggestion), backups: suggestion.backups });
   const [isCustomizing, setIsCustomizing] = useState(false);
   // The proposed realm until the owner picks another, or the Borderlands.
   const [realmPath, setRealmPath] = useState<string | null>(suggestion.realmPath);
   const pickers = (
-    <RunnerPickers client={client} harnesses={harnesses} isCompact={false} onChange={setRunner} value={runner} />
+    <RunnerPickers
+      client={client}
+      harnesses={harnesses}
+      isCompact={false}
+      onChange={(next) => setRunner({ ...next, backups: runner.backups })}
+      value={runner}
+    />
   );
   const choices =
     settings === null ? [] : companionChoicesOf(settings, (tier) => companionLabelOf(tier.harness, null, tier.model));

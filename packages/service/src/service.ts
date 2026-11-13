@@ -12,6 +12,7 @@ import {
   type Harness,
   HomeFolder,
   invalid,
+  mergedSettings,
   noPriceSourceLayer,
   type PriceSource,
   PriceTable,
@@ -98,7 +99,7 @@ import { autoArchiveLayer, dismissPrompt, endMission, previewEnding, reopenMissi
 import { readGuildHallRecap, visitGuildHall } from "./work/guildHall.ts";
 import { readGuildmaster, viewingLineOf } from "./work/guildmaster.ts";
 import { guildmasterReportsLayer } from "./work/guildmasterReports.ts";
-import { changeThreadRunner } from "./work/handover.ts";
+import { chooseThreadRunner } from "./work/handover.ts";
 import { type JournalOutcome, readJournalView, updateJournal } from "./work/journal.ts";
 import { markThreadDone } from "./work/lifecycle.ts";
 import { toolServerLayer } from "./work/mcp.ts";
@@ -277,7 +278,7 @@ const make = Effect.gen(function* () {
             Effect.map(({ value }) => value),
           ),
         BrowseFolders: (browse) => browseFolders(browse.path, browse.shouldIncludeHidden, folderAccess),
-        ChangeSettings: (given) => saveSettings((saved) => ({ ...saved, ...given.change })),
+        ChangeSettings: (given) => saveSettings((saved) => mergedSettings(saved, given.change)),
         ChangeThreadRunner: (change) =>
           Effect.gen(function* () {
             // Messages still waiting that hold images stay with a runner that cannot read them: refused.
@@ -292,14 +293,7 @@ const make = Effect.gen(function* () {
               Effect.provideService(HarnessTools, harnessTools),
               Effect.provideService(AccountsRoot, accountsRoot),
             );
-            return yield* commands.run(
-              changeThreadRunner(change.threadId, {
-                accountId: change.accountId,
-                effort: change.effort,
-                harness: change.harness,
-                model: change.model,
-              }),
-            );
+            return yield* commands.run(chooseThreadRunner(change));
           }),
         CreateFolder: (create) => createFolder(create.parent, create.name, folderAccess),
         CreatePairingCode: () => hostControl.createPairingCode,
@@ -392,6 +386,7 @@ const make = Effect.gen(function* () {
                   { accountId: open.accountId, effort: open.effort, harness: open.harness, model: open.model },
                   open.shouldStartAnyway,
                   attachmentIds,
+                  open.backups ?? null,
                 ).pipe(Effect.provideService(ScratchRoot, scratchRoot)),
                 (opened) => wakingOnly(opened.threadId),
               ),

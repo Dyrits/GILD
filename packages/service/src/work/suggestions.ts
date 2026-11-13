@@ -3,6 +3,7 @@ import { Clock, Context, Effect, Layer, Match } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
 import { Changes, invalid, notFound, readSettings, type ServiceFailure } from "../core/index.ts";
 import { makeOwnerWaits } from "./attention.ts";
+import { setCardBackups } from "./backups.ts";
 import { changed, unchanged, type WithFollowUps } from "./commands.ts";
 import { findRealm, isGuildmasterThread, recordResolvedCard } from "./guildmaster.ts";
 import { resumeInTurn } from "./lifecycle.ts";
@@ -151,10 +152,8 @@ export const suggestionsLayer = Layer.effect(
           Effect.gen(function* () {
             // The realm the owner chose on the card (null for the Borderlands) over the one proposed.
             const chosenPath = chosen.realmPath === undefined ? suggestion.realmPath : chosen.realmPath;
-            if (chosenPath !== null) {
-              const [known] = yield* sql<{ id: string }>`SELECT id FROM workspaces WHERE path = ${chosenPath}`;
-              if (known === undefined) return yield* invalid("No realm is tied to that folder.");
-            }
+            if (chosenPath !== null && (yield* sql`SELECT id FROM workspaces WHERE path = ${chosenPath}`).length === 0)
+              return yield* invalid("No realm is tied to that folder.");
             // Left out, the harness and account are the suggesting thread's, as Open as new mission prefills them.
             return yield* openMission(
               suggestion.text,
@@ -170,7 +169,7 @@ export const suggestionsLayer = Layer.effect(
               },
               chosenPath,
               suggestion.isFromGuildmaster,
-            );
+            ).pipe(Effect.tap((opened) => setCardBackups(opened.targetThreadId, chosen.backups)));
           }),
       });
 

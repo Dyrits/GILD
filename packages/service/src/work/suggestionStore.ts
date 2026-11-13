@@ -2,10 +2,10 @@ import type { MissionSummary, Suggestion, SuggestionMatch } from "@iskios/contra
 import { Effect, Exit, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { readSettings } from "../core/index.ts";
-import { companionOf } from "./guildmaster.ts";
+import { companionOf, tierPresetOf } from "./guildmasterCompanions.ts";
 import { listMissionSummaries } from "./missions.ts";
 
-type SuggestionRow = Omit<Suggestion, "isAutomatic" | "isFromGuildmaster" | "isRitual" | "matches"> & {
+type SuggestionRow = Omit<Suggestion, "backups" | "isAutomatic" | "isFromGuildmaster" | "isRitual" | "matches"> & {
   isAutomatic: number;
   isFromGuildmaster: number;
   isRitual: number;
@@ -38,18 +38,26 @@ const withMatches = (rows: ReadonlyArray<SuggestionRow>) =>
       (yield* listMissionSummaries(ids)).map((summary) => [summary.id, summary]),
     );
     const settings = yield* readSettings;
-    return rows.map(({ isAutomatic, isFromGuildmaster, isRitual, matches, tier, ...row }) => ({
-      ...row,
-      // The Guildmaster's own Companion only routes: a new quest it offers starts on the tier chosen, else the default.
-      ...(isFromGuildmaster === 1 ? companionOf(settings, tierOf(tier), {}) : {}),
-      isAutomatic: isAutomatic === 1,
-      isFromGuildmaster: isFromGuildmaster === 1,
-      isRitual: isRitual === 1,
-      matches: matchIdsOf(matches).flatMap((id): Array<SuggestionMatch> => {
-        const summary = summaries.get(id);
-        return summary === undefined ? [] : [{ missionId: summary.id, state: summary.state, title: summary.title }];
-      }),
-    })) as Array<Suggestion>;
+    return rows.map(({ isAutomatic, isFromGuildmaster, isRitual, matches, tier, ...row }) => {
+      const name = tierOf(tier);
+      const preset = isFromGuildmaster === 1 ? tierPresetOf(settings, name) : null;
+      return {
+        ...row,
+        // The Guildmaster's own Companion only routes: a new quest it offers starts on the tier chosen, else the default.
+        // The tier's account is named again because a Runner's account is a plain string and the contract's is branded.
+        ...(isFromGuildmaster === 1
+          ? { ...companionOf(settings, name, {}), accountId: preset?.accountId ?? null }
+          : {}),
+        backups: preset?.backups ?? settings.backups,
+        isAutomatic: isAutomatic === 1,
+        isFromGuildmaster: isFromGuildmaster === 1,
+        isRitual: isRitual === 1,
+        matches: matchIdsOf(matches).flatMap((id): Array<SuggestionMatch> => {
+          const summary = summaries.get(id);
+          return summary === undefined ? [] : [{ missionId: summary.id, state: summary.state, title: summary.title }];
+        }),
+      };
+    });
   });
 
 /** A thread's suggestions, open and resolved, in the order made. */

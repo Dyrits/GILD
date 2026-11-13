@@ -3,6 +3,7 @@ import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "r
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { IskiosConversation } from "../conversation/guildmaster";
 import { CompanionPanel, type CompanionPickerProps } from "../editors/companionPicker";
+import { isSamePicker } from "../editors/pickerState";
 import {
   CompanionDockActions,
   CompanionTabOf,
@@ -33,21 +34,6 @@ import {
 import { Sidebar } from "./sidebar";
 import { type DetailsToggle, hasOwnTitleBar, PanelIcon, QuestColumn, questColumnWidth, TopBar } from "./topBar";
 import { viewingOf } from "./viewing";
-
-/** Whether two picker states draw the same: their data, not their handlers, which are new on every render. */
-const isSamePicker = (a: CompanionPickerProps | null, b: CompanionPickerProps) =>
-  a !== null &&
-  a.accountId === b.accountId &&
-  a.effort === b.effort &&
-  a.harness === b.harness &&
-  a.harnesses === b.harnesses &&
-  a.isAccountChosen === b.isAccountChosen &&
-  a.model === b.model &&
-  a.isIskios === b.isIskios &&
-  a.extra?.key === b.extra?.key &&
-  a.panel?.key === b.panel?.key &&
-  a.effortOptions.join() === b.effortOptions.join() &&
-  a.accountOptions.join() === b.accountOptions.join();
 
 /** The window width from which the sidebar shows beside the content; narrower windows keep the screens' own links. */
 const sidebarBreakpoint = 820;

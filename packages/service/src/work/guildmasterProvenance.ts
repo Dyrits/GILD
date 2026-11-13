@@ -5,7 +5,8 @@ import { readSettings, type ToolAnswer } from "../core/index.ts";
 import { isNamedByOwner, type NamedAction } from "../policy/index.ts";
 import type { Approvals } from "./approvals.ts";
 import { previewEnding, readWorkingIds } from "./ending.ts";
-import { companionOf, findRealm, isGuildmasterThread } from "./guildmaster.ts";
+import { findRealm, isGuildmasterThread } from "./guildmaster.ts";
+import { fallbackNoteOf, ritualStartOf } from "./guildmasterCompanions.ts";
 import { changeableSettings } from "./guildmasterSettings.ts";
 import { checkRealmCreation, checkRealmRename } from "./realmChecks.ts";
 import { coveringEntryOf, type ScopedAction } from "./ritualScope.ts";
@@ -235,19 +236,15 @@ const deriveAction = (callerId: string, tool: StructuralTool, args: object) =>
     if (ritual.instruction.trim() === "" || title === "") return null;
     const realm = ritual.realm === undefined || ritual.realm.trim() === "" ? null : yield* findRealm(ritual.realm);
     if (ritual.realm !== undefined && ritual.realm.trim() !== "" && realm === null) return null;
-    const companion = companionOf(yield* readSettings, ritual.tier, {
-      effort: ritual.effort,
-      harness: ritual.harness,
-      model: ritual.model,
-    });
+    const { companion, fallbacks } = ritualStartOf(yield* readSettings, ritual);
     const where = realm === null ? "with no realm" : `in the realm ${realm.name}`;
     return finish({
-      details: { companion, instruction: ritual.instruction, schedule: ritual.schedule },
+      details: { companion, fallbacks, instruction: ritual.instruction, schedule: ritual.schedule },
       mustAsk: false,
       named: { operation: "CreateRitual", targets: [title], value: null },
       scoped: null,
       state: { companion, realm, title },
-      summary: `Create the Ritual "${title}", ${JSON.stringify(ritual.schedule)}, ${where}, on ${companion.harness} ${companion.model}.`,
+      summary: `Create the Ritual "${title}", ${JSON.stringify(ritual.schedule)}, ${where}, on ${companion.harness} ${companion.model}${fallbackNoteOf(fallbacks, ritual.tier)}.`,
     });
   });
 

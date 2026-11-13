@@ -8,7 +8,7 @@ import { insertThreadLine, recordPendingHandover } from "./handover.ts";
 import { endTurn, failTurn, holdThread, startRunning } from "./lifecycle.ts";
 import { deliverMessages, insertReply, listPending } from "./messaging.ts";
 import { finishRitualRun } from "./rituals.ts";
-import { maxRunning, runningCountOf } from "./tree.ts";
+import { maxRunning, runningCountOf } from "./treeLimits.ts";
 import { readThreadWorkspace } from "./workspaces.ts";
 
 // A turn's record in the store: admitted with the thread's messages, then completed or failed. Each step runs

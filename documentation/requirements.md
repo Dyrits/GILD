@@ -42,3 +42,10 @@
   Source: the user, 2026-11-04. Reason: multiplayer is a product goal, not a permanent exclusion.
 - **Pair by QR code from anywhere**: a phone pairs by scanning one pairing code, and then reaches Iskios from any network.
   Source: the user. Reason: product decision.
+
+## Releases
+
+- **No compatibility promise before the stable release**: until the first stable release, saved data and settings are not guaranteed to carry over from one release to the next, and the README and each release's notes say so.
+  Source: the user, 2026-11-13. Reason: the releases so far are prototypes, and users must not expect an upgrade to keep what they saved; compatibility is still kept where it can be (see the Stored data conventions).
+- **Breaking changes are listed in the release notes**: every release's notes name its breaking changes, including any change that makes data or settings saved by an earlier release unreadable or different.
+  Source: the user, 2026-11-13. Reason: a user upgrading must be able to see what will not carry over.

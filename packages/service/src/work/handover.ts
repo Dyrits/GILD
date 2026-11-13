@@ -1,8 +1,8 @@
-import type { EffortChoice, HarnessName, ModelChoice } from "@iskios/contracts";
+import type { BackupCompanion, EffortChoice, HarnessName, ModelChoice } from "@iskios/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, notFound, tokensOf } from "../core/index.ts";
-import { checkAccount, harnessLabels, type Runner } from "../harness/index.ts";
+import { checkAccount, checkBackups, harnessLabels, type Runner } from "../harness/index.ts";
 import { contextWindowOf } from "../lore/index.ts";
 import { readStoredAttachments } from "./attachments.ts";
 import { changed, unchanged } from "./commands.ts";
@@ -32,7 +32,14 @@ const handoverTextOf = (runner: Runner, accountLabel: string | null, fellBackAft
  * fallback (backups, rituals) passes the failure that caused it, which the line then gives after the new runner, and
  * runs the waiting messages at once.
  */
-export const changeThreadRunner = (threadId: string, runner: Runner, fellBackAfter: string | null = null) =>
+export const changeThreadRunner = (
+  threadId: string,
+  runner: Runner,
+  {
+    backups = null,
+    fellBackAfter = null,
+  }: { backups?: ReadonlyArray<BackupCompanion> | null; fellBackAfter?: string | null } = {},
+) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const [thread] = yield* sql<{
@@ -48,10 +55,14 @@ export const changeThreadRunner = (threadId: string, runner: Runner, fellBackAft
     if (thread.state === "Running" || thread.state === "Attention")
       return yield* invalid("This thread is in a turn. Interrupt or stop it, then change its harness or model.");
     yield* checkAccount(runner);
+    // A chosen preset's backups replace the thread's in the same step, so a refusal leaves both as they were.
+    if (backups !== null) yield* checkBackups(backups);
     // The owner's own choice of runner starts a thread's failure chain over (thread-panel, Backups).
     if (fellBackAfter === null) yield* sql`UPDATE threads SET backup_step = 0 WHERE id = ${threadId}`;
+    if (backups !== null) yield* sql`UPDATE threads SET backups = ${JSON.stringify(backups)} WHERE id = ${threadId}`;
     const isNewSession = runner.harness !== thread.harness || runner.accountId !== thread.accountId;
-    if (!isNewSession && runner.model === thread.model && runner.effort === thread.effort) return unchanged(null);
+    if (!isNewSession && runner.model === thread.model && runner.effort === thread.effort)
+      return backups === null ? unchanged(null) : changed(null);
     const now = yield* Clock.currentTimeMillis;
     // The owner's change leaves no line yet: the runner it leaves is kept (the first one, across several changes), and
     // the line is written when a turn starts on the runner then chosen (`recordPendingHandover`). A fallback runs at
@@ -180,3 +191,18 @@ export const readConversationSoFar = (threadId: string, turnId: string, model: M
       kept.join("\n\n"),
     ].join("\n\n");
   });
+
+/** The owner's choice of a thread's runner, with the backups of a preset when one is chosen. */
+export const chooseThreadRunner = (change: {
+  accountId: string | null;
+  backups?: ReadonlyArray<BackupCompanion> | undefined;
+  effort: EffortChoice;
+  harness: HarnessName;
+  model: ModelChoice;
+  threadId: string;
+}) =>
+  changeThreadRunner(
+    change.threadId,
+    { accountId: change.accountId, effort: change.effort, harness: change.harness, model: change.model },
+    { backups: change.backups ?? null },
+  );

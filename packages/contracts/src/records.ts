@@ -12,6 +12,7 @@ import {
   Spending,
   TokenUsage,
 } from "./budgets.ts";
+import { BackupCompanions, ModelChoice, Tier } from "./companions.ts";
 import { Crest } from "./crest.ts";
 import { EffortChoice, HarnessName } from "./harnesses.ts";
 import { AccountId, MessageId, MissionId, SuggestionId, ThreadId, WorkspaceId } from "./ids.ts";
@@ -35,14 +36,6 @@ export type ThreadState = typeof ThreadState.Type;
 export const SenderKind = Schema.Literals(["user", "agent", "thread"]);
 export type SenderKind = typeof SenderKind.Type;
 
-/**
- * The model a thread runs with, by the identifier its harness takes, such as "claude-opus-5-5" for Claude Code or
- * "gpt-6.1-sol" for Codex; "default" is the harness's own, kept for threads that began before models were always
- * chosen and no longer offered (provider-accounts, Models).
- */
-export const ModelChoice = Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(200));
-export type ModelChoice = typeof ModelChoice.Type;
-
 /** The model a new quest starts on until the owner picks another (Claude Code's Sonnet 5.5). */
 export const startingModel: ModelChoice = "claude-sonnet-5-5";
 
@@ -50,36 +43,13 @@ export const startingModel: ModelChoice = "claude-sonnet-5-5";
 export const MessageDelivery = Schema.Literals(["Steer", "Queue"]);
 export type MessageDelivery = typeof MessageDelivery.Type;
 
-/** One backup Companion a thread falls back to: a harness, its account, a model, and an effort (thread-panel, Backups). */
-export const BackupCompanion = Schema.Struct({
-  /** The provider account, or null for the harness's own sign-in on this computer. */
-  accountId: Schema.NullOr(AccountId),
-  effort: EffortChoice,
-  harness: HarnessName,
-  model: ModelChoice,
-});
-export type BackupCompanion = typeof BackupCompanion.Type;
-
 /** The owner's settings. */
-/** A Companion a tier of the Guildmaster's settings names: harness, account, model, and effort (quest coordination). */
-export const Tier = Schema.Struct({
-  accountId: Schema.NullOr(AccountId),
-  effort: EffortChoice,
-  harness: HarnessName,
-  model: ModelChoice,
-});
-export type Tier = typeof Tier.Type;
-
-/** The three tiers the Guildmaster picks from by how complex a request is; each is optional. */
-export const TierName = Schema.Literals(["Light", "Balanced", "Heavy"]);
-export type TierName = typeof TierName.Type;
-
 export const Settings = Schema.Struct({
   approvalLevel: ApprovalLevel,
   /** Days after a Done mission was marked Done before it is archived, when auto-archive is on. */
   autoArchiveDays: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
   /** The backup Companions a new quest's thread starts with, in the order a failed turn falls back through them; at most five. */
-  backups: Schema.Array(BackupCompanion).check(Schema.isMaxLength(5)),
+  backups: BackupCompanions,
   /** The most tokens a mission's briefing may hold, estimated at about 4 characters per token (mission-journal, Size). */
   briefingLimit: Schema.Int.check(Schema.isGreaterThanOrEqualTo(1)),
   /** Messages between two threads before the owner decides how they continue. */
@@ -318,6 +288,8 @@ export const Suggestion = Schema.Struct({
   /** The suggesting thread's account, prefilled for Open as new mission. */
   accountId: Schema.NullOr(AccountId),
   askedAt: Schema.Number,
+  /** The proposed preset's backups, or the default quest backups when no preset is proposed. */
+  backups: BackupCompanions,
   /** The suggesting thread's effort, prefilled for Open as new mission. */
   effort: EffortChoice,
   /** The suggesting thread's harness, prefilled for Open as new mission. */
@@ -439,7 +411,7 @@ export type ContextGauge = typeof ContextGauge.Type;
 /** What the thread panel shows beyond the thread itself (thread-panel, The panel). */
 export const ThreadPanel = Schema.Struct({
   /** The Companions tried in order after a turn of this thread fails; at most five. */
-  backups: Schema.Array(BackupCompanion).check(Schema.isMaxLength(5)),
+  backups: BackupCompanions,
   /** The mission's budget and its spending, as the quest panel shows them. */
   budget: BudgetUse,
   /** What this thread's own turns used, with the estimated cost. */

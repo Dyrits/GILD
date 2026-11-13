@@ -13,7 +13,9 @@ import {
 import { imageRefusalOf } from "../attachments/attachmentRules";
 import { BudgetScreen, BudgetStopCard } from "../editors/budgets";
 import { RunnerPickers, useHarnesses } from "../editors/runners";
-import { messageOf, newRequestId, type ServiceClient } from "../foundation/client";
+import { useThreadPresets } from "../editors/useThreadPresets";
+import { actWith } from "../foundation/acting";
+import { newRequestId, type ServiceClient } from "../foundation/client";
 import { colorScheme } from "../foundation/colorScheme";
 import { companionLabelOf, effortLabel, harnessLabels, modelLabelOf } from "../foundation/formatting";
 import { countedOf } from "../foundation/labels";
@@ -105,6 +107,7 @@ function ThreadPane({
   const draft = useDraft(client, thread.id);
   const skills = useSkills(client, thread.workspace?.path ?? null);
   const [actionError, setActionError] = useState<string | null>(null);
+  const presetChoice = useThreadPresets(client, thread.id, setActionError);
   const [isOpening, setIsOpening] = useState(false);
   const terminal = useTerminal(thread.id, thread.workspace?.path ?? null);
   const followNewest = useFollowNewest();
@@ -134,11 +137,7 @@ function ThreadPane({
       terminal.sent();
     };
   const entries = entriesOf(detail, isInTurn);
-  const act = (request: Promise<unknown>) =>
-    request.then(
-      () => setActionError(null),
-      (reason) => setActionError(messageOf(reason)),
-    );
+  const act = actWith(setActionError);
   return (
     <CommentsProvider value={comments}>
       <View style={[styles.flex, styles.pane]}>
@@ -303,6 +302,7 @@ function ThreadPane({
                         onChange={(next) =>
                           act(client.request({ _tag: "ChangeThreadRunner", ...next, threadId: thread.id }))
                         }
+                        presetChoice={presetChoice}
                         value={{
                           accountId: thread.accountId,
                           effort: thread.effort,

@@ -1,5 +1,13 @@
 # Work in progress
 
+## Companion preset stacks · 2026-11-13 · implemented and reviewed; owner's look and decisions pending
+
+The owner rejected CHG-0258's primary-only presets; CHG-0260 applies the correction (a preset is a primary Companion and ordered backups, copied together) and CHG-0261 records the review fixes and the new layout (presets in a "Preset" card above the Companion fold). Starting commit `b526f74`, uncommitted; no push or landing authorized.
+
+Waits on the owner: the look of the Preset card and the Workshop's backup editor in a window (restart `bun run dev`); the provisional choices in the [specification](capabilities/companion-presets/specifications.md#provisional-choices): an empty preset clearing a thread's backups, no presets in backup folds, the proposal card and a Ritual taking a tier's backups, a side-quest taking the chosen preset's stack.
+
+Left open from the reviews: two writers of one tier in the Workshop that can still race, removing an account does not scrub the Workshop's lists, the client sends the stack rather than the service reading the tier, four files still past 512 lines (`requests.ts`, `service.ts`, `shell.tsx`, `guildmaster.test.ts`, each smaller than before), and the window drive (`drive.ts`, now without `any`) not rerun on the new layout. Checks and limits: [verification](verification/2026-11-13-companion-stacks.md).
+
 ## Computer name and default Companion tab · 2026-11-13 · built and checked headlessly, window look pending
 
 CHG-0257 (starting commit `163667a`, uncommitted; [proof](verification/2026-11-13-computer-name-and-companions.md)): the computer's own sign-in carries the host's name instead of "This computer", renamed from a new Computer name card in the Workshop's Accounts section; the Workshop's default Companion and backup cards became one card with the Companion button, and the right-hand Companions tab holds the default and its backup folds. Also fixed: the plan-limit rings' `origin` and `rotation` props made React warn on the web (`transform-origin`), now a `transform` string. Checks: typecheck, Biome, app and service work, remote and harness tests (843 passed). Open (also: narrow windows are broken with the Companions column open, left for a later session with the mobile version, see the [backlog](backlog.md)): the owner's look in the window (the card, the button opening the tab, the rings still starting at the top), a rename showing in every place, a paired device viewing a host's Accounts, narrow window, light and Gild looks.

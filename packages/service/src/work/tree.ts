@@ -1,49 +1,22 @@
-import type { HarnessName, OpenThreadResult, ThreadId } from "@iskios/contracts";
+import type { BackupCompanion, HarnessName, OpenThreadResult, ThreadId } from "@iskios/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, notFound } from "../core/index.ts";
-import { checkAccount, type Runner, type RunnerChoice, runnerOf } from "../harness/index.ts";
+import { checkAccount, checkBackups, type Runner, type RunnerChoice, runnerOf } from "../harness/index.ts";
 import { budgetRefusalOf } from "./budgetScopes.ts";
 import { changed, unchanged } from "./commands.ts";
 import { type JournalAuthor, nothingToRecord, openerMessagesOf, updateJournal } from "./journal.ts";
-import { maxOwnerDepth, waitsInTurn } from "./lifecycle.ts";
+import { maxOwnerDepth } from "./lifecycle.ts";
 import { insertMessage } from "./messaging.ts";
 import { readStartingContext, startingContextRefusalOf } from "./startingContext.ts";
 import { attachmentsTitle, titleOf } from "./titles.ts";
+import { depthOf, maxRunning, runningCountOf } from "./treeLimits.ts";
 
-/** At most this many threads run at once in a mission (thread-tree, Limits; CHG-0037). */
-export const maxRunning = 8;
-
-/** How many levels a thread is beneath its mission's top thread, which is 0. */
-const depthOf = (threadId: string) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    const [row] = yield* sql<{ depth: number }>`
-      WITH RECURSIVE ancestors(id, parent_id, depth) AS (
-        SELECT id, parent_id, 0 FROM threads WHERE id = ${threadId}
-        UNION ALL
-        SELECT t.id, t.parent_id, a.depth + 1 FROM threads t JOIN ancestors a ON t.id = a.parent_id
-      )
-      SELECT MAX(depth) AS depth FROM ancestors`;
-    return row?.depth ?? 0;
-  });
-
-/**
- * How many of the mission's threads are inside a turn: Running, or in Attention on a question asked during it,
- * whose harness process still runs (thread-tree, Limits).
- */
-export const runningCountOf = (missionId: string) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    const [row] = yield* sql<{ count: number }>`
-      SELECT COUNT(*) AS count FROM threads
-      WHERE mission_id = ${missionId} AND (state = 'Running' OR ${sql.literal(waitsInTurn)})`;
-    return row?.count ?? 0;
-  });
-
-interface Opening {
+type Opening = {
   /** The files attached to the first message, added beforehand as drafts (message-attachments). */
   readonly attachmentIds?: ReadonlyArray<string>;
+  /** A chosen preset replaces the parent's backups, including with an empty list; null inherits them. */
+  readonly backups: ReadonlyArray<BackupCompanion> | null;
   /** The opener's choices; what it leaves out comes from the parent (runnerOf). */
   readonly choice: RunnerChoice;
   /** An off-topic request the owner kept beneath the thread (thread-tree, Off-topic requests). */
@@ -53,7 +26,7 @@ interface Opening {
   readonly text: string;
   /** A short title; the first line of the text when null. */
   readonly title: string | null;
-}
+};
 
 /** The parent's runner and where it works, or undefined when it is gone. */
 const readParent = (parentId: string) =>
@@ -77,13 +50,15 @@ const insertThread = (opening: Opening) =>
     const parent = yield* readParent(opening.parentId);
     if (parent === undefined) return yield* notFound("No such thread.");
     const runner = yield* checkAccount(runnerOf(parent, opening.choice));
+    if (opening.backups !== null) yield* checkBackups(opening.backups);
+    const backups = opening.backups === null ? parent.backups : JSON.stringify(opening.backups);
     const threadId = crypto.randomUUID();
     // An aside starts from the off-topic request alone, without its opener's conversation.
     const openerMessages = opening.isAside ? null : yield* openerMessagesOf(opening.parentId);
     yield* sql`INSERT INTO threads (id, mission_id, parent_id, state, harness, account_id, model, effort, workspace_id, title, is_opened_by_agent, opener_messages, is_aside, backups)
       VALUES (${threadId}, ${parent.missionId}, ${opening.parentId}, 'Idle', ${runner.harness}, ${runner.accountId},
         ${runner.model}, ${runner.effort}, ${parent.workspaceId}, ${titleOf(opening.title ?? opening.text) || attachmentsTitle}, ${opening.isOpenedByAgent ? 1 : 0},
-        ${openerMessages}, ${opening.isAside ? 1 : 0}, ${parent.backups})`;
+        ${openerMessages}, ${opening.isAside ? 1 : 0}, ${backups})`;
     const messageId = yield* insertMessage({
       fromThreadId: opening.isOpenedByAgent ? opening.parentId : null,
       isQueued: false,
@@ -105,6 +80,7 @@ export const openThreadByOwner = (
   choice: RunnerChoice & { readonly model: string },
   shouldStartAnyway: boolean,
   attachmentIds: ReadonlyArray<string> = [],
+  backups: ReadonlyArray<BackupCompanion> | null = null,
 ) =>
   Effect.gen(function* () {
     if ((yield* depthOf(parentId)) + 1 > maxOwnerDepth) {
@@ -118,6 +94,7 @@ export const openThreadByOwner = (
     }
     const opened = yield* insertThread({
       attachmentIds,
+      backups,
       choice,
       isAside: false,
       isOpenedByAgent: false,
@@ -134,6 +111,7 @@ export const openThreadByOwner = (
  */
 export const openAside = (parentId: string, text: string, title: string) =>
   insertThread({
+    backups: null,
     choice: {},
     isAside: true,
     isOpenedByAgent: false,
@@ -191,6 +169,7 @@ export const openThreadByAgent = (
         `${maxRunning} threads are already running in this mission. Wait for one to finish, or ask the owner.`,
       );
     const opened = yield* insertThread({
+      backups: null,
       choice,
       isAside: false,
       isOpenedByAgent: true,

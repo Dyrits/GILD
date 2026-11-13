@@ -1,6 +1,7 @@
-import { Schema, Struct } from "effect";
+import { Schema } from "effect";
 import { AttachmentCard, AttachmentContent, maxAttachmentsPerMessage } from "./attachments.ts";
 import { AccountBudget, BudgetLimits, BudgetPeriod, BudgetWindow, PriceStatus } from "./budgets.ts";
+import { BackupCompanions, ModelChoice } from "./companions.ts";
 import { Crest } from "./crest.ts";
 import { EffortChoice, HarnessList, HarnessName } from "./harnesses.ts";
 import {
@@ -24,7 +25,6 @@ import { LoreHistory, LoreScope, LoreStateFilter, LoreView } from "./lore.ts";
 import { Mentionable } from "./mentions.ts";
 import { PermissionsView, Question } from "./questions.ts";
 import {
-  BackupCompanion,
   EndingPreview,
   GuildHallRecap,
   GuildmasterPlace,
@@ -34,7 +34,6 @@ import {
   MissionList,
   MissionPrompt,
   MissionState,
-  ModelChoice,
   RequestId,
   Settings,
   StartChoices,
@@ -70,6 +69,7 @@ import {
   RunRitual,
   UpdateRitual,
 } from "./rituals.ts";
+import { ChangeSettings, UpdateSettings } from "./settingsRequests.ts";
 import { Skill } from "./skills.ts";
 import { UsageFilter, UsagePeriod, UsageReport } from "./usage.ts";
 import { WorkspaceEntry } from "./workspaceEntries.ts";
@@ -198,6 +198,8 @@ export const OpenThread = Schema.TaggedStruct("OpenThread", {
   /** Absent keeps the parent's account when the harness is the parent's, else the computer's own sign-in. */
   accountId: Schema.optionalKey(Schema.NullOr(AccountId)),
   attachmentIds: AttachmentIds,
+  /** A chosen preset's complete backup list; absent inherits the parent's, empty clears it. */
+  backups: Schema.optionalKey(BackupCompanions),
   effort: EffortChoice,
   /** Absent runs on the parent's harness. */
   harness: Schema.optionalKey(HarnessName),
@@ -365,6 +367,8 @@ export const SuggestionAnswer = Schema.Union([
   Schema.TaggedStruct("NewMission", {
     /** Absent keeps the suggesting thread's account and harness, as for the next two. */
     accountId: Schema.optionalKey(Schema.NullOr(AccountId)),
+    /** The backup Companions of the preset chosen on the card; absent keeps the Workshop's default list. */
+    backups: Schema.optionalKey(BackupCompanions),
     effort: EffortChoice,
     harness: Schema.optionalKey(HarnessName),
     model: ModelChoice,
@@ -392,6 +396,8 @@ export const ResumeThread = Schema.TaggedStruct("ResumeThread", { threadId: Thre
 export const ChangeThreadRunner = Schema.TaggedStruct("ChangeThreadRunner", {
   /** The provider account, or null for the harness's own sign-in on this computer. */
   accountId: Schema.NullOr(AccountId),
+  /** The backups of a chosen preset, which replace the thread's in the same step (companion-presets); left out, they stay as they are. */
+  backups: Schema.optionalKey(BackupCompanions),
   effort: EffortChoice,
   harness: HarnessName,
   model: ModelChoice,
@@ -401,7 +407,7 @@ export const ChangeThreadRunner = Schema.TaggedStruct("ChangeThreadRunner", {
 export const MarkThreadDone = Schema.TaggedStruct("MarkThreadDone", { threadId: ThreadId });
 /** Saves the thread's backup Companions, in the order a failed turn falls back through them (thread-panel, Backups). */
 export const SetThreadBackups = Schema.TaggedStruct("SetThreadBackups", {
-  backups: Schema.Array(BackupCompanion).check(Schema.isMaxLength(5)),
+  backups: BackupCompanions,
   threadId: ThreadId,
 });
 /** Tries again a thread's failed turn, or a thread waiting in Attention on its missing workspace folder (Retry). */
@@ -412,12 +418,6 @@ export const ReadPermissions = Schema.TaggedStruct("ReadPermissions", { missionI
 export const WidenPermission = Schema.TaggedStruct("WidenPermission", { permissionId: PermissionId });
 /** Removes a standing permission. */
 export const RemovePermission = Schema.TaggedStruct("RemovePermission", { permissionId: PermissionId });
-/** Saves the owner's settings. */
-export const UpdateSettings = Schema.TaggedStruct("UpdateSettings", { settings: Settings });
-/** Changes some of the owner's settings, merged into the saved ones by the service, so a change made elsewhere meanwhile is kept. */
-export const ChangeSettings = Schema.TaggedStruct("ChangeSettings", {
-  change: Settings.mapFields(Struct.map(Schema.optionalKey)),
-});
 // The folder picker (CHG-0253): browsing, searching, and making folders. A paired device reaches only the browsable roots the host set in the Workshop; the host's own window may reach any folder.
 /** Lists a folder's subfolders (under the browsable roots for a paired device); null lists the roots. */
 export const BrowseFolders = Schema.TaggedStruct("BrowseFolders", {

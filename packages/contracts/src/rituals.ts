@@ -1,8 +1,9 @@
 import { Schema } from "effect";
+import { ModelChoice } from "./companions.ts";
 import { Crest } from "./crest.ts";
 import { EffortChoice, HarnessName } from "./harnesses.ts";
 import { AccountId, MissionId, RitualId, ThreadId } from "./ids.ts";
-import { ModelChoice, RequestId } from "./records.ts";
+import { RequestId } from "./records.ts";
 import { RitualRunState, RitualSchedule } from "./ritualSchedules.ts";
 
 // Rituals: an instruction run on a schedule in a quest of its own, with Companions to fall back on (rituals).

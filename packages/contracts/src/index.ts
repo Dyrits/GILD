@@ -3,6 +3,7 @@
 
 export * from "./attachments.ts";
 export * from "./budgets.ts";
+export * from "./companions.ts";
 export * from "./crest.ts";
 export * from "./frames.ts";
 export * from "./harnesses.ts";
@@ -16,6 +17,7 @@ export * from "./remote.ts";
 export * from "./requests.ts";
 export * from "./ritualSchedules.ts";
 export * from "./rituals.ts";
+export * from "./settingsRequests.ts";
 export * from "./skills.ts";
 export * from "./usage.ts";
 export * from "./workspaceEntries.ts";

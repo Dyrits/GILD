@@ -1,8 +1,9 @@
-import type { Settings, Tier, TierName } from "@iskios/contracts";
+import type { Settings, SettingsChange, Tier, TierName } from "@iskios/contracts";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import { useHarnesses } from "../editors/runners";
 import type { ServiceClient } from "../foundation/client";
 import { effortLabel, harnessLabels, modelLabelOf } from "../foundation/formatting";
+import { countedOf } from "../foundation/labels";
 import { styles } from "../foundation/styles";
 import { colors, fontSizes, fonts } from "../foundation/theme";
 import { Row } from "../quests/questPanel";
@@ -35,6 +36,7 @@ function PresetRow({
   const { data: harnesses } = useHarnesses(client);
   const defaults = {
     accountId: null,
+    backups: [],
     effort: settings.defaultEffort,
     harness: settings.defaultHarness,
     model: settings.defaultModel,
@@ -58,7 +60,7 @@ function PresetRow({
         client={client}
         focus={name}
         harnesses={harnesses}
-        onChange={onChange}
+        onChange={(runner) => onChange({ ...runner, backups: tier?.backups ?? [] })}
         rank={rank}
         rows={
           tier === null ? (
@@ -80,6 +82,11 @@ function PresetRow({
                 label="Model"
                 value={`${modelLabelOf(tier.model, models)} · ${effortLabel(tier.effort)}`}
               />
+              <Row
+                icon="shield"
+                label="Backups"
+                value={tier.backups.length === 0 ? "None" : countedOf(tier.backups.length, "backup")}
+              />
             </>
           )
         }
@@ -99,7 +106,7 @@ export function PresetsCard({
   settings,
 }: {
   client: ServiceClient;
-  onSave: (change: Partial<Settings>) => void;
+  onSave: (change: SettingsChange) => void;
   settings: Settings;
 }) {
   return (
@@ -111,7 +118,7 @@ export function PresetsCard({
           hint={hint}
           key={name}
           name={name}
-          onChange={(next) => onSave({ tiers: { ...settings.tiers, [name]: next } })}
+          onChange={(next) => onSave({ tiers: { [name]: next } })}
           rank={index + 1}
           settings={settings}
           tier={settings.tiers[name]}

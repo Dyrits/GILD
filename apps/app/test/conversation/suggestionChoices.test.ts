@@ -4,12 +4,14 @@ import { companionChoicesOf, hasTiers, selectedChoiceOf } from "../../src/conver
 
 const tier = (model: string, effort: Tier["effort"] = "default"): Tier => ({
   accountId: null,
+  backups: [],
   effort,
   harness: "claude",
   model,
 });
 
 const settings = (tiers: { Balanced?: Tier | null; Heavy?: Tier | null; Light?: Tier | null }) => ({
+  backups: [],
   defaultEffort: "default" as const,
   defaultHarness: "claude" as const,
   defaultModel: "claude-sonnet-5-5",
@@ -46,6 +48,17 @@ describe("the Companions a proposal card offers", () => {
   it("selects only the first when a tier is the same Companion as the default", () => {
     const choices = companionChoicesOf(settings({ Balanced: tier("claude-sonnet-5-5") }), label);
     expect(selectedChoiceOf(choices, tier("claude-sonnet-5-5"))?.label).toBe("Default");
+  });
+
+  it("distinguishes a tier from Default by its backups even with the same primary", () => {
+    const heavy = {
+      ...tier("claude-sonnet-5-5"),
+      backups: [tier("claude-opus-5-5", "high")],
+    };
+    const choices = companionChoicesOf(settings({ Heavy: heavy }), label);
+    expect(selectedChoiceOf(choices, heavy)?.label).toBe("Heavy · claude-sonnet-5-5");
+    expect(choices[1]?.runner.backups).toEqual(heavy.backups);
+    expect(choices[0]?.runner.backups).toEqual([]);
   });
 
   it("selects none for a Companion the owner customized", () => {

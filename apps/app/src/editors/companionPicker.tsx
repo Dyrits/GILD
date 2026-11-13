@@ -1,22 +1,21 @@
 import type { AccountId, EffortChoice, HarnessList, HarnessName, ModelChoice } from "@iskios/contracts";
 import { type ReactElement, useContext, useEffect, useId, useState } from "react";
-import { Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
-import { effortLabel, harnessLabels, modelLabelOf } from "../foundation/formatting";
+import { Modal, Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { modelLabelOf, runnerSummaryOf } from "../foundation/formatting";
 import { CompanionDockActions, CompanionTabOf } from "../foundation/shellContext";
 import { styles } from "../foundation/styles";
-import { colors, fontSizes, fonts, outline, radii, round } from "../foundation/theme";
+import { colors, fontSizes, fonts } from "../foundation/theme";
 import { Fold, FoldGroup } from "../ui/fold";
-import { modelsMatching } from "../ui/modelSearch";
-import { Menu, Steps } from "../ui/pickers";
 import { ProviderMark } from "../ui/providerMarks";
-
-const harnessNames: ReadonlyArray<HarnessName> = ["claude", "codex", "opencode"];
+import { CompanionBody } from "./companionBody";
+import { PresetChooser } from "./presetChooser";
+import type { PresetChoice } from "./presets";
 
 /** The width of the picker's panel in a window with no right-hand column to hold it: a mini sidebar. */
 const miniWidth = 288;
 
 /** What the picker shows and can change; `RunnerPickers` owns the rules for each change. */
-export interface CompanionPickerProps {
+export type CompanionPickerProps = {
   accountId: AccountId | null;
   accountLabel: (id: AccountId | null) => string;
   accountOptions: ReadonlyArray<AccountId | null>;
@@ -35,134 +34,17 @@ export interface CompanionPickerProps {
   onModel: (harness: HarnessName, model: ModelChoice) => void;
   /** Replaces the tab's own folds altogether, for a page whose Companions are several (the Workshop's). Keyed by what it shows. */
   panel?: ReactElement;
-}
-
-/** A runner in few words: its Companion, then its effort when not the model's own. */
-export const runnerSummaryOf = (
-  harnesses: HarnessList | null,
-  runner: { effort: EffortChoice; harness: HarnessName; model: ModelChoice },
-) => {
-  const models = harnesses?.harnesses.find((candidate) => candidate.name === runner.harness)?.models;
-  return `${modelLabelOf(runner.model, models)}${runner.effort === "default" ? "" : ` · ${runner.effort}`}`;
+  /** The presets the owner has set, offered in their own card above the thread's Companion; none, and the tab has no such card. */
+  presetChoice?: PresetChoice | null;
 };
 
 /**
- * The picker itself: the harnesses as tabs, a search field, the chosen harness's models, and the effort as a line of
- * stops at the foot. Choosing a model keeps it open so the effort can be set next. It sizes itself to what it holds,
- * and is drawn in the Companions tab's folds, one for the thread's Companion and one for each backup.
- */
-export function CompanionBody(props: Omit<CompanionPickerProps, "extra" | "panel">) {
-  const { harness, harnesses, model } = props;
-  const [browsed, setBrowsed] = useState<HarnessName>(harness);
-  const [query, setQuery] = useState("");
-  const infoOf = (name: HarnessName) => harnesses?.harnesses.find((candidate) => candidate.name === name);
-  const models = infoOf(browsed)?.models ?? [];
-  const isCurrent = browsed === harness;
-  // The chosen model stays listed when its harness no longer lists it.
-  const listed =
-    isCurrent && !models.some((option) => option.id === model)
-      ? [...models, { id: model, label: modelLabelOf(model, models) }]
-      : models;
-  const isEffortChosen = isCurrent && props.effortOptions.length > 1;
-  const shown = modelsMatching(listed, query);
-  return (
-    <View style={local.inner}>
-      <View accessibilityLabel="Harness" accessibilityRole="radiogroup" style={local.tabs}>
-        {harnessNames.map((name) => {
-          const isBrowsed = name === browsed;
-          const info = infoOf(name);
-          return (
-            <Pressable
-              accessibilityLabel={`${harnessLabels[name]}${info?.problem == null ? "" : " (not installed)"}`}
-              accessibilityRole="radio"
-              accessibilityState={{ checked: isBrowsed }}
-              key={name}
-              onPress={() => {
-                setBrowsed(name);
-                setQuery("");
-              }}
-              style={({ pressed }) => [
-                local.tab,
-                (pressed || isBrowsed) && local.tabActive,
-                info?.problem != null && local.dimmed,
-              ]}
-            >
-              <ProviderMark harness={name} size={16} />
-              {name === harness && <View style={local.tabDot} />}
-            </Pressable>
-          );
-        })}
-        <Text numberOfLines={1} style={local.tabsName}>
-          {harnessLabels[browsed]}
-          {infoOf(browsed)?.problem == null ? "" : " · not installed"}
-        </Text>
-        {isCurrent && props.isAccountChosen && (
-          <Menu
-            accessibilityLabel="Account"
-            label={props.accountLabel}
-            onChange={props.onAccount}
-            options={props.accountOptions}
-            value={props.accountId}
-          />
-        )}
-      </View>
-      <TextInput
-        accessibilityLabel="Search models"
-        autoCapitalize="none"
-        autoCorrect={false}
-        onChangeText={setQuery}
-        placeholder="Search models"
-        placeholderTextColor={colors.textDim}
-        style={local.search}
-        value={query}
-      />
-      <ScrollView style={local.list}>
-        {shown.length === 0 && (
-          <Text style={local.empty}>{models.length === 0 ? "No models listed" : "No model matches"}</Text>
-        )}
-        {shown.map((option) => {
-          const isChosen = isCurrent && option.id === model;
-          return (
-            <Pressable
-              accessibilityRole="menuitem"
-              key={option.id}
-              onPress={() => props.onModel(browsed, option.id)}
-              style={({ pressed }) => [
-                styles.menuItem,
-                pressed && local.itemHovered,
-                isChosen && styles.menuItemSelected,
-              ]}
-            >
-              <Text numberOfLines={1} style={[styles.menuItemText, isChosen && styles.chipTextSelected]}>
-                {option.label}
-              </Text>
-              {isChosen && <Text style={styles.chipTextSelected}>✓</Text>}
-            </Pressable>
-          );
-        })}
-      </ScrollView>
-      {isEffortChosen && (
-        <View style={local.footer}>
-          <Text style={local.footerName}>Effort</Text>
-          <Steps
-            accessibilityLabel="Effort"
-            label={(effort: EffortChoice) => (effort === "default" ? "default" : effortLabel(effort))}
-            onChange={props.onEffort}
-            options={props.effortOptions}
-            value={props.effort}
-          />
-        </View>
-      )}
-    </View>
-  );
-}
-
-/**
- * The Companions tab: a fold for the thread's own Companion, unfolded first, and under it what belongs to the thread
- * alone (`extra`: its backup Companions, one fold each). One fold is unfolded at a time.
+ * The Companions tab: the presets in a card of their own when there are any, then a fold for the thread's own Companion, unfolded first, and under it what belongs to the thread alone (`extra`: its backup Companions, one fold each).
+ * One fold is unfolded at a time.
  */
 export function CompanionPanel({ onClose, ...props }: CompanionPickerProps & { onClose?: () => void }) {
   const { extra, panel, ...picker } = props;
+  const { presetChoice = null } = picker;
   return (
     <FoldGroup initial="main">
       <View style={[local.body, panel !== undefined && local.bodyOfPanel]}>
@@ -177,6 +59,16 @@ export function CompanionPanel({ onClose, ...props }: CompanionPickerProps & { o
         <ScrollView contentContainerStyle={local.stack} style={local.scroll}>
           {panel ?? (
             <>
+              {presetChoice !== null && presetChoice.presets.length > 0 && (
+                <PresetChooser
+                  accountId={props.accountId}
+                  choice={presetChoice}
+                  effort={props.effort}
+                  harness={props.harness}
+                  harnesses={props.harnesses}
+                  model={props.model}
+                />
+              )}
               <Fold
                 harness={props.harness}
                 id="main"
@@ -265,14 +157,6 @@ const local = StyleSheet.create({
   body: { backgroundColor: colors.page, flex: 1, gap: 8, padding: 12 },
   // A panel of its own starts with tabs, which sit closer to the column's.
   bodyOfPanel: { paddingTop: 6 },
-  dimmed: { opacity: 0.45 },
-  empty: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.md, padding: 10 },
-  footer: { borderColor: colors.border, borderTopWidth: 1, gap: 4, paddingTop: 8 },
-  footerName: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.xs, fontWeight: "600" },
-  inner: { gap: 8 },
-  itemHovered: { backgroundColor: colors.controlHover },
-  // The whole list shows, and a long one (OpenCode's) scrolls inside its own height.
-  list: { flexGrow: 0, maxHeight: 320 },
   // A narrow window's stand-in for the column: a panel over the right edge, below the top bar.
   overlay: {
     borderColor: colors.border,
@@ -284,37 +168,7 @@ const local = StyleSheet.create({
     width: miniWidth,
   },
   scroll: { flex: 1 },
-  search: {
-    ...outline,
-    ...round,
-    backgroundColor: colors.control,
-    color: colors.text,
-    fontFamily: fonts.sans,
-    fontSize: fontSizes.md,
-    paddingHorizontal: 10,
-    paddingVertical: 6,
-  },
   stack: { gap: 8 },
-  tab: { alignItems: "center", borderRadius: radii.md, height: 30, justifyContent: "center", width: 30 },
-  tabActive: { backgroundColor: colors.controlActive },
-  tabDot: {
-    backgroundColor: colors.accent,
-    borderRadius: 3,
-    bottom: 3,
-    height: 6,
-    position: "absolute",
-    right: 3,
-    width: 6,
-  },
-  tabs: { alignItems: "center", flexDirection: "row", gap: 4 },
-  tabsName: {
-    color: colors.textMuted,
-    flex: 1,
-    fontFamily: fonts.sans,
-    fontSize: fontSizes.xs,
-    fontWeight: "600",
-    marginLeft: 6,
-  },
   title: { alignItems: "center", flexDirection: "row", justifyContent: "space-between" },
   titleClose: { color: colors.textMuted, fontSize: fontSizes.md, paddingHorizontal: 4 },
   titleText: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.xs, fontWeight: "600" },

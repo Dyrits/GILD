@@ -1,11 +1,11 @@
-import type { BackupCompanion, HarnessList } from "@iskios/contracts";
+import { type BackupCompanion, type HarnessList, maxBackups } from "@iskios/contracts";
 import { Pressable, StyleSheet, Text, View } from "react-native";
 import Svg, { Path } from "react-native-svg";
+import { runnerSummaryOf } from "../foundation/formatting";
 import { styles } from "../foundation/styles";
 import { colors, fontSizes, fonts, radii } from "../foundation/theme";
 import { Fold, useOpenFold } from "../ui/fold";
 import { SortableItem } from "../ui/sortable";
-import { runnerSummaryOf } from "./companionPicker";
 import { RunnerPickers } from "./runners";
 
 /** A bin: removes a backup. A line drawing in the sidebar's style, in the danger color. */
@@ -25,9 +25,6 @@ function BinIcon({ color }: { color: string }) {
     </Svg>
   );
 }
-
-/** The most backup Companions a thread, or the Charter's default list, holds. */
-export const maxBackups = 5;
 
 /**
  * An ordered list of backup Companions (thread-panel, Backup companions): each with its harness, account, model, and

@@ -4,7 +4,9 @@ import { FlatList, Pressable, StyleSheet, Text, View } from "react-native";
 import { imageRefusalOf } from "../attachments/attachmentRules";
 import { BudgetScreen, BudgetStopCard } from "../editors/budgets";
 import { RunnerPickers, useHarnesses } from "../editors/runners";
-import { messageOf, newRequestId, type ServiceClient } from "../foundation/client";
+import { useThreadPresets } from "../editors/useThreadPresets";
+import { actWith } from "../foundation/acting";
+import { newRequestId, type ServiceClient } from "../foundation/client";
 import { companionLabelOf, harnessLabels } from "../foundation/formatting";
 import { allMissions } from "../foundation/queries";
 import { styles } from "../foundation/styles";
@@ -166,6 +168,7 @@ function IskiosChat({
   const skills = useSkills(client, realm?.path ?? null);
   const terminal = useTerminal(place.threadId, realmPath);
   const [actionError, setActionError] = useState<string | null>(null);
+  const presetChoice = useThreadPresets(client, place.threadId, setActionError);
   // The Guildmaster can have a budget of its own, set on its own screen like a quest's (budget-control).
   const [isBudgetOpen, setIsBudgetOpen] = useState(false);
   if (detail === null) {
@@ -203,11 +206,7 @@ function IskiosChat({
     terminal.sent();
   };
   const { canResume, canStop, isInTurn } = thread.actions;
-  const act = (request: Promise<unknown>) =>
-    request.then(
-      () => setActionError(null),
-      (reason) => setActionError(messageOf(reason)),
-    );
+  const act = actWith(setActionError);
   return (
     <View style={local.page}>
       <View style={styles.header}>
@@ -313,6 +312,7 @@ function IskiosChat({
               isCompact={true}
               isIskios={true}
               onChange={(next) => act(client.request({ _tag: "ChangeThreadRunner", ...next, threadId: thread.id }))}
+              presetChoice={presetChoice}
               value={{
                 accountId: thread.accountId,
                 effort: thread.effort,

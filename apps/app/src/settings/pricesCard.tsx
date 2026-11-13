@@ -1,4 +1,4 @@
-import type { Settings } from "@iskios/contracts";
+import type { Settings, SettingsChange } from "@iskios/contracts";
 import { useState } from "react";
 import { Text } from "react-native";
 import type { ServiceClient } from "../foundation/client";
@@ -18,7 +18,7 @@ export function PricesCard({
   settings,
 }: {
   client: ServiceClient;
-  onSave: (change: Partial<Settings>) => Promise<void> | void;
+  onSave: (change: SettingsChange) => Promise<void> | void;
   settings: Settings;
 }) {
   const { data: status } = useServiceQuery(client, { _tag: "ReadPriceStatus" }, `prices:${settings.shouldFetchPrices}`);

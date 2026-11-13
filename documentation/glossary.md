@@ -169,7 +169,7 @@ One sign-in a harness runs with: the computer's own, named after the computer's 
 _Avoid_: Profile, login, credential
 
 **Companion preset**:
-A name for a choice of Companion (harness, provider account, model, effort), with optionally its backup Companions, that the owner picks instead of choosing each part by hand; the interface says preset. Light, Balanced, and Heavy are presets ([companion presets](capabilities/companion-presets/specifications.md), not built).
+A name for a complete stack of one primary Companion (harness, provider account, model, effort) and its ordered backup Companions, which the owner picks instead of choosing each part by hand. An empty backup list is part of the stack too. The interface says preset. Light, Balanced, and Heavy are presets; see [companion presets](capabilities/companion-presets/specifications.md).
 _Avoid_: Profile, template, tier (a tier is one of the three presets Iskios picks among)
 
 **Handover**:

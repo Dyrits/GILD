@@ -1,4 +1,4 @@
-import type { EffortChoice, HarnessName, ModelChoice } from "@iskios/contracts";
+import { type EffortChoice, type HarnessName, type ModelChoice, maxBackups } from "@iskios/contracts";
 import { Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid } from "../core/index.ts";
@@ -63,4 +63,11 @@ export const checkAccount = (runner: Runner) =>
       SELECT id FROM accounts WHERE id = ${runner.accountId} AND harness = ${runner.harness}`;
     if (rows.length === 0) return yield* invalid(`No such ${harnessLabels[runner.harness]} account.`);
     return runner;
+  });
+
+/** Refuses more than five backup Companions, and any on an account that does not exist or belongs to another harness. */
+export const checkBackups = (backups: ReadonlyArray<Runner>) =>
+  Effect.gen(function* () {
+    if (backups.length > maxBackups) return yield* invalid(`A thread has at most ${maxBackups} backup Companions.`);
+    for (const backup of backups) yield* checkAccount(backup);
   });

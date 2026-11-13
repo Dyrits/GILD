@@ -2,7 +2,7 @@ import {
   BudgetPeriod,
   MessageDelivery as MessageDeliveries,
   type MessageDelivery,
-  type Settings,
+  type SettingsChange,
 } from "@iskios/contracts";
 import { type ReactNode, useRef, useState } from "react";
 import { Pressable, ScrollView, type ScrollViewInstance, StyleSheet, Text, TextInput, View } from "react-native";
@@ -124,7 +124,7 @@ export function SettingsScreen({
   const harnesses = useHarnesses(client);
   const scroll = useRef<ScrollViewInstance>(null);
   const [active, setActive] = useState<SettingsSectionId>("permissions");
-  const save = (change: Partial<Settings>) => {
+  const save = (change: SettingsChange) => {
     if (settings === null) return;
     client.request({ _tag: "ChangeSettings", change }).then(
       () => setSaveError(null),

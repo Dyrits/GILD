@@ -1,4 +1,4 @@
-import { Settings, StartChoices, startingModel } from "@iskios/contracts";
+import { SavedTier, Settings, type SettingsChange, StartChoices, startingModel } from "@iskios/contracts";
 import { Effect, Exit, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid } from "./errors.ts";
@@ -34,7 +34,23 @@ export const defaultSettings: Settings = {
   tiers: { Balanced: null, Heavy: null, Light: null },
 };
 
-const decode = Schema.decodeUnknownSync(Settings);
+/** The settings as stored, whose presets saved before presets had backups read with none. */
+const SavedSettings = Settings.mapFields((fields) => ({
+  ...fields,
+  tiers: Schema.Struct({
+    Balanced: Schema.NullOr(SavedTier),
+    Heavy: Schema.NullOr(SavedTier),
+    Light: Schema.NullOr(SavedTier),
+  }),
+}));
+const decode = Schema.decodeUnknownSync(SavedSettings);
+
+/** The saved settings with a change merged in; of the tiers only those the change names are replaced, so a tier changed elsewhere meanwhile is kept. */
+export const mergedSettings = (saved: Settings, change: SettingsChange): Settings => ({
+  ...saved,
+  ...change,
+  tiers: { ...saved.tiers, ...change.tiers },
+});
 
 /** Reads the owner's settings, or the defaults when none are stored or they no longer decode. */
 export const readSettings = Effect.gen(function* () {

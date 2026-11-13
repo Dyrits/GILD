@@ -1,19 +1,11 @@
-import type {
-  AccountId,
-  GuildmasterPlace,
-  HarnessName,
-  MissionSummary,
-  ModelChoice,
-  Settings,
-  TierName,
-  Viewing,
-} from "@iskios/contracts";
+import type { AccountId, GuildmasterPlace, HarnessName, MissionSummary, ModelChoice, Viewing } from "@iskios/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, readSettings, type ToolAnswer } from "../core/index.ts";
-import { claudeCheapestModel, type Runner, runnerOf } from "../harness/index.ts";
+import { claudeCheapestModel } from "../harness/index.ts";
 import { changed, unchanged } from "./commands.ts";
 import { endMission, previewEnding, readWorkingIds } from "./ending.ts";
+import { companionLineOf, ritualStartOf } from "./guildmasterCompanions.ts";
 import { consumeReceipt, isStructuralCaller, notAuthorizedText } from "./guildmasterProvenance.ts";
 import { timeOf } from "./journal.ts";
 import { insertMessage } from "./messaging.ts";
@@ -209,29 +201,6 @@ export const guildmasterContextOf = Effect.gen(function* () {
     ...(lines.length === 0 ? ["No quest yet."] : lines),
   ].join("\n");
 });
-
-/**
- * The Companion a quest or Ritual the Guildmaster makes starts on: the chosen tier's when the owner set it, else the
- * Settings default (never the Guildmaster's own cheap one), with anything the Guildmaster named itself on top.
- */
-export const companionOf = (
-  settings: Settings,
-  tier: TierName | undefined,
-  choice: Parameters<typeof runnerOf>[1],
-): Runner => {
-  const base: Runner = {
-    accountId: null,
-    effort: settings.defaultEffort,
-    harness: settings.defaultHarness,
-    model: settings.defaultModel,
-  };
-  const chosen = tier === undefined ? null : settings.tiers[tier];
-  return runnerOf(chosen ?? base, choice);
-};
-
-/** The Companion as the Guildmaster tells the owner: the tier when one was chosen, the harness, model, and effort. */
-export const companionLineOf = (tier: TierName | undefined, runner: Runner) =>
-  `${tier === undefined ? "" : `${tier}: `}${runner.harness}, model ${runner.model}, effort ${runner.effort}`;
 
 /** Where a quest or a Ritual the Guildmaster made is, in the words it is told. */
 const placeOf = (realm: { readonly name: string } | null) =>
@@ -444,14 +413,10 @@ export const createRitualByGuildmaster = (callerId: string, args: ArgumentsOf<"c
         `Not created: no realm "${args.realm}". Name one of the realms in your context, or leave it out.`,
       );
     if (!(yield* consumeReceipt(callerId, "create_ritual", args))) return refusedRitual(notAuthorizedText);
-    const runner = companionOf(yield* readSettings, args.tier, {
-      effort: args.effort,
-      harness: args.harness,
-      model: args.model,
-    });
+    const { companion: runner, fallbacks } = ritualStartOf(yield* readSettings, args);
     const title = titleOf(args.title).slice(0, 80);
     const created = yield* createRitual({
-      fallbacks: [],
+      fallbacks,
       instruction: args.instruction,
       primary: { ...runner, accountId: runner.accountId as AccountId | null },
       realm: null,
