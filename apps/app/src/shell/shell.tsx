@@ -1,9 +1,8 @@
 import type { ReactNode } from "react";
-import { useCallback, useEffect, useMemo, useReducer, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
 import { IskiosConversation } from "../conversation/guildmaster";
-import { CompanionPanel, type CompanionPickerProps } from "../editors/companionPicker";
-import { isSamePicker } from "../editors/pickerState";
+import { CompanionPanel } from "../editors/companionPicker";
 import {
   CompanionDockActions,
   CompanionTabOf,
@@ -12,7 +11,7 @@ import {
   TopBarShown,
 } from "../foundation/shellContext";
 import { colors, radii } from "../foundation/theme";
-import { isCompanionOffered } from "./companionScope";
+import type { RightPanel } from "../foundation/useRightPanel";
 import { EdgeResizer } from "./edgeResizer";
 import { IskiosColumn, IskiosFloating, IskiosLauncher, iskiosColumnWidth } from "./iskiosDock";
 import type { RealmListing } from "./questTree";
@@ -33,6 +32,7 @@ import {
 } from "./railStorage";
 import { Sidebar } from "./sidebar";
 import { type DetailsToggle, hasOwnTitleBar, PanelIcon, QuestColumn, questColumnWidth, TopBar } from "./topBar";
+import { useCompanionDock } from "./useCompanionDock";
 import { viewingOf } from "./viewing";
 
 /** The window width from which the sidebar shows beside the content; narrower windows keep the screens' own links. */
@@ -49,6 +49,7 @@ export function Shell(
   props: Omit<Parameters<typeof Sidebar>[0], "width"> & {
     children: ReactNode;
     details: DetailsToggle | null;
+    rightPanel: RightPanel;
     /** The realm whose quest list is open, named in the top bar. */
     listedRealm: RealmListing | null;
     /** The realm chosen for Iskios's next message, from a realm's page, and how to clear it. */
@@ -134,107 +135,31 @@ export function Shell(
       {questPanel}
     </QuestColumn>
   );
-  // The right-hand column's Companion tab: the Companion buttons that are mounted, each with its latest picker state.
-  const pills = useRef(new Map<string, { picker: CompanionPickerProps | null; rank: number; seq: number }>());
-  const pillCount = useRef(0);
-  const [pressedPill, setPressedPill] = useState<string | null>(null);
-  const [, redraw] = useReducer((n: number) => n + 1, 0);
-  const [tab, setTab] = useState<"quest" | "companion">("quest");
-  // Open with no quest panel on this screen (the Guild Hall): the column then holds the Companion tab alone.
-  const [isCompanionOnly, setCompanionOnly] = useState(false);
-  const hasQuestPanel = !isIskiosFull && details !== null && questPanel !== null;
-  const activeTab = hasQuestPanel ? tab : "companion";
-  const bestPill = () => {
-    let best: [string, { rank: number; seq: number }] | null = null;
-    for (const [id, entry] of pills.current) {
-      if (entry.picker === null || !isCompanionOffered(entry.picker.isIskios === true, isIskiosFull, isIskiosOpen)) {
-        continue;
-      }
-      if (best === null || entry.rank < best[1].rank || (entry.rank === best[1].rank && entry.seq > best[1].seq)) {
-        best = [id, entry];
-      }
-    }
-    return best === null ? null : best[0];
-  };
-  // The pressed button while it is mounted, else the best-ranked, latest one.
-  const pressedPicker = pressedPill === null ? null : pills.current.get(pressedPill)?.picker;
-  const pillId =
-    pressedPicker != null && isCompanionOffered(pressedPicker.isIskios === true, isIskiosFull, isIskiosOpen)
-      ? pressedPill
-      : bestPill();
-  // Without a quest panel the column holds Companions alone, and only while one is offered: on the Workshop's Companions
-  // section its own, elsewhere Iskios's while Iskios is open. Closing Iskios closes the column it alone held.
-  const hasCompanion = pillId !== null;
-  const isColumnOpen = hasQuestPanel ? details.isOpen : isCompanionOnly && hasCompanion;
-  // A column that lost its Companions (the page changed, or Iskios closed) stays closed when one is offered again.
-  useEffect(() => {
-    if (!hasQuestPanel && !hasCompanion) setCompanionOnly(false);
-  }, [hasCompanion, hasQuestPanel]);
-  const isCompanionShown = isColumnOpen && activeTab === "companion";
-  const latest = useRef({ closeColumn: () => {}, isCompanionShown, openColumn: () => {}, pillId });
-  latest.current = {
-    closeColumn: () => {
-      if (hasQuestPanel) {
-        if (details.isPinned !== true && details.isOpen) details.onToggle();
-      } else setCompanionOnly(false);
-    },
+  const { rightPanel } = props;
+  const {
+    companionPicker,
+    dock: companionDock,
+    hasCompanion,
     isCompanionShown,
-    openColumn: () => {
-      if (hasQuestPanel) {
-        if (!details.isOpen) details.onToggle();
-      } else setCompanionOnly(true);
-    },
+    otherPillId,
     pillId,
+    pills,
+  } = useCompanionDock(rightPanel, isIskiosFull, isIskiosOpen);
+  const hasQuestPanel = !isIskiosFull && details !== null && questPanel !== null;
+  const activeTab = rightPanel.content?.tab ?? "quest";
+  const isColumnOpen = isCompanionShown || (hasQuestPanel && details.isOpen);
+  const toggleColumn = () => {
+    if (isColumnOpen) rightPanel.show(null);
+    else if (hasQuestPanel) rightPanel.show({ tab: "quest" });
+    else if (pillId !== null) companionDock.choose(pillId);
   };
-  const companionDock = useMemo(
-    () => ({
-      open: (id: string) => {
-        if (latest.current.isCompanionShown && latest.current.pillId === id) return latest.current.closeColumn();
-        setPressedPill(id);
-        setTab("companion");
-        latest.current.openColumn();
-      },
-      publish: (id: string, picker: CompanionPickerProps, rank: number) => {
-        const entry = pills.current.get(id);
-        if (entry === undefined) return;
-        const before = entry.picker;
-        entry.picker = picker;
-        entry.rank = rank;
-        // Only a shown tab draws it, and only when what it shows changed: the frame's own redraw renders the button
-        // again, which would hand over the same state and loop.
-        if (latest.current.isCompanionShown && latest.current.pillId === id && !isSamePicker(before, picker)) redraw();
-        // A Companion that is offered for the first time may bring the column's handle.
-        else if (before === null) redraw();
-      },
-      register: (id: string) => {
-        pillCount.current += 1;
-        pills.current.set(id, { picker: null, rank: 0, seq: pillCount.current });
-      },
-      unregister: (id: string) => {
-        pills.current.delete(id);
-        redraw();
-      },
-    }),
-    [],
-  );
-  // The latest-registered button on the other side of Iskios (a quest's against Iskios's), if the window has one and,
-  // for Iskios's, it is open.
-  const isIskiosShown = pillId === null ? null : pills.current.get(pillId)?.picker?.isIskios === true;
-  let otherPillId: string | null = null;
-  for (const [id, entry] of pills.current) {
-    const isIskios = entry.picker?.isIskios === true;
-    // Iskios's Companion is offered only while Iskios is open on the right.
-    if (entry.picker !== null && isCompanionOffered(isIskios, isIskiosFull, isIskiosOpen) && isIskios !== isIskiosShown)
-      otherPillId = id;
-  }
-  const companionPicker = pillId === null ? null : (pills.current.get(pillId)?.picker ?? null);
   const columnTabs = (
     <View style={local.tabs}>
       {hasQuestPanel && (
         <Pressable
           accessibilityRole="tab"
           accessibilityState={{ selected: activeTab === "quest" }}
-          onPress={() => setTab("quest")}
+          onPress={() => rightPanel.show({ tab: "quest" })}
           style={[local.tab, activeTab === "quest" && local.tabActive]}
         >
           <Text style={[local.tabText, activeTab === "quest" && local.tabTextActive]}>{panelTitle}</Text>
@@ -245,8 +170,8 @@ export function Shell(
         accessibilityState={{ selected: activeTab === "companion" }}
         onPress={() => {
           // Chosen already, the tab goes to the other Companion in the window: Iskios's from a quest's, and back.
-          if (activeTab === "companion" && otherPillId !== null) setPressedPill(otherPillId);
-          setTab("companion");
+          const next = activeTab === "companion" ? otherPillId : pillId;
+          if (next !== null) companionDock.choose(next);
         }}
         style={[local.tab, activeTab === "companion" && local.tabActive]}
       >
@@ -411,7 +336,7 @@ export function Shell(
                     <Pressable
                       accessibilityLabel={isColumnOpen ? "Hide quest panel" : "Show quest panel"}
                       accessibilityRole="button"
-                      onPress={hasQuestPanel ? details.onToggle : () => setCompanionOnly(!isCompanionOnly)}
+                      onPress={toggleColumn}
                       style={({ pressed }) => [
                         local.handle,
                         isColumnOpen

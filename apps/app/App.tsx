@@ -1,17 +1,20 @@
 import type { MissionId, ThreadId } from "@iskios/contracts";
 import { useEffect, useMemo, useState } from "react";
-import { Pressable, StyleSheet, Text, useWindowDimensions, View } from "react-native";
+import { Pressable, Text, View } from "react-native";
 import { Conversation } from "./src/conversation/conversation";
 import { GuildmasterScreen } from "./src/conversation/guildmaster";
 import { PermissionsScreen } from "./src/editors/permissions";
 import { applyAppearance, rememberPlace, resumedPlace } from "./src/foundation/colorScheme";
 import { ActiveHostContext, HostMenuContext } from "./src/foundation/hostContext";
-import { colors, fontSizes, fonts } from "./src/foundation/theme";
+import { colors } from "./src/foundation/theme";
 import { useHostConnection } from "./src/foundation/useHostConnection";
+import { useRightPanel } from "./src/foundation/useRightPanel";
 import { LoreScreen } from "./src/lore/lore";
 import { RitualsScreen } from "./src/rituals/rituals";
 import { SettingsScreen } from "./src/settings/settings";
+import type { SettingsSectionId } from "./src/settings/settingsSections";
 import { AddHostModal } from "./src/shell/addHostModal";
+import { appStyles as styles } from "./src/shell/appStyles";
 import { Dashboard } from "./src/shell/dashboard";
 import { detailsModeOf } from "./src/shell/navigation";
 import { useAttentionNotice } from "./src/shell/notifications";
@@ -63,13 +66,20 @@ export default function App() {
   // The side-quest open in the open quest, chosen in the sidebar or the conversation; null for the quest itself.
   const [openThread, setOpenThread] = useState<ThreadId | null>(null);
   const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
+  const [settingsSection, setSettingsSection] = useState<SettingsSectionId>("permissions");
   // The realm chosen for the Guildmaster's next message: from a realm's page.
   const [guildmasterRealm, setGuildmasterRealm] = useState<string | null>(null);
   // Counts openings from the sidebar, so choosing the open mission again goes back to its threads.
   const [openCount, setOpenCount] = useState(0);
-  // The quest's side panel starts open on a wide window; the top bar's icon shows or hides it.
-  const { width } = useWindowDimensions();
-  const [areDetailsOpen, setAreDetailsOpen] = useState(width >= 1280);
+  const rightPanel = useRightPanel(hostId, {
+    isPermissionsOpen,
+    openCount,
+    openMission,
+    openThread,
+    place,
+    realm: place === "RealmQuests" ? (listedRealm?.id ?? null) : null,
+    section: place === "Settings" ? settingsSection : null,
+  });
   useAttentionNotice(client);
 
   useEffect(() => rememberPlace(place), [place]);
@@ -110,6 +120,7 @@ export default function App() {
   }
   // The sidebar leads to one place at a time: going there closes whatever else is open.
   const goTo = (next: Place) => {
+    setSettingsSection("permissions");
     setOpenMission(null);
     setOpenThread(null);
     setSelectedMission(null);
@@ -135,7 +146,7 @@ export default function App() {
   };
   const selectMission = (id: MissionId | null) => {
     setSelectedMission(id);
-    if (id !== null) setAreDetailsOpen(true);
+    rightPanel.show(id === null ? null : { tab: "quest" });
   };
   const screen = () => {
     if (openMission !== null) {
@@ -147,7 +158,7 @@ export default function App() {
           onBack={() => setOpenMission(null)}
           onOpenMission={openMissionFromAnywhere}
           onSelectThread={setOpenThread}
-          onSetDetails={setAreDetailsOpen}
+          onSetDetails={(isOpen) => rightPanel.show(isOpen ? { tab: "quest" } : null)}
           selectedThreadId={openThread}
         />
       );
@@ -160,9 +171,11 @@ export default function App() {
           <PermissionsScreen client={client} onBack={() => setIsPermissionsOpen(false)} />
         ) : (
           <SettingsScreen
+            active={settingsSection}
             client={client}
             onBack={() => goTo("Guildmaster")}
             onPermissions={() => setIsPermissionsOpen(true)}
+            onSection={setSettingsSection}
           />
         );
       case "Guildmaster":
@@ -220,11 +233,12 @@ export default function App() {
   };
   const detailsMode = detailsModeOf({ hasListedRealm: listedRealm !== null, openMission, place, selectedMission });
   const details =
-    detailsMode === "pinned"
-      ? { isOpen: true, isPinned: true, onToggle: () => {} }
-      : detailsMode === "toggle"
-        ? { isOpen: areDetailsOpen, onToggle: () => setAreDetailsOpen(!areDetailsOpen) }
-        : null;
+    detailsMode === "toggle"
+      ? {
+          isOpen: rightPanel.content?.tab === "quest",
+          onToggle: () => rightPanel.show(rightPanel.content?.tab === "quest" ? null : { tab: "quest" }),
+        }
+      : null;
   const shell = (
     <Shell
       client={client}
@@ -241,6 +255,7 @@ export default function App() {
       openMission={openMission}
       openThread={openThread}
       place={place}
+      rightPanel={rightPanel}
     >
       {screen()}
     </Shell>
@@ -279,24 +294,3 @@ export default function App() {
     </ActiveHostContext.Provider>
   );
 }
-
-const styles = StyleSheet.create({
-  backButton: { marginTop: 16 },
-  backText: { color: colors.highlight, fontSize: fontSizes.md, textDecorationLine: "underline" },
-  banner: {
-    alignItems: "center",
-    backgroundColor: colors.dangerSoft,
-    borderBottomColor: colors.danger,
-    borderBottomWidth: 1,
-    flexDirection: "row",
-    gap: 12,
-    justifyContent: "space-between",
-    paddingHorizontal: 14,
-    paddingVertical: 8,
-  },
-  bannerLink: { color: colors.highlight, fontSize: fontSizes.md, textDecorationLine: "underline" },
-  bannerText: { color: colors.dangerText, flex: 1, fontSize: fontSizes.md },
-  center: { alignItems: "center", backgroundColor: colors.frame, flex: 1, justifyContent: "center" },
-  connecting: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.base },
-  root: { flex: 1 },
-});

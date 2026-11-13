@@ -4,8 +4,8 @@ import { detailsModeOf } from "../../src/shell/navigation";
 const view = { hasListedRealm: false, openMission: null, place: "Guildmaster" as const, selectedMission: null };
 
 describe("the side panel's mode", () => {
-  it("is pinned on the quest board", () => {
-    expect(detailsModeOf({ ...view, place: "Quests" })).toBe("pinned");
+  it("has no details to open on the quest board until a quest is selected", () => {
+    expect(detailsModeOf({ ...view, place: "Quests" })).toBe("none");
   });
   it("is a toggle when a quest is open, even from the quests place", () => {
     expect(detailsModeOf({ ...view, openMission: "m", place: "Quests" })).toBe("toggle");

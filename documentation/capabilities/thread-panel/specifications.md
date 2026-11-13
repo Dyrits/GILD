@@ -30,6 +30,12 @@ Status: agreed by the owner's instruction to build the backlog entry "Thread pan
   Changing a model, effort, or budget stays where it is today.
 - The panel is shown or hidden with the quest panel's icon in the top bar.
 
+### Panel ownership across navigation
+
+Agreed by the owner on 2026-11-13: quest and realm details start closed, at every window width. Navigating to another page, quest, side-quest, realm, or Workshop section closes page-owned details and Companions pickers and clears their selected tab and Companion. Returning starts closed too; one destination never inherits another's state. This replaces the wide-window open default and the quest board's pinned panel.
+
+The exception is the Companions picker explicitly opened for Iskios. While Iskios is open, that picker stays open across navigation and continues to show Iskios's Companion, not the destination's. Choosing a page's own picker or details replaces it; closing it or folding Iskios stops the carry-over. Iskios's conversation itself keeps its app-wide open/closed behavior. The exception applies within one host; changing hosts clears the picker because that host has a different Iskios conversation.
+
 ### The context gauge
 
 - The gauge shows how many tokens the thread's context holds and the chosen model's context window, as a bar and a percentage.

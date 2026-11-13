@@ -5,7 +5,7 @@ import {
   type SettingsChange,
 } from "@iskios/contracts";
 import { type ReactNode, useRef, useState } from "react";
-import { Pressable, ScrollView, type ScrollViewInstance, StyleSheet, Text, TextInput, View } from "react-native";
+import { Pressable, ScrollView, type ScrollViewInstance, StyleSheet, Text, View } from "react-native";
 import { BudgetEditor } from "../editors/budgets";
 import { levelLabels } from "../editors/permissions";
 import { useHarnesses } from "../editors/runners";
@@ -23,13 +23,13 @@ import { styles } from "../foundation/styles";
 import { colors, fontSizes, fonts } from "../foundation/theme";
 import { type Theme, themes } from "../foundation/themeRules";
 import { useServiceQuery } from "../foundation/useServiceQuery";
-import { Button } from "../ui/button";
 import { Choice } from "../ui/pickers";
 import { AccountBudgetsCard } from "./accountBudgetsCard";
 import { AccountsCard, HarnessesCard } from "./accounts";
 import { BrowsableRootsCard } from "./browsableRootsCard";
 import { ComputerNameCard } from "./computerNameCard";
 import { DefaultCompanionCard } from "./defaultCompanionCard";
+import { NumberField, NumberSetting } from "./numberSetting";
 import { PresetsCard } from "./presetsCard";
 import { PricesCard } from "./pricesCard";
 import { RemoteAccessCard } from "./remoteAccessCard";
@@ -54,55 +54,6 @@ const colorSchemeLabels = { dark: "Dark", light: "Light", system: "System" } as 
   string
 >;
 
-/** A whole-number field with its own Save, checked against its minimum before saving. */
-function NumberField({
-  label,
-  minimum,
-  value,
-  onSave,
-  onInvalid,
-}: {
-  label: string;
-  minimum: number;
-  value: number;
-  onSave: (value: number) => void;
-  onInvalid: (message: string) => void;
-}) {
-  const [draft, setDraft] = useState<string | null>(null);
-  return (
-    <View style={styles.inlineRow}>
-      <TextInput
-        accessibilityLabel={label}
-        keyboardType="number-pad"
-        onChangeText={setDraft}
-        style={[styles.input, local.number]}
-        value={draft ?? String(value)}
-      />
-      <Button
-        label="Save"
-        onPress={() => {
-          const parsed = Number(draft ?? value);
-          if (!Number.isSafeInteger(parsed) || parsed < minimum) {
-            onInvalid(`Use a whole number of at least ${minimum}.`);
-            return;
-          }
-          onSave(parsed);
-        }}
-      />
-    </View>
-  );
-}
-
-/** A labelled whole-number setting, as one row of a card that holds several. */
-function NumberSetting(props: Parameters<typeof NumberField>[0]) {
-  return (
-    <View style={local.settingRow}>
-      <Text style={[styles.body, styles.flex, local.settingLabel]}>{props.label}</Text>
-      <NumberField {...props} />
-    </View>
-  );
-}
-
 /** One section of the page: its cards, drawn only while the menu has it chosen. */
 function Section({ active, children, id }: { active: SettingsSectionId; children: ReactNode; id: SettingsSectionId }) {
   return id === active ? <View style={local.section}>{children}</View> : null;
@@ -110,12 +61,16 @@ function Section({ active, children, id }: { active: SettingsSectionId; children
 
 /** The Charter (Settings), where the owner chooses how Iskios runs their threads. */
 export function SettingsScreen({
+  active,
   client,
   onBack,
+  onSection,
   onPermissions,
 }: {
+  active: SettingsSectionId;
   client: ServiceClient;
   onBack: () => void;
+  onSection: (section: SettingsSectionId) => void;
   onPermissions: () => void;
 }) {
   const hasSidebar = useHasSidebar();
@@ -123,7 +78,6 @@ export function SettingsScreen({
   const [saveError, setSaveError] = useState<string | null>(null);
   const harnesses = useHarnesses(client);
   const scroll = useRef<ScrollViewInstance>(null);
-  const [active, setActive] = useState<SettingsSectionId>("permissions");
   const save = (change: SettingsChange) => {
     if (settings === null) return;
     client.request({ _tag: "ChangeSettings", change }).then(
@@ -132,7 +86,7 @@ export function SettingsScreen({
     );
   };
   const choose = (id: SettingsSectionId) => {
-    setActive(id);
+    onSection(id);
     scroll.current?.scrollTo({ animated: false, y: 0 });
   };
   const menu = <SettingsMenu active={active} isCompact={!hasSidebar} onChoose={choose} />;
@@ -352,10 +306,7 @@ const local = StyleSheet.create({
   content: { gap: 18, paddingHorizontal: 28, paddingVertical: 20 },
   error: { color: colors.highlight, fontFamily: fonts.sans, fontSize: fontSizes.md },
   menuColumn: { paddingLeft: 20, paddingTop: 20 },
-  number: { textAlign: "center", width: 96 },
   page: { backgroundColor: colors.page, flex: 1 },
   pageWide: { flexDirection: "row" },
   section: { gap: 14 },
-  settingLabel: { minWidth: 200 },
-  settingRow: { alignItems: "center", flexDirection: "row", flexWrap: "wrap", gap: 12 },
 });

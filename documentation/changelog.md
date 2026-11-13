@@ -2909,3 +2909,14 @@ Reason: The owner asked for all review findings to be fixed as relevant ("Fix ev
 References: [specifications](capabilities/companion-presets/specifications.md), [verification](verification/2026-11-13-companion-stacks.md), CHG-0258, CHG-0260.
 Validation: `bun run check`, `bun run typecheck` and the full suite pass (1,397 passed, 14 skipped, plain Node, after the second round of fixes). Not driven in a window: this worktree has no Electron binary, so the layout and the interaction await the owner. Left open, listed in the verification note and the working state: the decisions under Provisional choices, the files over their limits that the change touched without growing (`requests.ts` 726 and `service.ts` 701 and `shell.tsx` 509 are still past 512), and `suggestions.ts` one line over its starting size. No commit, push, or landing.
 Evidence: [Reproduction, results and limits](verification/2026-11-13-companion-stacks.md).
+
+## CHG-0262 · 2026-11-13 · Only Iskios's Companions picker carries across navigation
+Type: Code
+Event: Agreement
+Scope: Right-hand panel ownership
+
+Summary: The owner clarified that quest and realm details are closed by default, including on wide windows. Page-owned Companions pickers also start closed at each destination, including another Workshop section, quest, side-quest, or realm; returning starts closed. Only an explicitly opened Iskios Companions picker stays open across navigation, continuing to show Iskios's Companion. Choosing a page-owned picker or details, closing the column, or folding Iskios ends that exception. Iskios's conversation stays app-wide. This replaces the earlier wide-window open default, pinned quest-board panel, and the accidental fallback to Iskios after a page picker leaves.
+Reason: The Workshop could inherit the column opened elsewhere and show Iskios's picker without the owner choosing it.
+References: [Specification](capabilities/thread-panel/specifications.md#panel-ownership-across-navigation), [working state](work-in-progress.md), CHG-0257.
+Validation: The owner's clarification in this session: "Companions picker is closed by default except if already open by Iskios. It would stays on that windows. Quest and realms details is also closed by default. So, mostly, only Iskios companions carry over." Implemented and checked; the owner's confirmation of the interaction is pending. No push or landing authorized.
+Evidence: [Reproduction, checks, screenshots, and limits](verification/2026-11-13-panel-ownership.md).
