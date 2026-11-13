@@ -696,6 +696,16 @@ describe("steering and interrupting Claude Code", () => {
   const startSlow = (text: string) =>
     call({ _tag: "StartMission", effort: "low", model: "haiku", requestId: "r1", text, workspacePath: null });
   const isRunning = (detail: MissionDetail) => detail.thread.state === "Running";
+  /**
+   * Waits until the stand-in has been given the turn's message. A thread reads Running while Claude Code still starts,
+   * and an interrupt or a steered message sent then finds no turn to act on.
+   */
+  const untilTurnWritten = (directory: string) =>
+    Effect.gen(function* () {
+      for (let i = 0; i < 500 && !inputLines(directory).some((line) => line.type === "user"); i++) {
+        yield* Effect.sleep("10 millis");
+      }
+    });
 
   it.live("gives Claude Code the text then one base64 image block per image, as the turn's message", () => {
     const { directory, layer } = withClaude();
@@ -729,6 +739,7 @@ describe("steering and interrupting Claude Code", () => {
     return Effect.gen(function* () {
       const started = yield* startSlow("slow 600");
       yield* settle(started.missionId, isRunning);
+      yield* untilTurnWritten(directory);
       const sent = yield* call({
         _tag: "SendMessage",
         delivery: "Steer",
@@ -753,10 +764,12 @@ describe("steering and interrupting Claude Code", () => {
   it.live(
     "closes the process when a steered message was not taken in by the turn's end, then sends it next turn",
     () => {
-      const { layer, starts } = withClaude();
+      const { directory, layer, starts } = withClaude();
+      process.env.STAND_IN_INPUT = join(directory, "input.jsonl");
       return Effect.gen(function* () {
         const started = yield* startSlow("slow 400");
         yield* settle(started.missionId, isRunning);
+        yield* untilTurnWritten(directory);
         yield* call({
           _tag: "SendMessage",
           delivery: "Steer",
@@ -785,6 +798,7 @@ describe("steering and interrupting Claude Code", () => {
     return Effect.gen(function* () {
       const started = yield* startSlow("slow 5000");
       yield* settle(started.missionId, isRunning);
+      yield* untilTurnWritten(directory);
       yield* call({ _tag: "InterruptThread", threadId: started.threadId });
       const interrupted = yield* settle(started.missionId, (detail) => detail.thread.state === "Idle");
       expect(interrupted.thread.failure).toBeNull();

@@ -105,6 +105,44 @@ describe("interrupting and steering a pooled turn", () => {
     }).pipe(Effect.scoped),
   );
 
+  it.live("cancels a turn interrupted while its process still starts, without running it", () =>
+    Effect.gen(function* () {
+      const starting = yield* Deferred.make<void>();
+      const released = yield* Deferred.make<void>();
+      let ran = false;
+      const { connections, protocol } = fakeProtocolOf(() => {
+        ran = true;
+        return Effect.succeed({ isInterrupted: false, usage: null });
+      });
+      const slow: HarnessProtocol<FakeConnection> = {
+        ...protocol,
+        start: (request) =>
+          Deferred.succeed(starting, void 0).pipe(
+            Effect.andThen(Deferred.await(released)),
+            Effect.andThen(protocol.start(request)),
+          ),
+      };
+      const pool = yield* makeHarnessProcesses(slow, { idleTimeout: "10 minutes" });
+      const turn = yield* Effect.forkChild(pool.runTurn(turnRequestOf()));
+      yield* Deferred.await(starting);
+      expect(yield* pool.interrupt("thread-1")).toBe(true);
+      yield* Deferred.succeed(released, void 0);
+      const outcome = yield* Fiber.join(turn);
+      expect(outcome).toEqual({
+        billing: "Unknown",
+        cost: null,
+        isInterrupted: true,
+        sessionId: "session-1",
+        usage: null,
+      });
+      expect(ran).toBe(false);
+      expect(connections[0]?.isClosed).toBe(false);
+      // The interrupt was spent on that turn: the next one runs.
+      expect((yield* pool.runTurn(turnRequestOf())).isInterrupted).toBe(false);
+      expect(ran).toBe(true);
+    }).pipe(Effect.scoped),
+  );
+
   it.live("counts an end the harness reports while interrupting as interrupted, keeping the process", () =>
     Effect.gen(function* () {
       const running = yield* Deferred.make<void>();

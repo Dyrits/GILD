@@ -271,16 +271,19 @@ const readTurn = (connection: CodexConnection, request: TurnRequest, turn: Poole
     }
   });
 
+/** Asks Codex to end its turn; the turn's own completion, as interrupted, ends it, so the answer is not awaited. */
+const askToInterrupt = (connection: CodexConnection, turnId: string) =>
+  Effect.forkDetach(
+    connection.rpc.request("turn/interrupt", { threadId: connection.sessionId, turnId }).pipe(Effect.ignore),
+  );
+
 /** Codex's app-server protocol: one Codex thread per Iskios thread, one Codex turn per turn. */
 const codexProtocolOf = (options: CodexOptions): HarnessProtocol<CodexConnection> => ({
   interrupt: (connection) =>
     Effect.gen(function* () {
-      const turnId = connection.turnId;
-      if (turnId === null) return false;
-      // The turn's own completion, as interrupted, ends it; the answer to this request is not awaited.
-      yield* Effect.forkDetach(
-        connection.rpc.request("turn/interrupt", { threadId: connection.sessionId, turnId }).pipe(Effect.ignore),
-      );
+      // Before Codex answers `turn/start` there is no turn id to name: the turn, which the pool already counts as
+      // interrupting, asks for the interrupt as soon as it has the id.
+      if (connection.turnId !== null) yield* askToInterrupt(connection, connection.turnId);
       return true;
     }),
 
@@ -302,6 +305,7 @@ const codexProtocolOf = (options: CodexOptions): HarnessProtocol<CodexConnection
       });
       const codexTurnId = textFieldOf(fieldOf(started, "turn"), "id") ?? "";
       connection.turnId = codexTurnId;
+      if (turn.isInterrupting()) yield* askToInterrupt(connection, codexTurnId);
       return yield* readTurn(connection, request, turn, codexTurnId).pipe(
         Effect.ensuring(Effect.sync(() => (connection.turnId = null))),
       );

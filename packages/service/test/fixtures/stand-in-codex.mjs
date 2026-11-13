@@ -140,11 +140,15 @@ createInterface({ input: process.stdin }).on("line", (line) => {
   if (method === "turn/start") {
     const turn = { id: `turn-${Date.now()}-${Math.random()}`, steered: [], timer: null };
     current = turn;
-    send({ id, result: { turn: { id: turn.id, status: "inProgress" } } });
-    note("turn/started", { threadId, turn: { id: turn.id } });
-    const text = params.input.map((input) => input.text).join("");
-    note("item/started", { item: { clientId: null, id: "user-1", type: "userMessage" }, threadId, turnId: turn.id });
-    return void runTurn(turn, text.split("\n\n").at(-1));
+    // STAND_IN_CODEX_START_DELAY (millis) holds back the answer to `turn/start`, as a loaded computer does.
+    const begin = () => {
+      send({ id, result: { turn: { id: turn.id, status: "inProgress" } } });
+      note("turn/started", { threadId, turn: { id: turn.id } });
+      const text = params.input.map((input) => input.text).join("");
+      note("item/started", { item: { clientId: null, id: "user-1", type: "userMessage" }, threadId, turnId: turn.id });
+      void runTurn(turn, text.split("\n\n").at(-1));
+    };
+    return void setTimeout(begin, Number(process.env.STAND_IN_CODEX_START_DELAY ?? 0));
   }
   if (method === "turn/steer") {
     if (current === null || current.id !== params.expectedTurnId)

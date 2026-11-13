@@ -53,6 +53,7 @@ afterEach(() => {
   delete process.env.STAND_IN_LOG;
   delete process.env.STAND_IN_CODEX_ACCOUNT;
   delete process.env.STAND_IN_CODEX_LIMITS;
+  delete process.env.STAND_IN_CODEX_START_DELAY;
   delete process.env.STAND_IN_OPENCODE_LIMITS;
   delete process.env.STAND_IN_OPENCODE_CHILD;
   delete process.env.STAND_IN_OPENCODE_EXECUTOR;
@@ -183,6 +184,16 @@ const settle = (missionId: MissionId, check: (detail: MissionDetail) => boolean)
       yield* Effect.sleep("20 millis");
     }
     return yield* Effect.die(new Error(`mission did not settle: ${JSON.stringify(yield* read(missionId))}`));
+  });
+
+/**
+ * Waits until the stand-in harness has received `method`. A thread reads Running while its harness process still starts,
+ * and an interrupt or a steered message sent then finds no turn to act on, so a test sends one only once the turn is under way.
+ */
+const untilRequested = (requests: (method: string) => ReadonlyArray<unknown>, method: string) =>
+  Effect.gen(function* () {
+    for (let i = 0; i < 500 && requests(method).length < 1; i++) yield* Effect.sleep("10 millis");
+    if (requests(method).length < 1) return yield* Effect.die(new Error(`the harness never received ${method}`));
   });
 
 const replies = (detail: MissionDetail) =>
@@ -587,6 +598,9 @@ describe("running Codex threads", () => {
     return Effect.gen(function* () {
       const started = yield* start({ harness: "codex", text: "slow 600" });
       yield* settle(started.missionId, (detail) => detail.thread.state === "Running");
+      yield* untilRequested(requests, "turn/start");
+      // The adapter learns the turn's id from Codex's answer to `turn/start`, a moment after the stand-in logs the
+      // request; a message steered before that waits for the next turn, as designed, which this test is not about.
       yield* Effect.sleep("150 millis");
       yield* call({
         _tag: "SendMessage",
@@ -606,7 +620,20 @@ describe("running Codex threads", () => {
     return Effect.gen(function* () {
       const started = yield* start({ harness: "codex", text: "slow 5000" });
       yield* settle(started.missionId, (detail) => detail.thread.state === "Running");
-      yield* Effect.sleep("150 millis");
+      yield* untilRequested(requests, "turn/start");
+      yield* call({ _tag: "InterruptThread", threadId: started.threadId });
+      const detail = yield* settle(started.missionId, (d) => d.thread.state === "Idle");
+      expect(replies(detail)).toEqual([]);
+      expect(requests("turn/interrupt")).toHaveLength(1);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("ends a turn interrupted before Codex has answered turn/start, once it has the turn", () => {
+    process.env.STAND_IN_CODEX_START_DELAY = "300";
+    const { layer, requests } = withHarnesses();
+    return Effect.gen(function* () {
+      const started = yield* start({ harness: "codex", text: "slow 5000" });
+      yield* untilRequested(requests, "turn/start");
       yield* call({ _tag: "InterruptThread", threadId: started.threadId });
       const detail = yield* settle(started.missionId, (d) => d.thread.state === "Idle");
       expect(replies(detail)).toEqual([]);
@@ -1022,11 +1049,11 @@ describe("running OpenCode threads", () => {
   });
 
   it.live("cancels an interrupted prompt and counts the usage OpenCode reports for it", () => {
-    const { layer } = withHarnesses();
+    const { layer, requests } = withHarnesses();
     return Effect.gen(function* () {
       const started = yield* start({ harness: "opencode", text: "slow 5000" });
       yield* settle(started.missionId, (detail) => detail.thread.state === "Running");
-      yield* Effect.sleep("150 millis");
+      yield* untilRequested(requests, "session/prompt");
       yield* call({ _tag: "InterruptThread", threadId: started.threadId });
       const detail = yield* settle(started.missionId, (d) => d.thread.state === "Idle");
       expect(replies(detail)).toEqual([]);

@@ -4,8 +4,12 @@ set -eu
 has_staged() { ! git diff --cached --quiet --diff-filter=ACMR -- "$@"; }
 staged() { git diff --cached --name-only -z --diff-filter=ACMR -- "$@"; }
 
-# JavaScript and TypeScript: Biome formats and lints staged files; the workspace typecheck runs when code or config is staged.
+# JavaScript and TypeScript: Biome formats and lints staged files; the workspace typecheck runs when code or config is staged,
+# then the tests that import the staged code, without the Git variables a hook inherits, which break the tests that run Git in a scratch folder (a push to `main` skips the pre-push hook, so this is the gate that sticks).
 bunx biome check --staged --no-errors-on-unmatched --files-ignore-unknown=true
 if has_staged '*.ts' '*.tsx' '*.js' '*.mjs' '*.cjs' '*.json' '*.jsonc'; then
   bun run --silent typecheck
+fi
+if has_staged '*.ts' '*.tsx'; then
+  staged '*.ts' '*.tsx' | xargs -0 env -u GIT_DIR -u GIT_INDEX_FILE -u GIT_WORK_TREE -u GIT_PREFIX ELECTRON_RUN_AS_NODE=1 node_modules/.bin/electron node_modules/vitest/vitest.mjs related --run --passWithNoTests --maxWorkers=4 --testTimeout=20000
 fi

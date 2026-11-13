@@ -100,6 +100,8 @@ export const makeHarnessProcesses = <Connection extends HarnessConnection>(
 ) =>
   Effect.gen(function* () {
     const entries = new Map<string, Entry<Connection>>();
+    /** Threads whose turn has begun but whose process is not yet running it, with whether an interrupt came meanwhile. */
+    const starting = new Map<string, { isInterrupted: boolean }>();
     const idleMillis = Duration.toMillis(Duration.fromInputUnsafe(options.idleTimeout));
     const grace = options.interruptGrace ?? interruptGraceMillis;
 
@@ -149,8 +151,18 @@ export const makeHarnessProcesses = <Connection extends HarnessConnection>(
 
     const runTurn = (request: TurnRequest) =>
       Effect.gen(function* () {
-        const entry = yield* acquire(request);
+        const beginning = { isInterrupted: false };
+        starting.set(request.threadId, beginning);
+        const entry = yield* acquire(request).pipe(
+          Effect.ensuring(Effect.sync(() => starting.delete(request.threadId))),
+        );
         const { sessionId } = entry.connection;
+        // An interrupt that came while the process started cancels the turn before its prompt is sent, which the
+        // harness could not cancel yet; the process stays for the next turn.
+        if (beginning.isInterrupted) {
+          entry.idleTimer = setTimeout(() => close(request.threadId), idleMillis);
+          return interruptedOutcomeOf(sessionId);
+        }
         const turn: RunningTurn = {
           failed: yield* Deferred.make<never, HarnessFailure>(),
           interrupted: yield* Deferred.make<void>(),
@@ -218,7 +230,12 @@ export const makeHarnessProcesses = <Connection extends HarnessConnection>(
     const interrupt = (threadId: string) =>
       Effect.gen(function* () {
         const running = runningOf(threadId);
-        if (running === null) return false;
+        if (running === null) {
+          const beginning = starting.get(threadId);
+          if (beginning === undefined) return false;
+          beginning.isInterrupted = true;
+          return true;
+        }
         if (running.turn.isInterrupting) return true;
         // Set first: the harness may confirm before the request's own effect returns.
         running.turn.isInterrupting = true;
