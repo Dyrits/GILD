@@ -2959,3 +2959,9 @@ Summary: The installed app detects a newer release and updates itself, as in the
 Reason: The owner asked that the app detect new versions and update itself; the installed app had no way to learn of a release, and the build is ad hoc signed, which rules out the standard macOS updater.
 References: [specification](capabilities/app-updates/specifications.md), [requirement](requirements.md#privacy-and-data), [desktop packaging](verification/2026-11-10-desktop-packaging.md).
 Validation: The owner, 2026-11-13, accepted all seven recommendations put to them ("Ye sto all"): platform scope, install only on request, check schedule, privacy and off switch, channel, where it is shown, and trust without a signing key. Starting commit `170a43c`.
+
+## CHG-0267 · 2026-11-13 · Version 0.1.2-Prototype
+
+The `app` and `desktop` packages and `bun.lock` now say `0.1.2-Prototype`. The tag `0.1.2-Prototype` (no `v` prefix) builds the four installers and publishes them as a GitHub prerelease, with the update files `latest*.yml` and `SHA512SUMS.txt` that CHG-0266 added. This is the first release that carries the app's update check, and it follows `0.1.1-Prototype`. The `0.1.2-Prototype` builds made locally to check the updater were never published.
+
+Validation: `bun run check`, `bun run typecheck`, and `CI=1 bun run test --maxWorkers=4` pass (134 test files passed and 1 skipped; 1,475 tests passed and 14 skipped), as does the offline release-workflow check `documentation/verification/2026-11-10-release-workflow.py` (8 scenarios). Not checked: the hosted release run on GitHub, the installers on each system, and an update from an installed release to this one (0.1.1 has no updater, so it cannot update itself to 0.1.3).
