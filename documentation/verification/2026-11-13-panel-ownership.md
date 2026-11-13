@@ -76,4 +76,6 @@ Do not use Metro's CI mode for an edit-and-recheck loop: it disables file watchi
 
 ## Limits
 
-The owner has not yet tried the corrected interaction. Driven on macOS with Electron 45 and the fake harness, using the light Iskios look. Narrow windows, a paired-host window, dark/Gild looks, native phones and the packaged application were not driven. Host isolation is checked at the state seam only. The existing nested-button warnings in the left sidebar still appear; they predate this change and are unchanged.
+The owner accepted the corrected interaction on 2026-11-13 after restarting `bun run dev`: "It's okay like that" (CHG-0263). Their terminal still reports the existing nested-button warnings in the left sidebar and Electron's "Window move completed without beginning" warning. Neither was fixed in this batch.
+
+The automated drive ran on macOS with Electron 45 and the fake harness, using the light Iskios look. Narrow windows, a paired-host window, dark/Gild looks, native phones and the packaged application were not driven. Host isolation is checked at the state seam only.

@@ -2920,3 +2920,13 @@ Reason: The Workshop could inherit the column opened elsewhere and show Iskios's
 References: [Specification](capabilities/thread-panel/specifications.md#panel-ownership-across-navigation), [working state](work-in-progress.md), CHG-0257.
 Validation: The owner's clarification in this session: "Companions picker is closed by default except if already open by Iskios. It would stays on that windows. Quest and realms details is also closed by default. So, mostly, only Iskios companions carry over." Implemented and checked; the owner's confirmation of the interaction is pending. No push or landing authorized.
 Evidence: [Reproduction, checks, screenshots, and limits](verification/2026-11-13-panel-ownership.md).
+
+## CHG-0263 · 2026-11-13 · Right-hand panel ownership accepted
+Type: Code
+Event: Delivery
+Scope: Right-hand panel ownership
+
+Summary: The owner accepted the CHG-0262 correction in commit `2a2d46f` after restarting the development app. Quest and realm details and page-owned Companions pickers start closed on navigation; only Iskios's explicitly opened picker carries on the same host. The owner suggested that a future version might restore each quest's own sidebar state on returning; that remains a backlog candidate, not a change to today's behavior.
+References: CHG-0262, [specification](capabilities/thread-panel/specifications.md#panel-ownership-across-navigation), [future candidate](backlog.md).
+Validation: Owner: "It's okay like that." Previously run for the implementation: `bun run check`, `bun run typecheck`, full `CI=1 bun run test` (1,404 passed, 14 skipped), and the four-group rendered Electron drive. Those checks are recorded evidence, not rerun for this documentation-only acceptance update. The owner authorized commit, local sync, and push to `main` with `--no-verify`; the original checkout needs attachment or direct-edit permission before local sync.
+Evidence: [Reproduction, window checks, screenshots, acceptance, and limits](verification/2026-11-13-panel-ownership.md).
