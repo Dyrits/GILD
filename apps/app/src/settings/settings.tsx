@@ -25,13 +25,13 @@ import { type Theme, themes } from "../foundation/themeRules";
 import { useServiceQuery } from "../foundation/useServiceQuery";
 import { Choice } from "../ui/pickers";
 import { AccountBudgetsCard } from "./accountBudgetsCard";
-import { AccountsCard, HarnessesCard } from "./accounts";
 import { BrowsableRootsCard } from "./browsableRootsCard";
 import { ComputerNameCard } from "./computerNameCard";
 import { DefaultCompanionCard } from "./defaultCompanionCard";
 import { NumberField, NumberSetting } from "./numberSetting";
 import { PresetsCard } from "./presetsCard";
 import { PricesCard } from "./pricesCard";
+import { ProvidersSection } from "./providers";
 import { RemoteAccessCard } from "./remoteAccessCard";
 import { SettingsCard, SettingsHeading, SettingsMenu, SettingsRule, ToggleRow } from "./settingsParts";
 import type { SettingsSectionId } from "./settingsSections";
@@ -186,13 +186,12 @@ export function SettingsScreen({
             </Section>
             <Section active={active} id="providers">
               <ComputerNameCard client={client} onRenamed={harnesses.refresh} />
-              <HarnessesCard
+              <ProvidersSection
                 client={client}
                 harnesses={harnesses.data}
                 onChanged={harnesses.setData}
                 onRefresh={harnesses.refresh}
               />
-              <AccountsCard client={client} harnesses={harnesses.data} onChanged={harnesses.setData} />
             </Section>
             <Section active={active} id="companions">
               <WorkshopTabsProvider>

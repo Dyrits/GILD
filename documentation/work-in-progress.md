@@ -1,5 +1,9 @@
 # Work in progress
 
+## Providers merged into one card per harness · 2026-11-14 · built and checked in a window, owner liked it except on small screens
+
+The owner asked to merge the Workshop's Harnesses and Accounts cards, keeping the title, with a second screen as the target (CHG-0268, in `changelog/0.1.3-Prototype.md`; starting commit `b6e0324`, uncommitted). `settings/providers.tsx` replaces `accounts.tsx`; `ui/actionMenu.tsx` is the new "⋯" menu. Checks: typecheck, Biome, app tests (366 passed); [proof](verification/2026-11-14-providers-merged.md). The owner's verdict, 2026-11-14: "Awful on small screen but really nice otherwise"; the narrow layout is to redo (a row's name, detail, pill, Rename and menu do not fit side by side). Open: Update and Install, a signed-out account, long details, narrow window, light and Gild looks were not seen. Account budgets still sit on their own card in Limits (the earlier question of moving them onto each account's row stays open).
+
 ## Release 0.1.2-Prototype · 2026-11-13 · published; the update loop is not yet proven
 
 Tag `0.1.2-Prototype` at `90b79ef` (CHG-0267); the first release with the app's own update check. The tag's workflow run (`43506315451`) passed and published a prerelease with the four installers, `latest.yml`, `latest-linux.yml`, and `SHA512SUMS.txt`; the macOS arm64 installer matches its checksum. It holds everything from CHG-0252 to CHG-0266 (the sections below), listed in [its changelog](changelog/0.1.2-Prototype.md); the release notes on GitHub for 0.1.1 and 0.1.2 were written from the changelog files. The changelog is one file per release: the next entries go in `changelog/0.1.3-Prototype.md`.
