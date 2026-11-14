@@ -48,8 +48,8 @@ When adding a handoff, keep only the three newest current handoffs linked below;
 
 Latest handoffs:
 
+- To resume One theme acceptance or publication (CHG-0279: One light/dark/System built, appearance changes stay in Look and feel, checks and window drive pass; the owner's look and publication confirmation remain), read the [current handoff](.agents/handoffs/2026-11-14-1304-one-theme.md). Handoffs are shared and committed.
+
 - To resume changing a thread's Companion while it works (CHG-0278: the picker stays and the service accepts the change in a turn; the turn finishes as it was and the next one uses the new Companion; tests, typecheck and lint pass, no window look; the working indicator's mark and the owner's check are open), read the [current handoff](.agents/handoffs/2026-11-14-1236-companion-change-mid-turn.md). Handoffs are shared and committed.
 
 - To resume a working thread's tool calls as steps (CHG-0276: Claude Code's tool calls show as lines of the turn's Steps group; committed on `main` as `eedfa29`; the stand-in process only, no live run and no window look; the in-progress marker, a live indicator label, and Codex and OpenCode are open), read the [current handoff](.agents/handoffs/2026-11-14-1221-working-thread-steps.md). Handoffs are shared and committed.
-
-- To resume the security audit (SA-11 and SA-13: a sandboxed OpenCode no longer sees other processes, CHG-0277; Claude Code's and Codex's sandboxes read but not run; SA-15, SA-16, the hardening decisions and the missing Skill tool open), read the [current handoff](.agents/handoffs/2026-11-14-1220-sandbox-token-isolation.md). Handoffs are shared and committed.
