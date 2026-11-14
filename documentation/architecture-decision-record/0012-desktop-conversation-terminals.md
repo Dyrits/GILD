@@ -11,3 +11,5 @@ Sending serializes the visible transcript into the normal owner message, so its 
 The UI recognizes that serialized block for presentation; it does not execute its contents.
 Shell processes and unsent replay buffers stay in memory and end with the desktop window.
 A future paired-device or multiplayer terminal requires a separate authorization and transport design.
+
+Amendment (CHG-0283): the shells move from the desktop main process into the host service, and paired devices may open them inside a sandbox; see [0020](0020-terminals-run-in-the-host.md). "End with the desktop window" becomes "end with the host".

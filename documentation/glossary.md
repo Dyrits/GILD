@@ -265,13 +265,24 @@ Stored records, request tags, and thread tool names keep the earlier word `intel
 
 ## Devices
 
+**Desktop app**:
+Iskios installed on a computer, in its own window. It uses this computer as its host, or a host it is paired with.
+
+**Web app**:
+Iskios opened in a browser, on a phone or a computer, with nothing installed. It always uses a host it is paired with.
+_Avoid_: Phone web app, web client
+
+**Mobile app**:
+Iskios installed on a phone from a store (later).
+_Avoid_: Native app
+
 **Paired device**:
-Another Iskios connected to the user's own by a pairing code: the phone web app, or the Iskios app on another computer. It has the owner's full authority over the host it is paired with.
+A desktop app, web app, or mobile app connected to a host by a pairing code. It has the owner's full authority over the host it is paired with, except where the host fences it (terminals, folders).
 _Avoid_: Remote, client
 
 **Host**:
-The computer whose Iskios a paired device controls. It keeps its own name, which the owner can change from the host or from a paired device.
-_Avoid_: Server, remote
+The computer whose Iskios runs the threads, terminals, and folder work that the apps show. It keeps its own name, which the owner can change from the host or from a paired device. With **Keep running after quitting** on, it stays up after its desktop app quits.
+_Avoid_: Server, remote, daemon
 
 **Pairing code**:
 The one-time text the host shows to pair a device, a QR code of it for a phone later. It works once and expires after 10 minutes.

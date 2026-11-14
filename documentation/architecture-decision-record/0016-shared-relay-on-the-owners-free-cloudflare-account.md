@@ -22,3 +22,5 @@ Consequences:
 - **A relay in each user's own account, deployed with the temporary-account claim**: replaced on 2026-11-12 by the optional deployment with an API token above, because the claim needs a sign-up within 60 minutes and gives the app no way to update the relay afterwards, where a token the user makes lets the app deploy and later update it at once.
 - **iroh's public relays and hole punching**: rejected for now; n0 describes its public relays as for development and hobby use, with unpublished rate limits, and the library is native code.
 - **A direct connection, Tailscale, or WebRTC with a TURN server**: as in 0003.
+
+Amendment (CHG-0283): the relay serves each release's web app at its own address, for any browser ([0019](0019-browsers-use-the-relay-served-web-app.md)).

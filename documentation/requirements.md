@@ -45,10 +45,20 @@
   Source: the user, 2026-11-04. Reason: multiplayer is a product goal, not a permanent exclusion.
 - **Pair by QR code from anywhere**: a phone pairs by scanning one pairing code, and then reaches Iskios from any network.
   Source: the user. Reason: product decision.
+- **Use from a browser with nothing installed**: a browser on any device, phone or computer, can use a host with nothing installed on that device; the threads, terminals, and folder work run on the host.
+  Source: the user, 2026-11-14 (CHG-0282). Reason: the owner wants to use a host such as a Mac mini from any device without installing Iskios there.
+- **Nothing else to install**: running Iskios and reaching a host from another device need nothing installed beyond Iskios and the harnesses it drives: no Tailscale, VPN, tunnel, or other tool.
+  Source: the user, 2026-11-14 (CHG-0282). Reason: product decision; the user must not have to set up anything besides the app.
+- **Host can outlive the desktop app**: at the owner's choice, a host keeps running after its desktop app closes and stays usable from browsers and paired devices; otherwise it starts and stops with the desktop app.
+  Source: the user, 2026-11-14 (CHG-0282). Reason: a host such as a Mac mini must stay reachable without a window open on it.
+- **Same features in every app**: no feature depends on the desktop shell; the desktop app, the web app, and later the mobile app offer the same features, and what concerns only the device in hand (its window, its icon) gets the nearest equivalent on each.
+  Source: the user, 2026-11-14 (CHG-0282). Reason: a feature built in the desktop shell is one the web app cannot have.
 
 ## Releases
 
 - **No compatibility promise before the stable release**: until the first stable release, saved data and settings are not guaranteed to carry over from one release to the next, and the README and each release's notes say so.
   Source: the user, 2026-11-13. Reason: the releases so far are prototypes, and users must not expect an upgrade to keep what they saved; compatibility is still kept where it can be (see the Stored data conventions).
+- **Updates keep the host reachable**: installing an update restarts only Iskios, never the computer, and needs no sign-in; a host kept running in the background is reachable again afterwards with nobody at it.
+  Source: the user, 2026-11-14 (CHG-0283). Reason: a host such as a Mac mini updated from a browser cannot be brought back by someone signing in at it.
 - **Breaking changes are listed in the release notes**: every release's notes name its breaking changes, including any change that makes data or settings saved by an earlier release unreadable or different.
   Source: the user, 2026-11-13. Reason: a user upgrading must be able to see what will not carry over.

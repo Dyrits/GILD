@@ -11,3 +11,5 @@ Before this, a development run and the owner's running app shared one name, one 
 - **Packaging**: electron-builder, reusing the repository's Electron, with node-pty unpacked from the archive. The build is ad hoc signed, so it runs on the computer that built it; signing and notarizing for other computers is not done.
 
 Rejected: only renaming the development profile (the shared binary name still lets a name-based stop reach the owner's window), and hand-assembling the `.app` (it would re-implement unpacking, icons, and the disk image that electron-builder already does).
+
+Amendment (CHG-0283): the host service keeps its own lock on its data folder, so a host started at login and one started by the desktop app never share a database ([0018](0018-host-service-runs-on-its-own.md)); the single-instance lock still brings the running window forward.

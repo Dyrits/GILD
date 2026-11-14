@@ -1,3 +1,5 @@
 # Electron as the desktop shell
 
 The local service is a Node program, and Electron ships Node, so the desktop app starts the service without bundling a second runtime, and loads the Expo app's web build in its window, as Paseo does. Tauri was considered for smaller downloads and lower memory use, but it would still need a bundled Node process for the service, keeping two runtimes for part of the gain. The window shows a plain web build, so a later move stays possible.
+
+Amendment (CHG-0283): Electron is an optional shell. The host service runs on its own and may outlive the desktop app ([0018](0018-host-service-runs-on-its-own.md)); desktop builds still run it on Electron's Node, now as a separate program rather than a utilityProcess the window owns. Electron stays the desktop shell for now, with no Electron-only feature: each moves into the host service or gets a web version (CHG-0284, listed in 0018). Whether Electron stays later is weighed in the backlog's runtime comparison, which no longer includes Tauri ([0017](0017-typescript-and-effect-no-rust.md)).
