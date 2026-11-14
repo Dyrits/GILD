@@ -48,8 +48,8 @@ When adding a handoff, keep only the three newest current handoffs linked below;
 
 Latest handoffs:
 
+- To resume the independent host, browser access, or future Outlore rename, read the [current handoff](.agents/handoffs/2026-11-14-1953-host-browser-architecture.md). Handoffs are shared and committed.
+
 - To resume publishing 0.1.3-Prototype (the review and CHG-0280 fixes are done, verified and uncommitted on `main`; next: commit, version bump CHG-0281, push and the `0.1.3-Prototype` tag, each push with the owner's approval), read the [current handoff](.agents/handoffs/2026-11-14-1540-release-0-1-3-publish.md). Handoffs are shared and committed.
 
 - To resume One theme acceptance or publication (CHG-0279: One light/dark/System built, appearance changes stay in Look and feel, checks and window drive pass; the owner's look and publication confirmation remain), read the [current handoff](.agents/handoffs/2026-11-14-1304-one-theme.md). Handoffs are shared and committed.
-
-- To resume changing a thread's Companion while it works (CHG-0278: the picker stays and the service accepts the change in a turn; the turn finishes as it was and the next one uses the new Companion; tests, typecheck and lint pass, no window look; the working indicator's mark and the owner's check are open), read the [current handoff](.agents/handoffs/2026-11-14-1236-companion-change-mid-turn.md). Handoffs are shared and committed.
