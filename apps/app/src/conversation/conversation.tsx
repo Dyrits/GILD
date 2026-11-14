@@ -282,6 +282,7 @@ function ThreadPane({
           <>
             <CommentTray />
             <Composer
+              draftKey={`thread:${thread.id}`}
               {...(canOpenBeneath ? { onOpenSideQuest: () => setIsOpening(true) } : {})}
               hasContent={terminal.hasContent || comments.items.length > 0}
               {...(terminal.onBang === null ? {} : { onBang: terminal.onBang })}

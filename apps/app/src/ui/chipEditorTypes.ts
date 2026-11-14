@@ -26,6 +26,8 @@ export interface ChipEditorHandle {
 }
 
 export interface ChipEditorProps {
+  /** Text the field starts with, such as what the owner left unsent; read once, when the field opens. */
+  initialText?: string;
   /** Opens the terminal when the caret is at an empty line. */
   onBang?: () => void;
   /** Hears the message as plain text, each chip as its token, and the trigger at the caret. */

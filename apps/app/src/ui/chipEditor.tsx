@@ -5,8 +5,8 @@ import { colors } from "../foundation/theme";
 import { type ChipEditorProps, triggerOfEnd } from "./chipEditorTypes";
 
 /** The message box's text field where chips cannot be drawn inside the text: a chosen skill or path is written into it as its token. */
-export function ChipEditor({ onChange, onKeyDown, placeholder, ref }: ChipEditorProps) {
-  const [text, setText] = useState("");
+export function ChipEditor({ initialText = "", onChange, onKeyDown, placeholder, ref }: ChipEditorProps) {
+  const [text, setText] = useState(initialText);
   const change = (value: string) => {
     setText(value);
     onChange(value, triggerOfEnd(value));

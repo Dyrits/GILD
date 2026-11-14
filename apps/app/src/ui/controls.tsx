@@ -12,16 +12,26 @@ import { ChipEditor } from "./chipEditor";
 import type { ChipEditorHandle } from "./chipEditorTypes";
 import { ChipIcon } from "./chips";
 import { type MenuRow, mentionCategories } from "./mentionMenu";
+import { rememberUnsentText, unsentTextOf } from "./unsentText";
 import { useComposerList } from "./useComposerList";
 
 // The web's switch takes the thumb's color when on from a prop the native types do not declare.
 const webSwitchColors = { activeThumbColor: colors.canvas };
 
 /** An on and off switch in the accent color. */
-export function Toggle({ onValueChange, value }: { onValueChange: (value: boolean) => void; value: boolean }) {
+export function Toggle({
+  isDisabled = false,
+  onValueChange,
+  value,
+}: {
+  isDisabled?: boolean;
+  onValueChange: (value: boolean) => void;
+  value: boolean;
+}) {
   return (
     <Switch
       {...webSwitchColors}
+      disabled={isDisabled}
       onValueChange={onValueChange}
       thumbColor={colors.canvas}
       trackColor={{ false: colors.controlActive, true: colors.accent }}
@@ -85,6 +95,7 @@ function SendArrow() {
  * button sends the other way (Steer or Queue) and Interrupt ends the thread's current turn (CHG-0039).
  */
 export function Composer({
+  draftKey,
   placeholder,
   onSend,
   alternative,
@@ -98,6 +109,11 @@ export function Composer({
   onBang,
   hasContent = false,
 }: {
+  /**
+   * The box's own name. Text left unsent is kept under it while the screen is closed and comes back when it opens;
+   * a box without one starts empty. Boxes of different screens need different names, and the box must be keyed by it.
+   */
+  draftKey?: string;
   placeholder: string;
   onSend: (text: string, attachmentIds: ReadonlyArray<AttachmentId>) => Promise<unknown>;
   alternative?: {
@@ -127,9 +143,11 @@ export function Composer({
   /** Whether an attached terminal can be sent without typed text. */
   hasContent?: boolean;
 }) {
-  const [text, setText] = useState("");
+  // Read once, as the box opens: what the owner types afterwards is the box's own.
+  const [left] = useState(() => (draftKey === undefined ? "" : unsentTextOf(draftKey)));
+  const [text, setText] = useState(left);
   // The text now in the box, which differs from `text` in a step that started before the last keystroke.
-  const latestText = useRef("");
+  const latestText = useRef(left);
   const editor = useRef<ChipEditorHandle>(null);
   const [isSending, setIsSending] = useState(false);
   const files = useAttachments(attachable?.client ?? null);
@@ -199,9 +217,11 @@ export function Composer({
           <ChipEditor
             {...(onBang === undefined ? {} : { onBang })}
             {...(attachable === undefined ? {} : { onFiles: files.attach })}
+            initialText={left}
             onChange={(value, typed) => {
               latestText.current = value;
               setText(value);
+              if (draftKey !== undefined) rememberUnsentText(draftKey, value);
               list.onTyped(typed);
               onChangeText?.(value);
             }}

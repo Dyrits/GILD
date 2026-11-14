@@ -47,8 +47,8 @@ When adding a handoff, keep only the three newest current handoffs linked below;
 
 Latest handoffs:
 
+- To resume the unsent message text that survives leaving a screen (CHG-0269; fixed and checked with a window drive, the owner's own try is pending; the owner's checkout holds the uncommitted realm-archive batch and a CHG-0268 collision in the 0.1.3 changelog), read the [current handoff](.agents/handoffs/2026-11-14-0135-composer-unsent-text.md). Handoffs are shared and committed.
+
 - To resume the new-realm crest fix (the creation window now saves the crest it shows; tested and committed on `worktree/realm-crest-mismatch`, landing on `main` was asked for, so read the live refs; waits on the owner's look in a window and on a changelog entry under the next free CHG number), read the [current handoff](.agents/handoffs/2026-11-14-0108-realm-crest-mismatch.md). Handoffs are shared and committed.
 
 - To resume the Providers section merged into one card per harness (CHG-0268; the owner likes it except on small screens, where it is awful and must be redone; Update, Install and the light and Gild looks unseen), read the [current handoff](.agents/handoffs/2026-11-14-0120-providers-merged-card.md). Handoffs are shared and committed.
-
-- To resume app updates and releases (0.1.2-Prototype is published and is the first release with the updater: CHG-0266, CHG-0267; the changelog is now one file per release in `documentation/changelog/`; the documentation and README were refreshed; the owner asked for a commit and a push to `main` with `--no-verify`, so read the live refs; waits on the owner's look and on a release after 0.1.2 to prove the update for real; Windows and Linux unrun), read the [current handoff](.agents/handoffs/2026-11-13-2248-release-0-1-2-and-changelog-per-release.md). Handoffs are shared and committed.

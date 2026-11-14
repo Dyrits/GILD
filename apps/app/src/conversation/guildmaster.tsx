@@ -300,6 +300,7 @@ function IskiosChat({
       )}
       {realm !== null && <RealmNote name={realm.name} onClear={() => onRealm(null)} />}
       <Composer
+        draftKey="iskios"
         hasContent={terminal.hasContent}
         {...(terminal.onBang === null ? {} : { onBang: terminal.onBang })}
         accessory={
@@ -356,6 +357,7 @@ export function GuildmasterHandoff({
       </Text>
       <Composer
         attachments={{ client, refusal: imageRefusalOf(harnesses, "claude", "default") }}
+        draftKey={`handoff:${realm.path}`}
         mentions={{ client, workspacePath: realm.path }}
         onSend={async (text, attachmentIds) => {
           const place = await client.request({ _tag: "ReadGuildmaster" });

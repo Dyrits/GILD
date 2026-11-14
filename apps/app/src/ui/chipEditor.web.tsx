@@ -93,9 +93,17 @@ const triggerBeforeCaret = (root: HTMLElement) => {
 };
 
 /** The message field of the web app: text and chips in one editable line, reporting its trigger at the caret. */
-export function ChipEditor({ onChange, onFiles, onKeyDown, onBang, placeholder, ref }: ChipEditorProps) {
+export function ChipEditor({
+  initialText = "",
+  onChange,
+  onFiles,
+  onKeyDown,
+  onBang,
+  placeholder,
+  ref,
+}: ChipEditorProps) {
   const root = useRef<HTMLDivElement>(null);
-  const [isEmpty, setIsEmpty] = useState(true);
+  const [isEmpty, setIsEmpty] = useState(initialText === "");
   // The trigger as last read, kept because choosing from the list takes the focus and the caret with it.
   const triggered = useRef<ReturnType<typeof triggerBeforeCaret>>(null);
   const handlers = useRef({ onChange, onFiles, onKeyDown });
@@ -135,6 +143,11 @@ export function ChipEditor({ onChange, onFiles, onKeyDown, onBang, placeholder, 
       report();
     },
   }));
+
+  // The content is kept by hand, so what was left unsent goes in as the field opens (the composer fixes it for the field's life).
+  useEffect(() => {
+    if (initialText !== "" && root.current !== null) root.current.textContent = initialText;
+  }, [initialText]);
 
   // Moving the caret with the keys or the mouse changes the trigger without changing the text.
   useEffect(() => {
