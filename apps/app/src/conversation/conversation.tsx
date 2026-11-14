@@ -148,11 +148,6 @@ function ThreadPane({
           {thread.parentId === null && detail.mission.ritual === null && detail.mission.state !== "Archived" && (
             <ArchiveButton isDisabled={ending.isBusy} label="Archive quest" onPress={() => ending.start("Archived")} />
           )}
-          {canStop && (
-            <Pressable onPress={() => act(client.request({ _tag: "StopThread", threadId: thread.id }))}>
-              <Text style={styles.link}>Stop</Text>
-            </Pressable>
-          )}
           {canResume && (
             <Pressable onPress={() => act(client.request({ _tag: "ResumeThread", threadId: thread.id }))}>
               <Text style={styles.link}>Resume</Text>
@@ -303,6 +298,7 @@ function ThreadPane({
                     onInterrupt: () => client.request({ _tag: "InterruptThread", threadId: thread.id }),
                   }
                 : {})}
+              {...(canStop ? { onStop: () => client.request({ _tag: "StopThread", threadId: thread.id }) } : {})}
               onSend={sendAs(isInTurn ? defaultDelivery : null)}
               placeholder={
                 thread.state === "Stopped"

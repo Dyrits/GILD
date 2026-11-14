@@ -1,7 +1,7 @@
 import type { AttachmentId, MissionState, Skill, ThreadState } from "@iskios/contracts";
 import { type ReactNode, useRef, useState } from "react";
 import { Pressable, Switch, Text, View } from "react-native";
-import Svg, { Path } from "react-native-svg";
+import Svg, { Path, Rect } from "react-native-svg";
 import { AttachButton } from "../attachments/attachButton";
 import { AttachmentStrip } from "../attachments/attachmentViews";
 import { useAttachments } from "../attachments/useAttachments";
@@ -71,6 +71,15 @@ export function StateIndicator({ state }: { state: ThreadState | MissionState })
   );
 }
 
+/** The stop icon: a filled square, in the same ink as the send arrow. */
+function StopSquare() {
+  return (
+    <Svg fill={colors.onAccent} height={16} viewBox="0 0 16 16" width={16}>
+      <Rect height={9} rx={1.5} width={9} x={3.5} y={3.5} />
+    </Svg>
+  );
+}
+
 /** The send icon: an arrow drawn in paper ink, pointing up and away from the box. */
 function SendArrow() {
   return (
@@ -101,6 +110,7 @@ export function Composer({
   alternative,
   attachments: attachable,
   onInterrupt,
+  onStop,
   onChangeText,
   accessory,
   onOpenSideQuest,
@@ -126,6 +136,11 @@ export function Composer({
    */
   attachments?: { readonly client: ServiceClient; readonly refusal: string | null };
   onInterrupt?: () => Promise<unknown>;
+  /**
+   * Stops the thread. While it is given and the box holds nothing to send, the send button turns into a stop button;
+   * typing something turns it back into the arrow.
+   */
+  onStop?: () => Promise<unknown>;
   /** Hears the text as it is typed and cleared, such as to preview what it would send. */
   onChangeText?: (text: string) => void;
   /** Controls shown under the box, at its right, such as pickers for what the message runs on. */
@@ -254,15 +269,26 @@ export function Composer({
               <Text style={styles.buttonSecondaryText}>{alternative.label}</Text>
             </Pressable>
           )}
-          <Pressable
-            accessibilityLabel="Send"
-            accessibilityRole="button"
-            disabled={isSending || cannotSend}
-            onPress={() => send(onSend)}
-            style={[styles.sendButton, (isSending || cannotSend) && styles.buttonDisabled]}
-          >
-            <SendArrow />
-          </Pressable>
+          {onStop !== undefined && isEmpty ? (
+            <Pressable
+              accessibilityLabel="Stop"
+              accessibilityRole="button"
+              onPress={() => interrupt(onStop)}
+              style={styles.sendButton}
+            >
+              <StopSquare />
+            </Pressable>
+          ) : (
+            <Pressable
+              accessibilityLabel="Send"
+              accessibilityRole="button"
+              disabled={isSending || cannotSend}
+              onPress={() => send(onSend)}
+              style={[styles.sendButton, (isSending || cannotSend) && styles.buttonDisabled]}
+            >
+              <SendArrow />
+            </Pressable>
+          )}
           {onOpenSideQuest !== undefined && (
             <Pressable
               accessibilityLabel="Open side-quest"

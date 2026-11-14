@@ -226,11 +226,6 @@ function IskiosChat({
             <Text style={local.link}>✕</Text>
           </Pressable>
         )}
-        {canStop && (
-          <Pressable onPress={() => act(client.request({ _tag: "StopThread", threadId: thread.id }))}>
-            <Text style={local.link}>Stop</Text>
-          </Pressable>
-        )}
         {canResume && (
           <Pressable onPress={() => act(client.request({ _tag: "ResumeThread", threadId: thread.id }))}>
             <Text style={local.link}>Resume</Text>
@@ -326,6 +321,7 @@ function IskiosChat({
         attachments={{ client, refusal: imageRefusalOf(harnesses, thread.harness, thread.model) }}
         mentions={{ client, workspacePath: realm?.path ?? null }}
         onSend={send}
+        {...(canStop ? { onStop: () => client.request({ _tag: "StopThread", threadId: thread.id }) } : {})}
         placeholder={isInTurn ? "Iskios is working; Send joins its turn…" : "Ask Iskios for anything…"}
         skills={skills}
         {...(isInTurn ? { onInterrupt: () => client.request({ _tag: "InterruptThread", threadId: thread.id }) } : {})}
