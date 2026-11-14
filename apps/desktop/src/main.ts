@@ -2,7 +2,7 @@ import { randomBytes } from "node:crypto";
 import { homedir, userInfo } from "node:os";
 import { dirname, join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
-import { app, BrowserWindow, dialog, ipcMain, net, protocol, utilityProcess } from "electron";
+import { app, BrowserWindow, dialog, ipcMain, net, protocol, shell, utilityProcess } from "electron";
 import { appFileOf } from "./appFiles.ts";
 import { iconFileOf } from "./appIcon.ts";
 import { moveFormerData } from "./formerData.ts";
@@ -119,7 +119,6 @@ app
     }
     const token = randomBytes(32).toString("base64url");
     const endpoint = await startService(token);
-    ipcMain.handle("iskios:endpoint", () => endpoint);
 
     // macOS shows the dock icon of the running app; the packaged build carries its own icon file.
     app.dock?.setIcon(iconPath);
@@ -133,6 +132,25 @@ app
       width: 1200,
     });
     mainWindow = window;
+    // The owner token travels in the endpoint: only the app's own main frame may read it (audit SA-12).
+    ipcMain.handle("iskios:endpoint", (event) => {
+      if (
+        event.sender !== window.webContents ||
+        event.senderFrame !== window.webContents.mainFrame ||
+        new URL(event.senderFrame.url).origin !== new URL(appUrl).origin
+      )
+        throw new Error("The endpoint is only given to Iskios's desktop window.");
+      return endpoint;
+    });
+    // A link in a reply opens in the system's browser, never in a window of its own that could receive the bridge, and
+    // the app's window never navigates away from the app.
+    window.webContents.setWindowOpenHandler(({ url }) => {
+      if (/^(?:https?|mailto):/i.test(url)) void shell.openExternal(url);
+      return { action: "deny" };
+    });
+    window.webContents.on("will-navigate", (event, url) => {
+      if (new URL(url).origin !== new URL(appUrl).origin) event.preventDefault();
+    });
     const terminals = new Terminals(
       (id, data, sequence) => {
         if (!window.isDestroyed()) window.webContents.send("iskios:terminalData", id, data, sequence);

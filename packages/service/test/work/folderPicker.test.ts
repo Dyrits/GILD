@@ -198,3 +198,57 @@ describe("the browsable roots", () => {
     }).pipe(Effect.provide(layer));
   });
 });
+
+describe("naming a folder from a paired device", () => {
+  const startFrom = (source: ReturnType<typeof as>, workspacePath: string) =>
+    source.failureOf({
+      _tag: "StartMission",
+      effort: "default",
+      model: "default",
+      requestId: `named-${++requestCount}`,
+      text: "Work here",
+      workspacePath,
+    });
+
+  it.live("refuses a folder outside the roots that is no realm, for every request that names a folder", () => {
+    const { outside, layer } = setUp();
+    return Effect.gen(function* () {
+      const refused = yield* startFrom(pairedDevice, outside);
+      expect(refused.message).toContain("outside the browsable roots");
+      expect((yield* pairedDevice.failureOf({ _tag: "ListSkills", workspacePath: outside })).message).toContain(
+        "outside the browsable roots",
+      );
+      expect(
+        (yield* pairedDevice.failureOf({
+          _tag: "ListWorkspaceEntries",
+          query: "",
+          workspacePath: outside,
+        })).message,
+      ).toContain("outside the browsable roots");
+      expect(
+        (yield* pairedDevice.failureOf({
+          _tag: "CreateRealm",
+          crest: null,
+          name: "Elsewhere",
+          path: outside,
+        })).message,
+      ).toContain("outside the browsable roots");
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("lets a paired device use a folder under a root, and one the host already attached as a realm", () => {
+    const { home, outside, layer } = setUp();
+    return Effect.gen(function* () {
+      yield* start(outside);
+      yield* pairedDevice.call({ _tag: "ListSkills", workspacePath: outside });
+      yield* pairedDevice.call({ _tag: "ListSkills", workspacePath: join(home, "app") });
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("lets the host's own window name any folder", () => {
+    const { outside, layer } = setUp();
+    return Effect.gen(function* () {
+      yield* hostWindow.call({ _tag: "ListSkills", workspacePath: outside });
+    }).pipe(Effect.provide(layer));
+  });
+});

@@ -63,19 +63,24 @@ export const toolServerLayer = Layer.effectDiscard(
           )
         : Effect.succeed(textResult(`Unknown tool: ${name}`, true));
 
+    const hasPromptToolOf = (threadId: string) =>
+      sql<{ harness: HarnessName }>`SELECT harness FROM threads WHERE id = ${threadId}`.pipe(
+        Effect.map(([thread]) => thread !== undefined && harnessFacts[thread.harness].hasPromptTool),
+      );
+
     const callTool = (threadId: string, name: string, args: unknown) =>
       Effect.gen(function* () {
         const refusal = yield* callerRefusalOf(threadId, name);
         if (refusal !== null) return textResult(refusal, true);
+        // Only a harness that asks its permission prompts through `answer_prompt` may call it (audit SA-14): the
+        // others ask in-process, and a call by one would draw an allow decision of its own choosing.
+        if (name === "answer_prompt" && !(yield* hasPromptToolOf(threadId)))
+          return textResult("This tool is not available to this thread.", true);
         return yield* dispatchTool(threadId, name, args);
       }).pipe(Effect.provideService(SqlClient.SqlClient, sql), Effect.orDie);
 
     /** The tools the thread's harness lists: `answer_prompt` only for Claude Code. */
-    const listTools = (threadId: string) =>
-      sql<{ harness: HarnessName }>`SELECT harness FROM threads WHERE id = ${threadId}`.pipe(
-        Effect.map(([thread]) => toolListingOf(thread !== undefined && harnessFacts[thread.harness].hasPromptTool)),
-        Effect.orDie,
-      );
+    const listTools = (threadId: string) => hasPromptToolOf(threadId).pipe(Effect.map(toolListingOf), Effect.orDie);
 
     const respondJson = (response: ServerResponse, body: unknown) => {
       response.writeHead(200, { "content-type": "application/json" });

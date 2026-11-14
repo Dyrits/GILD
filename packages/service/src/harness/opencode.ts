@@ -178,14 +178,20 @@ const usageOf = (usage: unknown): TokenUsage | null =>
       };
 
 /** The harness tool and input the owner is asked about for one of OpenCode's permission requests. */
-const promptOf = (toolCall: unknown) => {
+const promptOf = (toolCall: unknown, firstOutside: string | null = null) => {
   const kind = textFieldOf(toolCall, "kind");
   const title = textFieldOf(toolCall, "title") ?? "a tool";
   const input = fieldOf(toolCall, "rawInput");
   if (kind === "execute") return { input: { command: textFieldOf(input, "command") ?? title }, toolName: "Bash" };
-  // The owner sees the first file in full: OpenCode resolves the locations, while its input keeps the
-  // model's own, possibly relative, path.
-  if (kind === "edit") return { input: { file_path: editedPathsOf(toolCall)[0] ?? title }, toolName: "Edit" };
+  // The owner is asked about the first file outside the folder, or the first file when none is, and sees every file
+  // the edit names (audit SA-09): OpenCode resolves the locations, while its input keeps the model's own path.
+  if (kind === "edit") {
+    const paths = editedPathsOf(toolCall);
+    return {
+      input: { file_path: firstOutside ?? paths[0] ?? title, ...(paths.length > 1 ? { file_paths: paths } : {}) },
+      toolName: "Edit",
+    };
+  }
   return { input: input ?? { query: title }, toolName: textFieldOf(toolCall, "name") ?? title };
 };
 
@@ -201,13 +207,21 @@ const listedPathsOf = (toolCall: unknown, key: string) => {
  */
 const editedPathsOf = (toolCall: unknown) => {
   const input = fieldOf(toolCall, "rawInput");
-  return [
+  const paths = [
     ...listedPathsOf(toolCall, "locations"),
     ...listedPathsOf(toolCall, "content"),
     textFieldOf(input, "path"),
     textFieldOf(input, "filePath"),
   ].filter((path) => path !== null);
+  return [...new Set(paths)];
 };
+
+/** The first file an edit names that lies outside the thread's folder, or null when every one is inside. */
+const firstOutsideOf = (request: TurnRequest, toolCall: unknown) =>
+  Effect.gen(function* () {
+    for (const path of editedPathsOf(toolCall)) if (!(yield* isInsideFolder(request.cwd, path))) return path;
+    return null;
+  });
 
 /**
  * Whether an edit runs without asking: at the default level, editing inside the thread's folder does, as Claude
@@ -269,9 +283,11 @@ const answerRequest = (
     const isUnconfirmed = connection.isContainmentUnconfirmed();
     let isAllowed = !isUnconfirmed && !connection.isUnsandboxed && (yield* isUnaskedEdit(request, toolCall));
     if (!isAllowed) {
+      // An edit naming no file is judged as leaving the folder: its title is no path to trust.
+      const isPathless = textFieldOf(toolCall, "kind") === "edit" && editedPathsOf(toolCall).length === 0;
       const prompt = {
-        ...promptOf(toolCall),
-        ...(isUnconfirmed ? { isOutsideSandbox: true } : {}),
+        ...promptOf(toolCall, yield* firstOutsideOf(request, toolCall)),
+        ...(isUnconfirmed || isPathless ? { isOutsideSandbox: true } : {}),
         ...(connection.isUnsandboxed ? { isUnsandboxed: true } : {}),
       };
       const answer = yield* request.askOwner(prompt);

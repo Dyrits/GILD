@@ -111,6 +111,7 @@ import { insertMission, insertQuest } from "./work/missions.ts";
 import { PlanLimits, planLimitsLayer } from "./work/planLimits.ts";
 import { priceRefreshLayer } from "./work/priceRefresh.ts";
 import { moveQuest } from "./work/questMoves.ts";
+import { requireReachableFolder } from "./work/reachedFolders.ts";
 import { realmHandlers } from "./work/realmHandlers.ts";
 import { validateScope } from "./work/ritualScope.ts";
 import {
@@ -606,7 +607,8 @@ const make = Effect.gen(function* () {
         WidenPermission: (widen) => change(widenPermission(widen.permissionId)),
       },
     );
-    return run.pipe(
+    return requireReachableFolder(request, folderAccess).pipe(
+      Effect.andThen(run),
       Effect.provideService(SqlClient.SqlClient, sql),
       Effect.catchTag("SqlError", (error) => storageFailure(error)),
     );

@@ -110,6 +110,19 @@ describe("telling edits inside a workspace from edits outside it", () => {
       expect(yield* isInsideFolder(app, "linked/new/file.txt")).toBe(false);
     });
   });
+
+  it.effect("counts a file reached through a link to nothing outside the folder as outside", () => {
+    const { home, outside } = setUp();
+    return Effect.gen(function* () {
+      const app = join(home, "app");
+      symlinkSync(join(outside, "not-yet.txt"), join(app, "dangling"));
+      symlinkSync("dangling", join(app, "chained"));
+      symlinkSync(join(app, "notes-later.md"), join(app, "inside-link"));
+      expect(yield* isInsideFolder(app, "dangling")).toBe(false);
+      expect(yield* isInsideFolder(app, "chained")).toBe(false);
+      expect(yield* isInsideFolder(app, "inside-link")).toBe(true);
+    });
+  });
 });
 
 describe("browsing folders for the phone", () => {

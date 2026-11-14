@@ -213,7 +213,9 @@ const deriveAction = (callerId: string, tool: StructuralTool, args: object) =>
     const where = realm === null ? "with no realm" : `in the realm ${realm.name}`;
     return finish({
       details: { companion, fallbacks, instruction: ritual.instruction, schedule: ritual.schedule },
-      mustAsk: false,
+      // A Ritual runs unattended, so the owner always sees its instruction, schedule, realm, and Companion before it
+      // exists: naming the title in a message authorizes none of them (audit SA-01, SA-05).
+      mustAsk: true,
       named: { operation: "CreateRitual", targets: [title], value: null },
       scoped: null,
       state: { companion, realm, title },

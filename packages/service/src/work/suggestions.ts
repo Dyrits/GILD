@@ -243,7 +243,10 @@ export const suggestionsLayer = Layer.effect(
 
     const suggest = (threadId: string, args: ArgumentsOf<"suggest_mission">) =>
       Effect.gen(function* () {
-        const { missions = [], text, title } = args;
+        const { missions = [], title } = args;
+        // The thread wrote this text, and it is later stored as the owner's own words: an `@` mention in it must not
+        // grant reach as the owner's would (audit SA-06), so the `@` of a reference token is dropped.
+        const text = args.text.replace(/@(?=(?:quest|side-quest|realm):)/g, "");
         const [caller] = yield* sql<{
           missionId: string;
         }>`SELECT mission_id AS missionId FROM threads WHERE id = ${threadId}`;

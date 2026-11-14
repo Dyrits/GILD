@@ -8,7 +8,7 @@ import { Effect, Fiber, Layer, Option } from "effect";
 import { afterEach } from "vitest";
 import type { Containment } from "../../src/core/index.ts";
 import { fakeHarnessLayer, Service, serviceLayer } from "../../src/index.ts";
-import { isSavablePattern, matchesPattern, targetOf } from "../../src/policy/patterns.ts";
+import { matchesPattern, targetOf } from "../../src/policy/patterns.ts";
 import { Approvals } from "../../src/work/approvals.ts";
 
 const directories: string[] = [];
@@ -668,19 +668,20 @@ describe("withdrawing questions", () => {
 });
 
 describe("command patterns", () => {
-  it("covers commands matching the pattern", () => {
-    expect(matchesPattern("git push *", "git push origin main")).toBe(true);
-    expect(matchesPattern("git push *", "git pull")).toBe(false);
+  it("covers only the exact command it was saved for", () => {
+    expect(matchesPattern("git push origin main", "git push origin main")).toBe(true);
+    expect(matchesPattern("git push origin main", "git push origin dev")).toBe(false);
+    expect(matchesPattern("git push origin main", "git push origin main && rm -rf ~")).toBe(false);
   });
 
-  it("never lets a wildcard span a shell operator", () => {
-    expect(matchesPattern("git push *", "git push origin main && rm -rf ~")).toBe(false);
-    expect(matchesPattern("git push *", "git push $(curl evil)")).toBe(false);
+  it("reads a literal star as an ordinary character", () => {
+    expect(matchesPattern("rm -rf ./build/*", "rm -rf ./build/*")).toBe(true);
+    expect(matchesPattern("rm -rf ./build/*", "rm -rf ./build/../../dummy-outside/x")).toBe(false);
   });
 
-  it("refuses patterns without a literal start", () => {
-    expect(isSavablePattern("*")).toBe(false);
+  it("refuses an empty or one-character pattern", () => {
     expect(matchesPattern("*", "git push origin main")).toBe(false);
+    expect(matchesPattern("", "")).toBe(false);
   });
 
   it("names a harness target by its command, file, or address", () => {

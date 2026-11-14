@@ -77,4 +77,30 @@ describe("the owner naming a structural action", () => {
   it("needs the words in the same request, not across sentences", () => {
     expect(isNamedByOwner("Archive things. Weekly report draft is fine.", archive)).toBe(false);
   });
+
+  it("refuses a request the message takes back or only narrates", () => {
+    const report: NamedAction = { operation: "Archive", rivals: [], targets: ["Report"], value: null };
+    const done: NamedAction = { operation: "Done", rivals: [], targets: ["Report"], value: null };
+    expect(isNamedByOwner("Archive Report.", report)).toBe(true);
+    expect(isNamedByOwner("Archive Report. Actually, keep it.", report)).toBe(false);
+    expect(isNamedByOwner("Archive Report. On second thought, leave it for later.", report)).toBe(false);
+    expect(isNamedByOwner("Mark Report as done.", done)).toBe(true);
+    expect(isNamedByOwner("Report is done.", done)).toBe(false);
+    expect(isNamedByOwner("Report was finished yesterday.", done)).toBe(false);
+  });
+
+  it("refuses a target that another quest shares by title", () => {
+    const shared: NamedAction = { operation: "Archive", rivals: ["Report"], targets: ["Report"], value: null };
+    expect(isNamedByOwner("Archive Report.", shared)).toBe(false);
+  });
+
+  it("does not find a realm folder inside a longer path", () => {
+    const realm: NamedAction = {
+      operation: "CreateRealm",
+      targets: ["/dummy/root"],
+      value: null,
+    };
+    expect(isNamedByOwner("Create a realm at /dummy/root.", realm)).toBe(true);
+    expect(isNamedByOwner("Create a realm at /dummy/root/projects/app.", realm)).toBe(false);
+  });
 });

@@ -1,20 +1,12 @@
 import { textFieldOf } from "../core/index.ts";
 
-// A wildcard never spans a shell operator, so `git push *` cannot also cover
-// `git push && rm -rf ~` (CHG-0031, standing permissions).
-const wildcard = "[^;&|`$<>(){}\\n\\r]*";
-
-const escapeRegExp = (text: string) => text.replace(/[.+?^${}()|[\]\\]/g, "\\$&");
-
-/** Whether a pattern is narrow enough to save: it must begin with at least two literal characters. */
-export const isSavablePattern = (pattern: string) => /^[^*]{2,}/.test(pattern.trim());
-
-/** Whether a target, such as a command, is covered by a pattern where `*` stands for any text. */
+/**
+ * Whether a target, such as a command, is the exact action a standing permission was saved for. A saved pattern is the
+ * literal target the owner was shown (CHG-0208 audit, SA-10): a `*` in it is an ordinary character, never a wildcard.
+ */
 export const matchesPattern = (pattern: string, target: string) => {
   const trimmed = pattern.trim();
-  if (!isSavablePattern(trimmed)) return false;
-  const source = trimmed.split("*").map(escapeRegExp).join(wildcard);
-  return new RegExp(`^${source}$`).test(target.trim());
+  return trimmed.length >= 2 && trimmed === target.trim();
 };
 
 const plainActions: Record<string, string> = {

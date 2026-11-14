@@ -31,8 +31,10 @@ export {
   type FolderAccess,
   HomeFolder,
   isInsideFolder,
+  listBrowsableRoots,
   realFolderOf,
   removeBrowsableRoot,
+  rootOf,
   seedBrowsableRoots,
 } from "./folders.ts";
 export { modelsDevSourceLayer, noPriceSourceLayer, rowsOfModelsDev } from "./priceSources.ts";

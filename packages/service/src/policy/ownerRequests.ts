@@ -105,6 +105,40 @@ const blockers = new Set([
   "si",
   "sauf",
   "plutôt",
+  // A retraction, a change of mind, or a passing narrative is not a request (audit SA-03).
+  "actually",
+  "rather",
+  "keep",
+  "leave",
+  "skip",
+  "later",
+  "ignore",
+  "cancel",
+  "undo",
+  "revert",
+  "forget",
+  "oops",
+  "sorry",
+  "mistake",
+  "garde",
+  "laisse",
+  "finalement",
+  "annule",
+  "oublie",
+  "tard",
+  "plutot",
+  "is",
+  "was",
+  "are",
+  "were",
+  "been",
+  "has",
+  "have",
+  "had",
+  "est",
+  "était",
+  "été",
+  "sont",
 ]);
 
 /** The lowercase words of a text; "don't" gives "do" and "dont", and French "n'archive" gives "n" and "archive". */
@@ -120,9 +154,15 @@ const wordsOf = (text: string) =>
 
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
-/** Where a phrase appears as whole words, ignoring case. */
+/**
+ * Where a phrase appears as whole words, ignoring case. A folder path is not found inside a longer one: an ancestor
+ * such as `/dummy/root` is not `/dummy/root/projects/app` (audit SA-02).
+ */
 const phraseOf = (phrase: string) =>
-  new RegExp(`(?<![\\p{L}\\p{N}])${escapeRegExp(phrase.trim())}(?![\\p{L}\\p{N}])`, "giu");
+  new RegExp(
+    `(?<![\\p{L}\\p{N}]|[\\p{L}\\p{N}._~-][/\\\\])${escapeRegExp(phrase.trim())}(?![\\p{L}\\p{N}]|[/\\\\][\\p{L}\\p{N}._~-])`,
+    "giu",
+  );
 
 // A sentence ends at . ! ? ; followed by a space or the end, or at a line break, so "v1.2" stays whole.
 const sentencesOf = (text: string) =>
@@ -200,12 +240,34 @@ const isNamedIn = (segment: string, sentence: string, action: NamedAction) => {
   return !wordsOf(whole).some((word) => blockers.has(word) && !ownWords.has(word));
 };
 
+/** Whether the action's target also names one of its rivals: two quests with one title cannot be told apart by name. */
+const isTargetShared = (action: NamedAction) => {
+  const rivals = new Set((action.rivals ?? []).map((name) => name.trim().toLowerCase()));
+  return action.targets.some((name) => rivals.has(name.trim().toLowerCase()));
+};
+
+/** Whether the other sentences of the message take it back, hesitate, or change the subject (audit SA-03). */
+const isRetractedElsewhere = (others: ReadonlyArray<string>, action: NamedAction) => {
+  const own = vocabulary[action.operation];
+  const ownWords = new Set([...own.verbs, ...own.nouns]);
+  return wordsOf(others.join(" ")).some((word) => blockers.has(word) && !ownWords.has(word));
+};
+
 /**
  * Whether the owner's message names the action unambiguously: in one sentence that is not a question, one request
- * holds the action's words, its target, then its new value where it has one, with no refusal, doubt, or other action.
+ * holds the action's words, its target, then its new value where it has one, with no refusal, doubt, or other action,
+ * and no other sentence of the message that retracts it. A target that another quest shares is never unambiguous.
  */
-export const isNamedByOwner = (message: string, action: NamedAction) =>
-  sentencesOf(message).some(
-    (sentence) =>
-      !sentence.endsWith("?") && segmentsOf(sentence).some((segment) => isNamedIn(segment, sentence, action)),
+export const isNamedByOwner = (message: string, action: NamedAction) => {
+  if (isTargetShared(action)) return false;
+  const sentences = sentencesOf(message);
+  return sentences.some(
+    (sentence, index) =>
+      !sentence.endsWith("?") &&
+      segmentsOf(sentence).some((segment) => isNamedIn(segment, sentence, action)) &&
+      !isRetractedElsewhere(
+        sentences.filter((_, other) => other !== index),
+        action,
+      ),
   );
+};

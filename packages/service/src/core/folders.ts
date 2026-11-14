@@ -1,6 +1,6 @@
 // Browsing the computer's folders for the folder picker (device-pairing, CHG-0253). A paired device reaches only what
 // lies under the browsable roots the host set in the Workshop; the host's own window reaches any folder.
-import { mkdirSync, readdirSync, realpathSync, statSync } from "node:fs";
+import { lstatSync, mkdirSync, readdirSync, readlinkSync, realpathSync, statSync } from "node:fs";
 import { basename, dirname, isAbsolute, join, resolve, sep } from "node:path";
 import type { Folder, FolderListing } from "@iskios/contracts";
 import { Clock, Context, Effect } from "effect";
@@ -25,13 +25,22 @@ export const realFolderOf = (path: string) =>
 export const isWithin = (root: string, path: string) =>
   path === root || path.startsWith(root.endsWith(sep) ? root : root + sep);
 
-/** A path with symbolic links resolved through its deepest existing folder, so a file not yet written still resolves. */
-const realPathOf = (path: string): string => {
+/**
+ * A path with symbolic links resolved through its deepest existing folder, so a file not yet written still resolves.
+ * A link to nothing is followed to the path it names, since a write through it creates that path. `depth` stops a
+ * ring of links.
+ */
+const realPathOf = (path: string, depth = 0): string => {
   try {
     return realpathSync(path);
   } catch {
+    const found = lstatSync(path, { throwIfNoEntry: false });
+    if (found?.isSymbolicLink() === true) {
+      if (depth >= 32) return path;
+      return realPathOf(resolve(dirname(path), readlinkSync(path)), depth + 1);
+    }
     const parent = dirname(path);
-    return parent === path ? path : join(realPathOf(parent), basename(path));
+    return parent === path ? path : join(realPathOf(parent, depth), basename(path));
   }
 };
 

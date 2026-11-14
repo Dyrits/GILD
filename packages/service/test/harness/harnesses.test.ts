@@ -213,6 +213,22 @@ const start = (fields: Partial<Extract<Request, { _tag: "StartMission" }>> & { t
     ...fields,
   });
 
+/** What a thread's MCP endpoint answers to one tool call, as its harness reads it. */
+const callTool = (threadId: string, name: string, args: object) =>
+  Effect.gen(function* () {
+    const url = yield* (yield* Endpoints).urlFor(threadId);
+    return yield* Effect.promise(async () => {
+      const response = await fetch(url, {
+        body: JSON.stringify({ id: 1, jsonrpc: "2.0", method: "tools/call", params: { arguments: args, name } }),
+        headers: { accept: "application/json, text/event-stream", "content-type": "application/json" },
+        method: "POST",
+      });
+      // A tool call is answered as one server-sent event.
+      const data = (await response.text()).split("\n").find((line) => line.startsWith("data: "));
+      return JSON.parse(data?.slice(6) ?? "{}") as { result: { content: Array<{ text: string }>; isError?: boolean } };
+    });
+  });
+
 /** The tool names a thread's MCP endpoint lists, as its harness reads them. */
 const listTools = (threadId: string) =>
   Effect.gen(function* () {
@@ -536,6 +552,20 @@ describe("running Codex threads", () => {
     }).pipe(Effect.provide(layer));
   });
 
+  it.live("refuses Claude Code's permission prompt tool to a harness that does not use it", () => {
+    const { layer } = withHarnesses();
+    return Effect.gen(function* () {
+      const codex = yield* start({ harness: "codex", text: "Hello" });
+      yield* settle(codex.missionId, idleWith(1));
+      const answered = yield* callTool(codex.threadId, "answer_prompt", {
+        input: { command: "echo dummy" },
+        tool_name: "Bash",
+      });
+      expect(answered.result.isError).toBe(true);
+      expect(answered.result.content[0]?.text).toBe("This tool is not available to this thread.");
+    }).pipe(Effect.provide(layer));
+  });
+
   it.live("declines a command the owner denies", () => {
     const { layer } = withHarnesses();
     return Effect.gen(function* () {
@@ -764,6 +794,17 @@ describe("running OpenCode threads", () => {
       expect(replies(detail)).toEqual([
         `Echo: Iskios refused the change to \`${outside}\`. Denied by the owner: Write it in the notes folder instead. `,
       ]);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("asks about the file outside the folder when one edit names a file inside and one outside", () => {
+    const { directory, layer } = withHarnesses();
+    const outside = join(directory, "outside.txt");
+    return Effect.gen(function* () {
+      const started = yield* start({ harness: "opencode", text: `edit inside.txt and ${outside}` });
+      const detail = yield* settle(started.missionId, (current) => current.questions.length === 1);
+      expect(detail.questions[0]?.details).toContain(outside);
+      expect(detail.questions[0]?.outcome).toBeNull();
     }).pipe(Effect.provide(layer));
   });
 

@@ -97,7 +97,7 @@ export const threadTools = {
   }),
   create_ritual: definitionOf({
     description:
-      "Only Iskios uses it. Create a Ritual: an instruction that runs by itself on a schedule, in a quest of its own, for anything the owner wants done repeatedly (every hour, every morning, weekly). Use it, not a quest, for a repeating request. Pick the preset that fits; there is no cron. Check the Rituals in your context first, so the same one is not made twice. Unless the owner's own message in this turn asked for a Ritual by this title plainly, it asks the owner one Allow or Deny question with its title, schedule, realm, and Companion, and waits. It starts on and runs when next due. Its runs may take no structural action unasked until the owner sets its scope in the Ritual's form; its instruction never grants any.",
+      "Only Iskios uses it. Create a Ritual: an instruction that runs by itself on a schedule, in a quest of its own, for anything the owner wants done repeatedly (every hour, every morning, weekly). Use it, not a quest, for a repeating request. Pick the preset that fits; there is no cron. Check the Rituals in your context first, so the same one is not made twice. It always asks the owner one Allow or Deny question with its title, schedule, realm, Companion, and instruction, and waits; naming the title in a message is not enough. It starts on and runs when next due. Its runs may take no structural action unasked until the owner sets its scope in the Ritual's form; its instruction never grants any.",
     invalid: invalid(
       "Invalid arguments: give instruction, title, and schedule (Daily, Weekdays, Weekly, Monthly, or Hourly).",
     ),

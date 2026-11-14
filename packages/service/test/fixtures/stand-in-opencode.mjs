@@ -230,6 +230,19 @@ const runPrompt = async (prompt, text) => {
   }
   // "edit <path>" asks to change that file as OpenCode's edit tool did live on 2026-11-08: the input keeps the
   // path as the model wrote it, and the locations and diff carry it resolved against the folder.
+  // "edit <path> and <path>" is one tool call naming two files.
+  const pair = /^edit (.+) and (.+)$/.exec(text);
+  if (pair !== null) {
+    const resolvedPair = [pair[1], pair[2]].map((path) => resolve(process.cwd(), path));
+    return askPermission(prompt, pair[1], {
+      content: resolvedPair.map((path) => ({ newText: "new", oldText: "old", path, type: "diff" })),
+      kind: "edit",
+      locations: resolvedPair.map((path) => ({ path })),
+      name: "edit",
+      rawInput: { newString: "new", oldString: "old", path: pair[1] },
+    });
+  }
+  // "edit <path>" asks to change that file.
   const edit = /^edit (.+)$/.exec(text);
   if (edit !== null) {
     const resolved = resolve(process.cwd(), edit[1]);
