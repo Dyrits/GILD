@@ -5,6 +5,7 @@ describe("themeOf", () => {
   it("reads a stored theme", () => {
     expect(themeOf("iskios")).toBe("iskios");
     expect(themeOf("gild")).toBe("gild");
+    expect(themeOf("one")).toBe("one");
   });
 
   it("is Iskios when nothing or something unknown is stored", () => {
@@ -12,7 +13,7 @@ describe("themeOf", () => {
     expect(themeOf("sepia")).toBe("iskios");
   });
 
-  it("offers Iskios and Gild", () => {
-    expect(themes).toEqual(["iskios", "gild"]);
+  it("offers Iskios, Gild, and One", () => {
+    expect(themes).toEqual(["iskios", "gild", "one"]);
   });
 });

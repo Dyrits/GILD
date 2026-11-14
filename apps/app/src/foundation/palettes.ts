@@ -1,4 +1,5 @@
 import type { ColorScheme } from "./colorSchemeRules";
+import { onePalettes } from "./onePalettes";
 import type { Theme } from "./themeRules";
 
 /**
@@ -206,4 +207,5 @@ const gildLight: Palette = {
 export const palettes = {
   gild: { dark: gildDark, light: gildLight },
   iskios: { dark: iskiosDark, light: iskiosLight },
+  one: onePalettes,
 } as const satisfies Record<Theme, Record<ColorScheme, Palette>>;

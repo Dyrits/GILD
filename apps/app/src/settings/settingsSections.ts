@@ -12,3 +12,7 @@ export const settingsSections = [
 
 /** The identifier of a section of the Workshop. */
 export type SettingsSectionId = (typeof settingsSections)[number]["id"];
+
+/** A theme or look reload returns to Look and feel; an ordinary start keeps Permissions as the initial section. */
+export const settingsSectionOf = (resumedPlace: string | null): SettingsSectionId =>
+  resumedPlace === "Settings" ? "defaults" : "permissions";

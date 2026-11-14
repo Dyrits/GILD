@@ -96,7 +96,7 @@ Whom a thread may message and whose journal it may read beyond its own tree: wha
 _Avoid_: Permission, access, scope
 
 **Theme**:
-The app's look in colors and icons: Iskios, or Gild. The owner chooses it in the Workshop, and each theme comes in a dark and a light **Look**.
+The app's look in colors and icons: Iskios, Gild, or One. The owner chooses it in the Workshop, and each theme comes in a dark and a light **Look**.
 _Avoid_: Skin, style
 
 **Look**:
@@ -105,6 +105,9 @@ _Avoid_: Mode, appearance
 
 **Gild**:
 The theme beside Iskios: brown, gilt, and parchment colors, and a hooded figure as the Dock icon.
+
+**One**:
+The neutral theme based on Zed's One Light and One Dark colors. It keeps Iskios's application icon and the shared sidebar drawings.
 
 **The Keep**:
 The navigation group containing Library, Lore, and Archive.

@@ -11,6 +11,11 @@ describe("iconFileOf", () => {
     expect(iconFileOf("gild")).toBe("icon-gild.png");
   });
 
+  it("keeps Iskios's icon for the One color theme", () => {
+    expect(iconFiles.one).toBe("icon.png");
+    expect(iconFileOf("one")).toBe("icon.png");
+  });
+
   it("gives Iskios's icon for Iskios and for anything unknown", () => {
     expect(iconFileOf("iskios")).toBe("icon.png");
     expect(iconFileOf("sepia")).toBe("icon.png");

@@ -39,6 +39,7 @@ Review this list when starting a capability, and every few weeks: read each prod
 - **License**: Delta is closed, so ideas only. DeltaDB is not open source as of 2026-11-04.
 - **Check on**: whether DeltaDB is published as open source; it could replace Iskios's own copies ([backlog](backlog.md)).
 - **Sidebar hover actions** (2026-11-11, from the owner's screenshots of Delta's sidebar): a row shows only its icon and name at rest, and its actions ("…", "+") appear at its right while the pointer is over it. Taken for the Iskios sidebar's fold arrows and action buttons, with keyboard focus also showing them (CHG-0163). No Delta code was seen or copied.
+- **One theme** (2026-11-14): the owner asked for Zed/Delta One Light and One Dark colors. Taken from Zed's published MIT-licensed theme, with its notice included in desktop builds; no Delta code copied. Exact source, mapping, and contrast adaptations are in [research/zed-one-themes.md](research/zed-one-themes.md).
 
 ### intentic ([intentic.dev](https://intentic.dev), [source](https://github.com/intentic/intentic))
 

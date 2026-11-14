@@ -2,8 +2,8 @@ import type { Theme } from "./themeName";
 
 export type { Theme };
 
-/** The two themes the app has: Iskios, the flat navy and cream look, and Gild, the guild's brown, gilt, and parchment. */
-export const themes = ["iskios", "gild"] as const satisfies ReadonlyArray<Theme>;
+/** The themes offered in the Workshop, each with a light and a dark look. */
+export const themes = ["iskios", "gild", "one"] as const satisfies ReadonlyArray<Theme>;
 
 // Fails to compile when a theme is named in `Theme` and missing from the list.
 const everyThemeIsListed: Exclude<Theme, (typeof themes)[number]> extends never ? true : never = true;

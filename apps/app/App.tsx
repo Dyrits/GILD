@@ -7,7 +7,7 @@ import { ActiveHostContext, HostMenuContext } from "./src/foundation/hostContext
 import { colors } from "./src/foundation/theme";
 import { useHostConnection } from "./src/foundation/useHostConnection";
 import { useRightPanel } from "./src/foundation/useRightPanel";
-import type { SettingsSectionId } from "./src/settings/settingsSections";
+import { type SettingsSectionId, settingsSectionOf } from "./src/settings/settingsSections";
 import { AddHostModal } from "./src/shell/addHostModal";
 import { AppScreen } from "./src/shell/appScreen";
 import { appStyles as styles } from "./src/shell/appStyles";
@@ -45,7 +45,7 @@ export default function App() {
   // The side-quest open in the open quest, chosen in the sidebar or the conversation; null for the quest itself.
   const [openThread, setOpenThread] = useState<ThreadId | null>(null);
   const [isPermissionsOpen, setIsPermissionsOpen] = useState(false);
-  const [settingsSection, setSettingsSection] = useState<SettingsSectionId>("permissions");
+  const [settingsSection, setSettingsSection] = useState<SettingsSectionId>(() => settingsSectionOf(resumedPlace));
   // The realm chosen for the Guildmaster's next message: from a realm's page.
   const [guildmasterRealm, setGuildmasterRealm] = useState<string | null>(null);
   // Counts openings from the sidebar, so choosing the open mission again goes back to its threads.

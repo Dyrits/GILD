@@ -1,5 +1,12 @@
 # Work in progress
 
+## One theme · 2026-11-14 · implementation in progress
+
+The owner asked for a **One** theme using Zed/Delta One Light and One Dark colors. Starting revision: `fd4680e`.
+Scope: add One alongside Iskios and Gild in Workshop → Look and feel, using the existing Light / Dark / System choice and local persistence. Keep the current defaults, shared sidebar drawings, and Iskios application icon; no layout redesign.
+Use Zed's open-source theme as the color source, pinned and attributed; do not copy closed-source Delta code.
+Checks: extend the existing theme-selection, palette, contrast, and desktop-icon tests; run Biome, workspace typecheck, and the full test suite; exercise selection, reload persistence, and both looks in a throwaway app. Appearance still needs the owner's acceptance.
+
 ## Sandbox token isolation (SA-11, SA-13) · 2026-11-14 · OpenCode fixed and checked
 
 Approved by the owner on 2026-11-14. The owner then asked for a fix that breaks nothing, keeping threads able to share context and know what the others are doing (they do so through the thread tools, never the process table). Delivered as [CHG-0277](changelog/0.1.3-Prototype.md#chg-0277--2026-11-14--a-sandboxed-opencode-no-longer-sees-other-processes), with [evidence](verification/2026-11-14-token-isolation.md). Committed on `main` with the handoff, on top of CHG-0276.

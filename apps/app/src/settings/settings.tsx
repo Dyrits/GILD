@@ -10,24 +10,16 @@ import { BudgetEditor } from "../editors/budgets";
 import { levelLabels } from "../editors/permissions";
 import { useHarnesses } from "../editors/runners";
 import { messageOf, type ServiceClient } from "../foundation/client";
-import {
-  canChooseColorScheme,
-  chooseColorPreference,
-  chooseTheme,
-  colorPreference,
-  theme,
-} from "../foundation/colorScheme";
-import { colorSchemePreferences } from "../foundation/colorSchemeRules";
 import { useHasSidebar } from "../foundation/shellContext";
 import { styles } from "../foundation/styles";
 import { colors, fontSizes, fonts } from "../foundation/theme";
-import { type Theme, themes } from "../foundation/themeRules";
 import { useServiceQuery } from "../foundation/useServiceQuery";
 import { Choice } from "../ui/pickers";
 import { AccountBudgetsCard } from "./accountBudgetsCard";
 import { BrowsableRootsCard } from "./browsableRootsCard";
 import { ComputerNameCard } from "./computerNameCard";
 import { DefaultCompanionCard } from "./defaultCompanionCard";
+import { LookCard } from "./lookCard";
 import { NumberField, NumberSetting } from "./numberSetting";
 import { PresetsCard } from "./presetsCard";
 import { PricesCard } from "./pricesCard";
@@ -45,15 +37,6 @@ const deliveryLabels = {
   Queue: "Queue for its next turn",
   Steer: "Steer its current turn",
 } as const satisfies Record<MessageDelivery, string>;
-
-/** How each theme is named in the Charter. */
-const themeLabels = { gild: "Gild", iskios: "Iskios" } as const satisfies Record<Theme, string>;
-
-/** How each choice of color scheme is named in the Charter. */
-const colorSchemeLabels = { dark: "Dark", light: "Light", system: "System" } as const satisfies Record<
-  (typeof colorSchemePreferences)[number],
-  string
->;
 
 /** One section of the page: its cards, drawn only while the menu has it chosen. */
 function Section({ active, children, id }: { active: SettingsSectionId; children: ReactNode; id: SettingsSectionId }) {
@@ -115,31 +98,7 @@ export function SettingsScreen({
               />
             </Section>
             <Section active={active} id="defaults">
-              {canChooseColorScheme && (
-                <SettingsCard icon="sliders" title="Look">
-                  <View style={local.choiceRow}>
-                    <Text style={[styles.body, local.choiceLabel]}>Theme · Iskios or Gild</Text>
-                    <Choice
-                      accessibilityLabel="Theme"
-                      label={(name) => themeLabels[name]}
-                      onChange={chooseTheme}
-                      options={themes}
-                      value={theme}
-                    />
-                  </View>
-                  <SettingsRule />
-                  <View style={local.choiceRow}>
-                    <Text style={[styles.body, local.choiceLabel]}>Appearance · light, dark, or the system's</Text>
-                    <Choice
-                      accessibilityLabel="Appearance"
-                      label={(preference) => colorSchemeLabels[preference]}
-                      onChange={chooseColorPreference}
-                      options={colorSchemePreferences}
-                      value={colorPreference}
-                    />
-                  </View>
-                </SettingsCard>
-              )}
+              <LookCard />
               <SettingsCard icon="hourglass" title="Quest upkeep">
                 <NumberSetting
                   label="Ask about a quest after this many days without activity"
@@ -304,8 +263,6 @@ export function SettingsScreen({
 
 const local = StyleSheet.create({
   back: { color: colors.highlight },
-  choiceLabel: { flex: 1 },
-  choiceRow: { alignItems: "center", flexDirection: "row", gap: 12, justifyContent: "space-between" },
   content: { gap: 18, paddingHorizontal: 28, paddingVertical: 20 },
   error: { color: colors.highlight, fontFamily: fonts.sans, fontSize: fontSizes.md },
   menuColumn: { paddingLeft: 20, paddingTop: 20 },

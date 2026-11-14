@@ -9,8 +9,8 @@ const luminance = (hex: string): number => {
   };
   return 0.2126 * channel(1) + 0.7152 * channel(3) + 0.0722 * channel(5);
 };
-const contrast = (a: string, b: string): number => {
-  const [high, low] = [luminance(a), luminance(b)].sort((x, y) => y - x);
+const contrast = (foreground: string, background: string): number => {
+  const [high, low] = [luminance(foreground), luminance(background)].sort((current, next) => next - current);
   return ((high ?? 0) + 0.05) / ((low ?? 0) + 0.05);
 };
 
@@ -25,14 +25,28 @@ describe.each(themes.flatMap((theme) => (["dark", "light"] as const).map((scheme
       }
     });
 
-    // Iskios's own colors are as they were before Gild; only Gild's are held to these.
-    it.runIf(theme === "gild")("reads the dimmer text and the accent on the page", () => {
+    // Iskios's original colors stay unchanged; newer palettes meet the small-text threshold.
+    it.runIf(theme !== "iskios")("reads the dimmer text and the accent on the page", () => {
       expect(contrast(colors.textMuted, colors.page)).toBeGreaterThanOrEqual(4.5);
       expect(contrast(colors.accentText, colors.page)).toBeGreaterThanOrEqual(4.5);
     });
 
-    it.runIf(theme === "gild")("reads the label of an accent button", () => {
+    it.runIf(theme !== "iskios")("reads the label of an accent button", () => {
       expect(contrast(colors.onAccent, colors.accent)).toBeGreaterThanOrEqual(4.5);
+    });
+
+    it.runIf(theme === "one")("reads messages and state labels on their tinted backgrounds", () => {
+      for (const background of [colors.bubbleUser, colors.accentSoft, colors.controlActive]) {
+        expect(contrast(colors.text, background)).toBeGreaterThanOrEqual(4.5);
+      }
+      for (const [foreground, background] of [
+        [colors.dangerText, colors.dangerSoft],
+        [colors.successText, colors.successSoft],
+        [colors.warningText, colors.warningSoft],
+        [colors.violet, colors.violetSoft],
+      ]) {
+        expect(contrast(foreground, background)).toBeGreaterThanOrEqual(4.5);
+      }
     });
   },
 );
