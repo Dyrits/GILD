@@ -1,7 +1,7 @@
 # Realm archive, recovery, and grouped overview
 
 Starting revision: `b6e03247c1caeab64a0eacdaf5d7e79dc99c2518`.
-Agreement: [CHG-0268](../changelog/0.1.3-Prototype.md#chg-0268--2026-11-13--realm-archive-recovery-and-the-realms-overview) and [mission-tracking behavior](../capabilities/mission-tracking/specifications.md#archiving-and-restoring-a-realm).
+Agreement: [CHG-0271](../changelog/0.1.3-Prototype.md#chg-0271--2026-11-13--realm-archive-recovery-and-the-realms-overview) and [mission-tracking behavior](../capabilities/mission-tracking/specifications.md#archiving-and-restoring-a-realm).
 Status: built and checked for the original agreement; review fixes implemented; owner acceptance and the new content-disposition decisions remain open. No Delivery is claimed.
 
 ## Checks run
@@ -103,3 +103,9 @@ Reviewer: `ksQQZB6WMyCYTN-gpio-GcIS6pLOAA9yRpIBxBD4Hb2XjQRLFolB9uuuDumM`. All th
 - No packaged-app, paired-device UI, narrow-window, native-phone, or Windows/Linux drive.
 - The existing nested-button warnings in the sidebar remain. They were not introduced or fixed by this batch.
 - No commit, push, tag, release, or landing was performed at this checkpoint.
+
+## Quest and Ritual choices, and the rebase onto origin/main (2026-11-14)
+
+- [CHG-0270](../changelog/0.1.3-Prototype.md): the archive confirmation lists active quests with checkboxes to move to the Borderlands, and switches the realm's Rituals off. `realmArchiveDisposition.test.ts` (5 tests) was run before the change and failed for the expected reasons (the preview had no `quests` or `rituals`, and a Ritual was archived as an ordinary quest). After the change it passes with the neighboring realm and Ritual tests (34 passed). The test that a quest at work, a quest of another realm, or a Ritual's quest cannot be moved failed before only on a missing field, so its refusal has not been shown able to fail by mutation.
+- The work was rebased onto `origin/main` at `6adb863` (one conflict in `newRealmModal.tsx`, resolved so the realm is still created wearing the crest the menu shows; one in `work-in-progress.md`, both sections kept). After the rebase: `bun run check`, `bun run typecheck` and `bun run --filter desktop build` pass, and `CI=1 bun run test --maxWorkers=4` passes with **1,511 passed, 14 skipped; 143 files passed, one skipped**.
+- **Not run:** the window drive. Its script now covers the checklist move and the Ritual notice, but the owner interrupted its launch, so the dialog's checkboxes and labels and the "Realm archived" notice have never been seen in a window, and the earlier dark and light screenshots predate them. Owner acceptance of the appearance is still open. No Delivery is claimed.

@@ -83,7 +83,7 @@ Sidebar drag-and-drop and confirmation were agreed on 2026-11-10 (CHG-0133) and 
 
 ### Archiving and restoring a realm
 
-Agreed on 2026-11-13 (CHG-0268), built; the quest and Ritual choices below were agreed on 2026-11-14 (CHG-0270). This replaces the older Hide and Delete permanently proposal for realm removal in [workspace attachment](../workspace-attachment/specifications.md#hiding-and-deleting-a-workspace).
+Agreed on 2026-11-13 (CHG-0271), built; the quest and Ritual choices below were agreed on 2026-11-14 (CHG-0270). This replaces the older Hide and Delete permanently proposal for realm removal in [workspace attachment](../workspace-attachment/specifications.md#hiding-and-deleting-a-workspace).
 
 - The owner removes a realm from active use by archiving it, not by permanently deleting it. This applies to realms tied to a folder and to realms tied to none.
 - **Archive realm…** is available in the realm's panel and through the same top-right archive button used for quests, acting on the realm when its overview is shown. Right-click actions are deferred.
@@ -97,7 +97,7 @@ Agreed on 2026-11-13 (CHG-0268), built; the quest and Ritual choices below were 
 
 ### Reusing an archived realm's folder
 
-Agreed on 2026-11-13 (CHG-0268); not implemented.
+Agreed on 2026-11-13 (CHG-0271); not implemented.
 
 - One resolved folder belongs to one realm, including while that realm is archived. Choosing its folder during new-realm creation must not silently reuse a hidden realm or create a second realm for the same folder.
 - The owner chooses the folder and fills the new-realm form. If the folder belongs to an archived realm, the flow then offers **Restore**, **Start afresh**, and **Cancel**, showing the archived realm's name, archive date, and quest count. A realm tied to no folder has no folder match.
@@ -112,7 +112,7 @@ Agreed on 2026-11-13 (CHG-0268); not implemented.
 
 ### Realm names
 
-Agreed on 2026-11-13 (CHG-0268); not implemented.
+Agreed on 2026-11-13 (CHG-0271); not implemented.
 
 - Realm names are labels, not identities, and duplicate names are allowed. Realms have distinct ids; folder-tied realms are also distinguished by their resolved folders.
 - Creating or renaming a realm to a name shared by another active realm warns the owner and lets them confirm rather than blocking. Archived realms do not count as collisions.
@@ -130,7 +130,7 @@ Agreed on 2026-11-13 (CHG-0268); not implemented.
 
 ### Realms overview
 
-Agreed on 2026-11-13 (CHG-0268); not implemented.
+Agreed on 2026-11-13 (CHG-0271); not implemented.
 
 - The Realms destination becomes a compact quest-list overview grouped by active realm, using the existing overview's row presentation rather than a new card layout.
 - Each realm group has its crest and name, links to that realm's overview, and lists its active quests with state, Companion, latest activity, and foldable nested side-quests.
@@ -235,7 +235,7 @@ Threads use this thread tool (see [0005](../../architecture-decision-record/0005
   - the proposed title, the user's rename, and `set_mission_title` refused afterwards;
   - prefilled choices when starting a mission;
   - dashboard order, filters, and search.
-- **Realm lifecycle batch (CHG-0268), automated with a fake harness and temporary data**:
+- **Realm lifecycle batch (CHG-0271), automated with a fake harness and temporary data**:
   - realm archive through either entry point, with confirmation, quest and running-thread counts, no change on Cancel, and nested running threads stopped on confirm;
   - archive preserving realm identity, lore, conversations, journals, and folder association across a service restart, and never deleting the workspace folder;
   - restoring only the quests archived with the realm, while previously individually archived quests remain archived;

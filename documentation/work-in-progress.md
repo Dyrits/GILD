@@ -6,7 +6,7 @@ The owner asked to merge the Workshop's Harnesses and Accounts cards, keeping th
 
 ## Realm archive, recovery, and grouped overview · 2026-11-13 · built; window proof of the quest and Ritual choices pending
 
-Starting revision: `b6e03247c1caeab64a0eacdaf5d7e79dc99c2518`. The owner selected realm removal as the next focus and settled Q1–Q10 in the thread, with the last clarification that a blank form name resolves to the folder's name and the initial shuffled crest is a proposed value. The agreement is [CHG-0268](changelog/0.1.3-Prototype.md#chg-0268--2026-11-13--realm-archive-recovery-and-the-realms-overview); behavior and acceptance live in [mission tracking](capabilities/mission-tracking/specifications.md#archiving-and-restoring-a-realm).
+Starting revision: `b6e03247c1caeab64a0eacdaf5d7e79dc99c2518`. The owner selected realm removal as the next focus and settled Q1–Q10 in the thread, with the last clarification that a blank form name resolves to the folder's name and the initial shuffled crest is a proposed value. The agreement is [CHG-0271](changelog/0.1.3-Prototype.md#chg-0271--2026-11-13--realm-archive-recovery-and-the-realms-overview); behavior and acceptance live in [mission tracking](capabilities/mission-tracking/specifications.md#archiving-and-restoring-a-realm).
 
 Implementation plan, in dependency order:
 1. Test-first service/contracts/storage work for confirmed realm archive and restore, preserving prior individual quest archives, folder identity, and older saved data. Reuse the command transaction/follow-up boundary and lore history writer; do not silently unarchive through folder attachment. Cover cancellation and confirmation-time changes in the realm's contents or running threads.
@@ -19,7 +19,7 @@ Status: the owner authorized implementation with "Go for it." The receiving work
 
 Agreed 2026-11-14 ([CHG-0270](changelog/0.1.3-Prototype.md)): the archive dialog lists the realm's active quests with checkboxes (none checked) to move to the Borderlands instead of archiving; a quest at work cannot be checked. It also names the realm's Rituals, which are switched off, kept in the Rituals with a "Realm archived" notice, and left off after Restore or Start afresh. Built test-first in `realmArchiveDisposition.test.ts` (5 tests), with the checklist in `apps/app/src/realms/realmArchiveChoices.tsx`. Still to do for this change: the window drive for the checklist and the Ritual notice (the drive script predates it), the reviewers' pass over the new code, and the owner's look.
 
-Next: extend `documentation/verification/2026-11-13-realm-archive/drive.ts` with a checklist move and a Ritual, repeat the window drive in dark and light on fresh disposable data, record the evidence, and ask the owner to judge the runnable result.
+Landed on `main` after a rebase onto `6adb863` (full tests 1,511 passed); the window drive script now covers the checklist and a Ritual but has not been run. Next: run `documentation/verification/2026-11-13-realm-archive/drive.ts`, repeat the window drive in dark and light on fresh disposable data, record the evidence, and ask the owner to judge the runnable result.
 
 Deferred in scope: right-click actions across menus, recorded in the [backlog](backlog.md). Outside this batch: permanent realm deletion, workspace-folder deletion, and a new realm id for an already-associated folder. No push, release, or shared-branch landing is authorized.
 

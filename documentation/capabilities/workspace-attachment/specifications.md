@@ -73,7 +73,7 @@ A started thread's workspace can change through a [whole-quest move](../mission-
 
 ### Hiding and deleting a workspace
 
-- The older Hide and Delete permanently proposal for realm removal is superseded by [realm archiving and restoration](../mission-tracking/specifications.md#archiving-and-restoring-a-realm) (CHG-0268, agreed 2026-11-13; not implemented).
+- The older Hide and Delete permanently proposal for realm removal is superseded by [realm archiving and restoration](../mission-tracking/specifications.md#archiving-and-restoring-a-realm) (CHG-0271, agreed 2026-11-13; not implemented).
 - Archiving keeps the realm and its folder association and never deletes the workspace folder. The confirmation shows the running-thread count and offers to stop them and archive.
 - Choosing an archived realm's folder again follows the explicit [Restore or Start afresh flow](../mission-tracking/specifications.md#reusing-an-archived-realms-folder), not silent restoration or creation of a second realm for that folder.
 - A permanent realm deletion is not part of this batch.

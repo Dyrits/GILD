@@ -94,7 +94,7 @@ Each intel has a kind, which sets how fast it fades when no thread uses it. The 
 
 - Every save, replacement, change, widening, deletion, and fading step is recorded with who or what made it and when.
 - The intel panel shows an intel's history, including which intel replaced which, and the user can undo any change. Undoing a deletion restores the intel. Deleted intel stays listed under the panel's Deleted filter, where its deletion can be undone.
-- The agreed [Start afresh flow for an archived realm](../mission-tracking/specifications.md#reusing-an-archived-realms-folder) uses this same deletion and recovery for realm-level lore only (CHG-0268; not implemented). It is not a permanent purge and does not delete global or quest-scoped lore.
+- The agreed [Start afresh flow for an archived realm](../mission-tracking/specifications.md#reusing-an-archived-realms-folder) uses this same deletion and recovery for realm-level lore only (CHG-0271; not implemented). It is not a permanent purge and does not delete global or quest-scoped lore.
 
 ### Widening and narrowing
 
