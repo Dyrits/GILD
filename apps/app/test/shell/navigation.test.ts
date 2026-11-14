@@ -1,7 +1,20 @@
 import { describe, expect, it } from "vitest";
-import { detailsModeOf } from "../../src/shell/navigation";
+import { archiveParentOf, detailsModeOf } from "../../src/shell/navigation";
 
 const view = { hasListedRealm: false, openMission: null, place: "Guildmaster" as const, selectedMission: null };
+
+describe("returning after a quest archive", () => {
+  it("returns to the quest's containing realm instead of the last visited screen", () => {
+    expect(archiveParentOf({ workspaceId: "garden", workspaceName: "Garden" })).toEqual({
+      listing: { id: "garden", name: "Garden" },
+      place: "RealmQuests",
+    });
+    expect(archiveParentOf({ workspaceId: null, workspaceName: null })).toEqual({
+      listing: null,
+      place: "Borderlands",
+    });
+  });
+});
 
 describe("the side panel's mode", () => {
   it("has no details to open on the quest board until a quest is selected", () => {

@@ -20,6 +20,22 @@ const migrateUntil = (last: string) =>
     loader: SqliteMigrator.fromRecord(Object.fromEntries(Object.entries(migrations).filter(([id]) => id <= last))),
   });
 
+describe("realm archive migration", () => {
+  it.live("reads a realm saved before archive support as active without rewriting it", () => {
+    const directory = mkdtempSync(join(tmpdir(), "iskios-store-"));
+    directories.push(directory);
+    return Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      yield* migrateUntil("0045_own_account_labels");
+      yield* sql`INSERT INTO workspaces (id, name, path, created_at, crest) VALUES ('garden', 'Garden', '/garden', 1, NULL)`;
+      yield* migrateUntil("0046_realm_archives");
+      expect(yield* sql`SELECT id, name, path, archived_at AS archivedAt FROM workspaces`).toEqual([
+        { archivedAt: null, id: "garden", name: "Garden", path: "/garden" },
+      ]);
+    }).pipe(Effect.provide(SqliteClient.layer({ filename: join(directory, "store.sqlite") })));
+  });
+});
+
 describe("only Realms and Borderlands (CHG-0161)", () => {
   it.live("keeps realms and their threads, lets a realm have no folder, and drops Free Realms", () => {
     const directory = mkdtempSync(join(tmpdir(), "iskios-store-"));

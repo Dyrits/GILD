@@ -113,12 +113,12 @@ export const findRealm = (given: string) =>
     const [byPath] = yield* sql<{
       name: string;
       path: string;
-    }>`SELECT name, path FROM workspaces WHERE path = ${wanted}`;
+    }>`SELECT name, path FROM workspaces WHERE (path = ${wanted} OR id = ${wanted}) AND archived_at IS NULL AND path IS NOT NULL`;
     if (byPath !== undefined) return byPath;
-    const [byName] = yield* sql<{ name: string; path: string }>`
-      SELECT name, path FROM workspaces WHERE lower(name) = lower(${wanted}) AND path IS NOT NULL
-      ORDER BY created_at LIMIT 1`;
-    return byName ?? null;
+    const byName = yield* sql<{ name: string; path: string }>`
+      SELECT name, path FROM workspaces WHERE lower(name) = lower(${wanted}) AND path IS NOT NULL AND archived_at IS NULL`;
+    if (byName.length > 1) return yield* invalid("Several active realms have that name. Use the realm's folder or id.");
+    return byName[0] ?? null;
   });
 
 /** The realms known, one line each, so the Guildmaster can name one when it proposes a quest or manages a realm. */
@@ -127,7 +127,7 @@ const realmLinesOf = Effect.gen(function* () {
   // A quest is placed by its realm's folder, so a realm tied to no folder cannot hold a proposed quest yet (CHG-0161,
   // decision record 0015); it is listed for the realm tools, and marked.
   const realms = yield* sql<{ name: string; path: string | null }>`
-    SELECT name, path FROM workspaces ORDER BY name`;
+    SELECT name, path FROM workspaces WHERE archived_at IS NULL ORDER BY name`;
   return realms.length === 0
     ? ["No realm exists yet; a quest opens with no realm."]
     : realms.map((realm) =>

@@ -61,6 +61,9 @@ const runStateColors = {
   Underway: colors.accentText,
 } as const satisfies Record<RitualRunState, string>;
 
+/** Why a Ritual of an archived realm stays off and cannot run. */
+const realmArchivedNotice = "Realm archived: restore it to switch this Ritual on.";
+
 /** Switches a Ritual on or off, keeping everything else as it is. */
 const setRitualOn = (client: ServiceClient, ritual: Ritual, isOn: boolean) =>
   client.request({
@@ -370,11 +373,6 @@ export function RitualForm({
           <RealmChooser
             client={client}
             onChange={setWorkspacePath}
-            onCreate={(realm) =>
-              client
-                .request({ _tag: "CreateRealm", crest: realm.crest, name: realm.name, path: realm.path })
-                .then(() => setWorkspacePath(realm.path))
-            }
             realms={known?.workspaces ?? []}
             value={workspacePath}
           />
@@ -408,10 +406,13 @@ export function RitualForm({
 /** Runs the Ritual now, showing the reason when it is refused. */
 function RunNowButton({
   client,
+  isBlocked = false,
   isUnderway,
   ritualId,
 }: {
   client: ServiceClient;
+  /** Whether the Ritual's realm is archived, which keeps it from running. */
+  isBlocked?: boolean;
   isUnderway: boolean;
   ritualId: RitualId;
 }) {
@@ -421,13 +422,13 @@ function RunNowButton({
       <Pressable
         accessibilityLabel="Run now"
         accessibilityRole="button"
-        accessibilityState={{ disabled: isUnderway }}
-        disabled={isUnderway}
+        accessibilityState={{ disabled: isUnderway || isBlocked }}
+        disabled={isUnderway || isBlocked}
         onPress={() => {
           setError(null);
           client.request({ _tag: "RunRitual", ritualId }).catch((reason) => setError(messageOf(reason)));
         }}
-        style={[local.runButton, isUnderway && styles.buttonDisabled]}
+        style={[local.runButton, (isUnderway || isBlocked) && styles.buttonDisabled]}
       >
         <Text style={local.runButtonText}>Run now</Text>
       </Pressable>
@@ -523,11 +524,18 @@ function RitualCard({
           </Text>
         )}
         <Text style={local.fact}>{companionLineOf(ritual)}</Text>
+        {ritual.isRealmArchived && <Text style={local.fact}>{realmArchivedNotice}</Text>}
       </View>
       <View style={local.actions}>
-        <RunNowButton client={client} isUnderway={ritual.lastRunState === "Underway"} ritualId={ritual.id} />
+        <RunNowButton
+          client={client}
+          isBlocked={ritual.isRealmArchived}
+          isUnderway={ritual.lastRunState === "Underway"}
+          ritualId={ritual.id}
+        />
         <View style={local.switch}>
           <Toggle
+            isDisabled={ritual.isRealmArchived}
             onValueChange={(isOn) =>
               setRitualOn(client, ritual, isOn).then(
                 () => setError(null),
@@ -642,11 +650,21 @@ export function RitualControls({ client, missionId }: { client: ServiceClient; m
         {ritual.lastRunState === null ? "" : ` · Last run: ${runStateLabels[ritual.lastRunState]}`}
       </Text>
       <Text style={local.fact}>{companionLineOf(ritual)}</Text>
+      {ritual.isRealmArchived && <Text style={local.fact}>{realmArchivedNotice}</Text>}
       <View style={local.switch}>
-        <Toggle onValueChange={(isOn) => guard(setRitualOn(client, ritual, isOn))} value={ritual.isOn} />
+        <Toggle
+          isDisabled={ritual.isRealmArchived}
+          onValueChange={(isOn) => guard(setRitualOn(client, ritual, isOn))}
+          value={ritual.isOn}
+        />
         <Text style={styles.body}>{ritual.isOn ? "On" : "Off"}</Text>
       </View>
-      <RunNowButton client={client} isUnderway={ritual.lastRunState === "Underway"} ritualId={ritual.id} />
+      <RunNowButton
+        client={client}
+        isBlocked={ritual.isRealmArchived}
+        isUnderway={ritual.lastRunState === "Underway"}
+        ritualId={ritual.id}
+      />
       <View style={local.switch}>
         <Pressable accessibilityRole="button" onPress={() => setIsEditing(true)}>
           <Text style={styles.link}>Edit</Text>

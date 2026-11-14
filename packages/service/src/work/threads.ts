@@ -27,16 +27,8 @@ import { prepareStartingContext } from "./startingContext.ts";
 import { Suggestions } from "./suggestions.ts";
 import { askOwnerFor } from "./threadToolHandlers.ts";
 import { unaskedToolNamesOf } from "./threadTools.ts";
-import {
-  type Admitted,
-  admitTurn,
-  completeTurn,
-  deliverSteered,
-  isCurrentTurn,
-  recordTurnFailure,
-  saveTurnNotice,
-  saveTurnReply,
-} from "./turns.ts";
+import { type Admitted, admitTurn, isCurrentTurn } from "./turnAdmission.ts";
+import { completeTurn, deliverSteered, recordTurnFailure, saveTurnNotice, saveTurnReply } from "./turns.ts";
 import { ScratchRoot } from "./workspaces.ts";
 
 /** Owns thread state and admits at most one turn per thread. */

@@ -818,17 +818,17 @@ describe("managing realms at the owner's request", () => {
     }).pipe(Effect.provide(layer));
   });
 
-  it.live("refuses a name another realm has, and a folder that already has a realm", () => {
+  it.live("allows a confirmed duplicate name, but refuses a folder that already has a realm", () => {
     const { directory, layer } = setup();
     return Effect.gen(function* () {
       const place = yield* guildmaster;
       const folder = folderIn(directory, "shop");
       yield* manage(place, "create_realm", { folder, name: "Shop" });
       const sameName = yield* manage(place, "create_realm", { name: "shop" });
-      expect(sameName).toContain("already exists");
+      expect(sameName).toContain('Made the realm "shop"');
       const sameFolder = yield* manage(place, "create_realm", { folder, name: "Store" });
       expect(sameFolder).toContain("already belongs to a realm");
-      expect((yield* realms).map((realm) => realm.name)).toEqual(["Shop"]);
+      expect((yield* realms).map((realm) => realm.name).sort()).toEqual(["Shop", "shop"]);
     }).pipe(Effect.provide(layer));
   });
 
@@ -852,7 +852,7 @@ describe("managing realms at the owner's request", () => {
     }).pipe(Effect.provide(setup().layer)),
   );
 
-  it.live("refuses to rename an unknown realm, or to a name another realm has", () =>
+  it.live("refuses an unknown realm but allows a confirmed duplicate rename", () =>
     Effect.gen(function* () {
       const place = yield* guildmaster;
       yield* manage(place, "create_realm", { name: "Ideas" });
@@ -863,8 +863,8 @@ describe("managing realms at the owner's request", () => {
         name: "NOTIONS",
         realm: "Ideas",
       });
-      expect(duplicate).toContain("already named");
-      expect((yield* realms).map((realm) => realm.name).sort()).toEqual(["Ideas", "Notions"]);
+      expect(duplicate).toContain('to "NOTIONS"');
+      expect((yield* realms).map((realm) => realm.name).sort()).toEqual(["NOTIONS", "Notions"]);
     }).pipe(Effect.provide(setup().layer)),
   );
 
@@ -876,9 +876,7 @@ describe("managing realms at the owner's request", () => {
       yield* manage(place, "create_realm", { folder, name: "Shop" });
       yield* manage(place, "create_realm", { name: "Notions" });
       const refusals: ReadonlyArray<readonly [string, object, string]> = [
-        ["create_realm", { name: "SHOP" }, "already exists"],
         ["create_realm", { folder, name: "Store" }, "already belongs to a realm"],
-        ["rename_realm", { name: "Notions", realm: "Shop" }, "already named"],
         ["rename_realm", { name: "Anything", realm: "nowhere" }, 'no realm "nowhere"'],
       ];
       for (const [name, args, reason] of refusals) {

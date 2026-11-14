@@ -1,4 +1,4 @@
-import type { EndingPreview, MissionEnding, MissionPrompt } from "@iskios/contracts";
+import type { EndingPreview, MissionEnding, MissionPrompt, QuestPlacement } from "@iskios/contracts";
 import { Clock, Effect, Layer, Schedule } from "effect";
 import { SqlClient } from "effect/sql";
 import { dayMillis, invalid, notFound, readSettings, ServiceFailure } from "../core/index.ts";
@@ -6,6 +6,7 @@ import { Commands, changed } from "./commands.ts";
 import { refuseGuildmaster } from "./guildmaster.ts";
 import { updateJournal } from "./journal.ts";
 import { activeStates, haltThreads } from "./lifecycle.ts";
+import { requireActiveQuestRealm } from "./realmAccess.ts";
 
 /** The journal entry for each way a mission ends or continues (mission-journal, When a mission ends). */
 const journalEntries = {
@@ -84,7 +85,11 @@ export const endMission = Effect.fn("endMission")(function* (
   }
   yield* haltThreads(ids, "Stopped");
   yield* recordEnding(missionId, ending, journalEntries[ending]);
-  return changed(null, { turnsToCancel: ids });
+  const [parent] = yield* sql<QuestPlacement>`SELECT top.workspace_id AS workspaceId, w.name AS workspaceName
+    FROM missions m JOIN threads top ON top.id = m.top_thread_id LEFT JOIN workspaces w ON w.id = top.workspace_id
+    WHERE m.id = ${missionId}`;
+  if (parent === undefined) return yield* notFound("No such quest.");
+  return changed(parent, { turnsToCancel: ids });
 });
 
 /** Returns an ended mission to the state worked out from its threads. */
@@ -93,6 +98,7 @@ export const reopenMission = Effect.fn("reopenMission")(function* (missionId: st
   const [mission] = yield* sql<{ ending: string | null }>`SELECT ending FROM missions WHERE id = ${missionId}`;
   if (mission === undefined) return yield* notFound("No such mission.");
   if (mission.ending === null) return yield* invalid("This mission has not ended.");
+  yield* requireActiveQuestRealm(missionId);
   yield* sql`UPDATE missions SET ending = NULL WHERE id = ${missionId}`;
   yield* updateJournal(missionId, { kind: "user" }, journalEntries.Reopened, null);
   return changed(null);

@@ -1,6 +1,6 @@
 import type { HarnessName, MissionDetail, MissionId, MissionSummary, WorkspaceChoice } from "@iskios/contracts";
-import { type ReactNode, useRef, useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import type { ReactNode } from "react";
+import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
 import { CrestBadge } from "../crest/crest";
 import { BudgetMeters } from "../editors/budgets";
 import { boardOf } from "../foundation/boardColumns";
@@ -17,6 +17,8 @@ import {
 import { styles } from "../foundation/styles";
 import { colors, fontSizes, fonts, outline, radii, stateLabels, stateTones } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
+import { RealmArchiveAction } from "../realms/realmArchiveAction";
+import { RealmName } from "../realms/realmName";
 import { RitualControls } from "../rituals/rituals";
 import { ProviderMark } from "../ui/providerMarks";
 import { RowChevron, RowIcon, type RowIconName } from "../ui/rowIcons";
@@ -312,41 +314,21 @@ function QuestLedger({
  * of its quests, those needing the owner or underway, and the button that opens the crest studio.
  */
 export function RealmPanel({
+  client,
   missions,
   onCustomize,
   onOpenLore,
-  onRename,
   onSelect,
   realm,
 }: {
+  client: ServiceClient;
   missions: ReadonlyArray<MissionSummary>;
   onCustomize: () => void;
   /** Opens the lore kept for this realm. */
   onOpenLore: () => void;
-  /** Keeps a new name for the realm; rejects with the reason when refused. */
-  onRename: (name: string) => Promise<unknown>;
   onSelect: (id: MissionId) => void;
   realm: WorkspaceChoice;
 }) {
-  // The new name while the realm's name is being edited; null at rest.
-  const [draft, setDraft] = useState<string | null>(null);
-  // Blur and submit both save; the ref lets the second of the two see that the first already did.
-  const draftRef = useRef<string | null>(null);
-  const [renameError, setRenameError] = useState<string | null>(null);
-  const editName = (value: string | null) => {
-    draftRef.current = value;
-    setDraft(value);
-  };
-  const saveName = () => {
-    if (draftRef.current === null) return;
-    const name = draftRef.current.trim();
-    editName(null);
-    if (name === "" || name === realm.name) return;
-    onRename(name).then(
-      () => setRenameError(null),
-      (reason: Error) => setRenameError(reason.message),
-    );
-  };
   const lastActivity = missions.length === 0 ? null : Math.max(...missions.map((mission) => mission.lastActivityAt));
   const cost = costTextOf({
     estimated: missions.reduce((sum, { consumption }) => sum + consumption.estimated, 0),
@@ -368,33 +350,8 @@ export function RealmPanel({
             >
               <CrestBadge crest={realm.crest} id={realm.id} size={64} />
             </Pressable>
-            {draft === null ? (
-              <Pressable
-                accessibilityHint="Press to rename the realm"
-                accessibilityRole="button"
-                onPress={() => editName(realm.name)}
-                style={styles.flex}
-              >
-                <Text numberOfLines={3} style={local.heroName}>
-                  {realm.name}
-                </Text>
-              </Pressable>
-            ) : (
-              <View style={local.nameField}>
-                <TextInput
-                  accessibilityLabel="Realm name"
-                  autoFocus
-                  maxLength={80}
-                  onBlur={saveName}
-                  onChangeText={editName}
-                  onSubmitEditing={saveName}
-                  style={[local.heroName, local.nameInput]}
-                  value={draft}
-                />
-              </View>
-            )}
+            <RealmName client={client} realm={realm} textStyle={local.heroName} />
           </View>
-          {renameError !== null && <Text style={styles.error}>{renameError}</Text>}
           <Text numberOfLines={2} style={local.meta}>
             {realm.path ?? "Tied to no folder"}
           </Text>
@@ -412,6 +369,7 @@ export function RealmPanel({
           <Row label="What this realm has learned" onPress={onOpenLore} />
         </Group>
         <QuestLedger missions={missions} onSelect={onSelect} />
+        <RealmArchiveAction client={client} workspaceId={realm.id} />
       </ScrollView>
     </View>
   );

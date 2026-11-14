@@ -24,6 +24,7 @@ import { JournalView } from "./journal.ts";
 import { LoreHistory, LoreScope, LoreStateFilter, LoreView } from "./lore.ts";
 import { Mentionable } from "./mentions.ts";
 import { PermissionsView, Question } from "./questions.ts";
+import { QuestPlacement, realmRequests, realmResults } from "./realmRequests.ts";
 import {
   EndingPreview,
   GuildHallRecap,
@@ -332,23 +333,6 @@ export const AnswerQuestion = Schema.TaggedStruct("AnswerQuestion", {
 export const ListOpenQuestions = Schema.TaggedStruct("ListOpenQuestions", {});
 /** The owner sets, changes, or removes a mission's budget; raising past the spending resumes stopped threads. */
 export const SetMissionBudget = Schema.TaggedStruct("SetMissionBudget", { limits: BudgetLimits, missionId: MissionId });
-/** The owner makes a realm, named and given a crest, before any quest starts in it: from a folder, or tied to none. */
-export const CreateRealm = Schema.TaggedStruct("CreateRealm", {
-  crest: Schema.NullOr(Crest),
-  name: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(80)),
-  /** The folder the realm is tied to, or null for a realm tied to no folder. */
-  path: Schema.NullOr(Schema.String),
-});
-/** The owner renames a realm; refused when the name is blank. */
-export const RenameRealm = Schema.TaggedStruct("RenameRealm", {
-  name: Schema.String.check(Schema.isMinLength(1), Schema.isMaxLength(80)),
-  workspaceId: WorkspaceId,
-});
-/** The owner designs a realm's crest, or clears it with null to go back to the one its id gives. */
-export const SetRealmCrest = Schema.TaggedStruct("SetRealmCrest", {
-  crest: Schema.NullOr(Crest),
-  workspaceId: WorkspaceId,
-});
 /** Reads a mission's budget window, or the global one with null. */
 export const ReadBudget = Schema.TaggedStruct("ReadBudget", { missionId: Schema.NullOr(MissionId) });
 /**
@@ -544,9 +528,7 @@ export const Request = Schema.Union([
   AnswerQuestion,
   AnswerSuggestion,
   SetMissionBudget,
-  SetRealmCrest,
-  RenameRealm,
-  CreateRealm,
+  ...realmRequests,
   ReadBudget,
   ReadUsage,
   StopAtBudget,
@@ -617,6 +599,7 @@ export type OpenThreadResult = typeof OpenThreadResult.Type;
 
 /** The result schema of each request, used by both sides to encode and decode. */
 export const Results = {
+  ...realmResults,
   AddAccount: HarnessList,
   AddAttachment: AttachmentCard,
   AddBrowsableRoot: FolderListing,
@@ -630,7 +613,6 @@ export const Results = {
   ChangeThreadRunner: Schema.Null,
   CreateFolder: Folder,
   CreatePairingCode: PairingCode,
-  CreateRealm: Schema.Null,
   CreateRitual: CreateRitualResult,
   DeleteIntel: Schema.Null,
   DeleteRitual: Schema.Null,
@@ -639,7 +621,7 @@ export const Results = {
   DisconnectDevice: RemoteAccessView,
   DismissMissionPrompt: Schema.Null,
   EditIntel: Schema.Null,
-  EndMission: Schema.Null,
+  EndMission: QuestPlacement,
   InstallHarness: HarnessList,
   InterruptThread: Schema.Null,
   ListHarnesses: HarnessList,
@@ -686,7 +668,6 @@ export const Results = {
   RenameHost: Schema.String,
   RenameMission: Schema.Null,
   RenameOwnAccount: HarnessList,
-  RenameRealm: Schema.Null,
   ReopenMission: Schema.Null,
   ResolveChatter: Schema.Null,
   ResolveIntelChange: Schema.Null,
@@ -700,7 +681,6 @@ export const Results = {
   SendMessage: SendMessageResult,
   SetAccountBudget: Schema.Null,
   SetMissionBudget: Schema.Null,
-  SetRealmCrest: Schema.Null,
   SetRemoteAccess: RemoteAccessView,
   SetThreadBackups: Schema.Null,
   SignInAccount: Schema.Null,

@@ -1,23 +1,22 @@
-import type { Crest } from "@iskios/contracts";
+import type { Crest, RealmArchivePreview } from "@iskios/contracts";
 import { useState } from "react";
 import { Modal, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { CrestBadge } from "../crest/crest";
+import { crestOf, shuffledCrest } from "../crest/crestShapes";
 import { CrestStudio } from "../crest/crestStudio";
 import type { ServiceClient } from "../foundation/client";
 import { messageOf } from "../foundation/client";
+import { allMissions } from "../foundation/queries";
 import { colors, fontSizes, fonts, outline, radii } from "../foundation/theme";
 import { FolderPicker } from "./folderPicker";
 import { newRealmCrestId, shownCrestOf } from "./newRealmCrest";
+import { folderNameOf, hasRealmNameCollision } from "./realmLabels";
+import { proposedRealmOf } from "./realmRecovery";
+import { creationStepOf } from "./realmRecoveryFlow";
+import { RealmRecoveryModal } from "./realmRecoveryModal";
 
 /** A realm being made: named and given a crest. The path is empty until a folder is chosen, and stays so for a realm tied to none. */
 export type NewRealm = { crest: Crest | null; name: string; path: string };
-
-/** The folder's name, as the last part of its path. */
-export const folderNameOf = (path: string) =>
-  path
-    .split(/[\\/]/)
-    .filter((part) => part !== "")
-    .pop() ?? path;
 
 /**
  * The menu that makes a realm: its folder, its name, and its crest. It opens with a folder chosen, or with none and a
@@ -30,30 +29,88 @@ export function NewRealmModal({
   isFolderRequired = true,
   initial,
   onCancel,
-  onCreate,
+  onCreated,
 }: {
   client: ServiceClient;
   /** Whether the realm must be tied to a folder; where it need not, the folder can be chosen, changed, or left out. */
   isFolderRequired?: boolean;
   initial: NewRealm;
   onCancel: () => void;
-  /** Imports the folder as a realm, named and given a crest; rejects with the reason when refused. */
-  onCreate: (realm: NewRealm) => Promise<unknown>;
+  /** Selects the successfully created or recovered realm in the calling form. */
+  onCreated?: (realm: NewRealm) => void;
 }) {
-  const [editing, setEditing] = useState(initial);
+  const [editing, setEditing] = useState(() => ({ ...initial, crest: initial.crest ?? shuffledCrest() }));
   const [isStudioOpen, setIsStudioOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isPicking, setIsPicking] = useState(false);
-  const isReady = editing.name.trim() !== "" && (!isFolderRequired || editing.path !== "");
+  const [isBusy, setBusy] = useState(false);
+  const [isDuplicate, setDuplicate] = useState(false);
+  const [archived, setArchived] = useState<RealmArchivePreview | null>(null);
+  // The realm is made wearing exactly the crest the menu shows (an undesigned one is drawn from the folder, not the new id).
+  const proposed = proposedRealmOf({ ...editing, crest: shownCrestOf(editing) });
+  const isReady = proposed.name !== "" && (!isFolderRequired || editing.path !== "") && !isBusy;
+  const completed = () => {
+    onCreated?.(proposed);
+    onCancel();
+  };
+  const cancel = () => {
+    if (!isBusy) onCancel();
+  };
+  const create = async (allowDuplicateName = false) => {
+    if (!isReady) return;
+    setBusy(true);
+    setError(null);
+    try {
+      const previous =
+        proposed.path === "" ? null : await client.request({ _tag: "FindArchivedRealm", path: proposed.path });
+      const active = previous === null ? await client.request(allMissions.request) : null;
+      const known = active?.workspaces.find((realm) => realm.path === proposed.path);
+      const step = creationStepOf({
+        allowDuplicateName,
+        hasArchivedRealm: previous !== null,
+        hasDuplicateName: hasRealmNameCollision(proposed.name, active?.workspaces ?? [], known?.id ?? null),
+      });
+      if (step === "recover") {
+        setArchived(previous);
+        return;
+      }
+      if (step === "duplicate") {
+        setDuplicate(true);
+        return;
+      }
+      await client.request({
+        _tag: "CreateRealm",
+        allowDuplicateName,
+        crest: proposed.crest,
+        name: proposed.name,
+        path: proposed.path === "" ? null : proposed.path,
+      });
+      completed();
+    } catch (reason) {
+      setError(messageOf(reason));
+    } finally {
+      setBusy(false);
+    }
+  };
   const choose = (path: string) => {
     setIsPicking(false);
     setError(null);
     setEditing({ ...editing, name: editing.name.trim() === "" ? folderNameOf(path) : editing.name, path });
   };
+  if (archived !== null)
+    return (
+      <RealmRecoveryModal
+        client={client}
+        initial={archived}
+        onCancel={() => setArchived(null)}
+        onRecovered={completed}
+        proposed={proposed}
+      />
+    );
   return (
-    <Modal animationType="fade" onRequestClose={onCancel} transparent visible>
+    <Modal animationType="fade" onRequestClose={cancel} transparent visible>
       <View style={local.backdrop}>
-        <Pressable accessibilityLabel="Close" onPress={onCancel} style={StyleSheet.absoluteFill} />
+        <Pressable accessibilityLabel="Close" disabled={isBusy} onPress={cancel} style={StyleSheet.absoluteFill} />
         <View style={local.menu}>
           <Text style={local.menuTitle}>Travel to a new realm</Text>
           <View style={local.folderRow}>
@@ -84,8 +141,12 @@ export function NewRealmModal({
               <TextInput
                 accessibilityLabel="Realm name"
                 autoFocus
+                editable={!isBusy}
                 maxLength={80}
-                onChangeText={(name) => setEditing({ ...editing, name })}
+                onChangeText={(name) => {
+                  setEditing({ ...editing, name });
+                  setDuplicate(false);
+                }}
                 placeholder="Name the realm"
                 placeholderTextColor={colors.placeholder}
                 style={local.nameInput}
@@ -96,23 +157,23 @@ export function NewRealmModal({
               </Pressable>
             </View>
           </View>
+          {isDuplicate && (
+            <Text style={local.error}>Another active realm is named "{proposed.name}". Use this name too?</Text>
+          )}
           {error !== null && <Text style={local.error}>{error}</Text>}
           <View style={local.menuFooter}>
-            <Pressable accessibilityRole="button" onPress={onCancel} style={local.menuButton}>
+            <Pressable accessibilityRole="button" disabled={isBusy} onPress={cancel} style={local.menuButton}>
               <Text style={local.menuButtonText}>Cancel</Text>
             </Pressable>
             <Pressable
               accessibilityRole="button"
               disabled={!isReady}
-              onPress={() =>
-                onCreate({ ...editing, crest: shownCrestOf(editing), name: editing.name.trim() }).then(
-                  onCancel,
-                  (reason) => setError(messageOf(reason)),
-                )
-              }
+              onPress={() => {
+                void create(isDuplicate);
+              }}
               style={[local.menuDone, !isReady && local.menuDoneOff]}
             >
-              <Text style={local.menuDoneText}>Create the realm</Text>
+              <Text style={local.menuDoneText}>{isDuplicate ? "Use this name" : "Create the realm"}</Text>
             </Pressable>
           </View>
         </View>
@@ -125,7 +186,7 @@ export function NewRealmModal({
           name={editing.name.trim() || (editing.path === "" ? "New realm" : folderNameOf(editing.path))}
           onCancel={() => setIsStudioOpen(false)}
           onDone={(crest) => {
-            setEditing({ ...editing, crest });
+            setEditing({ ...editing, crest: crestOf(crest, editing.path || "new-realm") });
             setIsStudioOpen(false);
             return Promise.resolve();
           }}

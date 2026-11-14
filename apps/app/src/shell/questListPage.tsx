@@ -1,132 +1,18 @@
-import type { MissionId, MissionSummary, ThreadId, ThreadSummary, WorkspaceId } from "@iskios/contracts";
+import type { MissionId, ThreadId, WorkspaceId } from "@iskios/contracts";
 import { useState } from "react";
-import { Pressable, ScrollView, StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { CrestStudio } from "../crest/crestStudio";
 import type { ServiceClient } from "../foundation/client";
-import { harnessLabels, modelLabelOf } from "../foundation/formatting";
 import { allMissions } from "../foundation/queries";
 import { useHasSidebar, useQuestPanel } from "../foundation/shellContext";
-import { colors, fontSizes, fonts, radii, stateLabels, stateTones } from "../foundation/theme";
+import { colors, fontSizes, fonts } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
 import { LoreScreen } from "../lore/lore";
 import { RealmPanel } from "../quests/questPanel";
+import { RealmArchiveAction } from "../realms/realmArchiveAction";
 import { EmptyBoard } from "../ui/brand";
-import { agoOf, questListRowsOf, type RealmListing, recencyGroupsOf, toggledFold } from "./questTree";
-
-const isHovered = (state: unknown) => (state as { hovered?: boolean }).hovered === true;
-
-/** How far each level of side-quests steps in. */
-const indentStep = 18;
-
-/**
- * One quest or side-quest as a line: its fold mark where something lies beneath it, its state, its title, and at the end
- * its harness, model, and how long ago it last moved. Side-quests step in by their depth.
- */
-function QuestLine({
-  depth,
-  harness,
-  isOpen,
-  lastActivityAt,
-  model,
-  now,
-  onOpen,
-  onToggle,
-  state,
-  title,
-}: {
-  depth: number;
-  harness: MissionSummary["harness"];
-  isOpen: boolean;
-  lastActivityAt: number;
-  model: MissionSummary["model"];
-  now: number;
-  onOpen: () => void;
-  /** Null where nothing lies beneath the line. */
-  onToggle: (() => void) | null;
-  state: keyof typeof stateTones;
-  title: string;
-}) {
-  const tone = stateTones[state];
-  return (
-    <Pressable
-      accessibilityLabel={title}
-      accessibilityRole="button"
-      onPress={onOpen}
-      style={(pressed) => [
-        local.line,
-        { paddingLeft: 4 + depth * indentStep },
-        (pressed.pressed || isHovered(pressed)) && local.lineHovered,
-      ]}
-    >
-      {onToggle === null ? (
-        <View style={local.fold} />
-      ) : (
-        <Pressable
-          accessibilityLabel={`${isOpen ? "Collapse" : "Expand"} ${title}`}
-          accessibilityRole="button"
-          accessibilityState={{ expanded: isOpen }}
-          hitSlop={6}
-          onPress={onToggle}
-          style={local.fold}
-        >
-          <Text style={[local.foldMark, isOpen && local.foldMarkOpen]}>›</Text>
-        </Pressable>
-      )}
-      <View accessibilityLabel={stateLabels[state]} style={[local.dot, { backgroundColor: tone.color }]} />
-      <Text numberOfLines={1} style={local.title}>
-        {title}
-      </Text>
-      <Text numberOfLines={1} style={local.meta}>
-        {harnessLabels[harness]} · {modelLabelOf(model)} · {agoOf(lastActivityAt, now)}
-      </Text>
-    </Pressable>
-  );
-}
-
-/** A quest with its side-quests nested beneath it, as the sidebar nests them; its tree is read once it has any. */
-function QuestTreeLines({
-  client,
-  collapsed,
-  mission,
-  now,
-  onOpen,
-  onOpenThread,
-  onToggle,
-  shouldShowAgentThreads,
-}: {
-  client: ServiceClient;
-  collapsed: ReadonlySet<string>;
-  mission: MissionSummary;
-  now: number;
-  onOpen: (missionId: MissionId) => void;
-  onOpenThread: (missionId: MissionId, threadId: ThreadId) => void;
-  onToggle: (id: string) => void;
-  shouldShowAgentThreads: boolean;
-}) {
-  const { data } = useServiceQuery(client, { _tag: "ReadThreadTree", missionId: mission.id }, `${mission.id}:tree`);
-  const threads: ReadonlyArray<ThreadSummary> | null = mission.threadCount > 1 ? data : null;
-  return (
-    <>
-      {questListRowsOf(mission, threads, collapsed, shouldShowAgentThreads).map((row) => (
-        <QuestLine
-          depth={row.depth}
-          harness={row.thread?.harness ?? mission.harness}
-          isOpen={!collapsed.has(row.id)}
-          key={row.id}
-          lastActivityAt={row.thread?.lastActivityAt ?? mission.lastActivityAt}
-          model={row.thread?.model ?? mission.model}
-          now={now}
-          onOpen={() =>
-            row.thread === null ? onOpen(mission.id) : onOpenThread(mission.id, row.thread.id as ThreadId)
-          }
-          onToggle={row.hasChildren ? () => onToggle(row.id) : null}
-          state={row.thread?.state ?? mission.state}
-          title={row.thread?.title ?? mission.title}
-        />
-      ))}
-    </>
-  );
-}
+import { QuestTreeLines } from "./questListRows";
+import { type RealmListing, recencyGroupsOf, toggledFold } from "./questTree";
 
 /**
  * The page of a realm's quests or the Borderlands': every one of them, latest first by the quest's own activity, under Today,
@@ -160,11 +46,11 @@ export function QuestListScreen({
   useQuestPanel(
     hasSidebar && realm !== null && (
       <RealmPanel
+        client={client}
         key={realm.id}
         missions={quests}
         onCustomize={() => setDesigningId(realm.id)}
         onOpenLore={() => setLoreId(realm.id)}
-        onRename={(name) => client.request({ _tag: "RenameRealm", name, workspaceId: realm.id })}
         onSelect={onOpen}
         realm={realm}
       />
@@ -184,6 +70,11 @@ export function QuestListScreen({
   }
   return (
     <View style={local.page}>
+      {realm !== null && (
+        <View style={{ alignItems: "flex-end", paddingHorizontal: 28, paddingTop: 16 }}>
+          <RealmArchiveAction client={client} isIcon workspaceId={realm.id} />
+        </View>
+      )}
       {realm !== null && designingId === realm.id && (
         <CrestStudio
           id={realm.id}
@@ -224,10 +115,6 @@ export function QuestListScreen({
 
 const local = StyleSheet.create({
   content: { gap: 22, paddingHorizontal: 28, paddingVertical: 20 },
-  dot: { borderRadius: radii.pill, height: 8, width: 8 },
-  fold: { alignItems: "center", height: 20, justifyContent: "center", width: 14 },
-  foldMark: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: 16, lineHeight: 18 },
-  foldMarkOpen: { transform: [{ rotate: "90deg" }] },
   group: { gap: 2 },
   heading: {
     color: colors.textMuted,
@@ -236,18 +123,5 @@ const local = StyleSheet.create({
     fontWeight: "600",
     paddingBottom: 6,
   },
-  line: {
-    alignItems: "center",
-    borderBottomColor: colors.border,
-    borderBottomWidth: 1,
-    flexDirection: "row",
-    gap: 12,
-    minHeight: 36,
-    paddingHorizontal: 8,
-    paddingVertical: 6,
-  },
-  lineHovered: { backgroundColor: colors.controlHover },
-  meta: { color: colors.textMuted, fontFamily: fonts.sans, fontSize: fontSizes.sm },
   page: { backgroundColor: colors.page, flex: 1 },
-  title: { color: colors.text, flex: 1, fontFamily: fonts.sans, fontSize: fontSizes.base },
 });

@@ -51,6 +51,8 @@ export const Ritual = Schema.Struct({
   id: RitualId,
   instruction: RitualInstruction,
   isOn: Schema.Boolean,
+  /** Whether the realm it runs in is archived, which keeps it off until the realm is restored. */
+  isRealmArchived: Schema.Boolean,
   lastRunAt: Schema.NullOr(Schema.Number),
   lastRunState: Schema.NullOr(RitualRunState),
   missionId: MissionId,

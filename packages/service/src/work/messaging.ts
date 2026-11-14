@@ -5,6 +5,7 @@ import { notFound, touchMission } from "../core/index.ts";
 import { attachToMessage, readStoredAttachments, type StoredAttachment } from "./attachments.ts";
 import { resetOwnerChatter, resetResultChatter } from "./chatter.ts";
 import { mentionNoteOf } from "./mentions.ts";
+import { requireActiveQuestRealm } from "./realmAccess.ts";
 import { listSkills, withSkillInstructions } from "./skills.ts";
 import { readThreadWorkspace } from "./workspaces.ts";
 
@@ -169,6 +170,7 @@ export const insertMessage = (message: NewMessage) =>
       missionId: string;
     }>`SELECT mission_id AS missionId FROM threads WHERE id = ${message.threadId} AND is_deleting = 0`;
     if (thread === undefined) return yield* notFound("No such thread.");
+    yield* requireActiveQuestRealm(thread.missionId);
     if (message.fromThreadId === null) {
       yield* resetOwnerChatter(message.threadId);
       // The owner writing in a Done or archived mission continues it; its threads record what follows

@@ -1,42 +1,21 @@
 import type { MissionId, ThreadId } from "@iskios/contracts";
 import { useEffect, useMemo, useState } from "react";
 import { Pressable, Text, View } from "react-native";
-import { Conversation } from "./src/conversation/conversation";
-import { GuildmasterScreen } from "./src/conversation/guildmaster";
-import { PermissionsScreen } from "./src/editors/permissions";
+import { ArchiveNavigation } from "./src/foundation/archiveNavigation";
 import { applyAppearance, rememberPlace, resumedPlace } from "./src/foundation/colorScheme";
 import { ActiveHostContext, HostMenuContext } from "./src/foundation/hostContext";
 import { colors } from "./src/foundation/theme";
 import { useHostConnection } from "./src/foundation/useHostConnection";
 import { useRightPanel } from "./src/foundation/useRightPanel";
-import { LoreScreen } from "./src/lore/lore";
-import { RitualsScreen } from "./src/rituals/rituals";
-import { SettingsScreen } from "./src/settings/settings";
 import type { SettingsSectionId } from "./src/settings/settingsSections";
 import { AddHostModal } from "./src/shell/addHostModal";
+import { AppScreen } from "./src/shell/appScreen";
 import { appStyles as styles } from "./src/shell/appStyles";
-import { Dashboard } from "./src/shell/dashboard";
-import { detailsModeOf } from "./src/shell/navigation";
+import { archiveParentOf, detailsModeOf, resumablePlaces } from "./src/shell/navigation";
 import { useAttentionNotice } from "./src/shell/notifications";
-import { UnbuiltScreen } from "./src/shell/places";
-import { QuestListScreen } from "./src/shell/questListPage";
 import type { RealmListing } from "./src/shell/questTree";
 import { Shell } from "./src/shell/shell";
 import type { Place } from "./src/shell/sidebar";
-import { UsageScreen } from "./src/shell/usagePage";
-
-/** The pages a reload for a change of look returns to: those that need nothing else open to show. */
-const resumablePlaces: readonly Place[] = [
-  "Archived",
-  "Craft",
-  "Guildmaster",
-  "Library",
-  "Lore",
-  "Quests",
-  "Reserves",
-  "Rituals",
-  "Settings",
-];
 
 export default function App() {
   const {
@@ -148,88 +127,9 @@ export default function App() {
     setSelectedMission(id);
     rightPanel.show(id === null ? null : { tab: "quest" });
   };
-  const screen = () => {
-    if (openMission !== null) {
-      return (
-        <Conversation
-          client={client}
-          key={`${openMission}:${openCount}`}
-          missionId={openMission}
-          onBack={() => setOpenMission(null)}
-          onOpenMission={openMissionFromAnywhere}
-          onSelectThread={setOpenThread}
-          onSetDetails={(isOpen) => rightPanel.show(isOpen ? { tab: "quest" } : null)}
-          selectedThreadId={openThread}
-        />
-      );
-    }
-    switch (place) {
-      case "Lore":
-        return <LoreScreen client={client} onBack={() => goTo("Guildmaster")} threadId={null} title="All lore" />;
-      case "Settings":
-        return isPermissionsOpen ? (
-          <PermissionsScreen client={client} onBack={() => setIsPermissionsOpen(false)} />
-        ) : (
-          <SettingsScreen
-            active={settingsSection}
-            client={client}
-            onBack={() => goTo("Guildmaster")}
-            onPermissions={() => setIsPermissionsOpen(true)}
-            onSection={setSettingsSection}
-          />
-        );
-      case "Guildmaster":
-        return (
-          <GuildmasterScreen client={client} onOpenMission={openMissionFromAnywhere} onViewAll={() => goTo("Quests")} />
-        );
-      case "Borderlands":
-        return (
-          <QuestListScreen
-            client={client}
-            listing={null}
-            onOpen={openMissionFromAnywhere}
-            onOpenThread={openSideQuest}
-          />
-        );
-      case "RealmQuests":
-        return (
-          <QuestListScreen
-            client={client}
-            listing={listedRealm}
-            onOpen={openMissionFromAnywhere}
-            onOpenThread={openSideQuest}
-          />
-        );
-      case "Rituals":
-        return <RitualsScreen client={client} onOpen={openMissionFromAnywhere} />;
-      case "Charter":
-      case "Craft":
-      case "Library":
-      case "Realms":
-        return <UnbuiltScreen place={place} />;
-      case "Reserves":
-        return <UsageScreen client={client} />;
-      default:
-        return (
-          <Dashboard
-            client={client}
-            isArchived={place === "Archived"}
-            key={place}
-            onArchived={() => goTo("Archived")}
-            onBack={() => goTo("Guildmaster")}
-            onLore={() => goTo("Lore")}
-            onOpen={openMissionFromAnywhere}
-            onSelect={selectMission}
-            onSendToGuildmaster={(path) => {
-              goTo("Guildmaster");
-              setGuildmasterRealm(path);
-            }}
-            onSettings={() => goTo("Settings")}
-            selectedId={selectedMission}
-            workspaceId={null}
-          />
-        );
-    }
+  const openRealm = (listing: RealmListing) => {
+    setListedRealm(listing);
+    goTo("RealmQuests");
   };
   const detailsMode = detailsModeOf({ hasListedRealm: listedRealm !== null, openMission, place, selectedMission });
   const details =
@@ -246,10 +146,7 @@ export default function App() {
       iskios={{ onRealm: setGuildmasterRealm, realmPath: guildmasterRealm }}
       listedRealm={listedRealm}
       onOpenMission={openMissionFromAnywhere}
-      onOpenRealmQuests={(listing) => {
-        setListedRealm(listing);
-        goTo("RealmQuests");
-      }}
+      onOpenRealmQuests={openRealm}
       onOpenThread={openSideQuest}
       onPlace={goTo}
       openMission={openMission}
@@ -257,7 +154,32 @@ export default function App() {
       place={place}
       rightPanel={rightPanel}
     >
-      {screen()}
+      <AppScreen
+        client={client}
+        navigation={{
+          closeMission: () => setOpenMission(null),
+          goTo,
+          openMission: openMissionFromAnywhere,
+          openRealm,
+          openThread: openSideQuest,
+          selectMission,
+          selectThread: setOpenThread,
+          setGuildmasterRealm,
+          setPermissions: setIsPermissionsOpen,
+          setSettingsSection,
+          showDetails: (isOpen) => rightPanel.show(isOpen ? { tab: "quest" } : null),
+        }}
+        view={{
+          isPermissionsOpen,
+          listedRealm,
+          openCount,
+          openMission,
+          openThread,
+          place,
+          selectedMission,
+          settingsSection,
+        }}
+      />
     </Shell>
   );
   return (
@@ -275,7 +197,18 @@ export default function App() {
               </Pressable>
             </View>
           )}
-          <View style={styles.root}>{shell}</View>
+          <ArchiveNavigation.Provider
+            value={{
+              quest: (mission) => {
+                const parent = archiveParentOf(mission);
+                setListedRealm(parent.listing);
+                goTo(parent.place);
+              },
+              realm: () => goTo("Realms"),
+            }}
+          >
+            <View style={styles.root}>{shell}</View>
+          </ArchiveNavigation.Provider>
         </View>
         {isAddingHost && localClient !== null && (
           <AddHostModal

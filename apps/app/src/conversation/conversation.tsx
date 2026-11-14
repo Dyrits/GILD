@@ -2,7 +2,6 @@ import type { AttachmentId, BudgetScope, MessageDelivery, MissionDetail, Mission
 import { useEffect, useRef, useState } from "react";
 import {
   FlatList,
-  Image,
   type NativeScrollEvent,
   type NativeSyntheticEvent,
   Pressable,
@@ -16,7 +15,6 @@ import { RunnerPickers, useHarnesses } from "../editors/runners";
 import { useThreadPresets } from "../editors/useThreadPresets";
 import { actWith } from "../foundation/acting";
 import { newRequestId, type ServiceClient } from "../foundation/client";
-import { colorScheme } from "../foundation/colorScheme";
 import { companionLabelOf, effortLabel, harnessLabels, modelLabelOf } from "../foundation/formatting";
 import { countedOf } from "../foundation/labels";
 import { useHasSidebar, useHasTopBar, useQuestPanel } from "../foundation/shellContext";
@@ -29,6 +27,7 @@ import { LoreScreen } from "../lore/lore";
 import { EndingConfirmation } from "../quests/missionActions";
 import { MissingFolderNotice } from "../realms/workspaces";
 import { useTerminal } from "../terminal/useTerminal";
+import { ArchiveButton } from "../ui/archiveButton";
 import { Composer, StateIndicator } from "../ui/controls";
 import { messageWithComments } from "./comments";
 import { CommentTray } from "./commentViews";
@@ -147,22 +146,7 @@ function ThreadPane({
           </Text>
           <StateIndicator state={thread.state} />
           {thread.parentId === null && detail.mission.ritual === null && detail.mission.state !== "Archived" && (
-            <Pressable
-              accessibilityLabel="Archive quest"
-              accessibilityRole="button"
-              disabled={ending.isBusy}
-              onPress={() => ending.start("Archived")}
-            >
-              <Image
-                accessibilityElementsHidden
-                source={
-                  colorScheme === "dark"
-                    ? require("../../assets/nav/dark/archive.png")
-                    : require("../../assets/nav/light/archive.png")
-                }
-                style={{ height: 18, width: 18 }}
-              />
-            </Pressable>
+            <ArchiveButton isDisabled={ending.isBusy} label="Archive quest" onPress={() => ending.start("Archived")} />
           )}
           {canStop && (
             <Pressable onPress={() => act(client.request({ _tag: "StopThread", threadId: thread.id }))}>

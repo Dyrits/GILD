@@ -51,7 +51,7 @@ export const listMentionables = Effect.gen(function* () {
     WHERE ${isOpenQuestOf(sql)} AND t.is_deleting = 0
     ORDER BY t.rowid`;
   const realms = yield* sql<{ id: string; name: string; path: string | null }>`
-    SELECT id, name, path FROM workspaces ORDER BY name COLLATE NOCASE`;
+    SELECT id, name, path FROM workspaces WHERE archived_at IS NULL ORDER BY name COLLATE NOCASE`;
   const byId = new Map(threads.map((thread) => [thread.id, thread]));
   return [
     ...quests.flatMap(

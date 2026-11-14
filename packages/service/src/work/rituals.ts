@@ -36,6 +36,7 @@ interface RitualRow {
   readonly id: string;
   readonly instruction: string;
   readonly isOn: number;
+  readonly isRealmArchived: number;
   readonly lastRunAt: number | null;
   readonly lastRunState: string | null;
   readonly missionId: string;
@@ -64,6 +65,7 @@ const readRows = (
     return yield* sql<RitualRow>`
       SELECT r.id, r.mission_id AS missionId, m.top_thread_id AS threadId, t.state AS threadState, m.title,
         r.authority, r.instruction, r.schedule, r.primary_companion AS primaryCompanion, r.fallbacks, r.is_on AS isOn,
+        EXISTS (SELECT 1 FROM workspaces w WHERE w.id = t.workspace_id AND w.archived_at IS NOT NULL) AS isRealmArchived,
         r.next_run_at AS nextRunAt, r.last_run_at AS lastRunAt, r.last_run_state AS lastRunState,
         r.fallback_step AS fallbackStep, r.created_at AS createdAt
       FROM rituals r JOIN missions m ON m.id = r.mission_id JOIN threads t ON t.id = m.top_thread_id
@@ -76,6 +78,7 @@ const ritualOf = (row: RitualRow): Ritual =>
     id: row.id,
     instruction: row.instruction,
     isOn: row.isOn === 1,
+    isRealmArchived: row.isRealmArchived === 1,
     lastRunAt: row.lastRunAt,
     lastRunState: runStateOf(row.lastRunState, row.threadState),
     missionId: row.missionId,
@@ -158,6 +161,8 @@ export const updateRitual = (input: {
     const sql = yield* SqlClient.SqlClient;
     const [row] = yield* readRows({ id: input.ritualId });
     if (row === undefined) return yield* notFound("No such Ritual.");
+    if (input.isOn && row.isRealmArchived === 1)
+      return yield* invalid("Restore this Ritual's archived realm before switching it on.");
     const now = yield* Clock.currentTimeMillis;
     const schedule = JSON.stringify(input.schedule);
     const isSameTiming = row.schedule === schedule && (row.isOn === 1) === input.isOn;
@@ -225,6 +230,7 @@ export const runRitual = (ritualId: string) =>
   Effect.gen(function* () {
     const [row] = yield* readRows({ id: ritualId });
     if (row === undefined) return yield* notFound("No such Ritual.");
+    if (row.isRealmArchived === 1) return yield* invalid("Restore this Ritual's archived realm before running it.");
     yield* beginRun(row, { kind: "manual" });
     return changed(null, { threadsToWake: [row.threadId] });
   });

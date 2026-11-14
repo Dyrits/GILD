@@ -4,6 +4,7 @@ import { invalid, notFound } from "../core/index.ts";
 import { changed, unchanged } from "./commands.ts";
 import { updateJournal } from "./journal.ts";
 import { releaseThread, waitsInTurn } from "./lifecycle.ts";
+import { requireActiveRealm } from "./realmAccess.ts";
 
 // Quest moves (mission-tracking, Quest placement and moves): a quest's realm is its top thread's workspace, inherited
 // by its side-quests, so a move rewrites that one column across the whole tree. Realm lore and standing permissions
@@ -26,6 +27,7 @@ export const moveQuest = Effect.fn("moveQuest")(function* (missionId: string, re
   const sql = yield* SqlClient.SqlClient;
   const [mission] = yield* sql<{ id: string }>`SELECT id FROM missions WHERE id = ${missionId}`;
   if (mission === undefined) return yield* notFound("No such quest.");
+  if (realmId !== null) yield* requireActiveRealm(realmId);
   const [destination] =
     realmId === null
       ? [{ name: null, path: null }]

@@ -12,6 +12,7 @@ export * from "./journal.ts";
 export * from "./lore.ts";
 export * from "./mentions.ts";
 export * from "./questions.ts";
+export * from "./realmRequests.ts";
 export * from "./records.ts";
 export * from "./remote.ts";
 export * from "./requests.ts";

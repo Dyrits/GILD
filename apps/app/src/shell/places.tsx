@@ -43,7 +43,6 @@ const unbuilt = {
   Charter: "The Charter page is not built yet.",
   Craft: "Craft will hold workflows. It is not built yet.",
   Library: "Library will hold generated and uploaded artifacts. It is not built yet.",
-  Realms: "The Realms page is not built yet. The sidebar lists them.",
 } as const;
 
 /** The page of a place that is not built yet: one quiet line saying so. */

@@ -1,5 +1,6 @@
 import type { EndingPreview, MissionEnding, MissionSummary } from "@iskios/contracts";
-import { useState } from "react";
+import { useContext, useState } from "react";
+import { ArchiveNavigation } from "./archiveNavigation";
 import type { ServiceClient } from "./client";
 
 /**
@@ -7,6 +8,7 @@ import type { ServiceClient } from "./client";
  * (mission-tracking, Ending a mission).
  */
 export function useEnding(client: ServiceClient, mission: MissionSummary) {
+  const navigation = useContext(ArchiveNavigation);
   const [pending, setPending] = useState<{ ending: MissionEnding; preview: EndingPreview } | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [isBusy, setIsBusy] = useState(false);
@@ -23,9 +25,10 @@ export function useEnding(client: ServiceClient, mission: MissionSummary) {
       .finally(() => setIsBusy(false));
   };
   const finish = (ending: MissionEnding, preview: EndingPreview) =>
-    client
-      .request({ _tag: "EndMission", ending, missionId: mission.id, snapshot: preview.snapshot })
-      .then(() => setPending(null));
+    client.request({ _tag: "EndMission", ending, missionId: mission.id, snapshot: preview.snapshot }).then((parent) => {
+      setPending(null);
+      if (ending === "Archived") navigation.quest(parent);
+    });
   const start = (ending: MissionEnding) =>
     run(async () => {
       const preview = await client.request({ _tag: "PreviewEnding", ending, missionId: mission.id });

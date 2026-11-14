@@ -42,9 +42,12 @@ export const listMissions = (filters: MissionFilters) =>
       id: WorkspaceId;
       name: string;
       path: string | null;
-    }>`SELECT id, name, path, crest FROM workspaces`;
+      archivedAt: number | null;
+    }>`SELECT id, name, path, crest, archived_at AS archivedAt FROM workspaces`;
     // Every realm shows on the board, even with no quest yet; the Archived view lists only the realms it has quests in.
-    const workspaces = filters.isArchived ? known.filter((workspace) => ids.has(workspace.id)) : known;
+    const workspaces = known.filter((workspace) =>
+      filters.isArchived ? ids.has(workspace.id) : workspace.archivedAt === null,
+    );
     const search = filters.search?.trim().toLowerCase() ?? "";
     const matching = search === "" ? null : yield* listSearchMatches(search);
     const missions = summaries.filter(

@@ -8,7 +8,7 @@ import { previewEnding, readWorkingIds } from "./ending.ts";
 import { findRealm, isGuildmasterThread } from "./guildmaster.ts";
 import { fallbackNoteOf, ritualStartOf } from "./guildmasterCompanions.ts";
 import { changeableSettings } from "./guildmasterSettings.ts";
-import { checkRealmCreation, checkRealmRename } from "./realmChecks.ts";
+import { deriveRealmCreation, deriveRealmRename } from "./realmActions.ts";
 import { coveringEntryOf, type ScopedAction } from "./ritualScope.ts";
 import type { ArgumentsOf } from "./threadTools.ts";
 import { titleOf } from "./titles.ts";
@@ -23,7 +23,7 @@ import { titleOf } from "./titles.ts";
 export type StructuralTool = "act_on_mission" | "change_setting" | "create_realm" | "rename_realm" | "create_ritual";
 
 /** A structural action as the service derived it from a tool call. */
-interface DerivedAction {
+type DerivedAction = {
   readonly details: string;
   /** Everything the action depends on, compared again when it runs: the turn, the target, the threads at work. */
   readonly fingerprint: string;
@@ -35,7 +35,7 @@ interface DerivedAction {
   readonly scoped: ScopedAction | null;
   /** The exact action and target, as the question and the record show it. */
   readonly summary: string;
-}
+};
 
 const runningTurnOf = (threadId: string) =>
   Effect.gen(function* () {
@@ -157,7 +157,6 @@ const deriveQuestAction = (args: ArgumentsOf<"act_on_mission">) =>
 /** Derives the structural action a tool call would take; null when the tool's own checks will refuse it. */
 const deriveAction = (callerId: string, tool: StructuralTool, args: object) =>
   Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
     if (!(yield* isStructuralCaller(callerId, tool))) return null;
     const turnId = yield* runningTurnOf(callerId);
     if (turnId === null) return null;
@@ -198,38 +197,12 @@ const deriveAction = (callerId: string, tool: StructuralTool, args: object) =>
       });
     }
     if (tool === "create_realm") {
-      const checked = yield* checkRealmCreation(args as ArgumentsOf<"create_realm">);
-      // What the tool would refuse is never put to the owner as a question: it refuses it with its own reason.
-      if (checked._tag === "Refused") return null;
-      const existing = yield* sql`SELECT id, name, path FROM workspaces
-        WHERE lower(name) = lower(${checked.name}) OR path = ${checked.real ?? ""} ORDER BY id`;
-      return finish({
-        mustAsk: false,
-        named: { operation: "CreateRealm", targets: [checked.name], value: checked.folder },
-        scoped: null,
-        state: { existing, folder: checked.real, name: checked.name },
-        summary: `Make the realm "${checked.name}", ${checked.real === null ? "tied to no folder" : `tied to ${checked.real}`}.`,
-      });
+      const found = yield* deriveRealmCreation(args as ArgumentsOf<"create_realm">);
+      return found === null ? null : finish(found);
     }
     if (tool === "rename_realm") {
-      const checked = yield* checkRealmRename(args as ArgumentsOf<"rename_realm">);
-      if (checked._tag === "Refused") return null;
-      const { name, realm: found } = checked;
-      const rivals = (yield* sql<{ name: string }>`SELECT name FROM workspaces WHERE id <> ${found.id}`).map(
-        (row) => row.name,
-      );
-      return finish({
-        mustAsk: false,
-        named: {
-          operation: "RenameRealm",
-          rivals,
-          targets: [found.name, ...(found.path === null ? [] : [found.path])],
-          value: name,
-        },
-        scoped: null,
-        state: { name, realm: found },
-        summary: `Rename the realm "${found.name}" to "${name}".`,
-      });
+      const found = yield* deriveRealmRename(args as ArgumentsOf<"rename_realm">);
+      return found === null ? null : finish(found);
     }
     const ritual = args as ArgumentsOf<"create_ritual">;
     const title = titleOf(ritual.title).slice(0, 80);
@@ -278,11 +251,11 @@ const authorityOf = (callerId: string, derived: DerivedAction) =>
   });
 
 /** The one-use proof, handed only to this invocation, that its exact action was authorized. */
-interface Receipt {
+type Receipt = {
   readonly fingerprint: string;
   isUsed: boolean;
   readonly key: string;
-}
+};
 
 // Only the fiber that ran the authorization holds it; tool arguments cannot make one.
 const receiptReference = Context.Reference<Receipt | null>("iskios/StructuralReceipt", { defaultValue: () => null });

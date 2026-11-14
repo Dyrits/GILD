@@ -73,10 +73,10 @@ A started thread's workspace can change through a [whole-quest move](../mission-
 
 ### Hiding and deleting a workspace
 
-- The Workspaces page offers **Hide** and **Delete permanently**. Neither touches the folder.
-- **Hide** hides the workspace and its missions from the interface and keeps everything. Choosing the same folder again brings them all back.
-- **Delete permanently**, after a confirmation that counts what goes, erases its missions, intel, and standing permissions.
-- Neither is possible while one of its threads is running.
+- The older Hide and Delete permanently proposal for realm removal is superseded by [realm archiving and restoration](../mission-tracking/specifications.md#archiving-and-restoring-a-realm) (CHG-0268, agreed 2026-11-13; not implemented).
+- Archiving keeps the realm and its folder association and never deletes the workspace folder. The confirmation shows the running-thread count and offers to stop them and archive.
+- Choosing an archived realm's folder again follows the explicit [Restore or Start afresh flow](../mission-tracking/specifications.md#reusing-an-archived-realms-folder), not silent restoration or creation of a second realm for that folder.
+- A permanent realm deletion is not part of this batch.
 
 ## External contract
 
@@ -101,7 +101,7 @@ Threads use these thread tools in addition to `open_thread`, whose workspace arg
   - the starting context naming the workspace;
   - nested workspaces keeping their own standing permissions, with lore access determined separately by quest realm membership;
   - a missing folder sending a thread to Attention with Retry, Relocate, and Clone again only for a cloned workspace; relocating keeping intel and permissions;
-  - Hide and re-adding restoring missions, intel, and permissions; Delete permanently erasing them; both refused while a thread runs; the folder untouched by either;
+  - realm archive preserving the folder and its association, and choosing that folder again offering the explicit recovery flow covered by the mission-tracking acceptance checks;
   - Own copy creating a worktree on its branch, shared by threads beneath, merged with one button, conflicts resolved by the thread in its copy, a blocked merge refused with its reason, and the worktree folder deleted on archive with its branch kept.
 - **Human acceptance**: from the phone web app, the user starts a mission by browsing to a folder on the computer; from the desktop, sends Control a repository link and sees the mission open in the clone; opens two threads with Own copy in the same repository, lets both finish, and merges both; unplugs the drive holding a workspace, sees the thread ask, plugs it back, and chooses Retry.
 

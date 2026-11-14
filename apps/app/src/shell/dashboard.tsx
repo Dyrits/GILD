@@ -100,11 +100,11 @@ export function Dashboard({
       />
     ) : isArchived || realm === null ? null : (
       <RealmPanel
+        client={client}
         key={realm.id}
         missions={realmMissions}
         onCustomize={() => setDesigningId(realm.id)}
         onOpenLore={() => setLoreId(realm.id)}
-        onRename={(name) => client.request({ _tag: "RenameRealm", name, workspaceId: realm.id })}
         onSelect={onSelect}
         realm={realm}
       />

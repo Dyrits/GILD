@@ -7,7 +7,8 @@ import { samePath } from "../foundation/paths";
 import { styles } from "../foundation/styles";
 import { colors, fontSizes, fonts, radii } from "../foundation/theme";
 import { FolderPicker } from "./folderPicker";
-import { folderNameOf, type NewRealm, NewRealmModal } from "./newRealmModal";
+import { type NewRealm, NewRealmModal } from "./newRealmModal";
+import { folderNameOf, realmLabelOf } from "./realmLabels";
 import { tiedRealmsOf } from "./tiedRealms";
 
 /**
@@ -18,14 +19,11 @@ import { tiedRealmsOf } from "./tiedRealms";
 export function RealmChooser({
   client,
   onChange,
-  onCreate,
   realms,
   value,
 }: {
   client: ServiceClient;
   onChange: (path: string | null) => void;
-  /** Imports the folder as a realm, named and given a crest; rejects with the reason when refused. */
-  onCreate: (realm: NewRealm) => Promise<unknown>;
   /** The realms that exist, by name. */
   realms: ReadonlyArray<WorkspaceChoice>;
   /** The chosen folder, or null for the quest's scratch folder. */
@@ -54,7 +52,7 @@ export function RealmChooser({
           >
             <CrestBadge crest={realm.crest} id={realm.id} size={24} />
             <Text numberOfLines={1} style={[local.chipText, samePath(realm.path, value) && local.chipTextSelected]}>
-              {realm.name}
+              {realmLabelOf(realm, realms)}
             </Text>
           </Chip>
         ))}
@@ -65,7 +63,12 @@ export function RealmChooser({
       </View>
       {isPicking && <FolderPicker client={client} onCancel={() => setIsPicking(false)} onChoose={choose} />}
       {editing !== null && (
-        <NewRealmModal client={client} initial={editing} onCancel={() => setEditing(null)} onCreate={onCreate} />
+        <NewRealmModal
+          client={client}
+          initial={editing}
+          onCancel={() => setEditing(null)}
+          onCreated={(realm) => onChange(realm.path)}
+        />
       )}
     </View>
   );

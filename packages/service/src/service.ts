@@ -111,6 +111,7 @@ import { insertMission, insertQuest } from "./work/missions.ts";
 import { PlanLimits, planLimitsLayer } from "./work/planLimits.ts";
 import { priceRefreshLayer } from "./work/priceRefresh.ts";
 import { moveQuest } from "./work/questMoves.ts";
+import { realmHandlers } from "./work/realmHandlers.ts";
 import { validateScope } from "./work/ritualScope.ts";
 import {
   createRitual,
@@ -130,7 +131,7 @@ import { nameNewQuest, newQuestTitle, renameMission } from "./work/titles.ts";
 import { openThreadByOwner } from "./work/tree.ts";
 import { readUsage } from "./work/usageReport.ts";
 import { listWorkspaceEntries } from "./work/workspaceEntries.ts";
-import { createRealm, renameRealm, ScratchRoot, setRealmCrest } from "./work/workspaces.ts";
+import { ScratchRoot } from "./work/workspaces.ts";
 
 // Stored and wire names keep `intel` so existing data and agents still work: request tags (`"ListIntel"`, ...).
 
@@ -298,7 +299,7 @@ const make = Effect.gen(function* () {
           }),
         CreateFolder: (create) => createFolder(create.parent, create.name, folderAccess),
         CreatePairingCode: () => hostControl.createPairingCode,
-        CreateRealm: (create) => change(createRealm(create.path, create.name, create.crest)),
+        ...realmHandlers(commands),
         CreateRitual: (create) =>
           commands.run(
             once(
@@ -447,7 +448,6 @@ const make = Effect.gen(function* () {
         RenameHost: (given) => change(withRemote(renameHost(given.name))),
         RenameMission: (rename) => change(renameMission(rename.missionId, rename.title)),
         RenameOwnAccount: (rename) => thenListHarnesses(renameOwnAccount(rename.harness, rename.label)),
-        RenameRealm: (rename) => change(renameRealm(rename.workspaceId, rename.name)),
         ReopenMission: (reopen) => commands.run(reopenMission(reopen.missionId)),
         ResolveChatter: (given) =>
           resolveChatter(given.id, given.choice).pipe(
@@ -512,7 +512,6 @@ const make = Effect.gen(function* () {
             ),
           ),
         SetMissionBudget: (given) => commands.run(setMissionBudget(given.missionId, given.limits)),
-        SetRealmCrest: (set) => change(setRealmCrest(set.workspaceId, set.crest)),
         SetRemoteAccess: (given) => hostControl.setAccess(given.isEnabled),
         SetThreadBackups: (given) => commands.run(setThreadBackups(given.threadId, given.backups)),
         SignInAccount: (given) =>

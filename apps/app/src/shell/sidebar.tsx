@@ -12,6 +12,7 @@ import { allMissions } from "../foundation/queries";
 import { colors, fontSizes, fonts, radii, stateTones } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
 import { NewRealmModal } from "../realms/newRealmModal";
+import { realmLabelOf } from "../realms/realmLabels";
 import { BowArrow } from "../ui/bowArrow";
 import { MoveQuestModal } from "./moveQuestModal";
 import { NavIcon, type NavIconName } from "./navIcons";
@@ -724,7 +725,7 @@ export function Sidebar({
             crest={realm.crest}
             id={realm.id}
             isOpen={!isClosed}
-            name={realm.name}
+            name={realmLabelOf(realm, data?.workspaces ?? [])}
             onNewQuest={() => startQuest(realm.id, realm.id)}
             onOverview={() => onOpenRealmQuests({ id: realm.id, name: realm.name })}
             onToggle={() => closedRealms.toggle(realm.id)}
@@ -768,6 +769,7 @@ export function Sidebar({
           label="Realms"
           note="Quests sharing lore, tied to a folder or repository or to none"
           onAdd={() => setIsCreating(true)}
+          onOverview={() => onPlace("Realms")}
           onPress={() => foldedSections.toggle("Realms")}
           onToggle={() => foldedSections.toggle("Realms")}
         />
@@ -886,14 +888,6 @@ export function Sidebar({
           initial={{ crest: null, name: "", path: "" }}
           isFolderRequired={false}
           onCancel={() => setIsCreating(false)}
-          onCreate={(realm) =>
-            client.request({
-              _tag: "CreateRealm",
-              crest: realm.crest,
-              name: realm.name,
-              path: realm.path === "" ? null : realm.path,
-            })
-          }
         />
       )}
     </View>

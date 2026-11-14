@@ -32,7 +32,7 @@ export const createRealmByGuildmaster = (callerId: string, args: ArgumentsOf<"cr
     const before = yield* countRealms;
     // The realm rules decide last which folder is the realm's: a folder that already has a realm keeps it, whatever
     // name is given, and nothing is made then.
-    yield* createRealm(folder, name, null);
+    yield* createRealm(folder, name, null, checked.hasDuplicateName);
     if ((yield* countRealms) === before)
       return refused(`Not done: the folder ${folder} already belongs to a realm. Rename that realm instead.`);
     return done(
@@ -50,7 +50,7 @@ export const renameRealmByGuildmaster = (callerId: string, args: ArgumentsOf<"re
     const checked = yield* checkRealmRename(args);
     if (checked._tag === "Refused") return refused(checked.text);
     if (!(yield* consumeReceipt(callerId, "rename_realm", args))) return refused(notAuthorizedText);
-    yield* renameRealm(checked.realm.id as WorkspaceId, checked.name);
+    yield* renameRealm(checked.realm.id as WorkspaceId, checked.name, checked.hasDuplicateName);
     return done(`Renamed the realm "${checked.realm.name}" to "${checked.name}".`);
   }).pipe(
     // A failure of the realm rules, such as a folder that does not exist, comes back to Iskios as a refusal.

@@ -30,6 +30,7 @@ import { consumptionOf } from "./consumption.ts";
 import { insertJournal } from "./journal.ts";
 import { insertMessage } from "./messaging.ts";
 import { workedOutStateOf } from "./missionStates.ts";
+import { requireActiveRealm } from "./realmAccess.ts";
 import { runStateOf, scheduleOf } from "./ritualSchedule.ts";
 import { attachmentsTitle, titleOf } from "./titles.ts";
 import { attachWorkspace, crestOfRow } from "./workspaces.ts";
@@ -96,8 +97,7 @@ export const insertQuest = (
     if (accountBudgetRefusal !== null) return yield* invalid(accountBudgetRefusal);
     const realmId = quest.realmId ?? null;
     if (realmId !== null) {
-      const [known] = yield* sql<{ id: string }>`SELECT id FROM workspaces WHERE id = ${realmId}`;
-      if (known === undefined) return yield* invalid("No such realm.");
+      yield* requireActiveRealm(realmId);
     }
     const workspaceId =
       realmId !== null ? realmId : workspacePath === null ? null : yield* attachWorkspace(workspacePath, realm);

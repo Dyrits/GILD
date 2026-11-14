@@ -79,6 +79,45 @@ Sidebar drag-and-drop and confirmation were agreed on 2026-11-10 (CHG-0133) and 
 - An archived mission leaves the main list and appears in the Archived view, from which the user can reopen it.
 - Writing in a thread of an archived mission brings the mission back to the active list and the state worked out from its threads.
 - Archiving a mission adds an entry to its journal (see [mission-journal](../mission-journal/specifications.md#when-a-mission-ends)), and `find_missions` still matches archived missions.
+- After the owner's quest-archive action succeeds, the interface returns to that quest's realm overview, or the Borderlands for a quest with no realm. Cancel and failure leave the current view unchanged.
+
+### Archiving and restoring a realm
+
+Agreed on 2026-11-13 (CHG-0268), built; the quest and Ritual choices below were agreed on 2026-11-14 (CHG-0270). This replaces the older Hide and Delete permanently proposal for realm removal in [workspace attachment](../workspace-attachment/specifications.md#hiding-and-deleting-a-workspace).
+
+- The owner removes a realm from active use by archiving it, not by permanently deleting it. This applies to realms tied to a folder and to realms tied to none.
+- **Archive realm…** is available in the realm's panel and through the same top-right archive button used for quests, acting on the realm when its overview is shown. Right-click actions are deferred.
+- Every realm archive asks for confirmation naming the realm and counting its quests. Nothing changes before confirmation; Cancel leaves the realm unchanged.
+- The confirmation also counts running threads across its quests, including nested side-quests. When any are running, the confirming action says **Stop and archive realm** and stops them as part of archiving.
+- Archiving hides the realm and all its quests from active lists, the sidebar, and the Realms overview. Its identity, name, crest, lore, conversations, journals, and folder association are preserved. It never deletes the workspace folder.
+- Archived realms appear in the Archive with a Restore action. Restore brings back the realm and the quests that were active when it was archived; quests already individually archived stay archived.
+- After a successful realm archive, the interface goes to the Realms overview. Cancel or failure leaves the current view unchanged.
+- **Quests that stay active** (agreed 2026-11-14, CHG-0270): the confirmation lists the realm's active quests, each with a checkbox, all unchecked. A checked quest moves with its whole tree to the Borderlands instead of being archived; every other quest is archived with the realm. A moved quest keeps its conversation, journal, and its own lore, but loses access to the realm's lore, and a later restore of the realm does not bring it back. A quest at work cannot be checked: a move never stops threads, so it is stopped and archived like the rest unless the owner stops it first. A Ritual's quest is not listed here.
+- **Rituals** (agreed 2026-11-14, CHG-0270): the confirmation names the realm's Rituals and says they will be switched off. Archiving switches them off, stops a run underway, and keeps each Ritual and its quest in the Rituals place with its instruction and history, marked **Realm archived**. While the realm is archived a Ritual cannot be switched on or run. Restore and Start afresh leave the Rituals off until the owner switches them on. Moving a Ritual to the Borderlands is not offered.
+
+### Reusing an archived realm's folder
+
+Agreed on 2026-11-13 (CHG-0268); not implemented.
+
+- One resolved folder belongs to one realm, including while that realm is archived. Choosing its folder during new-realm creation must not silently reuse a hidden realm or create a second realm for the same folder.
+- The owner chooses the folder and fills the new-realm form. If the folder belongs to an archived realm, the flow then offers **Restore**, **Start afresh**, and **Cancel**, showing the archived realm's name, archive date, and quest count. A realm tied to no folder has no folder match.
+- Restore keeps the realm's lore and brings its previously active quests back as described above.
+- Start afresh reactivates the same realm id with no realm-level lore in use. All its previous quests stay archived, attached to that realm and findable in the Archive, with their own lore, conversations, and journals unchanged. Global lore is unchanged.
+- Starting afresh deletes the realm-level lore through the existing recoverable [lore deletion and history](../scoped-intel/specifications.md#history-and-undo), not a permanent purge. The owner can recover those entries through the lore panel's Deleted filter.
+- For both Restore and Start afresh, a two-column comparison then shows the archived realm's name and crest beside the proposed name and crest. The owner chooses the name and crest independently, so either combination is possible.
+- Each comparison row is omitted when its two values are exactly the same; if neither row remains, the comparison popup is skipped. Restore defaults to the archived values, and Start afresh to the proposed values.
+- A blank name in the form resolves to the folder's name and is treated as the proposed name for comparison. The form starts with a randomly shuffled crest, which is a proposed value, not an absent choice. These rules supersede the earlier proposal to treat blank fields as no choice.
+- Start afresh has a final confirmation after the comparison, naming the realm and counting the realm-level lore entries to delete. Its actions are **Wipe lore and start afresh** and **Cancel**, and it explains recovery through the Deleted filter.
+- Cancelling any step makes no change to the stored realm, its quests, or its lore. Neither path creates a new realm id or changes files in the workspace folder.
+
+### Realm names
+
+Agreed on 2026-11-13 (CHG-0268); not implemented.
+
+- Realm names are labels, not identities, and duplicate names are allowed. Realms have distinct ids; folder-tied realms are also distinguished by their resolved folders.
+- Creating or renaming a realm to a name shared by another active realm warns the owner and lets them confirm rather than blocking. Archived realms do not count as collisions.
+- Where active names collide, folder-tied realms show a parent-folder hint alongside their name in the sidebar, the Realms overview, and realm pickers, for example `app · client-a`.
+- A colliding realm tied to no folder has no folder hint; the warning still asks for confirmation.
 
 ### Dashboard
 
@@ -88,6 +127,16 @@ Sidebar drag-and-drop and confirmation were agreed on 2026-11-10 (CHG-0133) and 
 - Archived missions have their own view.
 - The dashboard is a list, not a board.
 - The phone web app shows the same dashboard, with the same filters and actions.
+
+### Realms overview
+
+Agreed on 2026-11-13 (CHG-0268); not implemented.
+
+- The Realms destination becomes a compact quest-list overview grouped by active realm, using the existing overview's row presentation rather than a new card layout.
+- Each realm group has its crest and name, links to that realm's overview, and lists its active quests with state, Companion, latest activity, and foldable nested side-quests.
+- Realm grouping takes precedence over day grouping. Include empty active realms with a New quest action; leave archived realms out.
+- The Borderlands retain their own page and are not another realm group.
+- An overview button beside the sidebar's Realms heading opens this destination. Pressing the heading or its fold arrow keeps the existing fold behavior.
 
 ### Spending
 
@@ -186,6 +235,17 @@ Threads use this thread tool (see [0005](../../architecture-decision-record/0005
   - the proposed title, the user's rename, and `set_mission_title` refused afterwards;
   - prefilled choices when starting a mission;
   - dashboard order, filters, and search.
+- **Realm lifecycle batch (CHG-0268), automated with a fake harness and temporary data**:
+  - realm archive through either entry point, with confirmation, quest and running-thread counts, no change on Cancel, and nested running threads stopped on confirm;
+  - archive preserving realm identity, lore, conversations, journals, and folder association across a service restart, and never deleting the workspace folder;
+  - restoring only the quests archived with the realm, while previously individually archived quests remain archived;
+  - quest archive returning to its realm or the Borderlands, realm archive returning to Realms, and Cancel or failure not navigating;
+  - matching an archived realm by resolved folder without creating a duplicate, and the Restore, Start afresh, and Cancel paths;
+  - independently choosing old or proposed name and crest, defaults for both paths, equal-row and equal-popup skipping, folder-name fallback, and a shuffled crest participating in comparison;
+  - Start afresh requiring its final counted confirmation, preserving the realm id, leaving all old quests archived, deleting only realm-level lore, and restoring a deleted entry through the existing history;
+  - duplicate active names warning without blocking, archived names excluded from collisions, and parent-folder hints in the sidebar, overview, and pickers;
+  - the Realms overview grouping active quests and nested side-quests by realm, including empty realms and excluding archived realms and the Borderlands.
+- **Realm lifecycle batch, human acceptance**: judge the grouped overview, both archive entry points, confirmation wording and counts, Archive restoration, and the independent name/crest comparison in the running desktop app.
 - **Human acceptance**: on the desktop and on the phone web app, the user starts 3 missions, sees the one that needs them first, leaves a completed quest idle, archives one, and reopens it.
 
 ## Requirements

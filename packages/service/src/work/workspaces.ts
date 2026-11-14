@@ -4,6 +4,8 @@ import { Crest, type Workspace, type WorkspaceId } from "@iskios/contracts";
 import { Clock, Context, Effect, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { invalid, realFolderOf } from "../core/index.ts";
+import { requireActiveRealm } from "./realmAccess.ts";
+import { validateRealmName } from "./realmNames.ts";
 
 const decodeCrest = Schema.decodeUnknownSync(Crest);
 
@@ -21,28 +23,35 @@ export const crestOfRow = (text: string | null): Crest | null => {
  * Makes a realm with the given name and crest: from a folder, where an existing realm for the folder is left as it is,
  * or tied to no folder (a null path), refused for a blank name.
  */
-export const createRealm = (path: string | null, name: string, crest: Crest | null) =>
-  path !== null
-    ? attachWorkspace(path, { crest, name }).pipe(Effect.as(null))
-    : Effect.gen(function* () {
-        const sql = yield* SqlClient.SqlClient;
-        const trimmed = name.trim();
-        if (trimmed === "") return yield* invalid("A realm needs a name.");
-        const now = yield* Clock.currentTimeMillis;
-        const text = crest === null ? null : JSON.stringify(Schema.encodeSync(Crest)(crest));
-        yield* sql`INSERT INTO workspaces (id, name, path, crest, created_at)
-          VALUES (${crypto.randomUUID()}, ${trimmed}, NULL, ${text}, ${now})`;
-        return null;
-      });
-
-/** Renames a realm; refused for an unknown realm or a blank name. */
-export const renameRealm = (workspaceId: WorkspaceId, name: string) =>
+export const createRealm = (path: string | null, name: string, crest: Crest | null, allowDuplicateName = false) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
-    const trimmed = name.trim();
-    if (trimmed === "") return yield* invalid("A realm needs a name.");
+    const folder = path === null ? null : yield* requireFolder(path);
+    const [existing] =
+      folder === null ? [] : yield* sql<{ id: string }>`SELECT id FROM workspaces WHERE path = ${folder}`;
+    const trimmed = yield* validateRealmName(
+      name.trim() || (folder === null ? "" : basename(folder)),
+      existing?.id ?? null,
+      allowDuplicateName,
+    );
+    if (folder !== null) return yield* attachWorkspace(folder, { crest, name: trimmed }).pipe(Effect.as(null));
+    return yield* Effect.gen(function* () {
+      const sql = yield* SqlClient.SqlClient;
+      const now = yield* Clock.currentTimeMillis;
+      const text = crest === null ? null : JSON.stringify(Schema.encodeSync(Crest)(crest));
+      yield* sql`INSERT INTO workspaces (id, name, path, crest, created_at)
+          VALUES (${crypto.randomUUID()}, ${trimmed}, NULL, ${text}, ${now})`;
+      return null;
+    });
+  });
+
+/** Renames a realm; refused for an unknown realm or a blank name. */
+export const renameRealm = (workspaceId: WorkspaceId, name: string, allowDuplicateName = false) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
     const [row] = yield* sql<{ id: string }>`SELECT id FROM workspaces WHERE id = ${workspaceId}`;
     if (row === undefined) return yield* invalid("No such realm.");
+    const trimmed = yield* validateRealmName(name, workspaceId, allowDuplicateName);
     yield* sql`UPDATE workspaces SET name = ${trimmed} WHERE id = ${workspaceId}`;
     return null;
   });
@@ -79,7 +88,10 @@ export const attachWorkspace = (path: string, realm: { crest: Crest | null; name
     // Any folder the owner chose in the system's folder dialog (CHG-0035).
     const folder = yield* requireFolder(path);
     const [existing] = yield* sql<{ id: string }>`SELECT id FROM workspaces WHERE path = ${folder}`;
-    if (existing !== undefined) return existing.id;
+    if (existing !== undefined) {
+      yield* requireActiveRealm(existing.id);
+      return existing.id;
+    }
     const id = crypto.randomUUID();
     const now = yield* Clock.currentTimeMillis;
     const name = realm?.name.trim() || basename(folder) || folder;

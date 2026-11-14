@@ -1,32 +1,16 @@
-import type { BillingKind, EffortChoice, HarnessName, ModelChoice, TokenUsage } from "@iskios/contracts";
+import type { BillingKind, TokenUsage } from "@iskios/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { Changes, PriceTable, type TurnOutcome, touchMission } from "../core/index.ts";
-import type { StoredAttachment } from "./attachments.ts";
-import { enforceBudgets, holdIfReached } from "./budgets.ts";
-import { insertThreadLine, recordPendingHandover } from "./handover.ts";
-import { endTurn, failTurn, holdThread, startRunning } from "./lifecycle.ts";
-import { deliverMessages, insertReply, listPending } from "./messaging.ts";
+import { enforceBudgets } from "./budgets.ts";
+import { insertThreadLine } from "./handover.ts";
+import { endTurn, failTurn } from "./lifecycle.ts";
+import { deliverMessages, insertReply } from "./messaging.ts";
 import { finishRitualRun } from "./rituals.ts";
-import { maxRunning, runningCountOf } from "./treeLimits.ts";
-import { readThreadWorkspace } from "./workspaces.ts";
+import { type Admitted, isCurrentTurn } from "./turnAdmission.ts";
 
 // A turn's record in the store: admitted with the thread's messages, then completed or failed. Each step runs
 // in its own transaction and publishes a change once committed; a step for a turn no longer running does nothing.
-
-/** A turn admitted for a thread, with the runner it takes and the messages delivered to it. */
-export interface Admitted {
-  readonly accountId: string | null;
-  /** The files attached to the delivered messages, in order (message-attachments). */
-  readonly attachments: ReadonlyArray<StoredAttachment>;
-  readonly effort: EffortChoice;
-  readonly harness: HarnessName;
-  readonly messages: ReadonlyArray<string>;
-  readonly missionId: string;
-  readonly model: ModelChoice;
-  readonly sessionId: string | null;
-  readonly turnId: string;
-}
 
 /** Runs the step in one transaction. */
 const transacting = <A, E, R>(step: Effect.Effect<A, E, R>) =>
@@ -41,84 +25,6 @@ const publishOnCommit = Effect.gen(function* () {
   const changes = yield* Changes;
   yield* sql.afterCommit(changes.publish);
 });
-
-/** Whether the turn is still the thread's running turn. */
-export const isCurrentTurn = (turnId: string) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    const rows = yield* sql<{ id: string }>`SELECT id FROM turns WHERE id = ${turnId} AND status = 'running'`;
-    return rows.length > 0;
-  });
-
-/**
- * Starts a turn for the thread's undelivered messages, from the owner and from other threads, unless
- * one is running, the thread is Stopped, or the mission already runs its limit of threads; null when none starts.
- */
-export const admitTurn = (threadId: string) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    const changes = yield* Changes;
-    return yield* sql.withTransaction(
-      Effect.gen(function* () {
-        const [thread] = yield* sql<{
-          state: string;
-          missionId: string;
-          sessionId: string | null;
-          model: ModelChoice;
-          effort: EffortChoice;
-          harness: HarnessName;
-          accountId: string | null;
-        }>`SELECT state, mission_id AS missionId, session_id AS sessionId, model, effort, harness,
-            account_id AS accountId
-          FROM threads WHERE id = ${threadId}`;
-        // A thread waiting on a question is still inside its turn; a Stopped one keeps its
-        // messages until the owner resumes it (thread-tree, Stopping).
-        if (thread === undefined || ["Running", "Attention", "Stopped"].includes(thread.state)) return null;
-        const pending = yield* listPending(threadId, false);
-        if (pending.length === 0) return null;
-        // Past the mission's limit the messages wait; a turn ending elsewhere wakes the thread.
-        if ((yield* runningCountOf(thread.missionId)) >= maxRunning) return null;
-        const now = yield* Clock.currentTimeMillis;
-        // A turn about to start in a missing workspace waits in Attention for Retry, and its
-        // messages stay undelivered (workspace-attachment, Missing folder; CHG-0034).
-        const workspace = yield* readThreadWorkspace(threadId);
-        if (workspace?.isMissing === true) {
-          yield* holdThread(threadId, "MissingWorkspace");
-          yield* touchMission(thread.missionId, now);
-          yield* sql.afterCommit(changes.publish);
-          return null;
-        }
-        // Under a reached budget the messages wait in Attention for the owner (budget-control, Reaching a limit).
-        if (yield* holdIfReached(threadId, thread.missionId)) {
-          yield* touchMission(thread.missionId, now);
-          yield* sql.afterCommit(changes.publish);
-          return null;
-        }
-        // The owner's change of runner since the last turn leaves its line now that a turn runs on it.
-        yield* recordPendingHandover(threadId, now);
-        const turnId = crypto.randomUUID();
-        yield* sql`INSERT INTO turns (id, thread_id, status, started_at) VALUES (${turnId}, ${threadId}, 'running', ${now})`;
-        yield* deliverMessages(
-          pending.map((m) => m.id),
-          turnId,
-        );
-        yield* startRunning(threadId);
-        yield* touchMission(thread.missionId, now);
-        yield* sql.afterCommit(changes.publish);
-        return {
-          accountId: thread.accountId,
-          attachments: pending.flatMap((message) => message.attachments),
-          effort: thread.effort,
-          harness: thread.harness,
-          messages: pending.map((m) => m.text),
-          missionId: thread.missionId,
-          model: thread.model,
-          sessionId: thread.sessionId,
-          turnId,
-        } satisfies Admitted;
-      }),
-    );
-  });
 
 /**
  * Saves a reply of the running turn to the thread's conversation. A harness that names no model (Codex, OpenCode) leaves
