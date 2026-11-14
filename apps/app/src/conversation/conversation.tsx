@@ -265,33 +265,28 @@ function ThreadPane({
               {...(canOpenBeneath ? { onOpenSideQuest: () => setIsOpening(true) } : {})}
               hasContent={terminal.hasContent || comments.items.length > 0}
               {...(terminal.onBang === null ? {} : { onBang: terminal.onBang })}
+              // The harness, account, Companion, and effort can change at any time, in a turn too: a handover
+              // (thread-handover). It starts no turn: the running turn finishes as it was, and the next message, or Retry
+              // after a failed turn, runs on it.
+              accessory={
+                <RunnerPickers
+                  client={client}
+                  extra={<ThreadBackups client={client} key={thread.id} threadId={thread.id} />}
+                  harnesses={harnesses}
+                  isCompact={true}
+                  onChange={(next) => act(client.request({ _tag: "ChangeThreadRunner", ...next, threadId: thread.id }))}
+                  presetChoice={presetChoice}
+                  value={{
+                    accountId: thread.accountId,
+                    effort: thread.effort,
+                    harness: thread.harness,
+                    model: thread.model,
+                  }}
+                />
+              }
               attachments={{ client, refusal: imageRefusalOf(harnesses, thread.harness, thread.model) }}
               mentions={{ client, workspacePath: thread.workspace?.path ?? null }}
               skills={skills}
-              // The harness, account, Companion, and effort can change between turns: a handover (thread-handover). It
-              // starts no turn: the next message, or Retry after a failed turn, runs on it.
-              {...(isInTurn
-                ? {}
-                : {
-                    accessory: (
-                      <RunnerPickers
-                        client={client}
-                        extra={<ThreadBackups client={client} key={thread.id} threadId={thread.id} />}
-                        harnesses={harnesses}
-                        isCompact={true}
-                        onChange={(next) =>
-                          act(client.request({ _tag: "ChangeThreadRunner", ...next, threadId: thread.id }))
-                        }
-                        presetChoice={presetChoice}
-                        value={{
-                          accountId: thread.accountId,
-                          effort: thread.effort,
-                          harness: thread.harness,
-                          model: thread.model,
-                        }}
-                      />
-                    ),
-                  })}
               {...(isInTurn
                 ? {
                     alternative: { label: other, onSend: sendAs(other) },

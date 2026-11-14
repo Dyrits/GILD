@@ -165,23 +165,20 @@ describe("choosing a preset on a thread", () => {
     ),
   );
 
-  it.live("is refused as a whole while the thread runs, backups included", () =>
+  it.live("applies to a running thread too: its backups and runner, for the next turn", () =>
     withService(
       Effect.gen(function* () {
         const { threadId } = yield* start("wait 3000");
-        const failure = yield* Effect.flip(
-          call({
-            _tag: "ChangeThreadRunner",
-            accountId: null,
-            backups: [codex],
-            effort: "high",
-            harness: "claude",
-            model: "opus",
-            threadId,
-          }),
-        );
-        expect(String(failure)).toContain("in a turn");
-        expect((yield* call({ _tag: "ReadThreadPanel", threadId })).backups).toEqual([]);
+        yield* call({
+          _tag: "ChangeThreadRunner",
+          accountId: null,
+          backups: [codex],
+          effort: "high",
+          harness: "claude",
+          model: "opus",
+          threadId,
+        });
+        expect((yield* call({ _tag: "ReadThreadPanel", threadId })).backups).toEqual([codex]);
       }),
     ),
   );

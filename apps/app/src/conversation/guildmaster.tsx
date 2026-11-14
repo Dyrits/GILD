@@ -299,24 +299,22 @@ function IskiosChat({
         hasContent={terminal.hasContent}
         {...(terminal.onBang === null ? {} : { onBang: terminal.onBang })}
         accessory={
-          isInTurn ? undefined : (
-            <RunnerPickers
-              client={client}
-              dockRank={1}
-              extra={<ThreadBackups client={client} key={thread.id} threadId={thread.id} />}
-              harnesses={harnesses}
-              isCompact={true}
-              isIskios={true}
-              onChange={(next) => act(client.request({ _tag: "ChangeThreadRunner", ...next, threadId: thread.id }))}
-              presetChoice={presetChoice}
-              value={{
-                accountId: thread.accountId,
-                effort: thread.effort,
-                harness: thread.harness,
-                model: thread.model,
-              }}
-            />
-          )
+          <RunnerPickers
+            client={client}
+            dockRank={1}
+            extra={<ThreadBackups client={client} key={thread.id} threadId={thread.id} />}
+            harnesses={harnesses}
+            isCompact={true}
+            isIskios={true}
+            onChange={(next) => act(client.request({ _tag: "ChangeThreadRunner", ...next, threadId: thread.id }))}
+            presetChoice={presetChoice}
+            value={{
+              accountId: thread.accountId,
+              effort: thread.effort,
+              harness: thread.harness,
+              model: thread.model,
+            }}
+          />
         }
         attachments={{ client, refusal: imageRefusalOf(harnesses, thread.harness, thread.model) }}
         mentions={{ client, workspacePath: realm?.path ?? null }}

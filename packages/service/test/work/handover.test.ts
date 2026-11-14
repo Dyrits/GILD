@@ -197,21 +197,57 @@ describe("handover: changing a thread's harness, account, model, or effort mid-t
     ),
   );
 
-  it.live("is refused while the thread is in a turn, and changes nothing", () =>
+  it.live(
+    "is accepted while the thread is in a turn: the turn finishes as it was, the next one runs on the new runner",
+    () =>
+      withService(
+        Effect.gen(function* () {
+          const started = yield* start("wait 400");
+          const running = yield* settle(started.missionId, (d) => d.thread.state === "Running");
+          const threadId = running.thread.id;
+          yield* call({
+            _tag: "ChangeThreadRunner",
+            accountId: null,
+            effort: "default",
+            harness: "codex",
+            model: "gpt-5",
+            threadId,
+          });
+          const changed = yield* read(started.missionId);
+          expect(changed.thread.harness).toBe("codex");
+          expect(changed.thread.state).toBe("Running");
+          const first = yield* settle(started.missionId, idle);
+          // The turn that was running wrote its reply under the runner it ran on.
+          expect(first.messages.filter((message) => message.sender === "agent")).toHaveLength(1);
+          expect(first.thread.harness).toBe("codex");
+          yield* send(threadId, "runner\ncontext");
+          const second = yield* settle(started.missionId, (d) => d.messages.length === 4 && idle(d));
+          const reply = lastReplyOf(second);
+          // A new session on the new harness, never the finished turn's session, and it is given the conversation.
+          expect(reply).toContain("codex/gpt-5/default/session none");
+          expect(reply).toContain("Conversation so far");
+        }),
+      ),
+  );
+
+  it.live("a model change in a turn keeps the harness session for the next turn", () =>
     withService(
       Effect.gen(function* () {
         const started = yield* start("wait 400");
         const running = yield* settle(started.missionId, (d) => d.thread.state === "Running");
-        const refused = yield* call({
+        const threadId = running.thread.id;
+        yield* call({
           _tag: "ChangeThreadRunner",
           accountId: null,
-          effort: "default",
-          harness: "codex",
-          model: "default",
-          threadId: running.thread.id,
-        }).pipe(Effect.flip);
-        expect(JSON.stringify(refused)).toContain("in a turn");
-        expect((yield* read(started.missionId)).thread.harness).toBe("claude");
+          effort: "high",
+          harness: "claude",
+          model: "opus",
+          threadId,
+        });
+        yield* settle(started.missionId, idle);
+        yield* send(threadId, "runner");
+        const second = yield* settle(started.missionId, (d) => d.messages.length === 4 && idle(d));
+        expect(lastReplyOf(second)).toBe(`Echo: claude/opus/high/session fake-${threadId}`);
       }),
     ),
   );

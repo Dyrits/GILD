@@ -19,7 +19,7 @@ import { AttachmentsRoot, type StoredAttachment } from "./attachments.ts";
 import { fallBackToBackup, resetBackupStep } from "./backups.ts";
 import { requireChatterDecision } from "./chatter.ts";
 import { changed, makeCommands } from "./commands.ts";
-import { readConversationSoFar } from "./handover.ts";
+import { isRunnerChangedSince, readConversationSoFar } from "./handover.ts";
 import { makeLifecycle, recoverThreadStates, releaseThread, resumeStopped, stopThread } from "./lifecycle.ts";
 import { listPending, listThreadsWithPending } from "./messaging.ts";
 import { fallBackAfterFailure } from "./rituals.ts";
@@ -218,6 +218,9 @@ export const threadsLayer = Layer.effect(
         yield* draft(threadId, "");
         if (outcome._tag === "Failure") {
           yield* fail(threadId, turn, outcome.failure.reason);
+          // The owner chose another runner during the turn: it waits for them, as after any failed turn, and no
+          // fallback replaces their choice (thread-handover).
+          if (yield* local(isRunnerChangedSince(threadId, turn))) return yield* wakeWaiting(turn.missionId, threadId);
           // A Ritual's run carries on with its next Companion, or fails once they are used up (rituals).
           yield* commands.run(fallBackAfterFailure(threadId, outcome.failure.reason)).pipe(Effect.orDie);
           // Any thread carries on with its next backup Companion, if it has one (thread-panel, Backups).

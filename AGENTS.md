@@ -48,7 +48,7 @@ When adding a handoff, keep only the three newest current handoffs linked below;
 
 Latest handoffs:
 
-- To resume ordinary actions asking permission (CHG-0273: the repository's linked git worktrees are writable in Claude Code's sandbox and count as the thread's folder; checked headlessly, no live run, the owner's window check and review of the widened writable area pending), read the [current handoff](.agents/handoffs/2026-11-14-0213-worktree-sandbox-prompts.md). Handoffs are shared and committed.
+- To resume changing a thread's Companion while it works (CHG-0278: the picker stays and the service accepts the change in a turn; the turn finishes as it was and the next one uses the new Companion; tests, typecheck and lint pass, no window look; the working indicator's mark and the owner's check are open), read the [current handoff](.agents/handoffs/2026-11-14-1236-companion-change-mid-turn.md). Handoffs are shared and committed.
 
 - To resume a working thread's tool calls as steps (CHG-0276: Claude Code's tool calls show as lines of the turn's Steps group; committed on `main` as `eedfa29`; the stand-in process only, no live run and no window look; the in-progress marker, a live indicator label, and Codex and OpenCode are open), read the [current handoff](.agents/handoffs/2026-11-14-1221-working-thread-steps.md). Handoffs are shared and committed.
 

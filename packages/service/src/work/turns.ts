@@ -4,7 +4,7 @@ import { SqlClient } from "effect/sql";
 import { Changes, PriceTable, type TurnOutcome, touchMission } from "../core/index.ts";
 import { describedCall } from "./activities.ts";
 import { enforceBudgets } from "./budgets.ts";
-import { insertThreadLine } from "./handover.ts";
+import { insertThreadLine, isSessionOfThread } from "./handover.ts";
 import { endTurn, failTurn } from "./lifecycle.ts";
 import { deliverMessages, insertReply } from "./messaging.ts";
 import { finishRitualRun } from "./rituals.ts";
@@ -199,7 +199,8 @@ export const completeTurn = (threadId: string, turn: Admitted, outcome: TurnOutc
         }
         const status = isInterrupted ? "interrupted" : "completed";
         yield* sql`UPDATE turns SET status = ${status}, ended_at = ${now} WHERE id = ${turn.turnId}`;
-        yield* endTurn(threadId, turn.turnId, sessionId);
+        // The owner may have changed the harness or account during the turn: its session is then not the thread's.
+        yield* endTurn(threadId, turn.turnId, (yield* isSessionOfThread(threadId, turn)) ? sessionId : null);
         yield* finishRitualRun(threadId, isInterrupted ? "Interrupted" : "Done");
         yield* touchMission(turn.missionId, now);
         yield* sql.afterCommit(changes.publish);
