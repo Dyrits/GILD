@@ -66,6 +66,7 @@ const eraseSubtree = Effect.fn("eraseSubtree")(function* (rows: Subtree, root: S
   yield* sql`DELETE FROM chatter WHERE first_id IN ${sql.in(ids)} OR second_id IN ${sql.in(ids)}`;
   yield* releaseResolvedChatter;
   yield* sql`DELETE FROM questions WHERE thread_id IN ${sql.in(ids)}`;
+  yield* sql`DELETE FROM thread_activities WHERE thread_id IN ${sql.in(ids)}`;
   yield* sql`DELETE FROM suggestions WHERE thread_id IN ${sql.in(ids)}`;
   yield* sql`DELETE FROM handovers WHERE thread_id IN ${sql.in(ids)}`;
   yield* eraseThreadsLore(ids);

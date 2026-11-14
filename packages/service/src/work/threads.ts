@@ -28,7 +28,14 @@ import { Suggestions } from "./suggestions.ts";
 import { askOwnerFor } from "./threadToolHandlers.ts";
 import { unaskedToolNamesOf } from "./threadTools.ts";
 import { type Admitted, admitTurn, isCurrentTurn } from "./turnAdmission.ts";
-import { completeTurn, deliverSteered, recordTurnFailure, saveTurnNotice, saveTurnReply } from "./turns.ts";
+import {
+  completeTurn,
+  deliverSteered,
+  recordTurnFailure,
+  saveTurnActivity,
+  saveTurnNotice,
+  saveTurnReply,
+} from "./turns.ts";
 import { ScratchRoot } from "./workspaces.ts";
 
 /** Owns thread state and admits at most one turn per thread. */
@@ -171,6 +178,8 @@ export const threadsLayer = Layer.effect(
                 Effect.andThen(draft(threadId, "")),
                 Effect.orDie,
               ),
+            ToolCall: (call) =>
+              local(saveTurnActivity(threadId, turn, call.id, call.toolName, call.input)).pipe(Effect.orDie),
           });
         if (!(yield* isCurrent(turn.turnId))) return;
         active.set(threadId, { turnId: turn.turnId, written: new Set() });

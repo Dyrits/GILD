@@ -147,6 +147,18 @@ const textOf = (content: unknown) =>
         .join("")
     : "";
 
+/** The tool calls a complete assistant message made, each with the id Claude Code gives it. */
+const toolCallsOf = (content: unknown) =>
+  Array.isArray(content)
+    ? content.flatMap((block) => {
+        const id = textFieldOf(block, "id");
+        const toolName = textFieldOf(block, "name");
+        return textFieldOf(block, "type") === "tool_use" && id !== null && toolName !== null
+          ? [{ id, input: fieldOf(block, "input"), toolName }]
+          : [];
+      })
+    : [];
+
 /** Why a turn's error result failed it, from the fields Claude Code reports. */
 const failureReasonOf = (event: unknown, reportedError: string | null) => {
   const result = textFieldOf(event, "result");
@@ -243,6 +255,9 @@ const claudeProtocolOf = (
           // A synthetic message reports zeros, which are no measure.
           if (call !== null && call > 0) context = call;
           draft = "";
+          // Each tool call is a step of the turn, shown as it starts (action-approval).
+          for (const call of toolCallsOf(fieldOf(fieldOf(event, "message"), "content")))
+            yield* request.onEvent({ _tag: "ToolCall", ...call });
           // A synthetic assistant message carrying `error` reports a failure, not a reply.
           if (error !== undefined && error !== null) reportedError = text || String(error);
           else if (text.trim() !== "")

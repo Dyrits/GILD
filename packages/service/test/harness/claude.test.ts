@@ -8,6 +8,7 @@ import { type Duration, Effect, PubSub } from "effect";
 import { SqlClient } from "effect/sql";
 import { afterEach } from "vitest";
 import { Changes, claudeHarnessLayer, makeClaudeHarness, Service, serviceLayer } from "../../src/index.ts";
+import { markPrompted } from "../../src/work/activities.ts";
 import { unaskedToolNamesOf } from "../../src/work/threadTools.ts";
 import { turnRequestOf } from "../fixtures/turns.ts";
 
@@ -127,6 +128,33 @@ describe("running Claude Code threads", () => {
       expect(mcp.mcpServers.iskios.timeout).toBe(2147483647);
       expect(args).toMatch(/--session-id [0-9a-f-]{36}/);
       expect(start?.env).toEqual([]);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("lists a turn's tool calls as steps, and hides a call that reached the permission prompt", () => {
+    const { layer } = withClaude();
+    return Effect.gen(function* () {
+      const started = yield* call({
+        _tag: "StartMission",
+        effort: "default",
+        model: "default",
+        requestId: "r-calls",
+        text: "use-tools",
+        workspacePath: null,
+      });
+      const detail = yield* settle(started.missionId, idleWith(1));
+      // The approval tool has its own question line, so it is no step.
+      expect(detail.activities.map(({ detail: target, summary }) => [summary, target])).toEqual([
+        ["Read a file", "/work/entries.ts"],
+        ["List the folder", "ls -la…"],
+        ["Use an Iskios tool", "update journal"],
+      ]);
+      // A call that was also asked about shows once, as its action; a prompt that came first leaves a hidden mark.
+      const threadId = detail.thread.id;
+      yield* markPrompted(threadId, "toolu_read_1", 1);
+      yield* markPrompted(threadId, "toolu_not_reported_yet", 2);
+      const after = yield* read(started.missionId);
+      expect(after.activities.map((activity) => activity.summary)).toEqual(["List the folder", "Use an Iskios tool"]);
     }).pipe(Effect.provide(layer));
   });
 

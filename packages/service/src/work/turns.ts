@@ -2,6 +2,7 @@ import type { BillingKind, TokenUsage } from "@iskios/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { Changes, PriceTable, type TurnOutcome, touchMission } from "../core/index.ts";
+import { describedCall } from "./activities.ts";
 import { enforceBudgets } from "./budgets.ts";
 import { insertThreadLine } from "./handover.ts";
 import { endTurn, failTurn } from "./lifecycle.ts";
@@ -49,6 +50,23 @@ export const saveTurnReply = (
         yield* sql`INSERT INTO reply_usage (message_id, input, output, cache_read, cache_creation, estimate)
           VALUES (${messageId}, ${usage.input}, ${usage.output}, ${usage.cacheRead}, ${usage.cacheCreation}, ${estimate?.amount ?? null})`;
       }
+      yield* publishOnCommit;
+    }),
+  );
+
+/** Records a tool call the harness reported as it started, a step of the running turn (action-approval). */
+export const saveTurnActivity = (threadId: string, turn: Admitted, id: string, toolName: string, input: unknown) =>
+  transacting(
+    Effect.gen(function* () {
+      if (!(yield* isCurrentTurn(turn.turnId))) return;
+      const described = describedCall(toolName, input);
+      if (described === null) return;
+      const sql = yield* SqlClient.SqlClient;
+      const now = yield* Clock.currentTimeMillis;
+      // The call's prompt may have come first and marked it; the mark stays.
+      yield* sql`INSERT INTO thread_activities (id, thread_id, at, summary, detail)
+        VALUES (${id}, ${threadId}, ${now}, ${described.summary}, ${described.detail})
+        ON CONFLICT (thread_id, id) DO UPDATE SET at = excluded.at, summary = excluded.summary, detail = excluded.detail`;
       yield* publishOnCommit;
     }),
   );

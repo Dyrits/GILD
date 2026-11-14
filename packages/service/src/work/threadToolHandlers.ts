@@ -177,9 +177,9 @@ export const makeToolHandlers = (dependencies: {
           ),
         ),
       ),
-    answer_prompt: (threadId, { input, tool_name }) =>
+    answer_prompt: (threadId, { input, tool_name, tool_use_id }) =>
       approvals
-        .answerPrompt(threadId, tool_name, input)
+        .answerPrompt(threadId, tool_name, input, false, false, tool_use_id ?? null)
         .pipe(
           Effect.map((decision) =>
             answer(

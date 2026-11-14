@@ -23,6 +23,8 @@ export type HarnessEvent =
     }
   /** The assistant message written so far, never saved. */
   | { readonly _tag: "Draft"; readonly text: string }
+  /** A tool call the harness started, by its own id, to be saved as a step of the turn (action-approval). */
+  | { readonly _tag: "ToolCall"; readonly id: string; readonly input: unknown; readonly toolName: string }
   /** A message steered into the running turn was taken in by it (CHG-0039). */
   | { readonly _tag: "Delivered"; readonly messageId: string }
   /**

@@ -55,6 +55,14 @@ Version 1 serves the installation's owner. In future hosted missions, only the h
   - the history of every answer across threads, filterable by mission.
 - Each answered question also stays in its thread as a short line with the action, the answer, the time, and the device, for example "Allowed `git push` · 14:02 · phone". Withdrawn questions, and harness prompts run without a question, are recorded the same way.
 
+### What a working thread is doing
+
+- **Steps show the other tool calls too** (CHG-0276; a thread that only shows "Working…" says nothing of what it does). Besides the actions above, the Steps group of a turn lists the rest of what the thread's harness reports as each call starts: reading, searching, listing, editing, running a command the harness ran without asking, fetching, and the thread's own Iskios tools. Each is one line of the same group, as plain words, a short target and the time, such as "Ran · Read a file · /work/entries.ts · 10:41 AM" or "Ran · Search files · workingLabelOf · 10:41 AM". The group grows while the thread works, so the owner sees what it did last and can count the steps.
+- A call that also asked or ran as an action above shows once, as that action. A line is a record, not a question: it has no buttons and no standing permission, and it does not appear in the Permissions page history. The harness's approval tool, which has its own question line, and its own permission prompt tool are no step.
+- A line carries the kind of call in plain words and a short target (a file, a pattern, an address, or a command's first line; a command with a reason from the harness says the reason), never a tool's output or a file's content. A target is cut to one short line. Lines are kept with the thread and deleted with its quest.
+- Claude Code reports these calls. Codex and OpenCode keep action lines only until their events are probed.
+- Not yet: the line of the call in progress is not marked as running, and the working indicator still reads "Working…".
+
 ## External contract
 
 | Tool | Purpose | Arguments | Answer |

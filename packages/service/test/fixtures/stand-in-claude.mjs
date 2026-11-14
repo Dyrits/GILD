@@ -139,6 +139,26 @@ const startTurn = (input) => {
     });
     return;
   }
+  // A turn that reads a file, runs a read-only command, and calls an Iskios tool before it replies.
+  if (/(?:^|\n---\n\n)use-tools$/.test(text)) {
+    emit({
+      message: {
+        content: [
+          { id: `toolu_read_${turn}`, input: { file_path: "/work/entries.ts" }, name: "Read", type: "tool_use" },
+          {
+            id: `toolu_bash_${turn}`,
+            input: { command: "ls -la\nwc -l", description: "List the folder" },
+            name: "Bash",
+            type: "tool_use",
+          },
+          { id: `toolu_note_${turn}`, input: {}, name: "mcp__iskios__update_journal", type: "tool_use" },
+          { id: `toolu_ask_${turn}`, input: {}, name: "mcp__iskios__request_approval", type: "tool_use" },
+        ],
+        role: "assistant",
+      },
+      type: "assistant",
+    });
+  }
   const slow = /(?:^|\n---\n\n)slow (\d+)$/.exec(text);
   current = { held: [], joined: [], text, timer: null, turn };
   if (slow === null) finish(false);

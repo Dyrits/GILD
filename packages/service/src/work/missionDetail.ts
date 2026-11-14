@@ -5,6 +5,7 @@ import { notFound } from "../core/index.ts";
 import { listThreadLoreChanges, readGauge } from "../lore/index.ts";
 import { listThreadQuestions } from "../policy/index.ts";
 import { ownAccountLabelOf } from "../remote/index.ts";
+import { listThreadActivities } from "./activities.ts";
 import { readCards } from "./attachments.ts";
 import { listBudgetEvents, readHeldStop } from "./budgetViews.ts";
 import { readChatter } from "./chatter.ts";
@@ -99,6 +100,7 @@ export const readMission = (missionId: string, threadId: string | null) =>
     const questions = yield* listThreadQuestions(selected.id);
     const suggestions = yield* listThreadSuggestions(selected.id);
     return {
+      activities: yield* listThreadActivities(selected.id),
       budgetEvents: selected.parentId === null ? yield* listBudgetEvents(missionId) : [],
       budgetStop: yield* readHeldStop(selected.id),
       chatter: yield* readChatter(selected.id),

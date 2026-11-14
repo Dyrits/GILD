@@ -17,4 +17,19 @@ export const recentStoreMigrations = {
       previous_ending TEXT
     )`;
   }),
+  "0047_thread_activities": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    // The tool calls a harness reported, by the harness's own id. A call that also reached the permission prompt is
+    // marked, so the thread shows it once, as its action (action-approval, What a working thread is doing).
+    yield* sql`CREATE TABLE thread_activities (
+      id TEXT NOT NULL,
+      thread_id TEXT NOT NULL REFERENCES threads(id),
+      at INTEGER NOT NULL,
+      summary TEXT NOT NULL,
+      detail TEXT NOT NULL,
+      is_prompted INTEGER NOT NULL DEFAULT 0,
+      PRIMARY KEY (thread_id, id)
+    )`;
+    yield* sql`CREATE INDEX thread_activities_by_thread ON thread_activities (thread_id, at)`;
+  }),
 };

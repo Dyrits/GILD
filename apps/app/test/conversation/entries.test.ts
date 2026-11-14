@@ -23,6 +23,7 @@ const detailOf = (
   handovers: ReadonlyArray<{ at: number; id: string; text: string }> = [],
 ) =>
   ({
+    activities: [],
     budgetEvents: [],
     handovers,
     loreChanges: [],
@@ -60,6 +61,7 @@ describe("handovers, in the conversation they changed", () => {
 describe("links from the Guildmaster's conversation, beside its replies", () => {
   const guildmasterDetail = (messages: ReadonlyArray<object>, suggestions: ReadonlyArray<object> = []) =>
     ({
+      activities: [],
       budgetEvents: [],
       handovers: [],
       loreChanges: [],
@@ -145,6 +147,7 @@ describe("links from the Guildmaster's conversation, beside its replies", () => 
 describe("a turn's actions, folded as steps while messages stay visible", () => {
   const turn = (messages: ReadonlyArray<object>) =>
     ({
+      activities: [],
       budgetEvents: [],
       handovers: [],
       loreChanges: [],
@@ -177,6 +180,38 @@ describe("a turn's actions, folded as steps while messages stay visible", () => 
     } as unknown as MissionDetail);
     expect(entries.map((entry) => entry.key)).toEqual(["owner-0", "agent-1000", "steps:a", "b", "agent-20000"]);
     expect(entries[2]).toMatchObject({ _tag: "Steps", seconds: 2, steps: [{ _tag: "Action", id: "a" }] });
+  });
+
+  it("lists the tool calls the harness reported with the actions, in the order they happened", () => {
+    const detail = turn([owner(0), agent(20000)]);
+    const entries = entriesOf({
+      ...detail,
+      activities: [
+        { at: 1000, detail: "entries.ts", id: "read", summary: "Read a file" },
+        { at: 3000, detail: "bun test", id: "test", summary: "Run a command" },
+      ],
+      questions: [{ askedAt: 2000, id: "push", outcome: "AllowedAutomatically", summary: "Ran push" }],
+    } as unknown as MissionDetail);
+    expect(entries[1]).toMatchObject({
+      _tag: "Steps",
+      steps: [
+        { _tag: "Call", id: "call:read" },
+        { _tag: "Action", id: "push" },
+        { _tag: "Call", id: "call:test" },
+      ],
+    });
+  });
+
+  it("marks the group of a working turn as current while only tool calls fill it", () => {
+    const detail = turn([owner(0)]);
+    const entries = entriesOf(
+      {
+        ...detail,
+        activities: [{ at: 1000, detail: "", id: "read", summary: "Read a file" }],
+      } as unknown as MissionDetail,
+      true,
+    );
+    expect(entries[1]).toMatchObject({ _tag: "Steps", isCurrent: true });
   });
 
   it("does not present a settled approval as current work after a reply", () => {

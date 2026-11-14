@@ -16,6 +16,7 @@ import {
   reasonOf,
   targetOf,
 } from "../policy/index.ts";
+import { markPrompted } from "./activities.ts";
 import { makeOwnerWaits } from "./attention.ts";
 import { resumeInTurn } from "./lifecycle.ts";
 import { ScratchRoot, threadFolderOf } from "./workspaces.ts";
@@ -73,6 +74,8 @@ export class Approvals extends Context.Service<
       input: unknown,
       isOutsideSandbox?: boolean,
       isUnsandboxed?: boolean,
+      /** The harness's id of the call, when it gives one: the call then shows once in the thread, as its action. */
+      toolUseId?: string | null,
     ) => Effect.Effect<Decision>;
     readonly requestApproval: (threadId: string, request: ApprovalRequest) => Effect.Effect<Decision>;
     /**
@@ -427,8 +430,15 @@ export const approvalsLayer = Layer.effect(
 
     return {
       answer,
-      answerPrompt: (threadId, toolName, input, isOutsideSandbox = false, isUnsandboxed = false) =>
-        answerPrompt(threadId, toolName, input, isOutsideSandbox, isUnsandboxed).pipe(
+      answerPrompt: (threadId, toolName, input, isOutsideSandbox = false, isUnsandboxed = false, toolUseId = null) =>
+        (toolUseId === null
+          ? Effect.void
+          : Clock.currentTimeMillis.pipe(
+              Effect.flatMap((now) => markPrompted(threadId, toolUseId, now)),
+              Effect.orDie,
+            )
+        ).pipe(
+          Effect.andThen(answerPrompt(threadId, toolName, input, isOutsideSandbox, isUnsandboxed)),
           Effect.provideService(SqlClient.SqlClient, sql),
         ),
       askAboutFolder,

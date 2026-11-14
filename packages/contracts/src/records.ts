@@ -1,4 +1,5 @@
 import { Schema } from "effect";
+import { Activity } from "./activities.ts";
 import { AttachmentCard } from "./attachments.ts";
 import {
   BudgetEvent,
@@ -436,6 +437,8 @@ export type Handover = typeof Handover.Type;
 
 /** A mission with its thread tree and one selected thread's conversation. */
 export const MissionDetail = Schema.Struct({
+  /** The selected thread's tool calls its harness reported, oldest first, without those that were asked about as actions. */
+  activities: Schema.Array(Activity),
   /** Budget lines, shown in the top thread only. */
   budgetEvents: Schema.Array(BudgetEvent),
   /** The mission's open budget stop when the selected thread holds its question. */

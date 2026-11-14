@@ -141,9 +141,19 @@ function StepsGroup({ seconds, steps }: { seconds: number; steps: ReadonlyArray<
       </Pressable>
       {isOpen && (
         <View style={styles.stepsList}>
-          {steps.map((step) => (
-            <QuestionLine key={step.id} question={step.question} />
-          ))}
+          {steps.map((step) =>
+            step._tag === "Action" ? (
+              <QuestionLine key={step.id} question={step.question} />
+            ) : (
+              <View key={step.id} style={styles.questionLine}>
+                <Text style={styles.muted}>
+                  {["Ran", step.activity.summary, step.activity.detail, clockOf(step.at)]
+                    .filter((part) => part !== "")
+                    .join(" · ")}
+                </Text>
+              </View>
+            ),
+          )}
         </View>
       )}
     </View>

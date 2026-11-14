@@ -1,4 +1,5 @@
 import type {
+  Activity,
   BudgetEvent,
   Handover,
   LoreChange,
@@ -39,20 +40,29 @@ const settledLabelOf = (suggestion: Suggestion) =>
       ? "Opened quest"
       : suggestionLabels[suggestion.outcome ?? "Continued"];
 
-/** One action the thread ran or was allowed to run, separate from its chat messages. */
-export type Step = { _tag: "Action"; at: number; id: string; question: Question };
+/** One step of a turn, separate from its chat messages: an action the thread ran or was allowed to run, or a tool call its harness reported. */
+export type Step =
+  | { _tag: "Action"; at: number; id: string; question: Question }
+  | { _tag: "Call"; activity: Activity; at: number; id: string };
 
 /** The outcomes that settle an action with no word from the owner worth a line of its own. */
 const isFoldedAction = (question: Question) =>
   question.outcome !== null && !["Denied", "Discarded", "Withdrawn"].includes(question.outcome);
 
 /** Settled actions grouped between incoming messages, with elapsed time from the message that began the turn. */
-const stepGroupsOf = (messages: ReadonlyArray<Message>, questions: ReadonlyArray<Question>, isWorking: boolean) => {
+const stepGroupsOf = (
+  messages: ReadonlyArray<Message>,
+  questions: ReadonlyArray<Question>,
+  activities: ReadonlyArray<Activity>,
+  isWorking: boolean,
+) => {
   const groups: Array<{ isCurrent: boolean; seconds: number; steps: Array<Step> }> = [];
-  const actions = questions
-    .filter(isFoldedAction)
-    .map((question): Step => ({ _tag: "Action", at: question.askedAt, id: question.id, question }))
-    .sort((a, b) => a.at - b.at);
+  const actions = [
+    ...questions
+      .filter(isFoldedAction)
+      .map((question): Step => ({ _tag: "Action", at: question.askedAt, id: question.id, question })),
+    ...activities.map((activity): Step => ({ _tag: "Call", activity, at: activity.at, id: `call:${activity.id}` })),
+  ].sort((a, b) => a.at - b.at);
   let before: Message | undefined;
   const close = (isTrailing: boolean, until: number) => {
     const from = before?.sentAt ?? Number.NEGATIVE_INFINITY;
@@ -106,7 +116,7 @@ export const entriesOf = (detail: MissionDetail, isWorking = false): Array<Entry
       },
     ];
   });
-  const stepGroups = stepGroupsOf(detail.messages, detail.questions, isWorking);
+  const stepGroups = stepGroupsOf(detail.messages, detail.questions, detail.activities, isWorking);
   const stepIds = new Set(stepGroups.flatMap((group) => group.steps.map((step) => step.id)));
   return [
     ...stepGroups.map(
