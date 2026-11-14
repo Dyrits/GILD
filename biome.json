@@ -24,6 +24,7 @@
       "!**/node_modules",
       "!**/dist",
       "!**/.expo",
+      "!**/.worktrees",
       "!**/*.md",
       "!**/*.generated.ts",
       "!documentation/art-direction",

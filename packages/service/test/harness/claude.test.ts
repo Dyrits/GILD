@@ -1,3 +1,4 @@
+import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -203,6 +204,70 @@ describe("running Claude Code threads", () => {
         expect(settings.env).toEqual({ NODE_USE_ENV_PROXY: "1" });
       }
     }).pipe(Effect.provide(layer));
+  });
+
+  describe("a workspace's git worktrees", () => {
+    const git = (folder: string, ...args: string[]) =>
+      execFileSync("git", ["-C", folder, "-c", "user.name=Test", "-c", "user.email=test@example.com", ...args], {
+        stdio: "ignore",
+      });
+    const repositoryIn = (directory: string) => {
+      const app = join(realpathSync(directory), "app");
+      mkdirSync(app);
+      git(app, "init", "-q", "-b", "main");
+      writeFileSync(join(app, "a.txt"), "a");
+      git(app, "add", ".");
+      git(app, "commit", "-q", "-m", "first");
+      return app;
+    };
+    const caches = ["~/.bun/install/cache", "~/.npm", "~/Library/Caches/electron", "~/.cache/electron"];
+    const writableOf = (args: string[] | undefined) =>
+      JSON.parse(args?.[args.indexOf("--settings") + 1] ?? "{}").sandbox?.filesystem?.allowWrite;
+
+    it.live("lets a sandboxed thread write the worktrees of its workspace, and no other folder", () => {
+      const { directory, layer, starts } = withClaude();
+      const app = repositoryIn(directory);
+      const worktree = join(realpathSync(directory), "app-side");
+      git(app, "worktree", "add", "-q", "-b", "side", worktree);
+      mkdirSync(join(realpathSync(directory), "app-unrelated"));
+      return Effect.gen(function* () {
+        const started = yield* call({
+          _tag: "StartMission",
+          effort: "default",
+          model: "default",
+          requestId: "r1",
+          text: "Hi",
+          workspacePath: app,
+        });
+        yield* settle(started.missionId, idleWith(1));
+        expect(writableOf(starts()[0]?.args)).toEqual([...caches, worktree]);
+      }).pipe(Effect.provide(layer));
+    });
+
+    it.live("restarts the process, resuming its session, when a worktree is added", () => {
+      const { directory, layer, starts } = withClaude();
+      const app = repositoryIn(directory);
+      return Effect.gen(function* () {
+        const started = yield* call({
+          _tag: "StartMission",
+          effort: "default",
+          model: "default",
+          requestId: "r1",
+          text: "One",
+          workspacePath: app,
+        });
+        yield* settle(started.missionId, idleWith(1));
+        const worktree = join(realpathSync(directory), "app-late");
+        git(app, "worktree", "add", "-q", "-b", "late", worktree);
+        yield* call({ _tag: "SendMessage", delivery: null, requestId: "r2", text: "Two", threadId: started.threadId });
+        yield* settle(started.missionId, idleWith(2));
+        const [first, second] = starts();
+        expect(second?.pid).not.toBe(first?.pid);
+        expect(writableOf(first?.args)).toEqual(caches);
+        expect(writableOf(second?.args)).toEqual([...caches, worktree]);
+        expect(second?.args.join(" ")).toMatch(/--resume [0-9a-f-]{36}/);
+      }).pipe(Effect.provide(layer));
+    });
   });
 
   it.live("omits model and effort when the thread uses Claude Code's defaults", () => {

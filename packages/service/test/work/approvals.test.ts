@@ -1,4 +1,5 @@
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
@@ -527,6 +528,72 @@ describe("a thread folder that is a link", () => {
       rmSync(workspace);
       symlinkSync(other, workspace);
       yield* send(started.threadId, edit(join(other, "plan.md")));
+      expect(openQuestion(yield* settle(started.missionId, isAsking))).toMatchObject({
+        permission: "Change a file outside the workspace",
+      });
+    }).pipe(Effect.provide(layer));
+  });
+});
+
+describe("a workspace's git worktrees", () => {
+  const git = (folder: string, ...args: string[]) =>
+    execFileSync("git", ["-C", folder, "-c", "user.name=Test", "-c", "user.email=test@example.com", ...args], {
+      stdio: "ignore",
+    });
+  const repository = (base: string, name: string) => {
+    const folder = join(base, name);
+    mkdirSync(folder);
+    git(folder, "init", "-q", "-b", "main");
+    writeFileSync(join(folder, "a.txt"), "a");
+    git(folder, "add", ".");
+    git(folder, "commit", "-q", "-m", "first");
+    return folder;
+  };
+  /** A workspace that is a repository with one linked worktree beside it, an unrelated folder beside both, and a worktree of another repository. */
+  const withRepository = () => {
+    const filename = databaseFile();
+    const base = realpathSync(join(filename, ".."));
+    const workspace = repository(base, "workspace");
+    const worktree = join(base, "workspace-side");
+    git(workspace, "worktree", "add", "-q", "-b", "side", worktree);
+    const unrelated = join(base, "workspace-unrelated");
+    mkdirSync(unrelated);
+    const other = repository(base, "other");
+    const otherWorktree = join(base, "other-side");
+    git(other, "worktree", "add", "-q", "-b", "other-side", otherWorktree);
+    return { layer: serviceOn(filename), otherWorktree, unrelated, workspace, worktree };
+  };
+  const edit = (file_path: string) => `prompt Edit ${JSON.stringify({ file_path })}`;
+
+  it.live("changes a file in a worktree of the workspace unasked", () => {
+    const { layer, workspace, worktree } = withRepository();
+    return Effect.gen(function* () {
+      const started = yield* start(edit(join(worktree, "plan.md")), workspace);
+      const detail = yield* settle(started.missionId, isReplied);
+      expect(detail.questions.map((question) => question.outcome)).toEqual(["AllowedAutomatically"]);
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("asks about a file in an unrelated sibling folder or in a worktree of another repository", () => {
+    const { layer, otherWorktree, unrelated, workspace } = withRepository();
+    return Effect.gen(function* () {
+      for (const folder of [unrelated, otherWorktree]) {
+        const started = yield* start(edit(join(folder, "plan.md")), workspace);
+        expect(openQuestion(yield* settle(started.missionId, isAsking))).toMatchObject({
+          permission: "Change a file outside the workspace",
+        });
+      }
+    }).pipe(Effect.provide(layer));
+  });
+
+  it.live("asks again about a worktree once its folder is replaced by a link", () => {
+    const { layer, unrelated, workspace, worktree } = withRepository();
+    return Effect.gen(function* () {
+      const started = yield* start("hello", workspace);
+      yield* settle(started.missionId, isReplied);
+      rmSync(worktree, { recursive: true });
+      symlinkSync(unrelated, worktree);
+      yield* send(started.threadId, edit(join(worktree, "plan.md")));
       expect(openQuestion(yield* settle(started.missionId, isAsking))).toMatchObject({
         permission: "Change a file outside the workspace",
       });

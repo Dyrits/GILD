@@ -155,9 +155,17 @@ const threadSandbox = {
  * Claude Code's sandbox settings: always on, commands unasked inside it, and never run unsandboxed on a warning
  * (`failIfUnavailable`, in the 2.1.322 settings schema): a sandbox that cannot start stops Claude Code instead.
  */
-const sandboxSettingsOf = () => ({
+const sandboxSettingsOf = (worktrees: ReadonlyArray<string>) => ({
   env: threadSandbox.env,
-  sandbox: { autoAllowBashIfSandboxed: true, enabled: true, failIfUnavailable: true, ...threadSandbox.sandbox },
+  sandbox: {
+    autoAllowBashIfSandboxed: true,
+    enabled: true,
+    failIfUnavailable: true,
+    ...threadSandbox.sandbox,
+    // The git worktrees of the workspace's repository count as the workspace (CHG-0273), so work on a branch beside the
+    // checkout runs without asking; the list is part of the restart key, so a new worktree takes effect at the next start.
+    filesystem: { allowWrite: [...threadSandbox.sandbox.filesystem.allowWrite, ...worktrees] },
+  },
 });
 
 /** Whether Claude Code runs a thread at this level inside its enforced sandbox: the level allows it and the host can run one. */
@@ -179,14 +187,22 @@ export const networkHostOf = (request: unknown): string | null => {
   return host !== null && /^[A-Za-z0-9.-]+(:\d{1,5})?$/.test(host) ? host : null;
 };
 
-/** The arguments that depend on the thread's access: its endpoint, instructions, and approval level. */
-export const accessArgsOf = (access: ThreadAccess, context: string, options: AccessOptions) => {
+/**
+ * The arguments that depend on the thread's access: its endpoint, instructions, and approval level, and the git
+ * worktrees of its workspace that its sandbox writes (harness/worktrees.ts).
+ */
+export const accessArgsOf = (
+  access: ThreadAccess,
+  context: string,
+  options: AccessOptions,
+  worktrees: ReadonlyArray<string>,
+) => {
   // A question waits with no time limit (action-approval, Waiting); without its own
   // timeout, Claude Code aborts a call silent for 300 seconds (verified 2026-11-05).
   const mcpConfig = { mcpServers: { [toolServerName]: { timeout: noTimeLimit, type: "http", url: access.mcpUrl } } };
   const isSandboxed = isSandboxedOf(access.approvalLevel, options);
   const levelArgs = isSandboxed
-    ? ["--permission-mode", "acceptEdits", "--settings", JSON.stringify(sandboxSettingsOf())]
+    ? ["--permission-mode", "acceptEdits", "--settings", JSON.stringify(sandboxSettingsOf(worktrees))]
     : [
         "--permission-mode",
         "default",

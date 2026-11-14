@@ -7,3 +7,5 @@ dist/
 .playwright-cli/
 release/
 .wrangler/
+# A thread's own git worktrees, made inside its folder so its sandbox writes them (CHG-0273)
+.worktrees/

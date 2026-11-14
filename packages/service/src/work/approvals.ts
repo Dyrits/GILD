@@ -3,7 +3,7 @@ import type { Answer, ApprovalLevel, HarnessName, Question, QuestionOutcome, Que
 import { Clock, Context, Effect, Layer } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
 import { Changes, fieldOf, Harness, invalid, notFound, readSettings, type ServiceFailure } from "../core/index.ts";
-import { folderEscapeOf, resolvedFolderOf } from "../harness/index.ts";
+import { folderEscapeOf, resolvedFolderOf, workspaceWorktreesOf } from "../harness/index.ts";
 import {
   capabilities,
   consequences,
@@ -276,15 +276,17 @@ export const approvalsLayer = Layer.effect(
       }).pipe(Effect.orDie);
 
     /**
-     * The folder a file change must lie in to count as inside the thread's: its own, unless it is a link or resolves
-     * outside its root (harness/threadFolder.ts). Then only the real path the owner allowed a harness to start in, while
-     * the folder still points there; otherwise none, and every change asks.
+     * The folders a file change must lie in one of to count as inside the thread's: its own, unless it is a link or
+     * resolves outside its root (harness/threadFolder.ts), together with the git worktrees git lists for the
+     * workspace's repository (CHG-0273). A linked folder counts only as the real path the owner allowed a harness to
+     * start in, while it still points there, with no worktrees; otherwise none, and every change asks.
      */
-    const editFolderOf = (threadId: string, folder: string) => {
+    const editFoldersOf = (threadId: string, folder: string) => {
       const isScratch = dirname(resolvePath(folder)) === resolvePath(scratchRoot);
-      if (folderEscapeOf(folder, isScratch ? scratchRoot : folder, !isScratch) === null) return folder;
+      if (folderEscapeOf(folder, isScratch ? scratchRoot : folder, !isScratch) === null)
+        return [folder, ...workspaceWorktreesOf(folder)];
       const allowed = allowedFolders.get(threadId);
-      return allowed !== undefined && allowed === resolvedFolderOf(folder) ? allowed : null;
+      return allowed !== undefined && allowed === resolvedFolderOf(folder) ? [allowed] : [];
     };
 
     /**
@@ -305,7 +307,7 @@ export const approvalsLayer = Layer.effect(
         return yield* needsOf({
           containment:
             row === undefined ? "Unprotected" : (harness.containmentOf?.(row.harness, level) ?? "Unprotected"),
-          editFolder: stored === null ? null : editFolderOf(threadId, stored),
+          editFolders: stored === null ? [] : editFoldersOf(threadId, stored),
           input,
           isEscape,
           isUnsandboxed,

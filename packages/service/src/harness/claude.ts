@@ -32,6 +32,7 @@ import {
   startStreamJsonProcess,
 } from "./lineProcess.ts";
 import { resolvedFolderOf, startFolderOf } from "./threadFolder.ts";
+import { threadWorktreesOf } from "./worktrees.ts";
 
 // Claude Code through `claude -p` in stream-json mode (ADR 0008; CHG-0027): one process per thread.
 
@@ -177,7 +178,7 @@ const claudeProtocolOf = (
   // restarts the process, resuming its conversation; the journal and lore ride on the turn's message instead.
   restartKeyOf: (request) =>
     JSON.stringify([
-      accessArgsOf(request.access, request.context, options),
+      accessArgsOf(request.access, request.context, options, threadWorktreesOf(request)),
       request.configDirectory,
       request.cwd,
       // Where the folder really points: a link pointed elsewhere restarts the process, whose start checks it again.
@@ -274,7 +275,7 @@ const claudeProtocolOf = (
         args: [
           ...(options.prefixArgs ?? []),
           ...baseArgsOf(request.access.unaskedTools),
-          ...accessArgsOf(request.access, request.context, options),
+          ...accessArgsOf(request.access, request.context, options, threadWorktreesOf(request)),
           ...(isResuming ? ["--resume", sessionId] : ["--session-id", sessionId]),
           ...(request.model === "default" ? [] : ["--model", request.model]),
           ...(request.effort === "default" ? [] : ["--effort", request.effort]),

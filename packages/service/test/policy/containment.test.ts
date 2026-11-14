@@ -20,7 +20,7 @@ const folder = () => {
 const command = { command: "ls" };
 const factsOf = (containment: Containment, fields: Partial<ActionFacts> = {}): ActionFacts => ({
   containment,
-  editFolder: null,
+  editFolders: [],
   input: command,
   isEscape: false,
   isUnsandboxed: false,
@@ -63,7 +63,7 @@ describe("what a harness action needs beyond its sandbox", () => {
   it.effect("needs nothing for a file change inside the thread's folder, sandboxed or not", () =>
     Effect.gen(function* () {
       const editFolder = folder();
-      const edit = { editFolder, input: { file_path: join(editFolder, "a.md") }, toolName: "Edit" };
+      const edit = { editFolders: [editFolder], input: { file_path: join(editFolder, "a.md") }, toolName: "Edit" };
       expect(yield* needsOf(factsOf("Sandboxed", edit))).toBeNull();
       expect(yield* needsOf(factsOf("Unprotected", edit))).toBeNull();
     }),
@@ -72,20 +72,35 @@ describe("what a harness action needs beyond its sandbox", () => {
   it.effect("needs the owner for a file change outside the folder, with no folder, or naming no file", () =>
     Effect.gen(function* () {
       const editFolder = folder();
-      const outside = { editFolder, input: { file_path: join(folder(), "a.md") }, toolName: "Edit" };
-      const inside = { editFolder, input: { file_path: join(editFolder, "a.md") }, toolName: "Edit" };
+      const outside = { editFolders: [editFolder], input: { file_path: join(folder(), "a.md") }, toolName: "Edit" };
+      const inside = { editFolders: [editFolder], input: { file_path: join(editFolder, "a.md") }, toolName: "Edit" };
       expect(yield* needsOf(factsOf("Sandboxed", outside))).toBe(capabilities.fileOutsideWorkspace);
-      expect(yield* needsOf(factsOf("Sandboxed", { ...inside, editFolder: null }))).toBe(
+      expect(yield* needsOf(factsOf("Sandboxed", { ...inside, editFolders: [] }))).toBe(
         capabilities.fileOutsideWorkspace,
       );
       expect(yield* needsOf(factsOf("Sandboxed", { ...inside, input: {} }))).toBe(capabilities.fileOutsideWorkspace);
     }),
   );
 
+  it.effect(
+    "needs nothing for a file change inside any of the folders that count as the thread's, such as its worktrees",
+    () =>
+      Effect.gen(function* () {
+        const [own, worktree, unrelated] = [folder(), folder(), folder()];
+        const editIn = (path: string) => ({
+          editFolders: [own, worktree],
+          input: { file_path: join(path, "a.md") },
+          toolName: "Edit",
+        });
+        expect(yield* needsOf(factsOf("Sandboxed", editIn(worktree)))).toBeNull();
+        expect(yield* needsOf(factsOf("Sandboxed", editIn(unrelated)))).toBe(capabilities.fileOutsideWorkspace);
+      }),
+  );
+
   it.effect("needs the owner for a file change inside the folder when the thread runs unsandboxed or escapes", () =>
     Effect.gen(function* () {
       const editFolder = folder();
-      const edit = { editFolder, input: { file_path: join(editFolder, "a.md") }, toolName: "Edit" };
+      const edit = { editFolders: [editFolder], input: { file_path: join(editFolder, "a.md") }, toolName: "Edit" };
       expect(yield* needsOf(factsOf("Sandboxed", { ...edit, isUnsandboxed: true }))).toBe(
         capabilities.fileOutsideWorkspace,
       );
