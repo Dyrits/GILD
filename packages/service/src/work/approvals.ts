@@ -1,5 +1,5 @@
 import { dirname, resolve as resolvePath } from "node:path";
-import type { Answer, ApprovalLevel, HarnessName, Question, QuestionOutcome, QuestionSource } from "@iskios/contracts";
+import type { Answer, ApprovalLevel, Question, QuestionOutcome, QuestionSource } from "@iskios/contracts";
 import { Clock, Context, Effect, Layer } from "effect";
 import { SqlClient, type SqlError } from "effect/sql";
 import { Changes, fieldOf, Harness, invalid, notFound, readSettings, type ServiceFailure } from "../core/index.ts";
@@ -19,6 +19,7 @@ import {
 import { markPrompted } from "./activities.ts";
 import { makeOwnerWaits } from "./attention.ts";
 import { resumeInTurn } from "./lifecycle.ts";
+import { readAuthorityHarness, readRunningTurnId } from "./turnAdmission.ts";
 import { ScratchRoot, threadFolderOf } from "./workspaces.ts";
 
 /** What a thread passes to `request_approval`: one action, said in plain language, with its exact target. */
@@ -163,11 +164,8 @@ export const approvalsLayer = Layer.effect(
         Effect.map(([row]) => row?.missionId ?? null),
       );
 
-    const turnOf = (threadId: string) =>
-      sql<{ id: string }>`SELECT id FROM turns
-      WHERE thread_id = ${threadId} AND status = 'running' ORDER BY started_at DESC, rowid DESC LIMIT 1`.pipe(
-        Effect.map(([turn]) => turn?.id ?? null),
-      );
+    const readTurnId = (threadId: string) =>
+      readRunningTurnId(threadId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
 
     const allowOnce = (threadId: string, target: string, turnId: string, outsideSandbox: boolean) =>
       Effect.sync(() =>
@@ -179,7 +177,7 @@ export const approvalsLayer = Layer.effect(
 
     const takeAllowance = (threadId: string, target: string, outsideSandbox: boolean) =>
       Effect.gen(function* () {
-        const turnId = yield* turnOf(threadId);
+        const turnId = yield* readTurnId(threadId);
         const targets = allowances.get(threadId) ?? [];
         const index = targets.findIndex(
           (grant) =>
@@ -250,7 +248,7 @@ export const approvalsLayer = Layer.effect(
       Effect.gen(function* () {
         const missionId = yield* missionOf(threadId);
         if (missionId === null) return { isAllowed: false, text: "Unknown thread." } satisfies Decision;
-        const turnId = yield* turnOf(threadId);
+        const turnId = yield* readTurnId(threadId);
         if (turnId === null) return { isAllowed: false, text: "No running turn to approve." } satisfies Decision;
         const outsideSandbox = request.outsideSandbox ?? false;
         // The question names only what the service knows: the exact command, and whether it leaves the sandbox.
@@ -273,7 +271,7 @@ export const approvalsLayer = Layer.effect(
           return { isAllowed: true, text: textOf(resolution, outsideSandbox) } satisfies Decision;
         }
         const resolution = yield* ask(asked);
-        const isAllowed = allowingOutcomes.includes(resolution.outcome) && (yield* turnOf(threadId)) === turnId;
+        const isAllowed = allowingOutcomes.includes(resolution.outcome) && (yield* readTurnId(threadId)) === turnId;
         if (isAllowed) yield* allowOnce(threadId, request.command, turnId, outsideSandbox);
         return { isAllowed, text: textOf(resolution, outsideSandbox) } satisfies Decision;
       }).pipe(Effect.orDie);
@@ -306,10 +304,10 @@ export const approvalsLayer = Layer.effect(
     ) =>
       Effect.gen(function* () {
         const stored = yield* threadFolderOf(threadId).pipe(Effect.provideService(ScratchRoot, scratchRoot));
-        const [row] = yield* sql<{ harness: HarnessName }>`SELECT harness FROM threads WHERE id = ${threadId}`;
+        const authority = yield* readAuthorityHarness(threadId).pipe(Effect.provideService(SqlClient.SqlClient, sql));
         return yield* needsOf({
           containment:
-            row === undefined ? "Unprotected" : (harness.containmentOf?.(row.harness, level) ?? "Unprotected"),
+            authority === null ? "Unprotected" : (harness.containmentOf?.(authority, level) ?? "Unprotected"),
           editFolders: stored === null ? [] : editFoldersOf(threadId, stored),
           input,
           isEscape,
@@ -327,7 +325,7 @@ export const approvalsLayer = Layer.effect(
     ) =>
       Effect.gen(function* () {
         // A prompt from a harness still exiting after Stop runs nothing and asks nobody.
-        if ((yield* turnOf(threadId)) === null)
+        if ((yield* readTurnId(threadId)) === null)
           return { isAllowed: false, text: "This thread is not at work, so nothing runs." } satisfies Decision;
         const target = targetOf(toolName, input);
         const isEscape =

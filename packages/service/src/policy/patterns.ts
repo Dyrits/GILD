@@ -1,4 +1,4 @@
-import { textFieldOf } from "../core/index.ts";
+import { fieldOf, textFieldOf } from "../core/index.ts";
 
 /**
  * Whether a target, such as a command, is the exact action a standing permission was saved for. A saved pattern is the
@@ -41,13 +41,23 @@ const unwrappedOf = (command: string) => {
   return match === null ? command : (match[1] ?? match[2] ?? command);
 };
 
+/** The files a multi-file edit lists in `file_paths`, as OpenCode's prompts carry them (openCodePrompts.ts). */
+const listedFilesOf = (input: unknown) => {
+  const listed = fieldOf(input, "file_paths");
+  return Array.isArray(listed)
+    ? listed.filter((path): path is string => typeof path === "string" && path.trim() !== "").map((path) => path.trim())
+    : [];
+};
+
 /**
  * The exact target of a harness tool call: the command for Bash, unwrapped from a shell's `-c` script, else the
  * tool and its file, address, or input.
  */
 export const targetOf = (toolName: string, input: unknown) => {
   if (toolName === "Bash") return unwrappedOf(textFieldOf(input, "command") ?? "");
+  // A multi-file edit names every file, so a permission saved for some of them never covers it (action-approval).
   const subject =
+    (listedFilesOf(input).length === 0 ? null : changedFilesOf(input).join(", ")) ??
     textFieldOf(input, "file_path") ??
     textFieldOf(input, "notebook_path") ??
     textFieldOf(input, "url") ??
@@ -104,10 +114,13 @@ const pathFieldOf = (input: unknown) =>
 
 /**
  * The files a file-writing call names. Codex lists several in one field joined by ", " (codex.ts), so the field is
- * split: a path holding ", " itself splits into parts that are each checked, which can only make it ask.
+ * split: a path holding ", " itself splits into parts that are each checked, which can only make it ask. OpenCode
+ * lists every file of a multi-file edit in `file_paths`, and each of those is checked too.
  */
-export const changedFilesOf = (input: unknown) =>
-  (pathFieldOf(input) ?? "")
+export const changedFilesOf = (input: unknown) => {
+  const named = (pathFieldOf(input) ?? "")
     .split(", ")
     .map((path) => path.trim())
     .filter((path) => path !== "");
+  return [...new Set([...named, ...listedFilesOf(input)])];
+};

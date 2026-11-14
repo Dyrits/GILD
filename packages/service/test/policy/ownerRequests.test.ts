@@ -103,4 +103,63 @@ describe("the owner naming a structural action", () => {
     expect(isNamedByOwner("Create a realm at /dummy/root.", realm)).toBe(true);
     expect(isNamedByOwner("Create a realm at /dummy/root/projects/app.", realm)).toBe(false);
   });
+
+  it("does not find a realm folder inside a longer path whose next part starts with a separator or symbol", () => {
+    const garden: NamedAction = { operation: "CreateRealm", targets: ["Garden"], value: "/dummy/root" };
+    expect(isNamedByOwner("Create realm Garden at /dummy/root.", garden)).toBe(true);
+    for (const quoted of ['"/dummy/root"', "`/dummy/root/`", "(/dummy/root/)", "**/dummy/root**", "«/dummy/root»"])
+      expect(isNamedByOwner(`Create realm Garden at ${quoted}.`, garden), quoted).toBe(true);
+    expect(isNamedByOwner("Create realm Garden at /dummy/root/.", garden)).toBe(true);
+    for (const longer of [
+      "/dummy/root//projects/app",
+      "/dummy/root/😺",
+      "/dummy/root/(old)",
+      "/dummy/root/@x",
+      "/dummy/root/*",
+    ])
+      expect(isNamedByOwner(`Create realm Garden at ${longer}.`, garden), longer).toBe(false);
+  });
+
+  it("does not find a realm folder at the end of a longer path", () => {
+    const garden: NamedAction = { operation: "CreateRealm", targets: ["Garden"], value: "/dummy/root" };
+    for (const longer of ["/other//dummy/root", "/😺/dummy/root", "/(x)/dummy/root"])
+      expect(isNamedByOwner(`Create realm Garden at ${longer}.`, garden), longer).toBe(false);
+  });
+
+  it("finds a realm folder only as a whole path, however the owner quotes or ends it", () => {
+    const garden: NamedAction = { operation: "CreateRealm", targets: ["Garden"], value: "/dummy/root" };
+    const accepted = [
+      "/dummy/root.",
+      "/dummy/root/ now.",
+      '"/dummy/root/".',
+      "`/dummy/root/`.",
+      "(/dummy/root/).",
+      "**/dummy/root**.",
+      "«/dummy/root».",
+      "« /dummy/root ».",
+      "/dummy/root/.",
+      "/dummy/root, ok.",
+    ];
+    for (const phrasing of accepted)
+      expect(isNamedByOwner(`Create realm Garden at ${phrasing}`, garden), phrasing).toBe(true);
+    const refused = [
+      "/dummy/root.bak now.",
+      "/dummy/root-old now.",
+      "/dummy/root_old now.",
+      "/dummy/root)old now.",
+      "/dummy/root/)old now.",
+      "/dummy/root/'s app now.",
+      '/dummy/root/"x" now.',
+      "/dummy/root/]x now.",
+      "/dummy/root/>x now.",
+      "/dummy/root/’x now.",
+      "/dummy/root/.hidden now.",
+      "/x*/dummy/root now.",
+      "/a«/dummy/root now.",
+      "/x(/dummy/root now.",
+      '/x"/dummy/root now.',
+    ];
+    for (const phrasing of refused)
+      expect(isNamedByOwner(`Create realm Garden at ${phrasing}`, garden), phrasing).toBe(false);
+  });
 });

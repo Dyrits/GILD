@@ -32,6 +32,28 @@ export const isCurrentTurn = (turnId: string) =>
     return rows.length > 0;
   });
 
+/**
+ * The harness whose permission authority applies to the thread now: its running turn's admitted harness, or the
+ * thread's selected harness between turns (thread-handover). Null for a thread that does not exist.
+ */
+export const readAuthorityHarness = Effect.fnUntraced(function* (threadId: string) {
+  const sql = yield* SqlClient.SqlClient;
+  const [row] = yield* sql<{ harness: HarnessName }>`SELECT COALESCE(
+      (SELECT turns.harness FROM turns WHERE turns.thread_id = threads.id AND turns.status = 'running'
+        ORDER BY turns.started_at DESC, turns.rowid DESC LIMIT 1),
+      threads.harness) AS harness
+    FROM threads WHERE threads.id = ${threadId}`;
+  return row?.harness ?? null;
+});
+
+/** The thread's running turn, the latest when several run, or null between turns. */
+export const readRunningTurnId = Effect.fnUntraced(function* (threadId: string) {
+  const sql = yield* SqlClient.SqlClient;
+  const [turn] = yield* sql<{ id: string }>`SELECT id FROM turns
+    WHERE thread_id = ${threadId} AND status = 'running' ORDER BY started_at DESC, rowid DESC LIMIT 1`;
+  return turn?.id ?? null;
+});
+
 /** Admits pending messages only when the thread, realm, workspace, budget, and running limit permit work. */
 export const admitTurn = (threadId: string) =>
   Effect.gen(function* () {
@@ -71,7 +93,8 @@ export const admitTurn = (threadId: string) =>
         // A runner change is recorded when it actually runs, not while messages wait for admission.
         yield* recordPendingHandover(threadId, now);
         const turnId = crypto.randomUUID();
-        yield* sql`INSERT INTO turns (id, thread_id, status, started_at) VALUES (${turnId}, ${threadId}, 'running', ${now})`;
+        yield* sql`INSERT INTO turns (id, thread_id, status, started_at, harness)
+          VALUES (${turnId}, ${threadId}, 'running', ${now}, ${thread.harness})`;
         yield* deliverMessages(
           pending.map((message) => message.id),
           turnId,

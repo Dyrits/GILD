@@ -1,4 +1,4 @@
-import type { BillingKind, TokenUsage } from "@iskios/contracts";
+import type { BillingKind, HarnessName, TokenUsage } from "@iskios/contracts";
 import { Deferred, type Duration, Effect, Layer } from "effect";
 import {
   type Containment,
@@ -142,9 +142,12 @@ interface FakeTurn {
 /**
  * A deterministic harness for checks: it runs scripted tool calls, then echoes after a delay. Messages
  * steered in while it runs are taken in at once, run the same way, and appended to the echo after " + ".
- * It stands for a sandboxed harness unless `containment` says otherwise.
+ * It stands for a sandboxed harness unless `containment` says otherwise, for every harness or for each by name.
  */
-export const fakeHarnessLayer = (replyDelay: Duration.Input, containment: Containment = "Sandboxed") =>
+export const fakeHarnessLayer = (
+  replyDelay: Duration.Input,
+  containment: Containment | Partial<Record<HarnessName, Containment>> = "Sandboxed",
+) =>
   Layer.sync(Harness, () => {
     const running = new Map<string, FakeTurn>();
     const script = (request: TurnRequest, turn: FakeTurn) =>
@@ -169,7 +172,8 @@ export const fakeHarnessLayer = (replyDelay: Duration.Input, containment: Contai
         return false;
       });
     return {
-      containmentOf: () => containment,
+      containmentOf: (harness) =>
+        typeof containment === "string" ? containment : (containment[harness] ?? "Sandboxed"),
       interrupt: (threadId) =>
         Effect.suspend(() => {
           const turn = running.get(threadId);

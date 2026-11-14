@@ -1,12 +1,14 @@
 # Work in progress
 
-## Release 0.1.3-Prototype review · 2026-11-14 · review and refactor complete; behavior fixes and owner acceptance open
+## Release 0.1.3-Prototype review · 2026-11-14 · review, refactor and behavior fixes done; owner acceptance and commit open
 
-The owner requested a review of changes since 0.1.2-Prototype after One was published, with a handoff mid-way and a resume. Both independent review axes are complete and the supported behavior-preserving refactors are applied and independently verified: 15 Standards findings resolved, 3 partially resolved (`ST-01`, `ST-02`, `ST-09`), and 3 left open (`ST-03`, `ST-04`, `ST-17`). The Specifications verification found no behavioral regression. Six behavior defects remain open, including active-turn permission identity, multi-file permission coverage and suggestion provenance. No release or landing is authorized, and the edits are uncommitted.
+The owner asked for a review of changes since 0.1.2-Prototype, then, away, to carry it to the end. Both review axes are complete; the behavior-preserving refactors are applied and verified; the six behavior findings are fixed red/green as [CHG-0280](changelog/0.1.3-Prototype.md) (running-turn permission authority, multi-file standing permissions, whole-path owner words, sent drafts, realm hints on the proposal card, continued suggestions never counting as owner words), each with two rounds of independent Standards and Specifications verification. Migrations 0048 (`turns.harness`) and 0049 (`suggested_messages`) are new and unshipped.
 
-Checks on the edited tree: `bun run check` passes, `bun run typecheck` passes in all six workspaces, `git diff --check` passes, and `CI=1 bun run test` passes (1,570 passed, 18 skipped; 152 files passed, one skipped). No window drive or live provider ran for this batch.
+Checks on the final tree: `bun run check`, `bun run typecheck` (six workspaces), `git diff --check` pass; `env -u CLAUDE_CONFIG_DIR CI=1 bun run test` outside Claude Code's sandbox passes (1,599 passed, 18 skipped). No window drive, build, installer or live provider ran.
 
-The [review record](verification/2026-11-14-release-0.1.3-review.md) owns the pinned revisions, all finding identifiers/dispositions, check results, acceptance gaps and reviewer links. Next: the six red/green behavior fixes (recommend SP-01, SP-02 and SP-06 first), then the deferred structural items if the owner wants them in this prototype.
+All edits are uncommitted on `main` at `ae1bb1b`; private snapshot refs `refs/review/0.1.3-refactor`, `-behavior`, `-followup`, `-final` mark each stage. The [review record](verification/2026-11-14-release-0.1.3-review.md) owns finding identifiers, dispositions, verification and acceptance gaps.
+
+Open: the owner's commit (and any push, tag or release, which need explicit approval); the owner's appearance and interaction acceptance listed in the record; SPV-14 (a folder path with a space or comma, quoted or not, names its shorter prefix; existing, low; proposed fix in the record), SPV-06 (folder paths match ignoring case) and SPV-09 (file order) by decision; Standards debt ST-01/02 (file sizes), ST-03 (synchronous worktree discovery), ST-04 (showing `openExternal` failures needs the owner's choice of how), ST-17 (test clock). A local development store built from `refs/review/0.1.3-behavior` must be recreated (0049 changed before shipping).
 
 ## One theme · 2026-11-14 · built and checked, owner's look pending
 

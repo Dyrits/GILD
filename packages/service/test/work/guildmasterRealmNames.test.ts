@@ -1,3 +1,6 @@
+import { mkdtempSync, realpathSync, rmSync } from "node:fs";
+import { tmpdir } from "node:os";
+import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
 import { Effect } from "effect";
 import { approvedCall, guildmaster, isIdle, listed, say } from "../fixtures/guildmaster.ts";
@@ -41,5 +44,42 @@ describe("confirming duplicate realm names through Iskios", () => {
         expect((yield* listed).workspaces.map((realm) => realm.name).sort()).toEqual(["Garden", "Garden", "Notes"]);
       }),
     ),
+  );
+});
+
+describe("taking a realm's folder from the owner's words only when they name that exact folder", () => {
+  const createIn = (folder: string) => `call create_realm ${JSON.stringify({ folder, name: "Garden" })}`;
+
+  it.live(
+    "asks when the owner named a longer or sibling path, and runs at once when they named the folder itself",
+    () => {
+      const folder = realpathSync(mkdtempSync(join(tmpdir(), "iskios-realm-folder-")));
+      return withService(
+        Effect.gen(function* () {
+          const place = yield* guildmaster;
+          for (const broader of [`${folder}//projects`, `${folder}-old`]) {
+            yield* say(place.threadId, `Create realm Garden at ${broader}.\n${createIn(folder)}`);
+            const asked = yield* settle(
+              place.missionId,
+              (current) => isIdle(current) || current.questions.some((question) => question.outcome === null),
+              place.threadId,
+            );
+            const question = asked.questions.find((current) => current.outcome === null);
+            if (question === undefined) return yield* Effect.die(`The folder was taken from the words ${broader}`);
+            yield* call({ _tag: "AnswerQuestion", answer: "Deny", message: null, questionId: question.id });
+            yield* settle(place.missionId, isIdle, place.threadId);
+            expect((yield* listed).workspaces).toHaveLength(0);
+          }
+          yield* say(place.threadId, `Create realm Garden at ${folder}.\n${createIn(folder)}`);
+          const done = yield* settle(
+            place.missionId,
+            (current) => isIdle(current) && current.questions.length === 3,
+            place.threadId,
+          );
+          expect(done.questions.at(-1)?.outcome).toBe("AllowedByMessage");
+          expect((yield* listed).workspaces.map((realm) => realm.path)).toEqual([folder]);
+        }),
+      ).pipe(Effect.ensuring(Effect.sync(() => rmSync(folder, { force: true, recursive: true }))));
+    },
   );
 });

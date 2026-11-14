@@ -26,7 +26,7 @@ import type {
 } from "@iskios/contracts";
 import { type Duration, Effect, Layer } from "effect";
 import { afterEach } from "vitest";
-import { Endpoints, HarnessFailure } from "../../src/core/index.ts";
+import { HarnessFailure } from "../../src/core/index.ts";
 import { runnerOf } from "../../src/harness/index.ts";
 import { type OpenCodeSandbox, ownerMarkerOf } from "../../src/harness/openCodeSandbox.ts";
 import { isOpenCodeCommand, markedProcessesOf } from "../../src/harness/processTree.ts";
@@ -45,7 +45,7 @@ import {
   serviceLayer,
 } from "../../src/index.ts";
 import { computerNameOf } from "../../src/remote/config.ts";
-import { callTool } from "../fixtures/mcp.ts";
+import { callTool, listToolNames } from "../fixtures/mcp.ts";
 import { turnRequestOf } from "../fixtures/turns.ts";
 
 const fixtures = join(import.meta.dirname, "..", "fixtures");
@@ -212,21 +212,6 @@ const start = (fields: Partial<Extract<Request, { _tag: "StartMission" }>> & { t
     requestId: crypto.randomUUID(),
     workspacePath: null,
     ...fields,
-  });
-
-/** The tool names a thread's MCP endpoint lists, as its harness reads them. */
-const listTools = (threadId: string) =>
-  Effect.gen(function* () {
-    const url = yield* (yield* Endpoints).urlFor(threadId);
-    const listed = yield* Effect.promise(async () => {
-      const response = await fetch(url, {
-        body: JSON.stringify({ id: 1, jsonrpc: "2.0", method: "tools/list" }),
-        headers: { accept: "application/json, text/event-stream", "content-type": "application/json" },
-        method: "POST",
-      });
-      return (await response.json()) as { result: { tools: Array<{ name: string }> } };
-    });
-    return listed.result.tools.map((tool) => tool.name);
   });
 
 const answerOpen = (answer: "Allow" | "Deny", message: string | null = null) =>
@@ -529,8 +514,8 @@ describe("running Codex threads", () => {
       const codex = yield* start({ harness: "codex", text: "Hello" });
       const claude = yield* start({ harness: "claude", text: "Hello" });
       yield* settle(codex.missionId, idleWith(1));
-      const codexTools = yield* listTools(codex.threadId);
-      const claudeTools = yield* listTools(claude.threadId);
+      const codexTools = yield* listToolNames(codex.threadId);
+      const claudeTools = yield* listToolNames(claude.threadId);
       expect(codexTools).not.toContain("answer_prompt");
       expect(codexTools).toContain("request_approval");
       expect(claudeTools).toContain("answer_prompt");

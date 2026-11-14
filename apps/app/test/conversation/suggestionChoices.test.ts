@@ -1,6 +1,11 @@
-import type { Tier } from "@iskios/contracts";
+import { type Tier, type WorkspaceChoice, WorkspaceId } from "@iskios/contracts";
 import { describe, expect, it } from "vitest";
-import { companionChoicesOf, hasTiers, selectedChoiceOf } from "../../src/conversation/suggestionChoices";
+import {
+  companionChoicesOf,
+  hasTiers,
+  realmOptionsOf,
+  selectedChoiceOf,
+} from "../../src/conversation/suggestionChoices";
 
 const tier = (model: string, effort: Tier["effort"] = "default"): Tier => ({
   accountId: null,
@@ -64,5 +69,21 @@ describe("the Companions a proposal card offers", () => {
   it("selects none for a Companion the owner customized", () => {
     const choices = companionChoicesOf(settings({ Light: tier("claude-haiku-5-5") }), label);
     expect(selectedChoiceOf(choices, tier("some-other-model"))).toBeNull();
+  });
+});
+
+describe("offering realms on a quest proposal", () => {
+  const realm = (id: string, name: string, path: string | null) =>
+    ({ crest: null, id: WorkspaceId.make(id), name, path }) satisfies WorkspaceChoice;
+
+  it("tells two realms of the same name apart by their parent folder, keeping each one's folder", () => {
+    const options = realmOptionsOf([realm("b", "app", "/client-b/app"), realm("a", "app", "/client-a/app")]);
+    expect(options.map((option) => option.label)).toEqual(["app · client-a", "app · client-b"]);
+    expect(options.map((option) => option.path)).toEqual(["/client-a/app", "/client-b/app"]);
+  });
+
+  it("keeps a unique name as it is and leaves out a realm tied to no folder", () => {
+    const options = realmOptionsOf([realm("g", "Garden", "/home/garden"), realm("n", "Notes", null)]);
+    expect(options).toEqual([{ id: "g", label: "Garden", path: "/home/garden" }]);
   });
 });

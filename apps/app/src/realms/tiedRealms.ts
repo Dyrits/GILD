@@ -5,4 +5,6 @@ import type { WorkspaceChoice } from "@iskios/contracts";
  * offered where a quest starts or is proposed yet (CHG-0161, decision record 0015).
  */
 export const tiedRealmsOf = (realms: ReadonlyArray<WorkspaceChoice>) =>
-  realms.filter((realm) => realm.path !== null).sort((a, b) => a.name.localeCompare(b.name));
+  realms
+    .filter((realm): realm is WorkspaceChoice & { readonly path: string } => realm.path !== null)
+    .sort((current, next) => current.name.localeCompare(next.name));

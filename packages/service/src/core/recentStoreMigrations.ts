@@ -32,4 +32,17 @@ export const recentStoreMigrations = {
     )`;
     yield* sql`CREATE INDEX thread_activities_by_thread ON thread_activities (thread_id, at)`;
   }),
+  "0048_turn_harness": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    // The harness a turn was admitted on, which keeps its permission authority when the owner picks another harness
+    // during it (thread-handover). Turns admitted before this change fall back to the thread's harness.
+    yield* sql`ALTER TABLE turns ADD COLUMN harness TEXT`;
+  }),
+  "0049_suggested_messages": Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    // The owner messages that carry a suggestion's text, written by an agent and only routed by the owner: never the
+    // owner's own words for structural authority (mission-coordination, audit SA-06). The mark lives as long as the
+    // message, whatever becomes of the suggestion or the thread that wrote it.
+    yield* sql`CREATE TABLE suggested_messages (message_id TEXT PRIMARY KEY REFERENCES messages(id) ON DELETE CASCADE)`;
+  }),
 };

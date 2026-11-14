@@ -8,8 +8,7 @@ import { suggestionLabels } from "../foundation/labels";
 import { allMissions } from "../foundation/queries";
 import { styles } from "../foundation/styles";
 import { useServiceQuery } from "../foundation/useServiceQuery";
-import { tiedRealmsOf } from "../realms/tiedRealms";
-import { companionChoicesOf, hasTiers, selectedChoiceOf } from "./suggestionChoices";
+import { companionChoicesOf, hasTiers, realmOptionsOf, selectedChoiceOf } from "./suggestionChoices";
 
 /** The line a resolved suggestion leaves in its thread, opening where the request went. */
 export function SuggestionLine({
@@ -155,7 +154,7 @@ function ProposalCard({ client, suggestion }: { client: ServiceClient; suggestio
   const choices =
     settings === null ? [] : companionChoicesOf(settings, (tier) => companionLabelOf(tier.harness, null, tier.model));
   const selected = selectedChoiceOf(choices, runner);
-  const realms = tiedRealmsOf(known?.workspaces ?? []);
+  const realms = realmOptionsOf(known?.workspaces ?? []);
   const hasMatches = suggestion.matches.length > 0;
   return (
     <View style={styles.question}>
@@ -187,7 +186,7 @@ function ProposalCard({ client, suggestion }: { client: ServiceClient; suggestio
             ...realms.map((realm) => ({
               isSelected: realmPath === realm.path,
               key: realm.id,
-              label: realm.name,
+              label: realm.label,
               onPress: () => setRealmPath(realm.path),
             })),
           ]}

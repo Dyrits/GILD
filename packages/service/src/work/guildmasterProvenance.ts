@@ -8,10 +8,12 @@ import { previewEnding, readWorkingIds } from "./ending.ts";
 import { findRealm, isGuildmasterThread } from "./guildmaster.ts";
 import { fallbackNoteOf, ritualStartOf } from "./guildmasterCompanions.ts";
 import { changeableSettings } from "./guildmasterSettings.ts";
+import { isRitualRunTurn, readOwnerTexts } from "./messageProvenance.ts";
 import { deriveRealmCreation, deriveRealmRename } from "./realmActions.ts";
 import { coveringEntryOf, type ScopedAction } from "./ritualScope.ts";
 import type { ArgumentsOf } from "./threadTools.ts";
 import { titleOf } from "./titles.ts";
+import { readRunningTurnId } from "./turnAdmission.ts";
 
 // Structural actions by provenance (CHG-0208), replacing the quoted-words check and the one-click guards. The service
 // derives the operation, its resolved target and its new value from the tool call. The authority comes from the owner:
@@ -37,14 +39,6 @@ type DerivedAction = {
   readonly summary: string;
 };
 
-const runningTurnOf = (threadId: string) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    const [turn] = yield* sql<{ id: string }>`SELECT id FROM turns
-      WHERE thread_id = ${threadId} AND status = 'running' ORDER BY started_at DESC, rowid DESC LIMIT 1`;
-    return turn?.id ?? null;
-  });
-
 /** The Ritual whose quest's top thread this is, with its reviewed scope; null for any other thread. */
 const ritualOfThread = (threadId: string) =>
   Effect.gen(function* () {
@@ -63,31 +57,6 @@ export const isStructuralCaller = (threadId: string, tool: StructuralTool) =>
     if (yield* isGuildmasterThread(threadId)) return true;
     if (tool !== "act_on_mission" && tool !== "change_setting") return false;
     return (yield* ritualOfThread(threadId)) !== null;
-  });
-
-/**
- * The texts of the owner's own messages delivered to the thread's running turn. A message from another thread, an
- * agent's reply, and the service's message that starts a Ritual's run are never among them.
- */
-const ownerTextsOf = (threadId: string, turnId: string) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    const rows = yield* sql<{ text: string }>`
-      SELECT m.text FROM messages m
-      WHERE m.thread_id = ${threadId} AND m.delivered_turn_id = ${turnId}
-        AND m.sender_kind = 'user' AND m.sender_thread_id IS NULL
-        AND NOT EXISTS (SELECT 1 FROM ritual_run_messages r WHERE r.message_id = m.id)`;
-    return rows.map((row) => row.text);
-  });
-
-/** Whether the running turn is one of the Ritual's runs: its service-made run message was delivered to it. */
-const isRitualRunTurn = (threadId: string, turnId: string) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    const rows = yield* sql<{ id: string }>`
-      SELECT m.id FROM messages m JOIN ritual_run_messages r ON r.message_id = m.id
-      WHERE m.thread_id = ${threadId} AND m.delivered_turn_id = ${turnId} LIMIT 1`;
-    return rows.length > 0;
   });
 
 /** A value as the owner would write it: a text without its JSON quotes, anything else as JSON. */
@@ -158,7 +127,7 @@ const deriveQuestAction = (args: ArgumentsOf<"act_on_mission">) =>
 const deriveAction = (callerId: string, tool: StructuralTool, args: object) =>
   Effect.gen(function* () {
     if (!(yield* isStructuralCaller(callerId, tool))) return null;
-    const turnId = yield* runningTurnOf(callerId);
+    const turnId = yield* readRunningTurnId(callerId);
     if (turnId === null) return null;
     const base = { args, callerId, tool, turnId };
     const finish = (found: {
@@ -234,9 +203,9 @@ const clip = (text: string, length: number) => (text.length <= length ? text : `
 /** The owner's own words of this turn naming the action exactly, or the Ritual's reviewed scope in a run; else ask. */
 const authorityOf = (callerId: string, derived: DerivedAction) =>
   Effect.gen(function* () {
-    const turnId = yield* runningTurnOf(callerId);
+    const turnId = yield* readRunningTurnId(callerId);
     if (turnId === null || derived.shouldAsk) return { _tag: "Ask" } satisfies Authority;
-    const named = (yield* ownerTextsOf(callerId, turnId)).find((text) => isNamedByOwner(text, derived.named));
+    const named = (yield* readOwnerTexts(callerId, turnId)).find((text) => isNamedByOwner(text, derived.named));
     if (named !== undefined) return { _tag: "Owner", evidence: clip(named, 400) } satisfies Authority;
     if (derived.scoped !== null) {
       const ritual = yield* ritualOfThread(callerId);

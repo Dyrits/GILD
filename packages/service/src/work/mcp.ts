@@ -1,5 +1,4 @@
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
-import type { HarnessName } from "@iskios/contracts";
 import { Effect, Exit, Layer, Schema } from "effect";
 import { SqlClient } from "effect/sql";
 import { Endpoints } from "../core/index.ts";
@@ -10,6 +9,7 @@ import { Suggestions } from "./suggestions.ts";
 import { Threads } from "./threads.ts";
 import { callerRefusalOf, makeToolHandlers } from "./threadToolHandlers.ts";
 import { answerToolCall, isThreadToolName, toolListingOf } from "./threadTools.ts";
+import { readAuthorityHarness } from "./turnAdmission.ts";
 
 const RpcMessage = Schema.Struct({
   id: Schema.optional(Schema.Union([Schema.String, Schema.Number])),
@@ -63,9 +63,11 @@ export const toolServerLayer = Layer.effectDiscard(
           )
         : Effect.succeed(textResult(`Unknown tool: ${name}`, true));
 
+    // The running turn's admitted harness decides, not a harness the owner picked during it (thread-handover).
     const hasPromptToolOf = (threadId: string) =>
-      sql<{ harness: HarnessName }>`SELECT harness FROM threads WHERE id = ${threadId}`.pipe(
-        Effect.map(([thread]) => thread !== undefined && harnessFacts[thread.harness].hasPromptTool),
+      readAuthorityHarness(threadId).pipe(
+        Effect.map((harness) => harness !== null && harnessFacts[harness].hasPromptTool),
+        Effect.provideService(SqlClient.SqlClient, sql),
       );
 
     const callTool = (threadId: string, name: string, args: unknown) =>

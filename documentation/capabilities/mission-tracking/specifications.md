@@ -112,7 +112,7 @@ Agreed on 2026-11-13 (CHG-0271); not implemented.
 
 ### Realm names
 
-Agreed on 2026-11-13 (CHG-0271); not implemented.
+Agreed on 2026-11-13 (CHG-0271); implemented in 0.1.3-Prototype, with the quest-proposal realm picker completed in CHG-0280.
 
 - Realm names are labels, not identities, and duplicate names are allowed. Realms have distinct ids; folder-tied realms are also distinguished by their resolved folders.
 - Creating or renaming a realm to a name shared by another active realm warns the owner and lets them confirm rather than blocking. Archived realms do not count as collisions.

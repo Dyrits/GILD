@@ -9,15 +9,23 @@ export type { NamedAction, StructuralOperation };
 
 const escapeRegExp = (text: string) => text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
 
+// A folder path stands alone: after the start, a space, or opening quotes, brackets or emphasis that follow one; and
+// before an optional trailing separator, closing quotes, brackets or emphasis, sentence punctuation, then a space or
+// the end. Anything else joined to it makes it part of a longer path.
+const pathBefore = "(?<=^|\\s|(?:^|\\s)[\"'`([{<“‘«*]+)";
+const pathAfter = "(?=(?:[/\\\\]?[\"'`)\\]}>»”’]*|\\*+)[.,;:!?]*(?:\\s|$))";
+
 /**
- * Where a phrase appears as whole words, ignoring case. A folder path is not found inside a longer one: an ancestor
- * such as `/dummy/root` is not `/dummy/root/projects/app` (audit SA-02).
+ * Where a phrase appears as whole words, ignoring case. A folder path is found only as a whole path (audit SA-02): not
+ * `/dummy/root` inside `/dummy/root/projects/app`, `/dummy/root//app`, `/dummy/root/)old`, `/dummy/root-old` or
+ * `/other/dummy/root`. Anything short of a whole path asks, which costs a question, never a grant.
  */
-const phraseOf = (phrase: string) =>
-  new RegExp(
-    `(?<![\\p{L}\\p{N}]|[\\p{L}\\p{N}._~-][/\\\\])${escapeRegExp(phrase.trim())}(?![\\p{L}\\p{N}]|[/\\\\][\\p{L}\\p{N}._~-])`,
-    "giu",
-  );
+const phraseOf = (phrase: string) => {
+  const trimmed = phrase.trim();
+  const escaped = escapeRegExp(trimmed);
+  if (/^[/\\]/.test(trimmed)) return new RegExp(`${pathBefore}${escaped}${pathAfter}`, "giu");
+  return new RegExp(`(?<![\\p{L}\\p{N}]|\\S[/\\\\])${escaped}(?![\\p{L}\\p{N}]|[/\\\\]\\S)`, "giu");
+};
 
 // A sentence ends at . ! ? ; followed by a space or the end, or at a line break, so "v1.2" stays whole.
 const sentencesOf = (text: string) =>

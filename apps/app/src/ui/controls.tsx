@@ -1,7 +1,6 @@
 import type { AttachmentId, MissionState, Skill, ThreadState } from "@iskios/contracts";
 import { type ReactNode, useRef, useState } from "react";
 import { Pressable, Switch, Text, View } from "react-native";
-import Svg, { Path, Rect } from "react-native-svg";
 import { AttachButton } from "../attachments/attachButton";
 import { AttachmentStrip } from "../attachments/attachmentViews";
 import { useAttachments } from "../attachments/useAttachments";
@@ -11,9 +10,11 @@ import { colors, stateLabels, stateTones } from "../foundation/theme";
 import { ChipEditor } from "./chipEditor";
 import type { ChipEditorHandle } from "./chipEditorTypes";
 import { ChipIcon } from "./chips";
+import { SendArrow, SideQuestBranch, StopSquare } from "./composerIcons";
 import { type MenuRow, mentionCategories } from "./mentionMenu";
-import { rememberUnsentText, unsentTextOf } from "./unsentText";
+import { forgetSentText, isSentText, rememberUnsentText } from "./unsentText";
 import { useComposerList } from "./useComposerList";
+import { useDraftText } from "./useDraftText";
 
 // The web's switch takes the thumb's color when on from a prop the native types do not declare.
 const webSwitchColors = { activeThumbColor: colors.canvas };
@@ -68,34 +69,6 @@ export function StateIndicator({ state }: { state: ThreadState | MissionState })
     <View accessibilityLabel={stateLabels[state]} accessible style={styles.badge}>
       <View style={[styles.badgeDot, { backgroundColor: stateTones[state].color }]} />
     </View>
-  );
-}
-
-/** The stop icon: a filled square, in the same ink as the send arrow. */
-function StopSquare() {
-  return (
-    <Svg fill={colors.onAccent} height={16} viewBox="0 0 16 16" width={16}>
-      <Rect height={9} rx={1.5} width={9} x={3.5} y={3.5} />
-    </Svg>
-  );
-}
-
-/** The send icon: an arrow drawn in paper ink, pointing up and away from the box. */
-function SendArrow() {
-  return (
-    <Svg
-      fill="none"
-      height={16}
-      stroke={colors.onAccent}
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      strokeWidth={2}
-      viewBox="0 0 16 16"
-      width={16}
-    >
-      <Path d="M8 13.5 L 8.2 3" />
-      <Path d="M3.5 7.2 L 8.2 2.6 L 12.6 7" />
-    </Svg>
   );
 }
 
@@ -158,12 +131,10 @@ export function Composer({
   /** Whether an attached terminal can be sent without typed text. */
   hasContent?: boolean;
 }) {
-  // Read once, as the box opens: what the owner types afterwards is the box's own.
-  const [left] = useState(() => (draftKey === undefined ? "" : unsentTextOf(draftKey)));
-  const [text, setText] = useState(left);
-  // The text now in the box, which differs from `text` in a step that started before the last keystroke.
-  const latestText = useRef(left);
   const editor = useRef<ChipEditorHandle>(null);
+  // What the box left unsent, read once as it opens; what the owner types afterwards is the box's own.
+  const { latestText, left } = useDraftText(draftKey, editor);
+  const [text, setText] = useState(left);
   const [isSending, setIsSending] = useState(false);
   const files = useAttachments(attachable?.client ?? null);
   // A message may hold images alone.
@@ -183,8 +154,9 @@ export function Composer({
     const sentIds = files.ids;
     try {
       await handler(sent, sentIds);
-      // Text typed while the send was pending was never sent, so it stays.
-      if (latestText.current.trim() === sent) editor.current?.clear();
+      // Text typed while the send was pending was never sent, so it stays; the box may have closed meanwhile.
+      if (isSentText(latestText.current, sent)) editor.current?.clear();
+      if (draftKey !== undefined) forgetSentText(draftKey, sent);
       files.clear(sentIds);
       setError(null);
     } catch (reason) {
@@ -296,18 +268,7 @@ export function Composer({
               onPress={onOpenSideQuest}
               style={styles.buttonSecondary}
             >
-              <Svg
-                fill="none"
-                height={18}
-                stroke={colors.textDim}
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={1.6}
-                viewBox="0 0 20 20"
-                width={18}
-              >
-                <Path d="M5 3v14M5 7h5a5 5 0 0 0 5-5M12 3l3-1 1 3" />
-              </Svg>
+              <SideQuestBranch />
             </Pressable>
           )}
         </View>

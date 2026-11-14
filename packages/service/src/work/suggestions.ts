@@ -8,7 +8,7 @@ import { changed, unchanged, type WithFollowUps } from "./commands.ts";
 import { findRealm, isGuildmasterThread, recordResolvedCard } from "./guildmaster.ts";
 import { resumeInTurn } from "./lifecycle.ts";
 import { findMissions, findMissionsTextOf, maxMatches } from "./matching.ts";
-import { insertUserMessage } from "./messaging.ts";
+import { insertSuggestedMessage } from "./messageProvenance.ts";
 import { insertMission } from "./missions.ts";
 import { readSuggestion } from "./suggestionStore.ts";
 import type { ArgumentsOf, ToolHandlers } from "./threadTools.ts";
@@ -140,7 +140,7 @@ export const suggestionsLayer = Layer.effect(
               SELECT title, top_thread_id AS topThreadId FROM missions WHERE id = ${missionId}`;
             if (mission === undefined) return yield* notFound("No such mission.");
             const { defaultDelivery } = yield* readSettings;
-            yield* insertUserMessage(mission.topThreadId, suggestion.text, defaultDelivery === "Queue");
+            yield* insertSuggestedMessage(mission.topThreadId, suggestion.text, defaultDelivery === "Queue");
             return {
               outcome: "Continued",
               targetMissionId: missionId,

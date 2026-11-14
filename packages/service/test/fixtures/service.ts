@@ -12,18 +12,22 @@ import type {
 } from "@iskios/contracts";
 import { Effect, type Layer } from "effect";
 import { afterEach } from "vitest";
-import { Endpoints, type PriceSource } from "../../src/core/index.ts";
+import { Endpoints, type Harness, type PriceSource } from "../../src/core/index.ts";
 import { callThreadTool } from "../../src/harness/fakeHarness.ts";
 import { fakeHarnessLayer, type HarnessTools, Service, serviceLayer } from "../../src/index.ts";
 
 /** An isolated service with the scripted fake harness and real temporary SQLite. */
-export const fixture = (harnessTools?: Layer.Layer<HarnessTools>, priceSource?: Layer.Layer<PriceSource>) => {
+export const fixture = (
+  harnessTools?: Layer.Layer<HarnessTools>,
+  priceSource?: Layer.Layer<PriceSource>,
+  harness: Layer.Layer<Harness> = fakeHarnessLayer("10 millis"),
+) => {
   const directory = mkdtempSync(join(tmpdir(), "iskios-service-"));
   return {
     directory,
     layer: serviceLayer({
       filename: join(directory, "store.sqlite"),
-      harness: fakeHarnessLayer("10 millis"),
+      harness,
       ...(harnessTools === undefined ? {} : { harnessTools }),
       ...(priceSource === undefined ? {} : { priceSource }),
       homeFolder: directory,
@@ -36,9 +40,9 @@ const running: ReturnType<typeof fixture>[] = [];
 afterEach(() => {
   for (const value of running.splice(0)) value.remove();
 });
-/** Runs an effect on a fresh isolated service, whose folder is removed after the test. */
-export const withService = <A, E, R>(body: Effect.Effect<A, E, R>) => {
-  const value = fixture();
+/** Runs an effect on a fresh isolated service, whose folder is removed after the test; a harness layer replaces the fake's default. */
+export const withService = <A, E, R>(body: Effect.Effect<A, E, R>, harness?: Layer.Layer<Harness>) => {
+  const value = fixture(undefined, undefined, harness);
   running.push(value);
   return body.pipe(Effect.provide(value.layer));
 };
