@@ -7,6 +7,7 @@ import type { ServiceClient } from "../foundation/client";
 import { messageOf } from "../foundation/client";
 import { colors, fontSizes, fonts, outline, radii } from "../foundation/theme";
 import { FolderPicker } from "./folderPicker";
+import { newRealmCrestId, shownCrestOf } from "./newRealmCrest";
 
 /** A realm being made: named and given a crest. The path is empty until a folder is chosen, and stays so for a realm tied to none. */
 export type NewRealm = { crest: Crest | null; name: string; path: string };
@@ -77,7 +78,7 @@ export function NewRealmModal({
             )}
           </View>
           <View style={local.namingRow}>
-            <CrestBadge crest={editing.crest} id={editing.path === "" ? "new-realm" : editing.path} size={72} />
+            <CrestBadge crest={editing.crest} id={newRealmCrestId(editing.path)} size={72} />
             <View style={local.menuFields}>
               <Text style={local.menuLabel}>Name</Text>
               <TextInput
@@ -104,8 +105,9 @@ export function NewRealmModal({
               accessibilityRole="button"
               disabled={!isReady}
               onPress={() =>
-                onCreate({ ...editing, name: editing.name.trim() }).then(onCancel, (reason) =>
-                  setError(messageOf(reason)),
+                onCreate({ ...editing, crest: shownCrestOf(editing), name: editing.name.trim() }).then(
+                  onCancel,
+                  (reason) => setError(messageOf(reason)),
                 )
               }
               style={[local.menuDone, !isReady && local.menuDoneOff]}
@@ -118,7 +120,7 @@ export function NewRealmModal({
       {isPicking && <FolderPicker client={client} onCancel={() => setIsPicking(false)} onChoose={choose} />}
       {isStudioOpen && (
         <CrestStudio
-          id={editing.path === "" ? "new-realm" : editing.path}
+          id={newRealmCrestId(editing.path)}
           initial={editing.crest}
           name={editing.name.trim() || (editing.path === "" ? "New realm" : folderNameOf(editing.path))}
           onCancel={() => setIsStudioOpen(false)}
