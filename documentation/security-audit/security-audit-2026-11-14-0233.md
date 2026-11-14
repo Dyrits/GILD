@@ -153,6 +153,8 @@ Conditions: an agent thread's shell command, running as the same OS user, can re
 
 Validation: in the same sandbox profile a thread uses, start a stand-in process with a dummy `ISKIOS_TOKEN` and check whether a shell command can read it. Record only yes or no, never the value.
 
+Disposition (2026-11-14, CHG-0277): confirmed for OpenCode on macOS and fixed in its Seatbelt profile. Claude Code and Codex were read from their profiles, not run. A same-user process outside any sandbox can still read it. See [verification](../verification/2026-11-14-token-isolation.md).
+
 ### SA-12 `iskios:endpoint` returns the owner token with no sender check (Medium, provisional)
 
 Location: `apps/desktop/src/main.ts:64, :120, :122, :126-134`; `apps/desktop/src/preload.ts:8`; `apps/app/src/conversation/markdown.tsx:59`; `apps/app/src/conversation/markdownRules.ts:5-7`; react-native-web `Linking/index.js:99`.
@@ -174,6 +176,8 @@ Each thread's MCP endpoint URL embeds its bearer token. Claude Code receives the
 Conditions: a sibling shell or any same-user process must read another process's argv or environment. The sandbox profile decides this, and source does not show it.
 
 Validation: two stand-in processes under the same sandbox profile, one with a dummy URL. Check whether the other can list the dummy argv, then confirm a dummy token resolves in a fixture. Use no real tokens or harnesses.
+
+Disposition (2026-11-14, CHG-0277): the read is confirmed for OpenCode on macOS, which could read any thread's address, Claude Code threads' included, and it is fixed in OpenCode's Seatbelt profile. A token resolving is source-proven, not run. Claude Code and Codex were read from their profiles, not run. See [verification](../verification/2026-11-14-token-isolation.md).
 
 ### SA-14 Threads can call `answer_prompt` on their own behalf (Medium, provisional, contested)
 

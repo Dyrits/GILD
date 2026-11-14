@@ -51,4 +51,4 @@ Latest handoffs:
 
 - To resume a working thread's tool calls as steps (CHG-0276: Claude Code's tool calls show as lines of the turn's Steps group; committed on `main` as `eedfa29`; the stand-in process only, no live run and no window look; the in-progress marker, a live indicator label, and Codex and OpenCode are open), read the [current handoff](.agents/handoffs/2026-11-14-1221-working-thread-steps.md). Handoffs are shared and committed.
 
-- To resume the security audit fixes (SA-01 to SA-10 landed on `main` as `eec9779`; SA-11, SA-13, SA-15, SA-16 and the audit's hardening decisions open; a thread's missing Skill tool to investigate; the owner's window check pending), read the [current handoff](.agents/handoffs/2026-11-14-1111-security-audit-fixes.md). Handoffs are shared and committed.
+- To resume the security audit (SA-11 and SA-13: a sandboxed OpenCode no longer sees other processes, CHG-0277; Claude Code's and Codex's sandboxes read but not run; SA-15, SA-16, the hardening decisions and the missing Skill tool open), read the [current handoff](.agents/handoffs/2026-11-14-1220-sandbox-token-isolation.md). Handoffs are shared and committed.

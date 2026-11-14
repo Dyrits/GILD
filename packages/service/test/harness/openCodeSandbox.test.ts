@@ -116,6 +116,60 @@ describe("wrapping OpenCode in the host's sandbox", () => {
     },
   );
 
+  it("lets a Seatbelt-wrapped process see only the processes of its own sandbox (audit SA-11, SA-13)", () => {
+    const args = wrappedCommandOf(seatbelt, ["/work/app"], "opencode", ["acp"]).args;
+    const profile = args[args.indexOf("-p") + 1] ?? "";
+    expect(profile).toContain("(deny process-info*)");
+    expect(profile).toContain("(allow process-info* (target same-sandbox))");
+    expect(profile).toContain('(deny sysctl-read (sysctl-name-prefix "kern.procargs"))');
+    expect(profile.indexOf("(deny process-info*)")).toBeGreaterThan(profile.indexOf("(allow default)"));
+    expect(profile.indexOf("(allow process-info* (target same-sandbox))")).toBeGreaterThan(
+      profile.indexOf("(deny process-info*)"),
+    );
+  });
+
+  it.runIf(process.platform === "darwin" && existsSync("/usr/bin/sandbox-exec") && existsSync("/usr/bin/python3"))(
+    "stops a Seatbelt-wrapped process from reading the arguments and environment of one outside, not of its own child",
+    async () => {
+      // Reads a process's arguments and environment as `ps -E` does, and says only whether the marker is there.
+      const reader = [
+        "import ctypes, ctypes.util, sys",
+        "libc = ctypes.CDLL(ctypes.util.find_library('c'), use_errno=True)",
+        "mib = (ctypes.c_int * 3)(1, 49, int(sys.argv[1]))",
+        "size = ctypes.c_size_t(0)",
+        "ok = libc.sysctl(mib, 3, None, ctypes.byref(size), None, 0) == 0",
+        "buf = ctypes.create_string_buffer(size.value) if ok else None",
+        "ok = ok and libc.sysctl(mib, 3, buf, ctypes.byref(size), None, 0) == 0",
+        "print('seen' if ok and sys.argv[2].encode() in buf.raw[: size.value] else 'hidden')",
+      ].join("\n");
+      const marker = `stand-in-token-${process.pid}-${Date.now()}`;
+      // A stand-in for the service, holding a token in its environment, and for a harness, holding one in its arguments.
+      const outside = spawn(process.execPath, ["-e", "setTimeout(() => {}, 60_000)", `mcp-url=/mcp/${marker}`], {
+        env: { ...process.env, ISKIOS_TOKEN: marker },
+        stdio: "ignore",
+      });
+      try {
+        await waitFor(() => outside.pid !== undefined);
+        const read = (command: string, args: ReadonlyArray<string>) =>
+          spawnSync(command, [...args], { encoding: "utf8", timeout: 10_000 }).stdout.trim();
+        const readerArgs = ["-I", "-c", reader, String(outside.pid), marker];
+        // Control: outside any sandbox the stand-in is readable, so "hidden" below is the sandbox's doing.
+        expect(read("/usr/bin/python3", readerArgs)).toBe("seen");
+        const wrapped = wrappedCommandOf(seatbelt, [], "/usr/bin/python3", readerArgs);
+        expect(read(wrapped.command, wrapped.args)).toBe("hidden");
+        // Its own child stays readable: OpenCode may still look at what it started.
+        const own = wrappedCommandOf(seatbelt, [], "/bin/sh", [
+          "-c",
+          `ISKIOS_TOKEN=own-${marker} "${process.execPath}" -e 'setTimeout(() => {}, 5000)' & sleep 1; /usr/bin/python3 -I -c "$0" $! own-${marker}`,
+          reader,
+        ]);
+        expect(read(own.command, own.args)).toBe("seen");
+      } finally {
+        outside.kill("SIGKILL");
+      }
+    },
+  );
+
   it("starts it under bubblewrap with the system read-only, its folders writable, and the network shared", () => {
     const wrapped = wrappedCommandOf(bwrap, ["/work/app", "/caches/bun"], "opencode", ["acp"]);
     expect(wrapped.command).toBe("/usr/bin/bwrap");

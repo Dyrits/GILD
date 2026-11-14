@@ -169,11 +169,21 @@ export const ownerMarkerOf = (sandbox: OpenCodeSandbox) => {
  * signalling, which only the processes of the sandbox itself may receive. Bubblewrap's own PID namespace already hides
  * outside processes. `(target others)` blocks nothing on macOS, and `(target self)` also stops the sandbox's children,
  * so the rule names the sandbox.
+ *
+ * Outside processes are hidden too (audit SA-11, SA-13): the service holds the owner token in its environment and each
+ * thread's harness its tool server address in its arguments or environment, which a command here could otherwise read.
+ * The process rules hide the process list and what `lsof` maps a port to, and the `kern.procargs` rule the arguments and
+ * environment of a process named by its pid, which the process rules alone let through (probe of 2026-11-14,
+ * documentation/verification/2026-11-14-token-isolation.md). Claude Code's and Codex's own sandboxes already allow
+ * process information only within themselves.
  */
 const seatbeltProfileOf = (count: number) =>
   [
     "(version 1)",
     "(allow default)",
+    "(deny process-info*)",
+    "(allow process-info* (target same-sandbox))",
+    '(deny sysctl-read (sysctl-name-prefix "kern.procargs"))',
     "(deny signal)",
     "(allow signal (target same-sandbox))",
     "(deny file-write*)",

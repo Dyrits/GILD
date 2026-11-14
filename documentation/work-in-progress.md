@@ -1,5 +1,13 @@
 # Work in progress
 
+## Sandbox token isolation (SA-11, SA-13) · 2026-11-14 · OpenCode fixed and checked
+
+Approved by the owner on 2026-11-14. The owner then asked for a fix that breaks nothing, keeping threads able to share context and know what the others are doing (they do so through the thread tools, never the process table). Delivered as [CHG-0277](changelog/0.1.3-Prototype.md#chg-0277--2026-11-14--a-sandboxed-opencode-no-longer-sees-other-processes), with [evidence](verification/2026-11-14-token-isolation.md). Committed on `main` with the handoff, on top of CHG-0276.
+
+Still open:
+- A run under Claude Code's and Codex's sandboxes. Both were read from their profiles. The session's permission classifier declined running `@anthropic-ai/sandbox-runtime` twice; the owner can add a permission rule, or run [the reader scripts](verification/2026-11-14-token-isolation/scripts/) from a Claude Code thread.
+- Linux (bubblewrap) and a live OpenCode turn under the new profile.
+
 ## Providers merged into one card per harness · 2026-11-14 · built and checked in a window, owner liked it except on small screens
 
 The owner asked to merge the Workshop's Harnesses and Accounts cards, keeping the title, with a second screen as the target (CHG-0268, in `changelog/0.1.3-Prototype.md`; starting commit `b6e0324`, uncommitted). `settings/providers.tsx` replaces `accounts.tsx`; `ui/actionMenu.tsx` is the new "⋯" menu. Checks: typecheck, Biome, app tests (366 passed); [proof](verification/2026-11-14-providers-merged.md). The owner's verdict, 2026-11-14: "Awful on small screen but really nice otherwise"; the narrow layout is to redo (a row's name, detail, pill, Rename and menu do not fit side by side). Open: Update and Install, a signed-out account, long details, narrow window, light and Gild looks were not seen. Account budgets still sit on their own card in Limits (the earlier question of moving them onto each account's row stays open).
