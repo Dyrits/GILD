@@ -52,7 +52,7 @@ export const onePalettes = {
     // Zed's terminal blue keeps small links and white button labels readable; its UI accent is too light for those.
     accent: "#2f5af3",
     accentSoft: "#e2e2fa",
-    accentText: "#2f5af3",
+    accentText: "#2140ab",
     border: "#dfdfe0",
     borderStrong: "#c9c9ca",
     bubble: "#ebebec",

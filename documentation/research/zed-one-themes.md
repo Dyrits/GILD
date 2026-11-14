@@ -28,7 +28,8 @@ Opaque source colors drop their trailing `ff`.
 | `control` | `element.background` | `#2e343e` | `#ebebec` |
 | `controlHover` | `element.hover` | `#363c46` | `#dfdfe0` |
 | `controlActive` | `element.active` | `#454a56` | `#cacaca` |
-| `accent`, `accentText` | `text.accent` (dark), `terminal.ansi.blue` (light) | `#74ade8` | `#2f5af3` |
+| `accent` | `text.accent` (dark), `terminal.ansi.blue` (light) | `#74ade8` | `#2f5af3` |
+| `accentText` | `text.accent` (dark), `terminal.ansi.dim_blue` (light) | `#74ade8` | `#2140ab` |
 | `danger` | `error` | `#d07277` | `#d36151` |
 | `success` | `success` | `#a1c181` | `#669f59` |
 | `warning` | `warning` | `#dec184` | `#a48819` |
@@ -38,6 +39,7 @@ Opaque source colors drop their trailing `ff`.
 ### Adaptations
 
 - Small links and buttons need more contrast than One Light's `text.accent` (`#5c78e2`), which has a 3.84:1 ratio against `#fafafa`. Zed's terminal blue (`#2f5af3`) gives 5.19:1, so it is the light accent. The original UI accent remains in the tinted user bubble, composited from the primary player's selection.
+- Small accent labels also appear on `accentSoft` (`#e2e2fa`). The button blue gives only 4.25:1 there; light `accentText` uses Zed's dim terminal blue (`#2140ab`) for 6.91:1. A regression assertion checks this actual foreground/background pairing.
 - Dark soft backgrounds are source `info.background`, `error.background`, `success.background`, and `warning.background` alpha-composited over `editor.background`, so the same token stays opaque wherever it is reused. The user bubbles use primary-player `selection` composited over the editor. Dark `violetSoft` uses the keyword hue at the same `1a` alpha; light uses `hint.background`.
 - Readable state ink uses source bright terminal red (`#ea858b`) in the dark look, dim terminal red (`#9c2b26`) and dim terminal green (`#2b6927`) in the light look. Light warning ink (`#806a14`) is the warning hue darkened by 20%; Zed has no sufficiently dark warning text token.
 - The existing app terminal still maps the shared palette to xterm, as it does for other themes; this does not introduce a separate full Zed ANSI/syntax highlighter.

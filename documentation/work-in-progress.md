@@ -1,11 +1,12 @@
 # Work in progress
 
-## One theme · 2026-11-14 · implementation in progress
+## One theme · 2026-11-14 · built and checked, owner's look pending
 
-The owner asked for a **One** theme using Zed/Delta One Light and One Dark colors. Starting revision: `fd4680e`.
-Scope: add One alongside Iskios and Gild in Workshop → Look and feel, using the existing Light / Dark / System choice and local persistence. Keep the current defaults, shared sidebar drawings, and Iskios application icon; no layout redesign.
-Use Zed's open-source theme as the color source, pinned and attributed; do not copy closed-source Delta code.
-Checks: extend the existing theme-selection, palette, contrast, and desktop-icon tests; run Biome, workspace typecheck, and the full test suite; exercise selection, reload persistence, and both looks in a throwaway app. Appearance still needs the owner's acceptance.
+CHG-0279: One alongside Iskios and Gild in Workshop → Look and feel, with the existing Light / Dark / System choice and local persistence. It uses Zed's MIT-licensed One colors, with [source and contrast adaptations](research/zed-one-themes.md); the notice ships with desktop builds. Existing defaults, palettes, sidebar drawings, and the Iskios application icon are unchanged.
+The owner's follow-up is fixed: changing a theme or look returns to **Look and feel**, not Permissions. Normal Workshop navigation still opens Permissions.
+Starting revision `fd4680e`; implementation `875699a`, integrated with current `origin/main` (`e0d75d5`) in `d8ec0fd`. The owner authorized committing and pushing to `main` and asked to notify the 0.1.3-Prototype release-review thread afterward.
+Checked: Biome, workspace typecheck, full suite after integration (1,558 passed, 18 skipped), desktop build, web export, and a throwaway Electron drive of selection, both looks, reload persistence, and a System change. [Proof and screenshots](verification/2026-11-14-one-theme.md).
+Open: the owner's visual acceptance. Not checked: installer contents, Windows/Linux, native phones, a paired host, narrow windows, or every screen. The browser drive found the unchanged sidebar's nested-button DOM warnings; those are outside this palette batch.
 
 ## Sandbox token isolation (SA-11, SA-13) · 2026-11-14 · OpenCode fixed and checked
 

@@ -36,6 +36,7 @@ describe.each(themes.flatMap((theme) => (["dark", "light"] as const).map((scheme
     });
 
     it.runIf(theme === "one")("reads messages and state labels on their tinted backgrounds", () => {
+      expect(contrast(colors.accentText, colors.accentSoft)).toBeGreaterThanOrEqual(4.5);
       for (const background of [colors.bubbleUser, colors.accentSoft, colors.controlActive]) {
         expect(contrast(colors.text, background)).toBeGreaterThanOrEqual(4.5);
       }
