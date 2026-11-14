@@ -77,34 +77,32 @@ export const changeThreadRunner = (
   });
 
 /** Whether the thread's runner is no longer the one this turn started on: the owner changed it during the turn. */
-export const isRunnerChangedSince = (
-  threadId: string,
-  turn: { accountId: string | null; effort: string; harness: string; model: string },
-) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    const [row] = yield* sql<{ accountId: string | null; effort: string; harness: string; model: string }>`
-      SELECT harness, account_id AS accountId, model, effort FROM threads WHERE id = ${threadId}`;
-    return (
-      row !== undefined &&
-      (row.harness !== turn.harness ||
-        row.accountId !== turn.accountId ||
-        row.model !== turn.model ||
-        row.effort !== turn.effort)
-    );
-  });
+export const isRunnerChangedSince = Effect.fnUntraced(function* (threadId: string, turn: Runner) {
+  const sql = yield* SqlClient.SqlClient;
+  const [row] = yield* sql<Runner>`
+    SELECT harness, account_id AS accountId, model, effort FROM threads WHERE id = ${threadId}`;
+  return (
+    row !== undefined &&
+    (row.harness !== turn.harness ||
+      row.accountId !== turn.accountId ||
+      row.model !== turn.model ||
+      row.effort !== turn.effort)
+  );
+});
 
 /**
  * Whether the thread still runs on the harness and account of this turn. When the owner changed either during the
  * turn, the turn's harness session belongs to the runner it left and is not kept.
  */
-export const isSessionOfThread = (threadId: string, turn: { accountId: string | null; harness: string }) =>
-  Effect.gen(function* () {
-    const sql = yield* SqlClient.SqlClient;
-    const [row] = yield* sql<{ accountId: string | null; harness: string }>`
-      SELECT harness, account_id AS accountId FROM threads WHERE id = ${threadId}`;
-    return row === undefined || (row.harness === turn.harness && row.accountId === turn.accountId);
-  });
+export const isSessionOfThread = Effect.fnUntraced(function* (
+  threadId: string,
+  turn: Pick<Runner, "accountId" | "harness">,
+) {
+  const sql = yield* SqlClient.SqlClient;
+  const [row] = yield* sql<Pick<Runner, "accountId" | "harness">>`
+    SELECT harness, account_id AS accountId FROM threads WHERE id = ${threadId}`;
+  return row === undefined || (row.harness === turn.harness && row.accountId === turn.accountId);
+});
 
 /** Writes one handover line for a runner, at the given time. */
 const insertHandover = (threadId: string, runner: Runner, fellBackAfter: string | null, at: number) =>

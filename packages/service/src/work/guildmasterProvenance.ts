@@ -28,7 +28,7 @@ type DerivedAction = {
   /** Everything the action depends on, compared again when it runs: the turn, the target, the threads at work. */
   readonly fingerprint: string;
   /** Whether it must be asked whatever the owner wrote: an ending that would stop threads at work. */
-  readonly mustAsk: boolean;
+  readonly shouldAsk: boolean;
   /** How the owner would name it: operation, target names, new value, and rival targets of the same kind. */
   readonly named: NamedAction;
   /** How a Ritual's scope entry would name it, or null when no scope can cover it. */
@@ -119,9 +119,9 @@ const deriveQuestAction = (args: ArgumentsOf<"act_on_mission">) =>
       const title = titleOf(args.title ?? "");
       if (title === "") return null;
       return {
-        mustAsk: false,
         named: { operation: "Rename", rivals, targets, value: title },
         scoped: { operation: "Rename", payload: title, targets: scopeTargets },
+        shouldAsk: false,
         state: { quest },
         summary: `Rename the quest "${quest.title}" to "${title}".`,
       } as const;
@@ -130,9 +130,9 @@ const deriveQuestAction = (args: ArgumentsOf<"act_on_mission">) =>
       const ids = yield* readWorkingIds(quest.id).pipe(Effect.catchTag("ServiceFailure", () => Effect.succeed([])));
       if (ids.length === 0) return null;
       return {
-        mustAsk: false,
         named: { operation: "Stop", rivals, targets, value: null },
         scoped: { operation: "Stop", payload: null, targets: scopeTargets },
+        shouldAsk: false,
         state: { ids, quest },
         summary: `Stop the ${threadsLineOf(ids.length)} at work in the quest "${quest.title}".`,
       } as const;
@@ -145,9 +145,9 @@ const deriveQuestAction = (args: ArgumentsOf<"act_on_mission">) =>
     const what =
       args.action === "Done" ? `Mark the quest "${quest.title}" Done.` : `Archive the quest "${quest.title}".`;
     return {
-      mustAsk: preview.question !== null,
       named: { operation: args.action, rivals, targets, value: null },
       scoped: { operation: args.action, payload: null, targets: scopeTargets },
+      shouldAsk: preview.question !== null,
       state: { quest, snapshot: preview.snapshot },
       // Stopping threads at work is part of it: always one question, bound to the threads it names.
       summary: preview.question === null ? what : `${what} ${preview.question}`,
@@ -166,14 +166,14 @@ const deriveAction = (callerId: string, tool: StructuralTool, args: object) =>
       readonly scoped: ScopedAction | null;
       readonly state: unknown;
       readonly summary: string;
-      readonly mustAsk: boolean;
+      readonly shouldAsk: boolean;
       readonly details?: object;
     }): DerivedAction => ({
       details: JSON.stringify({ action: found.named.operation, ...(found.details ?? {}), state: found.state }, null, 2),
       fingerprint: JSON.stringify({ ...base, state: found.state }),
-      mustAsk: found.mustAsk,
       named: found.named,
       scoped: found.scoped,
+      shouldAsk: found.shouldAsk,
       summary: found.summary,
     });
     if (tool === "act_on_mission") {
@@ -189,9 +189,9 @@ const deriveAction = (callerId: string, tool: StructuralTool, args: object) =>
       if (Schema.decodeUnknownExit(Settings)({ ...before, [setting]: value })._tag === "Failure") return null;
       const was = before[setting as keyof typeof before];
       return finish({
-        mustAsk: false,
         named: { operation: "ChangeSetting", targets: [setting], value: spokenOf(value) },
         scoped: { operation: "ChangeSetting", payload: JSON.stringify(value), targets: [setting] },
+        shouldAsk: false,
         state: { before: was, setting, value },
         summary: `Change the setting ${setting} from ${JSON.stringify(was)} to ${JSON.stringify(value)}.`,
       });
@@ -213,11 +213,11 @@ const deriveAction = (callerId: string, tool: StructuralTool, args: object) =>
     const where = realm === null ? "with no realm" : `in the realm ${realm.name}`;
     return finish({
       details: { companion, fallbacks, instruction: ritual.instruction, schedule: ritual.schedule },
-      // A Ritual runs unattended, so the owner always sees its instruction, schedule, realm, and Companion before it
-      // exists: naming the title in a message authorizes none of them (audit SA-01, SA-05).
-      mustAsk: true,
       named: { operation: "CreateRitual", targets: [title], value: null },
       scoped: null,
+      // A Ritual runs unattended, so the owner always sees its instruction, schedule, realm, and Companion before it
+      // exists: naming the title in a message authorizes none of them (audit SA-01, SA-05).
+      shouldAsk: true,
       state: { companion, realm, title },
       summary: `Create the Ritual "${title}", ${JSON.stringify(ritual.schedule)}, ${where}, on ${companion.harness} ${companion.model}${fallbackNoteOf(fallbacks, ritual.tier)}.`,
     });
@@ -235,7 +235,7 @@ const clip = (text: string, length: number) => (text.length <= length ? text : `
 const authorityOf = (callerId: string, derived: DerivedAction) =>
   Effect.gen(function* () {
     const turnId = yield* runningTurnOf(callerId);
-    if (turnId === null || derived.mustAsk) return { _tag: "Ask" } satisfies Authority;
+    if (turnId === null || derived.shouldAsk) return { _tag: "Ask" } satisfies Authority;
     const named = (yield* ownerTextsOf(callerId, turnId)).find((text) => isNamedByOwner(text, derived.named));
     if (named !== undefined) return { _tag: "Owner", evidence: clip(named, 400) } satisfies Authority;
     if (derived.scoped !== null) {

@@ -2,7 +2,7 @@ import type { BillingKind, TokenUsage } from "@iskios/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
 import { Changes, PriceTable, type TurnOutcome, touchMission } from "../core/index.ts";
-import { describedCall } from "./activities.ts";
+import { callDescriptionOf } from "./activities.ts";
 import { enforceBudgets } from "./budgets.ts";
 import { insertThreadLine, isSessionOfThread } from "./handover.ts";
 import { endTurn, failTurn } from "./lifecycle.ts";
@@ -59,7 +59,7 @@ export const saveTurnActivity = (threadId: string, turn: Admitted, id: string, t
   transacting(
     Effect.gen(function* () {
       if (!(yield* isCurrentTurn(turn.turnId))) return;
-      const described = describedCall(toolName, input);
+      const described = callDescriptionOf(toolName, input);
       if (described === null) return;
       const sql = yield* SqlClient.SqlClient;
       const now = yield* Clock.currentTimeMillis;

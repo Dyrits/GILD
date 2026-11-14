@@ -62,7 +62,7 @@ const stepGroupsOf = (
       .filter(isFoldedAction)
       .map((question): Step => ({ _tag: "Action", at: question.askedAt, id: question.id, question })),
     ...activities.map((activity): Step => ({ _tag: "Call", activity, at: activity.at, id: `call:${activity.id}` })),
-  ].sort((a, b) => a.at - b.at);
+  ].sort((current, next) => current.at - next.at);
   let before: Message | undefined;
   const close = (isTrailing: boolean, until: number) => {
     const from = before?.sentAt ?? Number.NEGATIVE_INFINITY;
@@ -76,7 +76,7 @@ const stepGroupsOf = (
         steps,
       });
   };
-  for (const message of [...messages].sort((a, b) => a.sequence - b.sequence)) {
+  for (const message of [...messages].sort((current, next) => current.sequence - next.sequence)) {
     if (message.sender !== "agent") {
       close(false, message.sentAt);
       before = message;
@@ -164,5 +164,5 @@ export const entriesOf = (detail: MissionDetail, isWorking = false): Array<Entry
     ...detail.budgetEvents.map((event): Entry => ({ _tag: "BudgetEvent", at: event.at, event, key: event.id })),
     ...detail.handovers.map((handover): Entry => ({ _tag: "Handover", at: handover.at, handover, key: handover.id })),
     ...detail.loreChanges.map((change): Entry => ({ _tag: "LoreChange", at: change.at, change, key: change.id })),
-  ].sort((a, b) => a.at - b.at);
+  ].sort((current, next) => current.at - next.at);
 };

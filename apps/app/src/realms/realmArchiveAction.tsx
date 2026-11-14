@@ -7,6 +7,7 @@ import { styles } from "../foundation/styles";
 import { ArchiveButton } from "../ui/archiveButton";
 import { Button } from "../ui/button";
 import { RealmDialog } from "../ui/realmDialog";
+import { archiveLabelOf, retainedArchiveChoicesOf } from "./realmArchive";
 import { QuestChecklist } from "./realmArchiveChoices";
 
 /** Both realm archive entry points use the same counted confirmation and server-checked snapshot. */
@@ -34,10 +35,7 @@ export function RealmArchiveAction({
   const show = (next: RealmArchivePreview | null) => {
     setPreview(next);
     // A choice only stands for a quest the refreshed preview still offers, and is not at work now.
-    setMoved((current) => {
-      const offered = new Set(next?.quests.filter((quest) => !quest.isWorking).map((quest) => quest.id));
-      return new Set([...current].filter((id) => offered.has(id)));
-    });
+    setMoved((current) => retainedArchiveChoicesOf(current, next?.quests ?? []));
   };
   const load = async () => {
     if (isBusy) return;
@@ -148,7 +146,3 @@ export function RealmArchiveAction({
     </View>
   );
 }
-
-/** The confirming button says what it does beyond archiving. */
-const archiveLabelOf = (workingCount: number, movedCount: number) =>
-  `${workingCount > 0 ? "Stop and archive realm" : "Archive realm"}${movedCount > 0 ? `, move ${movedCount}` : ""}`;

@@ -203,7 +203,7 @@ describe("handover: changing a thread's harness, account, model, or effort mid-t
       withService(
         Effect.gen(function* () {
           const started = yield* start("wait 400");
-          const running = yield* settle(started.missionId, (d) => d.thread.state === "Running");
+          const running = yield* settle(started.missionId, (detail) => detail.thread.state === "Running");
           const threadId = running.thread.id;
           yield* call({
             _tag: "ChangeThreadRunner",
@@ -221,7 +221,7 @@ describe("handover: changing a thread's harness, account, model, or effort mid-t
           expect(first.messages.filter((message) => message.sender === "agent")).toHaveLength(1);
           expect(first.thread.harness).toBe("codex");
           yield* send(threadId, "runner\ncontext");
-          const second = yield* settle(started.missionId, (d) => d.messages.length === 4 && idle(d));
+          const second = yield* settle(started.missionId, (detail) => detail.messages.length === 4 && idle(detail));
           const reply = lastReplyOf(second);
           // A new session on the new harness, never the finished turn's session, and it is given the conversation.
           expect(reply).toContain("codex/gpt-5/default/session none");
@@ -234,7 +234,7 @@ describe("handover: changing a thread's harness, account, model, or effort mid-t
     withService(
       Effect.gen(function* () {
         const started = yield* start("wait 400");
-        const running = yield* settle(started.missionId, (d) => d.thread.state === "Running");
+        const running = yield* settle(started.missionId, (detail) => detail.thread.state === "Running");
         const threadId = running.thread.id;
         yield* call({
           _tag: "ChangeThreadRunner",
@@ -246,7 +246,7 @@ describe("handover: changing a thread's harness, account, model, or effort mid-t
         });
         yield* settle(started.missionId, idle);
         yield* send(threadId, "runner");
-        const second = yield* settle(started.missionId, (d) => d.messages.length === 4 && idle(d));
+        const second = yield* settle(started.missionId, (detail) => detail.messages.length === 4 && idle(detail));
         expect(lastReplyOf(second)).toBe(`Echo: claude/opus/high/session fake-${threadId}`);
       }),
     ),

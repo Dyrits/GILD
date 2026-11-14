@@ -1,22 +1,26 @@
 import { describe, expect, it } from "vitest";
 import { creationStepOf, initialRecoveryFlowOf, transitionRecovery } from "../../src/realms/realmRecoveryFlow";
 
-describe("the realm recovery confirmation flow", () => {
+describe("confirming realm recovery", () => {
   it("defaults Restore to old values and Start afresh to proposed values", () => {
     const initial = initialRecoveryFlowOf(true);
-    expect(transitionRecovery(initial, { _tag: "Choose", fresh: false, hasDifferences: true })).toMatchObject({
+    expect(
+      transitionRecovery(initial, { _tag: "Choose", hasDifferences: true, shouldStartAfresh: false }),
+    ).toMatchObject({
       picks: { crest: "old", name: "old" },
       step: "comparison",
     });
-    expect(transitionRecovery(initial, { _tag: "Choose", fresh: true, hasDifferences: true })).toMatchObject({
+    expect(
+      transitionRecovery(initial, { _tag: "Choose", hasDifferences: true, shouldStartAfresh: true }),
+    ).toMatchObject({
       picks: { crest: "proposed", name: "proposed" },
       step: "comparison",
     });
   });
   it("skips equal comparisons but still requires the wipe confirmation", () => {
     const initial = initialRecoveryFlowOf(true);
-    const restore = transitionRecovery(initial, { _tag: "Choose", fresh: false, hasDifferences: false });
-    const fresh = transitionRecovery(initial, { _tag: "Choose", fresh: true, hasDifferences: false });
+    const restore = transitionRecovery(initial, { _tag: "Choose", hasDifferences: false, shouldStartAfresh: false });
+    const fresh = transitionRecovery(initial, { _tag: "Choose", hasDifferences: false, shouldStartAfresh: true });
     expect(restore.step).toBe("review");
     expect(transitionRecovery(restore, { _tag: "Review", hasNameCollision: false, isWipeConfirmed: false }).step).toBe(
       "save",
@@ -28,8 +32,8 @@ describe("the realm recovery confirmation flow", () => {
   it("puts duplicate-name acknowledgement before the final wipe", () => {
     const fresh = transitionRecovery(initialRecoveryFlowOf(true), {
       _tag: "Choose",
-      fresh: true,
       hasDifferences: false,
+      shouldStartAfresh: true,
     });
     const duplicate = transitionRecovery(fresh, { _tag: "Review", hasNameCollision: true, isWipeConfirmed: false });
     expect(duplicate.step).toBe("duplicate");
@@ -64,13 +68,13 @@ describe("the realm recovery confirmation flow", () => {
 
 describe("choosing a realm creation path", () => {
   it("offers recovery before duplicate-name handling, and never creates the same folder twice", () => {
-    expect(creationStepOf({ allowDuplicateName: false, hasArchivedRealm: true, hasDuplicateName: true })).toBe(
+    expect(creationStepOf({ hasArchivedRealm: true, hasDuplicateName: true, shouldAllowDuplicateName: false })).toBe(
       "recover",
     );
-    expect(creationStepOf({ allowDuplicateName: false, hasArchivedRealm: false, hasDuplicateName: true })).toBe(
+    expect(creationStepOf({ hasArchivedRealm: false, hasDuplicateName: true, shouldAllowDuplicateName: false })).toBe(
       "duplicate",
     );
-    expect(creationStepOf({ allowDuplicateName: true, hasArchivedRealm: false, hasDuplicateName: true })).toBe(
+    expect(creationStepOf({ hasArchivedRealm: false, hasDuplicateName: true, shouldAllowDuplicateName: true })).toBe(
       "create",
     );
   });

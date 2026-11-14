@@ -10,7 +10,7 @@ import { Button } from "../ui/button";
 import { RealmDialog } from "../ui/realmDialog";
 import { hasRealmNameCollision } from "./realmLabels";
 import { comparisonOf, recoveryAppearanceOf } from "./realmRecovery";
-import { initialRecoveryFlowOf, type RecoveryFlow, transitionRecovery } from "./realmRecoveryFlow";
+import { initialRecoveryFlowOf, type RecoveryFlow, recoveryTitles, transitionRecovery } from "./realmRecoveryFlow";
 
 /** Resolves an archived folder without changing data until all recovery choices have been confirmed. */
 export function RealmRecoveryModal({
@@ -69,34 +69,24 @@ export function RealmRecoveryModal({
       setBusy(false);
     }
   };
-  const choose = (fresh: boolean) => {
+  const choose = (shouldStartAfresh: boolean) => {
     const next = transitionRecovery(flow, {
       _tag: "Choose",
-      fresh,
-      hasDifferences: comparison.crest || comparison.name,
+      hasDifferences: comparison.hasCrestDifference || comparison.hasNameDifference,
+      shouldStartAfresh,
     });
     setFlow(next);
     if (next.step === "review") void proceed(next);
   };
-  const afterComparison = () => {
+  const continueRecovery = () => {
     void proceed(transitionRecovery(flow, { _tag: "Continue" }));
   };
   const cancel = () => {
     setFlow(transitionRecovery(flow, { _tag: "Cancel" }));
     onCancel();
   };
-  const title = {
-    cancelled: "Realm recovery cancelled",
-    choice: "This realm is archived",
-    comparison: "Choose the realm's name and crest",
-    duplicate: "Use the same realm name?",
-    restore: "Restore realm",
-    review: "Preparing realm recovery…",
-    save: "Recovering realm…",
-    wipe: "Start this realm afresh?",
-  }[step];
   return (
-    <RealmDialog isBusy={isBusy} onCancel={cancel} title={title}>
+    <RealmDialog isBusy={isBusy} onCancel={cancel} title={recoveryTitles[step]}>
       <Text style={styles.body}>
         {preview.realm.name} · {preview.questCount} quests
         {preview.archivedAt === null ? "" : ` · archived ${new Date(preview.archivedAt).toLocaleDateString()}`}
@@ -120,7 +110,7 @@ export function RealmRecoveryModal({
               return (
                 <View key={side} style={local.column}>
                   <Text style={styles.muted}>{side === "old" ? "Archived realm" : "New proposal"}</Text>
-                  {comparison.name && (
+                  {comparison.hasNameDifference && (
                     <Pressable
                       accessibilityLabel={`${side === "old" ? "Keep" : "Use proposed"} name: ${candidate.name}`}
                       accessibilityRole="radio"
@@ -133,7 +123,7 @@ export function RealmRecoveryModal({
                       <Text style={styles.muted}>{picks.name === side ? "Selected name" : "Choose name"}</Text>
                     </Pressable>
                   )}
-                  {comparison.crest && (
+                  {comparison.hasCrestDifference && (
                     <Pressable
                       accessibilityLabel={side === "old" ? "Keep archived crest" : "Use proposed crest"}
                       accessibilityRole="radio"
@@ -150,7 +140,7 @@ export function RealmRecoveryModal({
               );
             })}
           </View>
-          <Button isDisabled={isBusy} isPrimary label="Continue" onPress={afterComparison} />
+          <Button isDisabled={isBusy} isPrimary label="Continue" onPress={continueRecovery} />
         </>
       )}
       {step === "wipe" && (

@@ -28,10 +28,13 @@ describe("recovering a realm's appearance", () => {
   });
   it("skips equal rows even when the crest objects have a different key order", () => {
     expect(comparisonOf(archived, { crest: { ...crest, colors: { ...crest.colors } }, name: archived.name })).toEqual({
-      crest: false,
-      name: false,
+      hasCrestDifference: false,
+      hasNameDifference: false,
     });
-    expect(comparisonOf(archived, { crest, name: "Other" })).toEqual({ crest: false, name: true });
+    expect(comparisonOf(archived, { crest, name: "Other" })).toEqual({
+      hasCrestDifference: false,
+      hasNameDifference: true,
+    });
   });
 });
 

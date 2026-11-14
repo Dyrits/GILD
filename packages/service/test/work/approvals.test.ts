@@ -1,5 +1,4 @@
-import { execFileSync } from "node:child_process";
-import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
+import { mkdirSync, mkdtempSync, realpathSync, rmSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { describe, expect, it } from "@effect/vitest";
@@ -10,6 +9,7 @@ import type { Containment } from "../../src/core/index.ts";
 import { fakeHarnessLayer, Service, serviceLayer } from "../../src/index.ts";
 import { matchesPattern, targetOf } from "../../src/policy/patterns.ts";
 import { Approvals } from "../../src/work/approvals.ts";
+import { createRepository, runGit } from "../fixtures/repositories.ts";
 
 const directories: string[] = [];
 const databaseFile = () => {
@@ -535,38 +535,25 @@ describe("a thread folder that is a link", () => {
   });
 });
 
-describe("a workspace's git worktrees", () => {
-  const git = (folder: string, ...args: string[]) =>
-    execFileSync("git", ["-C", folder, "-c", "user.name=Test", "-c", "user.email=test@example.com", ...args], {
-      stdio: "ignore",
-    });
-  const repository = (base: string, name: string) => {
-    const folder = join(base, name);
-    mkdirSync(folder);
-    git(folder, "init", "-q", "-b", "main");
-    writeFileSync(join(folder, "a.txt"), "a");
-    git(folder, "add", ".");
-    git(folder, "commit", "-q", "-m", "first");
-    return folder;
-  };
+describe("using a workspace's git worktrees", () => {
   /** A workspace that is a repository with one linked worktree beside it, an unrelated folder beside both, and a worktree of another repository. */
-  const withRepository = () => {
+  const makeRepositoryFixture = () => {
     const filename = databaseFile();
     const base = realpathSync(join(filename, ".."));
-    const workspace = repository(base, "workspace");
+    const workspace = createRepository(base, "workspace");
     const worktree = join(base, "workspace-side");
-    git(workspace, "worktree", "add", "-q", "-b", "side", worktree);
+    runGit(workspace, "worktree", "add", "-q", "-b", "side", worktree);
     const unrelated = join(base, "workspace-unrelated");
     mkdirSync(unrelated);
-    const other = repository(base, "other");
+    const other = createRepository(base, "other");
     const otherWorktree = join(base, "other-side");
-    git(other, "worktree", "add", "-q", "-b", "other-side", otherWorktree);
+    runGit(other, "worktree", "add", "-q", "-b", "other-side", otherWorktree);
     return { layer: serviceOn(filename), otherWorktree, unrelated, workspace, worktree };
   };
   const edit = (file_path: string) => `prompt Edit ${JSON.stringify({ file_path })}`;
 
   it.live("changes a file in a worktree of the workspace unasked", () => {
-    const { layer, workspace, worktree } = withRepository();
+    const { layer, workspace, worktree } = makeRepositoryFixture();
     return Effect.gen(function* () {
       const started = yield* start(edit(join(worktree, "plan.md")), workspace);
       const detail = yield* settle(started.missionId, isReplied);
@@ -575,7 +562,7 @@ describe("a workspace's git worktrees", () => {
   });
 
   it.live("asks about a file in an unrelated sibling folder or in a worktree of another repository", () => {
-    const { layer, otherWorktree, unrelated, workspace } = withRepository();
+    const { layer, otherWorktree, unrelated, workspace } = makeRepositoryFixture();
     return Effect.gen(function* () {
       for (const folder of [unrelated, otherWorktree]) {
         const started = yield* start(edit(join(folder, "plan.md")), workspace);
@@ -587,7 +574,7 @@ describe("a workspace's git worktrees", () => {
   });
 
   it.live("asks again about a worktree once its folder is replaced by a link", () => {
-    const { layer, unrelated, workspace, worktree } = withRepository();
+    const { layer, unrelated, workspace, worktree } = makeRepositoryFixture();
     return Effect.gen(function* () {
       const started = yield* start("hello", workspace);
       yield* settle(started.missionId, isReplied);

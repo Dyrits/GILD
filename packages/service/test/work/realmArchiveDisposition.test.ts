@@ -1,11 +1,11 @@
 import { describe, expect, it } from "@effect/vitest";
-import type { RitualCompanion, WorkspaceId } from "@iskios/contracts";
+import type { RitualCompanion } from "@iskios/contracts";
 import { Effect } from "effect";
 import { afterEach } from "vitest";
 import { call, fixture, read, settle } from "../fixtures/service.ts";
 
 const list = () => call({ _tag: "ListMissions", isArchived: false, search: null, state: null, workspaceId: null });
-const archivedList = () =>
+const listArchived = () =>
   call({ _tag: "ListMissions", isArchived: true, search: null, state: null, workspaceId: null });
 const claude: RitualCompanion = { accountId: null, effort: "default", harness: "claude", model: "claude-sonnet-5-5" };
 const fixtures: ReturnType<typeof fixture>[] = [];
@@ -14,15 +14,14 @@ afterEach(() => {
 });
 
 /** A realm tied to the fixture's folder, so a Ritual can be made in it. */
-const folderRealm = (path: string) =>
-  Effect.gen(function* () {
-    yield* call({ _tag: "CreateRealm", crest: null, name: "Garden", path });
-    const realm = (yield* list()).workspaces[0];
-    if (realm === undefined) return yield* Effect.die("No realm");
-    return realm;
-  });
+const createFolderRealm = Effect.fnUntraced(function* (path: string) {
+  yield* call({ _tag: "CreateRealm", crest: null, name: "Garden", path });
+  const realm = (yield* list()).workspaces[0];
+  if (realm === undefined) return yield* Effect.die("No realm");
+  return realm;
+});
 
-const ritualIn = (path: string, instruction = "Hello") =>
+const createRitual = (path: string, instruction = "Hello") =>
   call({
     _tag: "CreateRitual",
     fallbacks: [],
@@ -34,7 +33,9 @@ const ritualIn = (path: string, instruction = "Hello") =>
     workspacePath: path,
   });
 
-const withFolder = <A, E, R>(body: (path: string) => Effect.Effect<A, E, R>) => {
+const runWithFolder = <Value, Failure, Requirements>(
+  body: (path: string) => Effect.Effect<Value, Failure, Requirements>,
+) => {
   const value = fixture();
   fixtures.push(value);
   return body(value.directory).pipe(Effect.provide(value.layer));
@@ -42,12 +43,12 @@ const withFolder = <A, E, R>(body: (path: string) => Effect.Effect<A, E, R>) => 
 
 describe("choosing what a realm archive does with its quests and Rituals", () => {
   it.live("lists the active quests by title and the Rituals apart from them", () =>
-    withFolder((path) =>
+    runWithFolder((path) =>
       Effect.gen(function* () {
-        const realm = yield* folderRealm(path);
+        const realm = yield* createFolderRealm(path);
         const quest = yield* call({ _tag: "StartEmptyQuest", realmId: realm.id, requestId: "one" });
         yield* call({ _tag: "RenameMission", missionId: quest.missionId, title: "Plant the beans" });
-        const ritual = yield* ritualIn(path);
+        const ritual = yield* createRitual(path);
         const preview = yield* call({ _tag: "PreviewRealmArchive", workspaceId: realm.id });
         expect(preview.quests).toEqual([{ id: quest.missionId, isWorking: false, title: "Plant the beans" }]);
         expect(preview.questCount).toBe(1);
@@ -57,9 +58,9 @@ describe("choosing what a realm archive does with its quests and Rituals", () =>
   );
 
   it.live("moves the chosen quests to the Borderlands and archives the others with the realm", () =>
-    withFolder((path) =>
+    runWithFolder((path) =>
       Effect.gen(function* () {
-        const realm = yield* folderRealm(path);
+        const realm = yield* createFolderRealm(path);
         const keep = yield* call({ _tag: "StartEmptyQuest", realmId: realm.id, requestId: "keep" });
         const leave = yield* call({ _tag: "StartEmptyQuest", realmId: realm.id, requestId: "leave" });
         const preview = yield* call({ _tag: "PreviewRealmArchive", workspaceId: realm.id });
@@ -72,7 +73,7 @@ describe("choosing what a realm archive does with its quests and Rituals", () =>
         const active = (yield* list()).missions;
         expect(active.map((quest) => quest.id)).toEqual([keep.missionId]);
         expect(active[0]?.workspaceId).toBeNull();
-        expect((yield* archivedList()).missions.map((quest) => quest.id)).toEqual([leave.missionId]);
+        expect((yield* listArchived()).missions.map((quest) => quest.id)).toEqual([leave.missionId]);
         // Restoring the realm does not pull the moved quest back.
         const saved = (yield* call({ _tag: "ListArchivedRealms" }))[0];
         if (saved === undefined) return yield* Effect.die("No archived realm");
@@ -90,9 +91,9 @@ describe("choosing what a realm archive does with its quests and Rituals", () =>
   );
 
   it.live("refuses to move a quest at work, a stranger, or a Ritual's quest, and changes nothing", () =>
-    withFolder((path) =>
+    runWithFolder((path) =>
       Effect.gen(function* () {
-        const realm = yield* folderRealm(path);
+        const realm = yield* createFolderRealm(path);
         const working = yield* call({ _tag: "StartEmptyQuest", realmId: realm.id, requestId: "work" });
         yield* call({
           _tag: "SendMessage",
@@ -103,7 +104,7 @@ describe("choosing what a realm archive does with its quests and Rituals", () =>
         });
         yield* settle(working.missionId, (detail) => detail.thread.state === "Running");
         const stranger = yield* call({ _tag: "StartEmptyQuest", realmId: null, requestId: "free" });
-        const ritual = yield* ritualIn(path);
+        const ritual = yield* createRitual(path);
         const preview = yield* call({ _tag: "PreviewRealmArchive", workspaceId: realm.id });
         expect(preview.quests.find((quest) => quest.id === working.missionId)?.isWorking).toBe(true);
         for (const id of [working.missionId, stranger.missionId, ritual.missionId]) {
@@ -120,15 +121,15 @@ describe("choosing what a realm archive does with its quests and Rituals", () =>
   );
 
   it.live("switches the realm's Rituals off, keeps them and their quests, and leaves them off after a restore", () =>
-    withFolder((path) =>
+    runWithFolder((path) =>
       Effect.gen(function* () {
-        const realm = yield* folderRealm(path);
-        const ritual = yield* ritualIn(path);
+        const realm = yield* createFolderRealm(path);
+        const ritual = yield* createRitual(path);
         const preview = yield* call({ _tag: "PreviewRealmArchive", workspaceId: realm.id });
         yield* call({ _tag: "ArchiveRealm", snapshot: preview.snapshot, workspaceId: realm.id });
         const archived = yield* call({ _tag: "ReadRitual", missionId: ritual.missionId });
         expect(archived).toMatchObject({ isOn: false, isRealmArchived: true, nextRunAt: null });
-        expect((yield* archivedList()).missions).toEqual([]);
+        expect((yield* listArchived()).missions).toEqual([]);
         // Neither the switch nor a manual run works until the realm is restored.
         const update = (isOn: boolean) =>
           call({
@@ -152,7 +153,7 @@ describe("choosing what a realm archive does with its quests and Rituals", () =>
           appearance: null,
           shouldStartAfresh: true,
           snapshot: saved.snapshot,
-          workspaceId: realm.id as WorkspaceId,
+          workspaceId: realm.id,
         });
         expect(yield* call({ _tag: "ReadRitual", missionId: ritual.missionId })).toMatchObject({
           isOn: false,
@@ -165,10 +166,10 @@ describe("choosing what a realm archive does with its quests and Rituals", () =>
   );
 
   it.live("stops a Ritual's run underway and counts it among the threads at work", () =>
-    withFolder((path) =>
+    runWithFolder((path) =>
       Effect.gen(function* () {
-        const realm = yield* folderRealm(path);
-        const ritual = yield* ritualIn(path, "wait 5000");
+        const realm = yield* createFolderRealm(path);
+        const ritual = yield* createRitual(path, "wait 5000");
         yield* call({ _tag: "RunRitual", ritualId: ritual.ritualId });
         yield* settle(ritual.missionId, (detail) => detail.thread.state === "Running");
         const preview = yield* call({ _tag: "PreviewRealmArchive", workspaceId: realm.id });

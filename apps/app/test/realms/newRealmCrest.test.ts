@@ -1,11 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { defaultCrestOf } from "../../src/crest/crestShapes";
-import { newRealmCrestId, shownCrestOf } from "../../src/realms/newRealmCrest";
+import { newRealmCrestIdOf, shownCrestOf } from "../../src/realms/newRealmCrest";
 
-describe("the crest of a realm being made", () => {
+describe("choosing the crest for a new realm", () => {
   it("draws from the folder's path, or from a fixed id while none is chosen", () => {
-    expect(newRealmCrestId("")).toBe("new-realm");
-    expect(newRealmCrestId("/work/app")).toBe("/work/app");
+    expect(newRealmCrestIdOf("")).toBe("new-realm");
+    expect(newRealmCrestIdOf("/work/app")).toBe("/work/app");
   });
 
   it("is the crest the menu shows, so an undesigned one is made as shown", () => {

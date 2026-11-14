@@ -50,10 +50,10 @@ describe("a thread's backup Companions", () => {
     withService(
       Effect.gen(function* () {
         const { missionId, threadId } = yield* start("Hello");
-        yield* settle(missionId, (d) => d.thread.state === "Idle");
+        yield* settle(missionId, (detail) => detail.thread.state === "Idle");
         yield* call({ _tag: "SetThreadBackups", backups: [codex], threadId });
         yield* send(threadId, "wait 300\nfail claude Usage limit reached");
-        yield* settle(missionId, (d) => d.thread.state === "Running");
+        yield* settle(missionId, (detail) => detail.thread.state === "Running");
         yield* call({
           _tag: "ChangeThreadRunner",
           accountId: null,
@@ -62,7 +62,7 @@ describe("a thread's backup Companions", () => {
           model: "opus",
           threadId,
         });
-        const detail = yield* settle(missionId, (d) => d.thread.state === "Failed");
+        const detail = yield* settle(missionId, (current) => current.thread.state === "Failed");
         expect(detail.thread.model).toBe("opus");
         expect(detail.thread.harness).toBe("claude");
         expect(detail.handovers).toEqual([]);

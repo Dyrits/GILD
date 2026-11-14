@@ -27,17 +27,22 @@ export function RealmName({
     editing.current = name;
     setDraft(name);
   };
-  const save = async (name: string, allowDuplicateName = false) => {
+  const save = async (name: string, shouldAllowDuplicateName = false) => {
     if (isBusy || name.trim() === "" || name.trim() === realm.name) return;
     edit(null);
     setBusy(true);
     try {
       const active = await client.request(allMissions.request);
-      if (!allowDuplicateName && hasRealmNameCollision(name, active.workspaces, realm.id)) {
+      if (!shouldAllowDuplicateName && hasRealmNameCollision(name, active.workspaces, realm.id)) {
         setPending(name);
         return;
       }
-      await client.request({ _tag: "RenameRealm", allowDuplicateName, name, workspaceId: realm.id });
+      await client.request({
+        _tag: "RenameRealm",
+        allowDuplicateName: shouldAllowDuplicateName,
+        name,
+        workspaceId: realm.id,
+      });
       setError(null);
       setPending(null);
     } catch (reason) {

@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { rememberUnsentText, unsentTextOf } from "../../src/ui/unsentText";
 
-describe("unsent text", () => {
+describe("keeping unsent message text", () => {
   it("returns what a box left, by the box's own name", () => {
     rememberUnsentText("thread:a", "half a thought");
     rememberUnsentText("thread:b", "another");

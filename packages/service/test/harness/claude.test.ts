@@ -1,4 +1,3 @@
-import { execFileSync } from "node:child_process";
 import { existsSync, mkdirSync, mkdtempSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
@@ -10,6 +9,7 @@ import { afterEach } from "vitest";
 import { Changes, claudeHarnessLayer, makeClaudeHarness, Service, serviceLayer } from "../../src/index.ts";
 import { markPrompted } from "../../src/work/activities.ts";
 import { unaskedToolNamesOf } from "../../src/work/threadTools.ts";
+import { createRepository, runGit } from "../fixtures/repositories.ts";
 import { turnRequestOf } from "../fixtures/turns.ts";
 
 // Stored and wire names keep `intel` so existing data and agents still work: settings keys (`intelHalfLives`, `intelWarningPercent`).
@@ -234,29 +234,16 @@ describe("running Claude Code threads", () => {
     }).pipe(Effect.provide(layer));
   });
 
-  describe("a workspace's git worktrees", () => {
-    const git = (folder: string, ...args: string[]) =>
-      execFileSync("git", ["-C", folder, "-c", "user.name=Test", "-c", "user.email=test@example.com", ...args], {
-        stdio: "ignore",
-      });
-    const repositoryIn = (directory: string) => {
-      const app = join(realpathSync(directory), "app");
-      mkdirSync(app);
-      git(app, "init", "-q", "-b", "main");
-      writeFileSync(join(app, "a.txt"), "a");
-      git(app, "add", ".");
-      git(app, "commit", "-q", "-m", "first");
-      return app;
-    };
+  describe("using a workspace's git worktrees", () => {
     const caches = ["~/.bun/install/cache", "~/.npm", "~/Library/Caches/electron", "~/.cache/electron"];
     const writableOf = (args: string[] | undefined) =>
       JSON.parse(args?.[args.indexOf("--settings") + 1] ?? "{}").sandbox?.filesystem?.allowWrite;
 
     it.live("lets a sandboxed thread write the worktrees of its workspace, and no other folder", () => {
       const { directory, layer, starts } = withClaude();
-      const app = repositoryIn(directory);
+      const app = createRepository(realpathSync(directory), "app");
       const worktree = join(realpathSync(directory), "app-side");
-      git(app, "worktree", "add", "-q", "-b", "side", worktree);
+      runGit(app, "worktree", "add", "-q", "-b", "side", worktree);
       mkdirSync(join(realpathSync(directory), "app-unrelated"));
       return Effect.gen(function* () {
         const started = yield* call({
@@ -274,7 +261,7 @@ describe("running Claude Code threads", () => {
 
     it.live("restarts the process, resuming its session, when a worktree is added", () => {
       const { directory, layer, starts } = withClaude();
-      const app = repositoryIn(directory);
+      const app = createRepository(realpathSync(directory), "app");
       return Effect.gen(function* () {
         const started = yield* call({
           _tag: "StartMission",
@@ -286,7 +273,7 @@ describe("running Claude Code threads", () => {
         });
         yield* settle(started.missionId, idleWith(1));
         const worktree = join(realpathSync(directory), "app-late");
-        git(app, "worktree", "add", "-q", "-b", "late", worktree);
+        runGit(app, "worktree", "add", "-q", "-b", "late", worktree);
         yield* call({ _tag: "SendMessage", delivery: null, requestId: "r2", text: "Two", threadId: started.threadId });
         yield* settle(started.missionId, idleWith(2));
         const [first, second] = starts();

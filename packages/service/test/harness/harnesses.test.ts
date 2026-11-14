@@ -45,6 +45,7 @@ import {
   serviceLayer,
 } from "../../src/index.ts";
 import { computerNameOf } from "../../src/remote/config.ts";
+import { callTool } from "../fixtures/mcp.ts";
 import { turnRequestOf } from "../fixtures/turns.ts";
 
 const fixtures = join(import.meta.dirname, "..", "fixtures");
@@ -211,22 +212,6 @@ const start = (fields: Partial<Extract<Request, { _tag: "StartMission" }>> & { t
     requestId: crypto.randomUUID(),
     workspacePath: null,
     ...fields,
-  });
-
-/** What a thread's MCP endpoint answers to one tool call, as its harness reads it. */
-const callTool = (threadId: string, name: string, args: object) =>
-  Effect.gen(function* () {
-    const url = yield* (yield* Endpoints).urlFor(threadId);
-    return yield* Effect.promise(async () => {
-      const response = await fetch(url, {
-        body: JSON.stringify({ id: 1, jsonrpc: "2.0", method: "tools/call", params: { arguments: args, name } }),
-        headers: { accept: "application/json, text/event-stream", "content-type": "application/json" },
-        method: "POST",
-      });
-      // A tool call is answered as one server-sent event.
-      const data = (await response.text()).split("\n").find((line) => line.startsWith("data: "));
-      return JSON.parse(data?.slice(6) ?? "{}") as { result: { content: Array<{ text: string }>; isError?: boolean } };
-    });
   });
 
 /** The tool names a thread's MCP endpoint lists, as its harness reads them. */

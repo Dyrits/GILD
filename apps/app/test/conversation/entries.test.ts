@@ -1,4 +1,11 @@
-import type { MissionDetail, ThreadSummary } from "@iskios/contracts";
+import {
+  type MissionDetail,
+  MissionId,
+  type Question,
+  QuestionId,
+  ThreadId,
+  type ThreadSummary,
+} from "@iskios/contracts";
 import { describe, expect, it } from "vitest";
 import { entriesOf, workingLabelOf } from "../../src/conversation/entries";
 
@@ -16,6 +23,23 @@ const summary = (id: string, parentId: string | null, openedAt: number, isAside 
   }) as ThreadSummary;
 
 const message = (id: string, sentAt: number) => ({ id, sender: "user", sentAt, text: id });
+
+const recordedQuestionOf = (id: string, askedAt: number): Question => ({
+  askedAt,
+  details: id,
+  device: null,
+  id: QuestionId.make(id),
+  message: null,
+  missionId: MissionId.make("mission"),
+  missionTitle: "Mission",
+  outcome: "AllowedAutomatically",
+  pattern: null,
+  permission: null,
+  resolvedAt: askedAt,
+  source: "Harness",
+  summary: `Ran ${id}`,
+  threadId: ThreadId.make("top"),
+});
 
 const detailOf = (
   threads: ReadonlyArray<ThreadSummary>,
@@ -190,8 +214,8 @@ describe("a turn's actions, folded as steps while messages stay visible", () => 
         { at: 1000, detail: "entries.ts", id: "read", summary: "Read a file" },
         { at: 3000, detail: "bun test", id: "test", summary: "Run a command" },
       ],
-      questions: [{ askedAt: 2000, id: "push", outcome: "AllowedAutomatically", summary: "Ran push" }],
-    } as unknown as MissionDetail);
+      questions: [recordedQuestionOf("push", 2000)],
+    } satisfies MissionDetail);
     expect(entries[1]).toMatchObject({
       _tag: "Steps",
       steps: [
@@ -208,7 +232,7 @@ describe("a turn's actions, folded as steps while messages stay visible", () => 
       {
         ...detail,
         activities: [{ at: 1000, detail: "", id: "read", summary: "Read a file" }],
-      } as unknown as MissionDetail,
+      } satisfies MissionDetail,
       true,
     );
     expect(entries[1]).toMatchObject({ _tag: "Steps", isCurrent: true });

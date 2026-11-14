@@ -1,5 +1,5 @@
 import { tmpdir } from "node:os";
-import type { ApprovalLevel, BillingKind, TokenUsage } from "@iskios/contracts";
+import type { ApprovalLevel, BillingKind } from "@iskios/contracts";
 import { type Duration, Effect, Layer, Queue } from "effect";
 import {
   type Containment,
@@ -8,7 +8,6 @@ import {
   type HarnessAdapter,
   HarnessFailure,
   type ImageAttachment,
-  numberFieldOf,
   type PlanLimitReport,
   type PlanLimitsReport,
   readImages,
@@ -23,6 +22,15 @@ import {
   networkHostOf,
   noTimeLimit,
 } from "./claudeArgs.ts";
+import {
+  billingOf,
+  contextOf,
+  failureReasonOf,
+  reportedModelOf,
+  textOf,
+  toolCallsOf,
+  usageOf,
+} from "./claudeEvents.ts";
 import { accountEnvironmentOf } from "./harnessCatalog.ts";
 import { type HarnessConnection, type HarnessProtocol, makeHarnessProcesses } from "./harnessProcesses.ts";
 import {
@@ -53,22 +61,6 @@ interface ClaudeConnection extends HarnessConnection {
   lastTotalCost: number;
   readonly process: StreamJsonProcess;
 }
-
-/** The model that wrote a message, or null when none is named; Claude Code's own placeholder `<synthetic>` names none. */
-const reportedModelOf = (message: unknown): string | null => {
-  const model = textFieldOf(message, "model");
-  return model === null || model.startsWith("<") ? null : model;
-};
-
-/**
- * How a Claude Code process was billed, from the `apiKeySource` of its init event: `none` is the subscription
- * sign-in, any other source is an API key, and an event without the field says nothing. Unprobed live (backlog,
- * Consumption and cost, build order).
- */
-const billingOf = (event: unknown, previous: BillingKind): BillingKind => {
-  const source = textFieldOf(event, "apiKeySource");
-  return source === null ? previous : source === "none" ? "Subscription" : "ApiKey";
-};
 
 /** The plan windows Claude Code reports in a `rate_limit_event`, by name, with their length in minutes. */
 const planWindowMinutes = { five_hour: 300, seven_day: 10_080 } as const;
@@ -111,20 +103,6 @@ const turnCostOf = (connection: ClaudeConnection, total: unknown): number | null
 const childEnvironment = (configDirectory: string | null) =>
   harnessEnvironmentOf({ ...accountEnvironmentOf("claude", configDirectory), MCP_TOOL_TIMEOUT: String(noTimeLimit) });
 
-const usageOf = (usage: unknown): TokenUsage | null =>
-  usage === undefined || usage === null
-    ? null
-    : {
-        cacheCreation: numberFieldOf(usage, "cache_creation_input_tokens"),
-        cacheRead: numberFieldOf(usage, "cache_read_input_tokens"),
-        input: numberFieldOf(usage, "input_tokens"),
-        output: numberFieldOf(usage, "output_tokens"),
-      };
-
-/** What a model call's prompt and reply held, or null when the call reported no usage. */
-const contextOf = (usage: TokenUsage | null) =>
-  usage === null ? null : usage.input + usage.cacheRead + usage.cacheCreation + usage.output;
-
 /** A user message's content: the text alone, or the text then one base64 image block per image (message-attachments). */
 const contentOf = (text: string, images: ReadonlyArray<ImageAttachment>) =>
   Effect.gen(function* () {
@@ -138,38 +116,6 @@ const contentOf = (text: string, images: ReadonlyArray<ImageAttachment>) =>
       })),
     ];
   });
-
-const textOf = (content: unknown) =>
-  Array.isArray(content)
-    ? content
-        .filter((block) => textFieldOf(block, "type") === "text")
-        .map((block) => textFieldOf(block, "text") ?? "")
-        .join("")
-    : "";
-
-/** The tool calls a complete assistant message made, each with the id Claude Code gives it. */
-const toolCallsOf = (content: unknown) =>
-  Array.isArray(content)
-    ? content.flatMap((block) => {
-        const id = textFieldOf(block, "id");
-        const toolName = textFieldOf(block, "name");
-        return textFieldOf(block, "type") === "tool_use" && id !== null && toolName !== null
-          ? [{ id, input: fieldOf(block, "input"), toolName }]
-          : [];
-      })
-    : [];
-
-/** Why a turn's error result failed it, from the fields Claude Code reports. */
-const failureReasonOf = (event: unknown, reportedError: string | null) => {
-  const result = textFieldOf(event, "result");
-  const errors = fieldOf(event, "errors");
-  return (
-    reportedError ??
-    (result !== null && result !== "" ? result : null) ??
-    (Array.isArray(errors) ? errors.join("; ") : null) ??
-    `Claude Code reported ${textFieldOf(event, "subtype") ?? "an error"}.`
-  );
-};
 
 /** Claude Code's protocol: a user message per turn, read until its result. */
 const claudeProtocolOf = (

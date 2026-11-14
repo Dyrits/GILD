@@ -2,7 +2,7 @@ import type { Crest, RealmAppearance } from "@iskios/contracts";
 import { folderNameOf } from "./realmLabels";
 
 /** A form's real proposed values: an empty name resolves to its chosen folder's name. */
-export const proposedRealmOf = <T extends { crest: Crest | null; name: string; path: string }>(draft: T) => ({
+export const proposedRealmOf = <Draft extends { crest: Crest | null; name: string; path: string }>(draft: Draft) => ({
   ...draft,
   name: draft.name.trim() || folderNameOf(draft.path),
 });
@@ -35,8 +35,8 @@ const crestKeyOf = (crest: Crest | null) =>
 
 /** Which comparison rows differ, comparing crest contents rather than object identity or property order. */
 export const comparisonOf = (previous: RealmAppearance, proposed: RealmAppearance) => ({
-  crest: crestKeyOf(previous.crest) !== crestKeyOf(proposed.crest),
-  name: previous.name !== proposed.name,
+  hasCrestDifference: crestKeyOf(previous.crest) !== crestKeyOf(proposed.crest),
+  hasNameDifference: previous.name !== proposed.name,
 });
 
 /** The column chosen independently for each recoverable appearance field. */

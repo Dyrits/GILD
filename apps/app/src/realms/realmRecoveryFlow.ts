@@ -10,7 +10,7 @@ export type RecoveryFlow = {
 
 /** Events at the confirmation boundary, independent of rendering and network timing. */
 export type RecoveryEvent =
-  | { _tag: "Choose"; fresh: boolean; hasDifferences: boolean }
+  | { _tag: "Choose"; shouldStartAfresh: boolean; hasDifferences: boolean }
   | { _tag: "Pick"; field: keyof RecoveryPicks; value: RecoveryPicks["name"] }
   | { _tag: "Continue" }
   | { _tag: "Review"; hasNameCollision: boolean; isWipeConfirmed: boolean }
@@ -34,8 +34,11 @@ export const transitionRecovery = (state: RecoveryFlow, event: RecoveryEvent): R
   if (event._tag === "Choose")
     return {
       hasConfirmedName: false,
-      picks: { crest: event.fresh ? "proposed" : "old", name: event.fresh ? "proposed" : "old" },
-      shouldStartAfresh: event.fresh,
+      picks: {
+        crest: event.shouldStartAfresh ? "proposed" : "old",
+        name: event.shouldStartAfresh ? "proposed" : "old",
+      },
+      shouldStartAfresh: event.shouldStartAfresh,
       step: event.hasDifferences ? "comparison" : "review",
     };
   if (event._tag === "Pick")
@@ -61,6 +64,22 @@ export const transitionRecovery = (state: RecoveryFlow, event: RecoveryEvent): R
 export const creationStepOf = (checks: {
   hasArchivedRealm: boolean;
   hasDuplicateName: boolean;
-  allowDuplicateName: boolean;
+  shouldAllowDuplicateName: boolean;
 }): "recover" | "duplicate" | "create" =>
-  checks.hasArchivedRealm ? "recover" : checks.hasDuplicateName && !checks.allowDuplicateName ? "duplicate" : "create";
+  checks.hasArchivedRealm
+    ? "recover"
+    : checks.hasDuplicateName && !checks.shouldAllowDuplicateName
+      ? "duplicate"
+      : "create";
+
+/** The title shown for every recovery state, including transient and cancelled states. */
+export const recoveryTitles = {
+  cancelled: "Realm recovery cancelled",
+  choice: "This realm is archived",
+  comparison: "Choose the realm's name and crest",
+  duplicate: "Use the same realm name?",
+  restore: "Restore realm",
+  review: "Preparing realm recovery…",
+  save: "Recovering realm…",
+  wipe: "Start this realm afresh?",
+} satisfies Record<RecoveryFlow["step"], string>;

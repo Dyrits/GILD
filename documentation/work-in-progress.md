@@ -1,5 +1,13 @@
 # Work in progress
 
+## Release 0.1.3-Prototype review · 2026-11-14 · review and refactor complete; behavior fixes and owner acceptance open
+
+The owner requested a review of changes since 0.1.2-Prototype after One was published, with a handoff mid-way and a resume. Both independent review axes are complete and the supported behavior-preserving refactors are applied and independently verified: 15 Standards findings resolved, 3 partially resolved (`ST-01`, `ST-02`, `ST-09`), and 3 left open (`ST-03`, `ST-04`, `ST-17`). The Specifications verification found no behavioral regression. Six behavior defects remain open, including active-turn permission identity, multi-file permission coverage and suggestion provenance. No release or landing is authorized, and the edits are uncommitted.
+
+Checks on the edited tree: `bun run check` passes, `bun run typecheck` passes in all six workspaces, `git diff --check` passes, and `CI=1 bun run test` passes (1,570 passed, 18 skipped; 152 files passed, one skipped). No window drive or live provider ran for this batch.
+
+The [review record](verification/2026-11-14-release-0.1.3-review.md) owns the pinned revisions, all finding identifiers/dispositions, check results, acceptance gaps and reviewer links. Next: the six red/green behavior fixes (recommend SP-01, SP-02 and SP-06 first), then the deferred structural items if the owner wants them in this prototype.
+
 ## One theme · 2026-11-14 · built and checked, owner's look pending
 
 CHG-0279: One alongside Iskios and Gild in Workshop → Look and feel, with the existing Light / Dark / System choice and local persistence. It uses Zed's MIT-licensed One colors, with [source and contrast adaptations](research/zed-one-themes.md); the notice ships with desktop builds. Existing defaults, palettes, sidebar drawings, and the Iskios application icon are unchanged.

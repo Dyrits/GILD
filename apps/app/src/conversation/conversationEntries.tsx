@@ -1,11 +1,11 @@
 import type { HarnessName, Message, MissionId, ReplyUsage, Skill, ThreadId } from "@iskios/contracts";
-import { type ReactNode, useState } from "react";
+import type { ReactNode } from "react";
 import { Pressable, Text, View } from "react-native";
 import { MessageImages } from "../attachments/attachmentViews";
 import type { ServiceClient } from "../foundation/client";
 import { Emblem } from "../foundation/emblems";
-import { clockOf, replyWriterOf, spanOf } from "../foundation/formatting";
-import { countedOf, replyUsageTextOf } from "../foundation/labels";
+import { clockOf, replyWriterOf } from "../foundation/formatting";
+import { replyUsageTextOf } from "../foundation/labels";
 import { styles } from "../foundation/styles";
 import { colors } from "../foundation/theme";
 import { LoreChangeCard, LoreChangeLine } from "../lore/lore";
@@ -17,8 +17,9 @@ import { QuestionCard, QuestionLine } from "../ui/questions";
 import { Commentable } from "./commentable";
 import { commentsOf } from "./comments";
 import { SentComments } from "./commentViews";
-import type { Entry, QuestLink, Step } from "./entries";
+import type { Entry, QuestLink } from "./entries";
 import { Markdown } from "./markdown";
+import { StepsGroup } from "./stepsGroup";
 import { SuggestionCard, SuggestionLine } from "./suggestions";
 
 const shortened = (title: string) => (title.length > 60 ? `${title.slice(0, 59)}…` : title);
@@ -119,43 +120,6 @@ export function WorkingIndicator({ harness, label }: { harness: HarnessName; lab
     <View style={styles.stepsHeader}>
       <ProviderMark harness={harness} />
       <Text style={styles.stepText}>{label}</Text>
-    </View>
-  );
-}
-
-/** A turn's settled actions, folded under "2 steps · 16s" and listed when opened. */
-function StepsGroup({ seconds, steps }: { seconds: number; steps: ReadonlyArray<Step> }) {
-  const [isOpen, setIsOpen] = useState(false);
-  return (
-    <View>
-      <Pressable
-        accessibilityLabel={`${countedOf(steps.length, "step")}, ${spanOf(seconds)}`}
-        accessibilityRole="button"
-        accessibilityState={{ expanded: isOpen }}
-        onPress={() => setIsOpen(!isOpen)}
-        style={styles.stepsHeader}
-      >
-        <Text style={styles.stepsCount}>{countedOf(steps.length, "step")}</Text>
-        <Text style={styles.muted}>{spanOf(seconds)}</Text>
-        <Text style={styles.muted}>{isOpen ? "⌃" : "⌄"}</Text>
-      </Pressable>
-      {isOpen && (
-        <View style={styles.stepsList}>
-          {steps.map((step) =>
-            step._tag === "Action" ? (
-              <QuestionLine key={step.id} question={step.question} />
-            ) : (
-              <View key={step.id} style={styles.questionLine}>
-                <Text style={styles.muted}>
-                  {["Ran", step.activity.summary, step.activity.detail, clockOf(step.at)]
-                    .filter((part) => part !== "")
-                    .join(" · ")}
-                </Text>
-              </View>
-            ),
-          )}
-        </View>
-      )}
     </View>
   );
 }

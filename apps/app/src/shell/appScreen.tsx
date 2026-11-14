@@ -30,7 +30,7 @@ type Destination = {
 };
 
 /** Navigation operations exposed to the selected page, with top-level state kept in App. */
-type Navigation = {
+interface Navigation {
   closeMission: () => void;
   goTo: (place: Place) => void;
   openMission: (id: MissionId) => void;
@@ -42,7 +42,7 @@ type Navigation = {
   setPermissions: (isOpen: boolean) => void;
   setSettingsSection: (section: SettingsSectionId) => void;
   showDetails: (isOpen: boolean) => void;
-};
+}
 
 /** Exhaustive destination rendering; adding a place requires choosing its screen at compile time. */
 export function AppScreen({

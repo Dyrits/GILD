@@ -7,6 +7,7 @@ import { styles } from "../foundation/styles";
 import { colors, outline, radii } from "../foundation/theme";
 import { useServiceQuery } from "../foundation/useServiceQuery";
 import { MissionCard } from "../quests/board";
+import { matchingArchivedRealmsOf } from "../realms/realmArchive";
 import { RealmRecoveryModal } from "../realms/realmRecoveryModal";
 import { Button } from "../ui/button";
 
@@ -18,8 +19,7 @@ export function ArchiveScreen({ client, onOpen }: { client: ServiceClient; onOpe
   const { data, error } = useServiceQuery(client, request, `archive:${search}:${attempt}`);
   const realms = useServiceQuery(client, { _tag: "ListArchivedRealms" }, `archived-realms:${attempt}`);
   const [restoring, setRestoring] = useState<RealmArchivePreview | null>(null);
-  const shown =
-    realms.data?.filter((realm) => realm.realm.name.toLowerCase().includes(search.trim().toLowerCase())) ?? [];
+  const shown = matchingArchivedRealmsOf(realms.data ?? [], search);
   return (
     <View style={local.page}>
       <ScrollView contentContainerStyle={local.content}>

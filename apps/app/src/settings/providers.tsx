@@ -9,6 +9,7 @@ import { ActionMenu } from "../ui/actionMenu";
 import { Button } from "../ui/button";
 import { ProviderMark } from "../ui/providerMarks";
 import { RowIcon } from "../ui/rowIcons";
+import { versionOf } from "./providerRules";
 
 /** What a sign-in state says on an account's badge. */
 const signInLabels = {
@@ -16,10 +17,6 @@ const signInLabels = {
   SignedOut: "Signed out",
   Unknown: "Sign-in unknown",
 } as const satisfies Record<AccountStatus["signIn"], string>;
-
-/** The version as a harness reports it, cut to the number itself (some reports carry a name before it). */
-const versionOf = (harness: HarnessInfo) =>
-  harness.version?.match(/\bv?\d+\.\d+\.\d+(?:-[\w.-]+)?(?:\+[\w.-]+)?/)?.[0] ?? harness.version;
 
 /** A small pill: a dot and a word, green when the thing is fine and quiet otherwise. */
 function StatusPill({ isGood, label }: { isGood: boolean; label: string }) {
@@ -221,7 +218,7 @@ function HarnessCard({
   onUpdate: () => void;
 }) {
   const version = versionOf(harness);
-  const offersAction = harness.problem !== null || harness.update !== null;
+  const hasAction = harness.problem !== null || harness.update !== null;
   return (
     <View style={local.card}>
       <View style={local.head}>
@@ -235,7 +232,7 @@ function HarnessCard({
         <View style={local.state}>
           <HarnessState harness={harness} isUpdating={isUpdating} />
         </View>
-        {offersAction && !isUpdating && (
+        {hasAction && !isUpdating && (
           <Button isDisabled={isBusy} label={harness.problem === null ? "Update" : "Install"} onPress={onUpdate} />
         )}
       </View>

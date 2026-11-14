@@ -9,7 +9,7 @@ import { messageOf } from "../foundation/client";
 import { allMissions } from "../foundation/queries";
 import { colors, fontSizes, fonts, outline, radii } from "../foundation/theme";
 import { FolderPicker } from "./folderPicker";
-import { newRealmCrestId, shownCrestOf } from "./newRealmCrest";
+import { newRealmCrestIdOf, shownCrestOf } from "./newRealmCrest";
 import { folderNameOf, hasRealmNameCollision } from "./realmLabels";
 import { proposedRealmOf } from "./realmRecovery";
 import { creationStepOf } from "./realmRecoveryFlow";
@@ -49,14 +49,14 @@ export function NewRealmModal({
   // The realm is made wearing exactly the crest the menu shows (an undesigned one is drawn from the folder, not the new id).
   const proposed = proposedRealmOf({ ...editing, crest: shownCrestOf(editing) });
   const isReady = proposed.name !== "" && (!isFolderRequired || editing.path !== "") && !isBusy;
-  const completed = () => {
+  const complete = () => {
     onCreated?.(proposed);
     onCancel();
   };
   const cancel = () => {
     if (!isBusy) onCancel();
   };
-  const create = async (allowDuplicateName = false) => {
+  const create = async (shouldAllowDuplicateName = false) => {
     if (!isReady) return;
     setBusy(true);
     setError(null);
@@ -66,9 +66,9 @@ export function NewRealmModal({
       const active = previous === null ? await client.request(allMissions.request) : null;
       const known = active?.workspaces.find((realm) => realm.path === proposed.path);
       const step = creationStepOf({
-        allowDuplicateName,
         hasArchivedRealm: previous !== null,
         hasDuplicateName: hasRealmNameCollision(proposed.name, active?.workspaces ?? [], known?.id ?? null),
+        shouldAllowDuplicateName,
       });
       if (step === "recover") {
         setArchived(previous);
@@ -80,12 +80,12 @@ export function NewRealmModal({
       }
       await client.request({
         _tag: "CreateRealm",
-        allowDuplicateName,
+        allowDuplicateName: shouldAllowDuplicateName,
         crest: proposed.crest,
         name: proposed.name,
         path: proposed.path === "" ? null : proposed.path,
       });
-      completed();
+      complete();
     } catch (reason) {
       setError(messageOf(reason));
     } finally {
@@ -103,7 +103,7 @@ export function NewRealmModal({
         client={client}
         initial={archived}
         onCancel={() => setArchived(null)}
-        onRecovered={completed}
+        onRecovered={complete}
         proposed={proposed}
       />
     );
@@ -135,7 +135,7 @@ export function NewRealmModal({
             )}
           </View>
           <View style={local.namingRow}>
-            <CrestBadge crest={editing.crest} id={newRealmCrestId(editing.path)} size={72} />
+            <CrestBadge crest={editing.crest} id={newRealmCrestIdOf(editing.path)} size={72} />
             <View style={local.menuFields}>
               <Text style={local.menuLabel}>Name</Text>
               <TextInput
@@ -181,7 +181,7 @@ export function NewRealmModal({
       {isPicking && <FolderPicker client={client} onCancel={() => setIsPicking(false)} onChoose={choose} />}
       {isStudioOpen && (
         <CrestStudio
-          id={newRealmCrestId(editing.path)}
+          id={newRealmCrestIdOf(editing.path)}
           initial={editing.crest}
           name={editing.name.trim() || (editing.path === "" ? "New realm" : folderNameOf(editing.path))}
           onCancel={() => setIsStudioOpen(false)}

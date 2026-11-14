@@ -20,7 +20,7 @@ const migrateUntil = (last: string) =>
     loader: SqliteMigrator.fromRecord(Object.fromEntries(Object.entries(migrations).filter(([id]) => id <= last))),
   });
 
-describe("realm archive migration", () => {
+describe("migrating saved realms to archive support", () => {
   it.live("reads a realm saved before archive support as active without rewriting it", () => {
     const directory = mkdtempSync(join(tmpdir(), "iskios-store-"));
     directories.push(directory);
