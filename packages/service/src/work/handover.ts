@@ -1,7 +1,7 @@
 import type { BackupCompanion, EffortChoice, HarnessName, ModelChoice } from "@iskios/contracts";
 import { Clock, Effect } from "effect";
 import { SqlClient } from "effect/sql";
-import { invalid, notFound, tokensOf } from "../core/index.ts";
+import { notFound, tokensOf } from "../core/index.ts";
 import { checkAccount, checkBackups, harnessLabels, type Runner } from "../harness/index.ts";
 import { contextWindowOf } from "../lore/index.ts";
 import { readStoredAttachments } from "./attachments.ts";
@@ -26,8 +26,10 @@ const handoverTextOf = (runner: Runner, accountLabel: string | null, fellBackAft
   ].join(" · ");
 
 /**
- * Changes the thread's runner. Refused while the thread is in a turn. A change of harness or account forgets the
- * harness session, so the thread's next turn starts a new one with the conversation so far. The owner's change starts
+ * Changes the thread's runner. Allowed while the thread is in a turn too: that turn finishes on the runner it started
+ * on (`isRunnerChangedSince` keeps it from saving its session or falling back), and the next one runs on the new
+ * runner. A change of harness or account forgets the harness session, so the thread's next turn starts a new one with
+ * the conversation so far. The owner's change starts
  * no turn and leaves no line until one does (`recordPendingHandover`): a message waiting after a failed turn runs on the new runner when the owner retries or writes again. A
  * fallback (backups, rituals) passes the failure that caused it, which the line then gives after the new runner, and
  * runs the waiting messages at once.
@@ -48,12 +50,9 @@ export const changeThreadRunner = (
       harness: HarnessName;
       missionId: string;
       model: ModelChoice;
-      state: string;
-    }>`SELECT mission_id AS missionId, state, harness, account_id AS accountId, model, effort
+    }>`SELECT mission_id AS missionId, harness, account_id AS accountId, model, effort
       FROM threads WHERE id = ${threadId} AND is_deleting = 0`;
     if (thread === undefined) return yield* notFound("No such thread.");
-    if (thread.state === "Running" || thread.state === "Attention")
-      return yield* invalid("This thread is in a turn. Interrupt or stop it, then change its harness or model.");
     yield* checkAccount(runner);
     // A chosen preset's backups replace the thread's in the same step, so a refusal leaves both as they were.
     if (backups !== null) yield* checkBackups(backups);
@@ -75,6 +74,36 @@ export const changeThreadRunner = (
     // The owner's change waits for the owner: their next message, or Retry after a failed turn, runs on it. A
     // fallback after a failure runs the waiting messages on the new runner at once.
     return fellBackAfter === null ? changed(null) : changed(null, { threadsToWake: [threadId] });
+  });
+
+/** Whether the thread's runner is no longer the one this turn started on: the owner changed it during the turn. */
+export const isRunnerChangedSince = (
+  threadId: string,
+  turn: { accountId: string | null; effort: string; harness: string; model: string },
+) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const [row] = yield* sql<{ accountId: string | null; effort: string; harness: string; model: string }>`
+      SELECT harness, account_id AS accountId, model, effort FROM threads WHERE id = ${threadId}`;
+    return (
+      row !== undefined &&
+      (row.harness !== turn.harness ||
+        row.accountId !== turn.accountId ||
+        row.model !== turn.model ||
+        row.effort !== turn.effort)
+    );
+  });
+
+/**
+ * Whether the thread still runs on the harness and account of this turn. When the owner changed either during the
+ * turn, the turn's harness session belongs to the runner it left and is not kept.
+ */
+export const isSessionOfThread = (threadId: string, turn: { accountId: string | null; harness: string }) =>
+  Effect.gen(function* () {
+    const sql = yield* SqlClient.SqlClient;
+    const [row] = yield* sql<{ accountId: string | null; harness: string }>`
+      SELECT harness, account_id AS accountId FROM threads WHERE id = ${threadId}`;
+    return row === undefined || (row.harness === turn.harness && row.accountId === turn.accountId);
   });
 
 /** Writes one handover line for a runner, at the given time. */

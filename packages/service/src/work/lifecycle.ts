@@ -69,7 +69,7 @@ export const startRunning = (threadId: string) =>
  * A turn ends: the thread is Done if it reported its result in it, Waiting with work still at work
  * beneath it, otherwise Idle; its parents relax.
  */
-export const endTurn = (threadId: string, turnId: string, sessionId: string) =>
+export const endTurn = (threadId: string, turnId: string, sessionId: string | null) =>
   Effect.gen(function* () {
     const sql = yield* SqlClient.SqlClient;
     const [row] = yield* sql<{ reportedTurnId: string | null; active: number }>`
